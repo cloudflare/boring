@@ -1,7 +1,5 @@
 [workspace]
 members = [
     "openssl",
-    "openssl-errors",
     "openssl-sys",
-    "systest",
 ]
