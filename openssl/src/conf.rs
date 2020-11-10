@@ -1,33 +1,24 @@
 //! Interface for processing OpenSSL configuration files.
 use ffi;
+use libc::c_void;
 
 use cvt_p;
 use error::ErrorStack;
 
-pub struct ConfMethod(*mut ffi::CONF_METHOD);
+pub struct ConfMethod(*mut c_void);
 
 impl ConfMethod {
-    /// Retrieve handle to the default OpenSSL configuration file processing function.
-    pub fn default() -> ConfMethod {
-        unsafe {
-            ffi::init();
-            // `NCONF` stands for "New Conf", as described in crypto/conf/conf_lib.c. This is
-            // a newer API than the "CONF classic" functions.
-            ConfMethod(ffi::NCONF_default())
-        }
-    }
-
     /// Construct from raw pointer.
     ///
     /// # Safety
     ///
     /// The caller must ensure that the pointer is valid.
-    pub unsafe fn from_ptr(ptr: *mut ffi::CONF_METHOD) -> ConfMethod {
+    pub unsafe fn from_ptr(ptr: *mut c_void) -> ConfMethod {
         ConfMethod(ptr)
     }
 
     /// Convert to raw pointer.
-    pub fn as_ptr(&self) -> *mut ffi::CONF_METHOD {
+    pub fn as_ptr(&self) -> *mut c_void {
         self.0
     }
 }

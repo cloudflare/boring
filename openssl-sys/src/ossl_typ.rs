@@ -532,7 +532,6 @@ cfg_if! {
             sid_ctx_length: c_uint,
             sid_ctx: [c_uchar; ::SSL_MAX_SID_CTX_LENGTH as usize],
             session: *mut ::SSL_SESSION,
-            generate_session_id: ::GEN_SESSION_CB,
             verify_mode: c_int,
             verify_callback: Option<unsafe extern "C" fn(c_int, *mut ::X509_STORE_CTX) -> c_int>,
             info_callback: Option<unsafe extern "C" fn(*mut SSL, c_int, c_int)>,
@@ -567,7 +566,6 @@ cfg_if! {
             tlsext_ellipticcurvelist_length: size_t,
             tlsext_ellipticcurvelist: *mut c_uchar,
             tlsext_session_ticket: *mut c_void,
-            tlsext_session_ticket_ext_cb: ::tls_session_ticket_ext_cb_fn,
             tls_session_ticket_ext_cb_arg: *mut c_void,
             tls_session_secret_cb: ::tls_session_secret_cb_fn,
             tls_session_secret_cb_arg: *mut c_void,
@@ -630,7 +628,6 @@ cfg_if! {
             sid_ctx_length: c_uint,
             sid_ctx: [c_uchar; ::SSL_MAX_SID_CTX_LENGTH as usize],
             session: *mut ::SSL_SESSION,
-            generate_session_id: ::GEN_SESSION_CB,
             verify_mode: c_int,
             verify_callback: Option<unsafe extern "C" fn(c_int, *mut ::X509_STORE_CTX) -> c_int>,
             info_callback: Option<unsafe extern "C" fn(*mut SSL, c_int, c_int)>,
@@ -707,8 +704,6 @@ cfg_if! {
             tlsext_opaque_prf_input_len: size_t,
             #[cfg(not(osslconf = "OPENSSL_NO_TLSEXT"))]
             tlsext_session_ticket: *mut c_void,
-            #[cfg(not(osslconf = "OPENSSL_NO_TLSEXT"))]
-            tlsext_session_ticket_ext_cb: ::tls_session_ticket_ext_cb_fn,
             #[cfg(not(osslconf = "OPENSSL_NO_TLSEXT"))]
             tls_session_ticket_ext_cb_arg: *mut c_void,
             #[cfg(not(osslconf = "OPENSSL_NO_TLSEXT"))]

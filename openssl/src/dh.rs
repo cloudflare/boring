@@ -75,34 +75,8 @@ impl Dh<Params> {
         /// [`d2i_DHparams`]: https://www.openssl.org/docs/man1.1.0/crypto/d2i_DHparams.html
         params_from_der,
         Dh<Params>,
-        ffi::d2i_DHparams
-    }
-
-    /// Requires OpenSSL 1.0.2 or newer.
-    #[cfg(any(ossl102, ossl110))]
-    pub fn get_1024_160() -> Result<Dh<Params>, ErrorStack> {
-        unsafe {
-            ffi::init();
-            cvt_p(ffi::DH_get_1024_160()).map(|p| Dh::from_ptr(p))
-        }
-    }
-
-    /// Requires OpenSSL 1.0.2 or newer.
-    #[cfg(any(ossl102, ossl110))]
-    pub fn get_2048_224() -> Result<Dh<Params>, ErrorStack> {
-        unsafe {
-            ffi::init();
-            cvt_p(ffi::DH_get_2048_224()).map(|p| Dh::from_ptr(p))
-        }
-    }
-
-    /// Requires OpenSSL 1.0.2 or newer.
-    #[cfg(any(ossl102, ossl110))]
-    pub fn get_2048_256() -> Result<Dh<Params>, ErrorStack> {
-        unsafe {
-            ffi::init();
-            cvt_p(ffi::DH_get_2048_256()).map(|p| Dh::from_ptr(p))
-        }
+        ffi::d2i_DHparams,
+        ::libc::c_long
     }
 }
 

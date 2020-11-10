@@ -14,15 +14,6 @@ pub const CRYPTO_LOCK_SSL_SESSION: c_int = 14;
 stack!(stack_st_void);
 
 cfg_if! {
-    if #[cfg(ossl110)] {
-        pub const CRYPTO_EX_INDEX_SSL: c_int = 0;
-        pub const CRYPTO_EX_INDEX_SSL_CTX: c_int = 1;
-    } else if #[cfg(libressl)] {
-        pub const CRYPTO_EX_INDEX_SSL: c_int = 1;
-        pub const CRYPTO_EX_INDEX_SSL_CTX: c_int = 2;
-    }
-}
-cfg_if! {
     if #[cfg(any(ossl110, libressl271))] {
         extern "C" {
             pub fn OpenSSL_version_num() -> c_ulong;
@@ -71,17 +62,6 @@ pub type CRYPTO_EX_free = unsafe extern "C" fn(
     argl: c_long,
     argp: *mut c_void,
 );
-extern "C" {
-    #[cfg(any(ossl110, libressl))]
-    pub fn CRYPTO_get_ex_new_index(
-        class_index: c_int,
-        argl: c_long,
-        argp: *mut c_void,
-        new_func: Option<CRYPTO_EX_new>,
-        dup_func: Option<CRYPTO_EX_dup>,
-        free_func: Option<CRYPTO_EX_free>,
-    ) -> c_int;
-}
 
 pub const CRYPTO_LOCK: c_int = 1;
 
@@ -106,18 +86,9 @@ extern "C" {
     ) -> c_int;
 }
 
-cfg_if! {
-    if #[cfg(ossl110)] {
-        extern "C" {
-            pub fn CRYPTO_malloc(num: size_t, file: *const c_char, line: c_int) -> *mut c_void;
-            pub fn CRYPTO_free(buf: *mut c_void, file: *const c_char, line: c_int);
-        }
-    } else {
-        extern "C" {
-            pub fn CRYPTO_malloc(num: c_int, file: *const c_char, line: c_int) -> *mut c_void;
-            pub fn CRYPTO_free(buf: *mut c_void);
-        }
-    }
+extern "C" {
+    pub fn OPENSSL_malloc(num: size_t) -> *mut c_void;
+    pub fn OPENSSL_free(buf: *mut c_void);
 }
 
 extern "C" {

@@ -639,7 +639,8 @@ impl X509 {
         /// [`d2i_X509`]: https://www.openssl.org/docs/manmaster/man3/d2i_X509.html
         from_der,
         X509,
-        ffi::d2i_X509
+        ffi::d2i_X509,
+        ::libc::c_long
     }
 
     /// Deserializes a list of PEM-formatted certificates.
@@ -1142,7 +1143,8 @@ impl X509Req {
         /// [`d2i_X509_REQ`]: https://www.openssl.org/docs/man1.1.0/crypto/d2i_X509_REQ.html
         from_der,
         X509Req,
-        ffi::d2i_X509_REQ
+        ffi::d2i_X509_REQ,
+        ::libc::c_long
     }
 }
 
@@ -1512,14 +1514,7 @@ cfg_if! {
     }
 }
 
-cfg_if! {
-    if #[cfg(ossl110)] {
-        use ffi::X509_OBJECT_free;
-    } else {
-        #[allow(bad_style)]
-        unsafe fn X509_OBJECT_free(x: *mut ffi::X509_OBJECT) {
-            ffi::X509_OBJECT_free_contents(x);
-            ffi::CRYPTO_free(x as *mut libc::c_void);
-        }
-    }
+unsafe fn X509_OBJECT_free(x: *mut ffi::X509_OBJECT) {
+    ffi::X509_OBJECT_free_contents(x);
+    ffi::OPENSSL_free(x as *mut libc::c_void);
 }

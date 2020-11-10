@@ -10,35 +10,26 @@ pub const AES_BLOCK_SIZE: c_int = 16;
 pub struct AES_KEY {
     // There is some business with AES_LONG which is there to ensure the values here are 32 bits
     rd_key: [u32; 4 * (AES_MAXNR as usize + 1)],
-    rounds: c_int,
+    rounds: c_uint,
 }
 
 extern "C" {
-    pub fn AES_set_encrypt_key(userKey: *const c_uchar, bits: c_int, key: *mut AES_KEY) -> c_int;
-    pub fn AES_set_decrypt_key(userKey: *const c_uchar, bits: c_int, key: *mut AES_KEY) -> c_int;
-
-    pub fn AES_ige_encrypt(
-        in_: *const c_uchar,
-        out: *mut c_uchar,
-        length: size_t,
-        key: *const AES_KEY,
-        ivec: *mut c_uchar,
-        enc: c_int,
-    );
+    pub fn AES_set_encrypt_key(userKey: *const c_uchar, bits: c_uint, key: *mut AES_KEY) -> c_int;
+    pub fn AES_set_decrypt_key(userKey: *const c_uchar, bits: c_uint, key: *mut AES_KEY) -> c_int;
 
     pub fn AES_wrap_key(
-        key: *mut AES_KEY,
+        key: *const AES_KEY,
         iv: *const c_uchar,
         out: *mut c_uchar,
         in_: *const c_uchar,
-        inlen: c_uint,
+        inlen: size_t,
     ) -> c_int;
 
     pub fn AES_unwrap_key(
-        key: *mut AES_KEY,
+        key: *const AES_KEY,
         iv: *const c_uchar,
         out: *mut c_uchar,
         in_: *const c_uchar,
-        inlen: c_uint,
+        inlen: size_t,
     ) -> c_int;
 }

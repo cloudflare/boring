@@ -46,10 +46,6 @@ impl MessageDigest {
         }
     }
 
-    pub fn null() -> MessageDigest {
-        unsafe { MessageDigest(ffi::EVP_md_null()) }
-    }
-
     pub fn md5() -> MessageDigest {
         unsafe { MessageDigest(ffi::EVP_md5()) }
     }
@@ -102,10 +98,6 @@ impl MessageDigest {
     #[cfg(ossl111)]
     pub fn shake_256() -> MessageDigest {
         unsafe { MessageDigest(ffi::EVP_shake256()) }
-    }
-
-    pub fn ripemd160() -> MessageDigest {
-        unsafe { MessageDigest(ffi::EVP_ripemd160()) }
     }
 
     #[allow(clippy::trivially_copy_pass_by_ref)]

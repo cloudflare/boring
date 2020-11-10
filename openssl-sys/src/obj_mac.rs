@@ -2,10 +2,8 @@ use libc::*;
 
 pub const NID_undef: c_int = 0;
 pub const NID_itu_t: c_int = 645;
-pub const NID_ccitt: c_int = 404;
 pub const NID_iso: c_int = 181;
 pub const NID_joint_iso_itu_t: c_int = 646;
-pub const NID_joint_iso_ccitt: c_int = 393;
 pub const NID_member_body: c_int = 182;
 pub const NID_identified_organization: c_int = 676;
 pub const NID_hmac_md5: c_int = 780;

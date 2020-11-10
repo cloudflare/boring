@@ -36,12 +36,7 @@ bitflags! {
         const BINARY = ffi::PKCS7_BINARY;
         const NOATTR = ffi::PKCS7_NOATTR;
         const NOSMIMECAP = ffi::PKCS7_NOSMIMECAP;
-        const NOOLDMIMETYPE = ffi::PKCS7_NOOLDMIMETYPE;
-        const CRLFEOL = ffi::PKCS7_CRLFEOL;
         const STREAM = ffi::PKCS7_STREAM;
-        const NOCRL = ffi::PKCS7_NOCRL;
-        const PARTIAL = ffi::PKCS7_PARTIAL;
-        const REUSE_DIGEST = ffi::PKCS7_REUSE_DIGEST;
         #[cfg(not(any(ossl101, ossl102, libressl)))]
         const NO_DUAL_CONTENT = ffi::PKCS7_NO_DUAL_CONTENT;
     }
@@ -69,61 +64,8 @@ impl Pkcs7 {
         /// [`d2i_PKCS7`]: https://www.openssl.org/docs/man1.1.0/man3/d2i_PKCS7.html
         from_der,
         Pkcs7,
-        ffi::d2i_PKCS7
-    }
-
-    /// Parses a message in S/MIME format.
-    ///
-    /// Returns the loaded signature, along with the cleartext message (if
-    /// available).
-    ///
-    /// This corresponds to [`SMIME_read_PKCS7`].
-    ///
-    /// [`SMIME_read_PKCS7`]: https://www.openssl.org/docs/man1.1.0/crypto/SMIME_read_PKCS7.html
-    pub fn from_smime(input: &[u8]) -> Result<(Pkcs7, Option<Vec<u8>>), ErrorStack> {
-        ffi::init();
-
-        let input_bio = MemBioSlice::new(input)?;
-        let mut bcont_bio = ptr::null_mut();
-        unsafe {
-            let pkcs7 =
-                cvt_p(ffi::SMIME_read_PKCS7(input_bio.as_ptr(), &mut bcont_bio)).map(Pkcs7)?;
-            let out = if !bcont_bio.is_null() {
-                let bcont_bio = MemBio::from_ptr(bcont_bio);
-                Some(bcont_bio.get_buf().to_vec())
-            } else {
-                None
-            };
-            Ok((pkcs7, out))
-        }
-    }
-
-    /// Creates and returns a PKCS#7 `envelopedData` structure.
-    ///
-    /// `certs` is a list of recipient certificates. `input` is the content to be
-    /// encrypted. `cipher` is the symmetric cipher to use. `flags` is an optional
-    /// set of flags.
-    ///
-    /// This corresponds to [`PKCS7_encrypt`].
-    ///
-    /// [`PKCS7_encrypt`]: https://www.openssl.org/docs/man1.0.2/crypto/PKCS7_encrypt.html
-    pub fn encrypt(
-        certs: &StackRef<X509>,
-        input: &[u8],
-        cipher: Cipher,
-        flags: Pkcs7Flags,
-    ) -> Result<Pkcs7, ErrorStack> {
-        let input_bio = MemBioSlice::new(input)?;
-
-        unsafe {
-            cvt_p(ffi::PKCS7_encrypt(
-                certs.as_ptr(),
-                input_bio.as_ptr(),
-                cipher.as_ptr(),
-                flags.bits,
-            ))
-            .map(Pkcs7)
-        }
+        ffi::d2i_PKCS7,
+        ::libc::size_t
     }
 
     /// Creates and returns a PKCS#7 `signedData` structure.
@@ -161,25 +103,6 @@ impl Pkcs7 {
 }
 
 impl Pkcs7Ref {
-    /// Converts PKCS#7 structure to S/MIME format
-    ///
-    /// This corresponds to [`SMIME_write_PKCS7`].
-    ///
-    /// [`SMIME_write_PKCS7`]: https://www.openssl.org/docs/man1.1.0/crypto/SMIME_write_PKCS7.html
-    pub fn to_smime(&self, input: &[u8], flags: Pkcs7Flags) -> Result<Vec<u8>, ErrorStack> {
-        let input_bio = MemBioSlice::new(input)?;
-        let output = MemBio::new()?;
-        unsafe {
-            cvt(ffi::SMIME_write_PKCS7(
-                output.as_ptr(),
-                self.as_ptr(),
-                input_bio.as_ptr(),
-                flags.bits,
-            ))
-            .map(|_| output.get_buf().to_owned())
-        }
-    }
-
     to_pem! {
         /// Serializes the data into a PEM-encoded PKCS#7 structure.
         ///
@@ -200,85 +123,6 @@ impl Pkcs7Ref {
         /// [`i2d_PKCS7`]: https://www.openssl.org/docs/man1.1.0/man3/i2d_PKCS7.html
         to_der,
         ffi::i2d_PKCS7
-    }
-
-    /// Decrypts data using the provided private key.
-    ///
-    /// `pkey` is the recipient's private key, and `cert` is the recipient's
-    /// certificate.
-    ///
-    /// Returns the decrypted message.
-    ///
-    /// This corresponds to [`PKCS7_decrypt`].
-    ///
-    /// [`PKCS7_decrypt`]: https://www.openssl.org/docs/man1.0.2/crypto/PKCS7_decrypt.html
-    pub fn decrypt<PT>(
-        &self,
-        pkey: &PKeyRef<PT>,
-        cert: &X509Ref,
-        flags: Pkcs7Flags,
-    ) -> Result<Vec<u8>, ErrorStack>
-    where
-        PT: HasPrivate,
-    {
-        let output = MemBio::new()?;
-
-        unsafe {
-            cvt(ffi::PKCS7_decrypt(
-                self.as_ptr(),
-                pkey.as_ptr(),
-                cert.as_ptr(),
-                output.as_ptr(),
-                flags.bits,
-            ))
-            .map(|_| output.get_buf().to_owned())
-        }
-    }
-
-    /// Verifies the PKCS#7 `signedData` structure contained by `&self`.
-    ///
-    /// `certs` is a set of certificates in which to search for the signer's
-    /// certificate. `store` is a trusted certificate store (used for chain
-    /// verification). `indata` is the signed data if the content is not present
-    /// in `&self`. The content is written to `out` if it is not `None`.
-    ///
-    /// This corresponds to [`PKCS7_verify`].
-    ///
-    /// [`PKCS7_verify`]: https://www.openssl.org/docs/man1.0.2/crypto/PKCS7_verify.html
-    pub fn verify(
-        &self,
-        certs: &StackRef<X509>,
-        store: &X509StoreRef,
-        indata: Option<&[u8]>,
-        out: Option<&mut Vec<u8>>,
-        flags: Pkcs7Flags,
-    ) -> Result<(), ErrorStack> {
-        let out_bio = MemBio::new()?;
-
-        let indata_bio = match indata {
-            Some(data) => Some(MemBioSlice::new(data)?),
-            None => None,
-        };
-        let indata_bio_ptr = indata_bio.as_ref().map_or(ptr::null_mut(), |p| p.as_ptr());
-
-        unsafe {
-            cvt(ffi::PKCS7_verify(
-                self.as_ptr(),
-                certs.as_ptr(),
-                store.as_ptr(),
-                indata_bio_ptr,
-                out_bio.as_ptr(),
-                flags.bits,
-            ))
-            .map(|_| ())?
-        }
-
-        if let Some(data) = out {
-            data.clear();
-            data.extend_from_slice(out_bio.get_buf());
-        }
-
-        Ok(())
     }
 }
 

@@ -1,20 +1,18 @@
 use libc::*;
 
-pub type SHA_LONG = c_uint;
-
-pub const SHA_LBLOCK: c_int = 16;
+pub const SHA_CBLOCK: c_uint = 64;
 
 #[repr(C)]
 #[derive(Clone)]
 pub struct SHA_CTX {
-    pub h0: SHA_LONG,
-    pub h1: SHA_LONG,
-    pub h2: SHA_LONG,
-    pub h3: SHA_LONG,
-    pub h4: SHA_LONG,
-    pub Nl: SHA_LONG,
-    pub Nh: SHA_LONG,
-    pub data: [SHA_LONG; SHA_LBLOCK as usize],
+    pub h0: c_uint,
+    pub h1: c_uint,
+    pub h2: c_uint,
+    pub h3: c_uint,
+    pub h4: c_uint,
+    pub Nl: c_uint,
+    pub Nh: c_uint,
+    pub data: [c_uchar; SHA_CBLOCK as usize],
     pub num: c_uint,
 }
 
@@ -25,13 +23,15 @@ extern "C" {
     pub fn SHA1(d: *const c_uchar, n: size_t, md: *mut c_uchar) -> *mut c_uchar;
 }
 
+pub const SHA256_CBLOCK: c_int = 64;
+
 #[repr(C)]
 #[derive(Clone)]
 pub struct SHA256_CTX {
-    pub h: [SHA_LONG; 8],
-    pub Nl: SHA_LONG,
-    pub Nh: SHA_LONG,
-    pub data: [SHA_LONG; SHA_LBLOCK as usize],
+    pub h: [c_uint; 8],
+    pub Nl: c_uint,
+    pub Nh: c_uint,
+    pub data: [c_uchar; SHA256_CBLOCK as usize],
     pub num: c_uint,
     pub md_len: c_uint,
 }
@@ -47,16 +47,16 @@ extern "C" {
     pub fn SHA256(d: *const c_uchar, n: size_t, md: *mut c_uchar) -> *mut c_uchar;
 }
 
-pub type SHA_LONG64 = u64;
+pub const SHA512_CBLOCK: c_int = 128;
 
 #[repr(C)]
 #[derive(Clone)]
 pub struct SHA512_CTX {
-    pub h: [SHA_LONG64; 8],
-    pub Nl: SHA_LONG64,
-    pub Nh: SHA_LONG64,
+    pub h: [u64; 8],
+    pub Nl: u64,
+    pub Nh: u64,
     // this is a union but we don't want to require 1.19
-    u: [SHA_LONG64; SHA_LBLOCK as usize],
+    u: [c_uchar; SHA512_CBLOCK as usize],
     pub num: c_uint,
     pub md_len: c_uint,
 }

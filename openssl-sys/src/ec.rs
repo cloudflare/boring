@@ -17,11 +17,6 @@ pub enum EC_POINT {}
 pub const OPENSSL_EC_NAMED_CURVE: c_int = 1;
 
 extern "C" {
-    #[cfg(not(osslconf = "OPENSSL_NO_EC2M"))]
-    pub fn EC_GF2m_simple_method() -> *const EC_METHOD;
-
-    pub fn EC_GROUP_new(meth: *const EC_METHOD) -> *mut EC_GROUP;
-
     pub fn EC_GROUP_free(group: *mut EC_GROUP);
 
     pub fn EC_GROUP_get_order(
@@ -50,29 +45,12 @@ extern "C" {
         ctx: *mut BN_CTX,
     ) -> c_int;
 
-    #[cfg(not(osslconf = "OPENSSL_NO_EC2M"))]
-    pub fn EC_GROUP_get_curve_GF2m(
-        group: *const EC_GROUP,
-        p: *mut BIGNUM,
-        a: *mut BIGNUM,
-        b: *mut BIGNUM,
-        ctx: *mut BN_CTX,
-    ) -> c_int;
-
-    pub fn EC_GROUP_get_degree(group: *const EC_GROUP) -> c_int;
+    pub fn EC_GROUP_get_degree(group: *const EC_GROUP) -> c_uint;
 
     #[cfg(ossl110)]
     pub fn EC_GROUP_order_bits(group: *const EC_GROUP) -> c_int;
 
     pub fn EC_GROUP_new_curve_GFp(
-        p: *const BIGNUM,
-        a: *const BIGNUM,
-        b: *const BIGNUM,
-        ctx: *mut BN_CTX,
-    ) -> *mut EC_GROUP;
-
-    #[cfg(not(osslconf = "OPENSSL_NO_EC2M"))]
-    pub fn EC_GROUP_new_curve_GF2m(
         p: *const BIGNUM,
         a: *const BIGNUM,
         b: *const BIGNUM,
@@ -88,15 +66,6 @@ extern "C" {
     pub fn EC_POINT_dup(p: *const EC_POINT, group: *const EC_GROUP) -> *mut EC_POINT;
 
     pub fn EC_POINT_get_affine_coordinates_GFp(
-        group: *const EC_GROUP,
-        p: *const EC_POINT,
-        x: *mut BIGNUM,
-        y: *mut BIGNUM,
-        ctx: *mut BN_CTX,
-    ) -> c_int;
-
-    #[cfg(not(osslconf = "OPENSSL_NO_EC2M"))]
-    pub fn EC_POINT_get_affine_coordinates_GF2m(
         group: *const EC_GROUP,
         p: *const EC_POINT,
         x: *mut BIGNUM,
@@ -175,8 +144,8 @@ extern "C" {
 
     pub fn EC_KEY_set_public_key_affine_coordinates(
         key: *mut EC_KEY,
-        x: *mut BIGNUM,
-        y: *mut BIGNUM,
+        x: *const BIGNUM,
+        y: *const BIGNUM,
     ) -> c_int;
 }
 
@@ -205,15 +174,15 @@ extern "C" {
 
     pub fn ECDSA_do_sign(
         dgst: *const c_uchar,
-        dgst_len: c_int,
-        eckey: *mut EC_KEY,
+        dgst_len: size_t,
+        eckey: *const EC_KEY,
     ) -> *mut ECDSA_SIG;
 
     pub fn ECDSA_do_verify(
         dgst: *const c_uchar,
-        dgst_len: c_int,
+        dgst_len: size_t,
         sig: *const ECDSA_SIG,
-        eckey: *mut EC_KEY,
+        eckey: *const EC_KEY,
     ) -> c_int;
 
     pub fn d2i_ECDSA_SIG(

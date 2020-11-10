@@ -13,6 +13,8 @@ use stack::Stack;
 use x509::{X509Ref, X509};
 use {cvt, cvt_p};
 
+pub const PKCS12_DEFAULT_ITER: c_int = 2048;
+
 foreign_type_and_impl_send_sync! {
     type CType = ffi::PKCS12;
     fn drop = ffi::PKCS12_free;
@@ -72,7 +74,8 @@ impl Pkcs12 {
         /// [`d2i_PKCS12`]: https://www.openssl.org/docs/man1.1.0/crypto/d2i_PKCS12.html
         from_der,
         Pkcs12,
-        ffi::d2i_PKCS12
+        ffi::d2i_PKCS12,
+        ::libc::size_t
     }
 
     /// Creates a new builder for a protected pkcs12 certificate.
@@ -89,8 +92,8 @@ impl Pkcs12 {
         Pkcs12Builder {
             nid_key: Nid::UNDEF,  //nid::PBE_WITHSHA1AND3_KEY_TRIPLEDES_CBC,
             nid_cert: Nid::UNDEF, //nid::PBE_WITHSHA1AND40BITRC2_CBC,
-            iter: ffi::PKCS12_DEFAULT_ITER,
-            mac_iter: ffi::PKCS12_DEFAULT_ITER,
+            iter: PKCS12_DEFAULT_ITER,
+            mac_iter: PKCS12_DEFAULT_ITER,
             ca: None,
         }
     }

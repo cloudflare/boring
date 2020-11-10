@@ -1,6 +1,6 @@
 use ffi;
 use foreign_types::{ForeignType, ForeignTypeRef, Opaque};
-use libc::c_int;
+use libc::{c_int, size_t};
 use std::borrow::Borrow;
 use std::convert::AsRef;
 use std::fmt;
@@ -10,22 +10,13 @@ use std::mem;
 use std::ops::{Deref, DerefMut, Index, IndexMut, Range};
 
 use error::ErrorStack;
-use {cvt, cvt_p};
+use {cvt, cvt_0, cvt_p};
 
-cfg_if! {
-    if #[cfg(ossl110)] {
-        use ffi::{
-            OPENSSL_sk_pop, OPENSSL_sk_free, OPENSSL_sk_num, OPENSSL_sk_value, OPENSSL_STACK,
-            OPENSSL_sk_new_null, OPENSSL_sk_push,
-        };
-    } else {
-        use ffi::{
-            sk_pop as OPENSSL_sk_pop, sk_free as OPENSSL_sk_free, sk_num as OPENSSL_sk_num,
-            sk_value as OPENSSL_sk_value, _STACK as OPENSSL_STACK,
-            sk_new_null as OPENSSL_sk_new_null, sk_push as OPENSSL_sk_push,
-        };
-    }
-}
+use ffi::{
+    sk_free as OPENSSL_sk_free, sk_new_null as OPENSSL_sk_new_null, sk_num as OPENSSL_sk_num,
+    sk_pop as OPENSSL_sk_pop, sk_push as OPENSSL_sk_push, sk_value as OPENSSL_sk_value,
+    _STACK as OPENSSL_STACK,
+};
 
 /// Trait implemented by types which can be placed in a stack.
 ///
@@ -79,7 +70,7 @@ impl<T: Stackable> iter::IntoIterator for Stack<T> {
     fn into_iter(self) -> IntoIter<T> {
         let it = IntoIter {
             stack: self.0,
-            idxs: 0..self.len() as c_int,
+            idxs: 0..self.len(),
         };
         mem::forget(self);
         it
@@ -134,7 +125,7 @@ impl<T: Stackable> DerefMut for Stack<T> {
 
 pub struct IntoIter<T: Stackable> {
     stack: *mut T::StackType,
-    idxs: Range<c_int>,
+    idxs: Range<size_t>,
 }
 
 impl<T: Stackable> Drop for IntoIter<T> {
@@ -201,13 +192,13 @@ impl<T: Stackable> StackRef<T> {
     pub fn iter(&self) -> Iter<T> {
         Iter {
             stack: self,
-            idxs: 0..self.len() as c_int,
+            idxs: 0..self.len(),
         }
     }
 
     pub fn iter_mut(&mut self) -> IterMut<T> {
         IterMut {
-            idxs: 0..self.len() as c_int,
+            idxs: 0..self.len(),
             stack: self,
         }
     }
@@ -239,7 +230,7 @@ impl<T: Stackable> StackRef<T> {
     /// Pushes a value onto the top of the stack.
     pub fn push(&mut self, data: T) -> Result<(), ErrorStack> {
         unsafe {
-            cvt(OPENSSL_sk_push(self.as_stack(), data.as_ptr() as *mut _))?;
+            cvt_0(OPENSSL_sk_push(self.as_stack(), data.as_ptr() as *mut _))?;
             mem::forget(data);
             Ok(())
         }
@@ -258,7 +249,7 @@ impl<T: Stackable> StackRef<T> {
     }
 
     unsafe fn _get(&self, idx: usize) -> *mut T::CType {
-        OPENSSL_sk_value(self.as_stack(), idx as c_int) as *mut _
+        OPENSSL_sk_value(self.as_stack(), idx) as *mut _
     }
 }
 
@@ -318,7 +309,7 @@ where
     T: 'a,
 {
     stack: &'a StackRef<T>,
-    idxs: Range<c_int>,
+    idxs: Range<size_t>,
 }
 
 impl<'a, T: Stackable> Iterator for Iter<'a, T> {
@@ -352,7 +343,7 @@ impl<'a, T: Stackable> ExactSizeIterator for Iter<'a, T> {}
 /// A mutable iterator over the stack's contents.
 pub struct IterMut<'a, T: Stackable + 'a> {
     stack: &'a mut StackRef<T>,
-    idxs: Range<c_int>,
+    idxs: Range<size_t>,
 }
 
 impl<'a, T: Stackable> Iterator for IterMut<'a, T> {

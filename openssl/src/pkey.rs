@@ -79,7 +79,6 @@ pub struct Id(c_int);
 
 impl Id {
     pub const RSA: Id = Id(ffi::EVP_PKEY_RSA);
-    pub const HMAC: Id = Id(ffi::EVP_PKEY_HMAC);
     pub const DSA: Id = Id(ffi::EVP_PKEY_DSA);
     pub const DH: Id = Id(ffi::EVP_PKEY_DH);
     pub const EC: Id = Id(ffi::EVP_PKEY_EC);
@@ -295,7 +294,6 @@ impl<T> fmt::Debug for PKey<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let alg = match self.id() {
             Id::RSA => "RSA",
-            Id::HMAC => "HMAC",
             Id::DSA => "DSA",
             Id::DH => "DH",
             Id::EC => "EC",
@@ -395,87 +393,6 @@ impl<T> PKey<T> {
 }
 
 impl PKey<Private> {
-    /// Creates a new `PKey` containing an HMAC key.
-    ///
-    /// # Note
-    ///
-    /// To compute HMAC values, use the `sign` module.
-    pub fn hmac(key: &[u8]) -> Result<PKey<Private>, ErrorStack> {
-        unsafe {
-            assert!(key.len() <= c_int::max_value() as usize);
-            let key = cvt_p(ffi::EVP_PKEY_new_mac_key(
-                ffi::EVP_PKEY_HMAC,
-                ptr::null_mut(),
-                key.as_ptr() as *const _,
-                key.len() as c_int,
-            ))?;
-            Ok(PKey::from_ptr(key))
-        }
-    }
-
-    /// Creates a new `PKey` containing a CMAC key.
-    ///
-    /// Requires OpenSSL 1.1.0 or newer.
-    ///
-    /// # Note
-    ///
-    /// To compute CMAC values, use the `sign` module.
-    #[cfg(ossl110)]
-    #[allow(clippy::trivially_copy_pass_by_ref)]
-    pub fn cmac(cipher: &Cipher, key: &[u8]) -> Result<PKey<Private>, ErrorStack> {
-        unsafe {
-            assert!(key.len() <= c_int::max_value() as usize);
-            let kctx = cvt_p(ffi::EVP_PKEY_CTX_new_id(
-                ffi::EVP_PKEY_CMAC,
-                ptr::null_mut(),
-            ))?;
-
-            let ret = (|| {
-                cvt(ffi::EVP_PKEY_keygen_init(kctx))?;
-
-                // Set cipher for cmac
-                cvt(ffi::EVP_PKEY_CTX_ctrl(
-                    kctx,
-                    -1,
-                    ffi::EVP_PKEY_OP_KEYGEN,
-                    ffi::EVP_PKEY_CTRL_CIPHER,
-                    0,
-                    cipher.as_ptr() as *mut _,
-                ))?;
-
-                // Set the key data
-                cvt(ffi::EVP_PKEY_CTX_ctrl(
-                    kctx,
-                    -1,
-                    ffi::EVP_PKEY_OP_KEYGEN,
-                    ffi::EVP_PKEY_CTRL_SET_MAC_KEY,
-                    key.len() as c_int,
-                    key.as_ptr() as *mut _,
-                ))?;
-                Ok(())
-            })();
-
-            if let Err(e) = ret {
-                // Free memory
-                ffi::EVP_PKEY_CTX_free(kctx);
-                return Err(e);
-            }
-
-            // Generate key
-            let mut key = ptr::null_mut();
-            let ret = cvt(ffi::EVP_PKEY_keygen(kctx, &mut key));
-
-            // Free memory
-            ffi::EVP_PKEY_CTX_free(kctx);
-
-            if let Err(e) = ret {
-                return Err(e);
-            }
-
-            Ok(PKey::from_ptr(key))
-        }
-    }
-
     #[cfg(ossl110)]
     fn generate_eddsa(nid: c_int) -> Result<PKey<Private>, ErrorStack> {
         unsafe {
@@ -561,7 +478,8 @@ impl PKey<Private> {
         /// [`d2i_AutoPrivateKey`]: https://www.openssl.org/docs/man1.0.2/crypto/d2i_AutoPrivateKey.html
         private_key_from_der,
         PKey<Private>,
-        ffi::d2i_AutoPrivateKey
+        ffi::d2i_AutoPrivateKey,
+        ::libc::c_long
     }
 
     /// Deserializes a DER-formatted PKCS#8 unencrypted private key.
@@ -655,7 +573,8 @@ impl PKey<Public> {
         /// [`d2i_PUBKEY`]: https://www.openssl.org/docs/man1.1.0/crypto/d2i_PUBKEY.html
         public_key_from_der,
         PKey<Public>,
-        ffi::d2i_PUBKEY
+        ffi::d2i_PUBKEY,
+        ::libc::c_long
     }
 }
 

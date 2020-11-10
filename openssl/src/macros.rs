@@ -103,12 +103,12 @@ macro_rules! to_der {
 }
 
 macro_rules! from_der {
-    ($(#[$m:meta])* $n:ident, $t:ty, $f:path) => {
+    ($(#[$m:meta])* $n:ident, $t:ty, $f:path, $len_ty:ty) => {
         $(#[$m])*
         pub fn $n(der: &[u8]) -> Result<$t, ::error::ErrorStack> {
             unsafe {
                 ::ffi::init();
-                let len = ::std::cmp::min(der.len(), ::libc::c_long::max_value() as usize) as ::libc::c_long;
+                let len = ::std::cmp::min(der.len(), <$len_ty>::max_value() as usize) as $len_ty;
                 ::cvt_p($f(::std::ptr::null_mut(), &mut der.as_ptr(), len))
                     .map(|p| ::foreign_types::ForeignType::from_ptr(p))
             }

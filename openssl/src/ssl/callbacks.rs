@@ -488,6 +488,8 @@ pub extern "C" fn raw_cookie_generate<F>(
 where
     F: Fn(&mut SslRef, &mut [u8]) -> Result<usize, ErrorStack> + 'static + Sync + Send,
 {
+    pub const DTLS1_COOKIE_LENGTH: c_uint = 256;
+
     unsafe {
         let ssl = SslRef::from_ptr_mut(ssl);
         let callback = ssl
@@ -496,8 +498,7 @@ where
             .expect("BUG: cookie generate callback missing") as *const F;
         // We subtract 1 from DTLS1_COOKIE_LENGTH as the ostensible value, 256, is erroneous but retained for
         // compatibility. See comments in dtls1.h.
-        let slice =
-            slice::from_raw_parts_mut(cookie as *mut u8, ffi::DTLS1_COOKIE_LENGTH as usize - 1);
+        let slice = slice::from_raw_parts_mut(cookie as *mut u8, DTLS1_COOKIE_LENGTH as usize - 1);
         match (*callback)(ssl, slice) {
             Ok(len) => {
                 *cookie_len = len as c_uint;

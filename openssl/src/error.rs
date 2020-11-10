@@ -15,7 +15,7 @@
 //!     Err(e) => println!("Parsing Error: {:?}", e),
 //! }
 //! ```
-use libc::{c_char, c_int, c_ulong};
+use libc::{c_char, c_uint, c_ulong};
 use std::borrow::Cow;
 use std::error;
 use std::ffi::CStr;
@@ -92,9 +92,9 @@ impl From<ErrorStack> for fmt::Error {
 /// An error reported from OpenSSL.
 #[derive(Clone)]
 pub struct Error {
-    code: c_ulong,
+    code: c_uint,
     file: *const c_char,
-    line: c_int,
+    line: c_uint,
     data: Option<Cow<'static, str>>,
 }
 
@@ -116,14 +116,10 @@ impl Error {
                 code => {
                     // The memory referenced by data is only valid until that slot is overwritten
                     // in the error stack, so we'll need to copy it off if it's dynamic
-                    let data = if flags & ffi::ERR_TXT_STRING != 0 {
+                    let data = if flags & ffi::ERR_FLAG_STRING != 0 {
                         let bytes = CStr::from_ptr(data as *const _).to_bytes();
                         let data = str::from_utf8(bytes).unwrap();
-                        let data = if flags & ffi::ERR_TXT_MALLOCED != 0 {
-                            Cow::Owned(data.to_string())
-                        } else {
-                            Cow::Borrowed(data)
-                        };
+                        let data = Cow::Owned(data.to_string());
                         Some(data)
                     } else {
                         None
@@ -131,7 +127,7 @@ impl Error {
                     Some(Error {
                         code,
                         file,
-                        line,
+                        line: line as c_uint,
                         data,
                     })
                 }
@@ -149,32 +145,28 @@ impl Error {
                 self.file,
                 self.line,
             );
-            let data = match self.data {
-                Some(Cow::Borrowed(data)) => Some((data.as_ptr() as *mut c_char, 0)),
+            let ptr = match self.data {
+                Some(Cow::Borrowed(data)) => Some(data.as_ptr() as *mut c_char),
                 Some(Cow::Owned(ref data)) => {
-                    let ptr = ffi::CRYPTO_malloc(
-                        (data.len() + 1) as _,
-                        concat!(file!(), "\0").as_ptr() as _,
-                        line!() as _,
-                    ) as *mut c_char;
+                    let ptr = ffi::OPENSSL_malloc((data.len() + 1) as _) as *mut c_char;
                     if ptr.is_null() {
                         None
                     } else {
                         ptr::copy_nonoverlapping(data.as_ptr(), ptr as *mut u8, data.len());
                         *ptr.add(data.len()) = 0;
-                        Some((ptr, ffi::ERR_TXT_MALLOCED))
+                        Some(ptr)
                     }
                 }
                 None => None,
             };
-            if let Some((ptr, flags)) = data {
-                ffi::ERR_set_error_data(ptr, flags | ffi::ERR_TXT_STRING);
+            if let Some(ptr) = ptr {
+                ffi::ERR_add_error_data(1, ptr);
             }
         }
     }
 
     /// Returns the raw OpenSSL error code for this error.
-    pub fn code(&self) -> c_ulong {
+    pub fn code(&self) -> c_uint {
         self.code
     }
 

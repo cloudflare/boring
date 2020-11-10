@@ -40,6 +40,22 @@ use error::ErrorStack;
 use pkey::{HasPrivate, HasPublic, Private, Public};
 use {cvt, cvt_n, cvt_p};
 
+pub const EVP_PKEY_OP_SIGN: c_int = 1 << 3;
+pub const EVP_PKEY_OP_VERIFY: c_int = 1 << 4;
+pub const EVP_PKEY_OP_VERIFYRECOVER: c_int = 1 << 5;
+pub const EVP_PKEY_OP_SIGNCTX: c_int = 1 << 6;
+pub const EVP_PKEY_OP_VERIFYCTX: c_int = 1 << 7;
+pub const EVP_PKEY_OP_ENCRYPT: c_int = 1 << 8;
+pub const EVP_PKEY_OP_DECRYPT: c_int = 1 << 9;
+
+pub const EVP_PKEY_OP_TYPE_SIG: c_int = EVP_PKEY_OP_SIGN
+    | EVP_PKEY_OP_VERIFY
+    | EVP_PKEY_OP_VERIFYRECOVER
+    | EVP_PKEY_OP_SIGNCTX
+    | EVP_PKEY_OP_VERIFYCTX;
+
+pub const EVP_PKEY_OP_TYPE_CRYPT: c_int = EVP_PKEY_OP_ENCRYPT | EVP_PKEY_OP_DECRYPT;
+
 /// Type of encryption padding to use.
 ///
 /// Random length padding is primarily used to prevent attackers from
@@ -145,7 +161,7 @@ where
 
         unsafe {
             let len = cvt_n(ffi::RSA_private_decrypt(
-                from.len() as c_int,
+                from.len(),
                 from.as_ptr(),
                 to.as_mut_ptr(),
                 self.as_ptr(),
@@ -172,7 +188,7 @@ where
 
         unsafe {
             let len = cvt_n(ffi::RSA_private_encrypt(
-                from.len() as c_int,
+                from.len(),
                 from.as_ptr(),
                 to.as_mut_ptr(),
                 self.as_ptr(),
@@ -370,7 +386,7 @@ where
 
         unsafe {
             let len = cvt_n(ffi::RSA_public_decrypt(
-                from.len() as c_int,
+                from.len(),
                 from.as_ptr(),
                 to.as_mut_ptr(),
                 self.as_ptr(),
@@ -396,7 +412,7 @@ where
 
         unsafe {
             let len = cvt_n(ffi::RSA_public_encrypt(
-                from.len() as c_int,
+                from.len(),
                 from.as_ptr(),
                 to.as_mut_ptr(),
                 self.as_ptr(),
@@ -486,7 +502,8 @@ impl Rsa<Public> {
         /// [`d2i_RSA_PUBKEY`]: https://www.openssl.org/docs/man1.0.2/crypto/d2i_RSA_PUBKEY.html
         public_key_from_der,
         Rsa<Public>,
-        ffi::d2i_RSA_PUBKEY
+        ffi::d2i_RSA_PUBKEY,
+        ::libc::c_long
     }
 
     from_der! {
@@ -497,7 +514,8 @@ impl Rsa<Public> {
         /// [`d2i_RSAPublicKey`]: https://www.openssl.org/docs/man1.0.2/crypto/d2i_RSA_PUBKEY.html
         public_key_from_der_pkcs1,
         Rsa<Public>,
-        ffi::d2i_RSAPublicKey
+        ffi::d2i_RSAPublicKey,
+        ::libc::c_long
     }
 }
 
@@ -665,7 +683,8 @@ impl Rsa<Private> {
         /// [`d2i_RSAPrivateKey`]: https://www.openssl.org/docs/man1.0.2/crypto/d2i_RSA_PUBKEY.html
         private_key_from_der,
         Rsa<Private>,
-        ffi::d2i_RSAPrivateKey
+        ffi::d2i_RSAPrivateKey,
+        ::libc::c_long
     }
 }
 

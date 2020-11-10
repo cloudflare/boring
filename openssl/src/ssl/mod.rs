@@ -63,6 +63,7 @@ use libc::{c_char, c_int, c_long, c_uchar, c_uint, c_ulong, c_void};
 use std::any::TypeId;
 use std::cmp;
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::ffi::{CStr, CString};
 use std::fmt;
 use std::io;
@@ -133,7 +134,7 @@ pub fn cipher_name(std_name: &str) -> &'static str {
 
 bitflags! {
     /// Options controlling the behavior of an `SslContext`.
-    pub struct SslOptions: c_ulong {
+    pub struct SslOptions: c_uint {
         /// Disables a countermeasure against an SSLv3/TLSv1.0 vulnerability affecting CBC ciphers.
         const DONT_INSERT_EMPTY_FRAGMENTS = ffi::SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS;
 
@@ -144,13 +145,6 @@ bitflags! {
         ///
         /// Only affects DTLS connections.
         const NO_QUERY_MTU = ffi::SSL_OP_NO_QUERY_MTU;
-
-        /// Enables Cookie Exchange as described in [RFC 4347 Section 4.2.1].
-        ///
-        /// Only affects DTLS connections.
-        ///
-        /// [RFC 4347 Section 4.2.1]: https://tools.ietf.org/html/rfc4347#section-4.2.1
-        const COOKIE_EXCHANGE = ffi::SSL_OP_COOKIE_EXCHANGE;
 
         /// Disables the use of session tickets for session resumption.
         const NO_TICKET = ffi::SSL_OP_NO_TICKET;
@@ -218,24 +212,6 @@ bitflags! {
         #[cfg(any(ossl102, ossl110))]
         const NO_DTLSV1_2 = ffi::SSL_OP_NO_DTLSv1_2;
 
-        /// Disables the use of all (D)TLS protocol versions.
-        ///
-        /// This can be used as a mask when whitelisting protocol versions.
-        ///
-        /// Requires OpenSSL 1.0.2 or newer.
-        ///
-        /// # Examples
-        ///
-        /// Only support TLSv1.2:
-        ///
-        /// ```rust
-        /// use openssl::ssl::SslOptions;
-        ///
-        /// let options = SslOptions::NO_SSL_MASK & !SslOptions::NO_TLSV1_2;
-        /// ```
-        #[cfg(any(ossl102, ossl110))]
-        const NO_SSL_MASK = ffi::SSL_OP_NO_SSL_MASK;
-
         /// Disallow all renegotiation in TLSv1.2 and earlier.
         ///
         /// Requires OpenSSL 1.1.0h or newer.
@@ -253,7 +229,7 @@ bitflags! {
 
 bitflags! {
     /// Options controlling the behavior of an `SslContext`.
-    pub struct SslMode: c_long {
+    pub struct SslMode: c_uint {
         /// Enables "short writes".
         ///
         /// Normally, a write in OpenSSL will always write out all of the requested data, even if it
@@ -380,7 +356,7 @@ bitflags! {
 
 bitflags! {
     /// Options controlling the behavior of session caching.
-    pub struct SslSessionCacheMode: c_long {
+    pub struct SslSessionCacheMode: c_int {
         /// No session caching for the client or server takes place.
         const OFF = ffi::SSL_SESS_CACHE_OFF;
 
@@ -592,7 +568,7 @@ impl ClientHelloResponse {
 
 /// An SSL/TLS protocol version.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct SslVersion(c_int);
+pub struct SslVersion(u16);
 
 impl SslVersion {
     /// SSLv3
@@ -736,7 +712,6 @@ impl SslContextBuilder {
             ffi::SSL_CTX_set_tlsext_servername_arg(self.as_ptr(), arg);
 
             let f: extern "C" fn(_, _, _) -> _ = raw_sni::<F>;
-            let f: extern "C" fn() = mem::transmute(f);
             ffi::SSL_CTX_set_tlsext_servername_callback(self.as_ptr(), Some(f));
         }
     }
@@ -796,7 +771,7 @@ impl SslContextBuilder {
     /// [`SSL_CTX_set_read_ahead`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_read_ahead.html
     pub fn set_read_ahead(&mut self, read_ahead: bool) {
         unsafe {
-            ffi::SSL_CTX_set_read_ahead(self.as_ptr(), read_ahead as c_long);
+            ffi::SSL_CTX_set_read_ahead(self.as_ptr(), read_ahead as c_int);
         }
     }
 
@@ -944,7 +919,7 @@ impl SslContextBuilder {
             cvt(ffi::SSL_CTX_set_session_id_context(
                 self.as_ptr(),
                 sid_ctx.as_ptr(),
-                sid_ctx.len() as c_uint,
+                sid_ctx.len(),
             ))
             .map(|_| ())
         }
@@ -1579,38 +1554,6 @@ impl SslContextBuilder {
         }
     }
 
-    /// Sets the callback for generating a DTLSv1 cookie
-    ///
-    /// The callback will be called with the SSL context and a slice into which the cookie
-    /// should be written. The callback should return the number of bytes written.
-    ///
-    /// This corresponds to `SSL_CTX_set_cookie_generate_cb`.
-    pub fn set_cookie_generate_cb<F>(&mut self, callback: F)
-    where
-        F: Fn(&mut SslRef, &mut [u8]) -> Result<usize, ErrorStack> + 'static + Sync + Send,
-    {
-        unsafe {
-            self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
-            ffi::SSL_CTX_set_cookie_generate_cb(self.as_ptr(), Some(raw_cookie_generate::<F>));
-        }
-    }
-
-    /// Sets the callback for verifying a DTLSv1 cookie
-    ///
-    /// The callback will be called with the SSL context and the cookie supplied by the
-    /// client. It should return true if and only if the cookie is valid.
-    ///
-    /// This corresponds to `SSL_CTX_set_cookie_verify_cb`.
-    pub fn set_cookie_verify_cb<F>(&mut self, callback: F)
-    where
-        F: Fn(&mut SslRef, &[u8]) -> bool + 'static + Sync + Send,
-    {
-        unsafe {
-            self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
-            ffi::SSL_CTX_set_cookie_verify_cb(self.as_ptr(), Some(raw_cookie_verify::<F>));
-        }
-    }
-
     /// Sets the extra data at the specified index.
     ///
     /// This can be used to provide data to callbacks registered with the context. Use the
@@ -1739,7 +1682,7 @@ impl SslContextBuilder {
     ///
     /// [`SSL_CTX_sess_get_cache_size`]: https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_sess_set_cache_size.html
     #[allow(clippy::useless_conversion)]
-    pub fn set_session_cache_size(&mut self, size: i32) -> i64 {
+    pub fn set_session_cache_size(&mut self, size: u64) -> u64 {
         unsafe { ffi::SSL_CTX_sess_set_cache_size(self.as_ptr(), size.into()).into() }
     }
 
@@ -1756,21 +1699,6 @@ impl SslContextBuilder {
         unsafe {
             cvt(ffi::SSL_CTX_set1_sigalgs_list(self.as_ptr(), sigalgs.as_ptr()) as c_int)
                 .map(|_| ())
-        }
-    }
-
-    /// Sets the context's supported elliptic curve groups.
-    ///
-    /// This corresponds to [`SSL_CTX_set1_groups_list`].
-    ///
-    /// Requires OpenSSL 1.1.1 or newer.
-    ///
-    /// [`SSL_CTX_set1_groups_list`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_CTX_set1_groups_list.html
-    #[cfg(ossl111)]
-    pub fn set_groups_list(&mut self, groups: &str) -> Result<(), ErrorStack> {
-        let groups = CString::new(groups).unwrap();
-        unsafe {
-            cvt(ffi::SSL_CTX_set1_groups_list(self.as_ptr(), groups.as_ptr()) as c_int).map(|_| ())
         }
     }
 
@@ -1981,7 +1909,7 @@ impl SslContextRef {
     ///
     /// [`SSL_CTX_sess_get_cache_size`]: https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_sess_set_cache_size.html
     #[allow(clippy::useless_conversion)]
-    pub fn session_cache_size(&self) -> i64 {
+    pub fn session_cache_size(&self) -> u64 {
         unsafe { ffi::SSL_CTX_sess_get_cache_size(self.as_ptr()).into() }
     }
 
@@ -2191,7 +2119,8 @@ impl SslSession {
         /// [`d2i_SSL_SESSION`]: https://www.openssl.org/docs/man1.0.2/ssl/d2i_SSL_SESSION.html
         from_der,
         SslSession,
-        ffi::d2i_SSL_SESSION
+        ffi::d2i_SSL_SESSION,
+        ::libc::c_long
     }
 }
 
@@ -2258,8 +2187,8 @@ impl SslSessionRef {
     ///
     /// [`SSL_SESSION_get_time`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_SESSION_get_time.html
     #[allow(clippy::useless_conversion)]
-    pub fn time(&self) -> i64 {
-        unsafe { ffi::SSL_SESSION_get_time(self.as_ptr()).into() }
+    pub fn time(&self) -> u64 {
+        unsafe { ffi::SSL_SESSION_get_time(self.as_ptr()) }
     }
 
     /// Returns the sessions timeout, in seconds.
@@ -2270,8 +2199,8 @@ impl SslSessionRef {
     ///
     /// [`SSL_SESSION_get_timeout`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_SESSION_get_time.html
     #[allow(clippy::useless_conversion)]
-    pub fn timeout(&self) -> i64 {
-        unsafe { ffi::SSL_SESSION_get_timeout(self.as_ptr()).into() }
+    pub fn timeout(&self) -> u32 {
+        unsafe { ffi::SSL_SESSION_get_timeout(self.as_ptr()) }
     }
 
     /// Returns the session's TLS protocol version.
@@ -2664,30 +2593,6 @@ impl SslRef {
         }
     }
 
-    /// Returns the verified certificate chain of the peer, including the leaf certificate.
-    ///
-    /// If verification was not successful (i.e. [`verify_result`] does not return
-    /// [`X509VerifyResult::OK`]), this chain may be incomplete or invalid.
-    ///
-    /// Requires OpenSSL 1.1.0 or newer.
-    ///
-    /// This corresponds to [`SSL_get0_verified_chain`].
-    ///
-    /// [`verify_result`]: #method.verify_result
-    /// [`X509VerifyResult::OK`]: ../x509/struct.X509VerifyResult.html#associatedconstant.OK
-    /// [`SSL_get0_verified_chain`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_get0_verified_chain.html
-    #[cfg(ossl110)]
-    pub fn verified_chain(&self) -> Option<&StackRef<X509>> {
-        unsafe {
-            let ptr = ffi::SSL_get0_verified_chain(self.as_ptr());
-            if ptr.is_null() {
-                None
-            } else {
-                Some(StackRef::from_ptr(ptr))
-            }
-        }
-    }
-
     /// Like [`SslContext::certificate`].
     ///
     /// This corresponds to `SSL_get_certificate`.
@@ -2736,7 +2641,7 @@ impl SslRef {
             if r == 0 {
                 None
             } else {
-                Some(SslVersion(r))
+                r.try_into().ok().map(SslVersion)
             }
         }
     }
@@ -3091,7 +2996,7 @@ impl SslRef {
     /// [`SSL_get_tlsext_status_ocsp_resp`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_set_tlsext_status_type.html
     pub fn ocsp_status(&self) -> Option<&[u8]> {
         unsafe {
-            let mut p = ptr::null_mut();
+            let mut p = ptr::null();
             let len = ffi::SSL_get_tlsext_status_ocsp_resp(self.as_ptr(), &mut p);
 
             if len < 0 {
@@ -3110,16 +3015,12 @@ impl SslRef {
     pub fn set_ocsp_status(&mut self, response: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
             assert!(response.len() <= c_int::max_value() as usize);
-            let p = cvt_p(ffi::CRYPTO_malloc(
-                response.len() as _,
-                concat!(file!(), "\0").as_ptr() as *const _,
-                line!() as c_int,
-            ))?;
+            let p = cvt_p(ffi::OPENSSL_malloc(response.len() as _))?;
             ptr::copy_nonoverlapping(response.as_ptr(), p as *mut u8, response.len());
             cvt(ffi::SSL_set_tlsext_status_ocsp_resp(
                 self.as_ptr(),
                 p as *mut c_uchar,
-                response.len() as c_long,
+                response.len(),
             ) as c_int)
             .map(|_| ())
         }
@@ -3373,7 +3274,7 @@ impl SslRef {
     ///
     /// This corresponds to `SSL_set_mtu`.
     pub fn set_mtu(&mut self, mtu: u32) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_set_mtu(self.as_ptr(), mtu as c_long) as c_int).map(|_| ()) }
+        unsafe { cvt(ffi::SSL_set_mtu(self.as_ptr(), mtu as c_uint) as c_int).map(|_| ()) }
     }
 }
 
@@ -4001,50 +3902,25 @@ cfg_if! {
         };
     }
 }
-cfg_if! {
-    if #[cfg(ossl110)] {
-        unsafe fn get_new_idx(f: ffi::CRYPTO_EX_free) -> c_int {
-            ffi::CRYPTO_get_ex_new_index(
-                ffi::CRYPTO_EX_INDEX_SSL_CTX,
-                0,
-                ptr::null_mut(),
-                None,
-                None,
-                Some(f),
-            )
-        }
 
-        unsafe fn get_new_ssl_idx(f: ffi::CRYPTO_EX_free) -> c_int {
-            ffi::CRYPTO_get_ex_new_index(
-                ffi::CRYPTO_EX_INDEX_SSL,
-                0,
-                ptr::null_mut(),
-                None,
-                None,
-                Some(f),
-            )
-        }
-    } else {
-        use std::sync::Once;
+use std::sync::Once;
 
-        unsafe fn get_new_idx(f: ffi::CRYPTO_EX_free) -> c_int {
-            // hack around https://rt.openssl.org/Ticket/Display.html?id=3710&user=guest&pass=guest
-            static ONCE: Once = Once::new();
-            ONCE.call_once(|| {
-                ffi::SSL_CTX_get_ex_new_index(0, ptr::null_mut(), None, None, None);
-            });
+unsafe fn get_new_idx(f: ffi::CRYPTO_EX_free) -> c_int {
+    // hack around https://rt.openssl.org/Ticket/Display.html?id=3710&user=guest&pass=guest
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        ffi::SSL_CTX_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, None);
+    });
 
-            ffi::SSL_CTX_get_ex_new_index(0, ptr::null_mut(), None, None, Some(f))
-        }
+    ffi::SSL_CTX_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, Some(f))
+}
 
-        unsafe fn get_new_ssl_idx(f: ffi::CRYPTO_EX_free) -> c_int {
-            // hack around https://rt.openssl.org/Ticket/Display.html?id=3710&user=guest&pass=guest
-            static ONCE: Once = Once::new();
-            ONCE.call_once(|| {
-                ffi::SSL_get_ex_new_index(0, ptr::null_mut(), None, None, None);
-            });
+unsafe fn get_new_ssl_idx(f: ffi::CRYPTO_EX_free) -> c_int {
+    // hack around https://rt.openssl.org/Ticket/Display.html?id=3710&user=guest&pass=guest
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        ffi::SSL_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, None);
+    });
 
-            ffi::SSL_get_ex_new_index(0, ptr::null_mut(), None, None, Some(f))
-        }
-    }
+    ffi::SSL_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, Some(f))
 }

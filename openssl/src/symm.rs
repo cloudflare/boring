@@ -53,7 +53,7 @@
 //! ```
 
 use ffi;
-use libc::c_int;
+use libc::{c_int, c_uint};
 use std::cmp;
 use std::ptr;
 
@@ -98,42 +98,16 @@ impl Cipher {
         unsafe { Cipher(ffi::EVP_aes_128_cbc()) }
     }
 
-    pub fn aes_128_xts() -> Cipher {
-        unsafe { Cipher(ffi::EVP_aes_128_xts()) }
-    }
-
     pub fn aes_128_ctr() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_128_ctr()) }
-    }
-
-    pub fn aes_128_cfb1() -> Cipher {
-        unsafe { Cipher(ffi::EVP_aes_128_cfb1()) }
-    }
-
-    pub fn aes_128_cfb128() -> Cipher {
-        unsafe { Cipher(ffi::EVP_aes_128_cfb128()) }
-    }
-
-    pub fn aes_128_cfb8() -> Cipher {
-        unsafe { Cipher(ffi::EVP_aes_128_cfb8()) }
     }
 
     pub fn aes_128_gcm() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_128_gcm()) }
     }
 
-    pub fn aes_128_ccm() -> Cipher {
-        unsafe { Cipher(ffi::EVP_aes_128_ccm()) }
-    }
-
     pub fn aes_128_ofb() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_128_ofb()) }
-    }
-
-    /// Requires OpenSSL 1.1.0 or newer.
-    #[cfg(ossl110)]
-    pub fn aes_128_ocb() -> Cipher {
-        unsafe { Cipher(ffi::EVP_aes_128_ocb()) }
     }
 
     pub fn aes_192_ecb() -> Cipher {
@@ -148,34 +122,12 @@ impl Cipher {
         unsafe { Cipher(ffi::EVP_aes_192_ctr()) }
     }
 
-    pub fn aes_192_cfb1() -> Cipher {
-        unsafe { Cipher(ffi::EVP_aes_192_cfb1()) }
-    }
-
-    pub fn aes_192_cfb128() -> Cipher {
-        unsafe { Cipher(ffi::EVP_aes_192_cfb128()) }
-    }
-
-    pub fn aes_192_cfb8() -> Cipher {
-        unsafe { Cipher(ffi::EVP_aes_192_cfb8()) }
-    }
-
     pub fn aes_192_gcm() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_192_gcm()) }
     }
 
-    pub fn aes_192_ccm() -> Cipher {
-        unsafe { Cipher(ffi::EVP_aes_192_ccm()) }
-    }
-
     pub fn aes_192_ofb() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_192_ofb()) }
-    }
-
-    /// Requires OpenSSL 1.1.0 or newer.
-    #[cfg(ossl110)]
-    pub fn aes_192_ocb() -> Cipher {
-        unsafe { Cipher(ffi::EVP_aes_192_ocb()) }
     }
 
     pub fn aes_256_ecb() -> Cipher {
@@ -186,58 +138,16 @@ impl Cipher {
         unsafe { Cipher(ffi::EVP_aes_256_cbc()) }
     }
 
-    pub fn aes_256_xts() -> Cipher {
-        unsafe { Cipher(ffi::EVP_aes_256_xts()) }
-    }
-
     pub fn aes_256_ctr() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_256_ctr()) }
-    }
-
-    pub fn aes_256_cfb1() -> Cipher {
-        unsafe { Cipher(ffi::EVP_aes_256_cfb1()) }
-    }
-
-    pub fn aes_256_cfb128() -> Cipher {
-        unsafe { Cipher(ffi::EVP_aes_256_cfb128()) }
-    }
-
-    pub fn aes_256_cfb8() -> Cipher {
-        unsafe { Cipher(ffi::EVP_aes_256_cfb8()) }
     }
 
     pub fn aes_256_gcm() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_256_gcm()) }
     }
 
-    pub fn aes_256_ccm() -> Cipher {
-        unsafe { Cipher(ffi::EVP_aes_256_ccm()) }
-    }
-
     pub fn aes_256_ofb() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_256_ofb()) }
-    }
-
-    /// Requires OpenSSL 1.1.0 or newer.
-    #[cfg(ossl110)]
-    pub fn aes_256_ocb() -> Cipher {
-        unsafe { Cipher(ffi::EVP_aes_256_ocb()) }
-    }
-
-    pub fn bf_cbc() -> Cipher {
-        unsafe { Cipher(ffi::EVP_bf_cbc()) }
-    }
-
-    pub fn bf_ecb() -> Cipher {
-        unsafe { Cipher(ffi::EVP_bf_ecb()) }
-    }
-
-    pub fn bf_cfb64() -> Cipher {
-        unsafe { Cipher(ffi::EVP_bf_cfb64()) }
-    }
-
-    pub fn bf_ofb() -> Cipher {
-        unsafe { Cipher(ffi::EVP_bf_ofb()) }
     }
 
     pub fn des_cbc() -> Cipher {
@@ -256,24 +166,8 @@ impl Cipher {
         unsafe { Cipher(ffi::EVP_des_ede3_cbc()) }
     }
 
-    pub fn des_ede3_cfb64() -> Cipher {
-        unsafe { Cipher(ffi::EVP_des_ede3_cfb64()) }
-    }
-
     pub fn rc4() -> Cipher {
         unsafe { Cipher(ffi::EVP_rc4()) }
-    }
-
-    /// Requires OpenSSL 1.1.0 or newer.
-    #[cfg(any(ossl110))]
-    pub fn chacha20() -> Cipher {
-        unsafe { Cipher(ffi::EVP_chacha20()) }
-    }
-
-    /// Requires OpenSSL 1.1.0 or newer.
-    #[cfg(any(ossl110))]
-    pub fn chacha20_poly1305() -> Cipher {
-        unsafe { Cipher(ffi::EVP_chacha20_poly1305()) }
     }
 
     /// Creates a `Cipher` from a raw pointer to its OpenSSL type.
@@ -318,20 +212,6 @@ impl Cipher {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn block_size(&self) -> usize {
         unsafe { EVP_CIPHER_block_size(self.0) as usize }
-    }
-
-    /// Determines whether the cipher is using CCM mode
-    fn is_ccm(self) -> bool {
-        // NOTE: OpenSSL returns pointers to static structs, which makes this work as expected
-        self == Cipher::aes_128_ccm() || self == Cipher::aes_256_ccm()
-    }
-
-    /// Determines whether the cipher is using OCB mode
-    #[cfg(ossl110)]
-    fn is_ocb(self) -> bool {
-        self == Cipher::aes_128_ocb()
-            || self == Cipher::aes_192_ocb()
-            || self == Cipher::aes_256_ocb()
     }
 
     #[cfg(not(ossl110))]
@@ -451,7 +331,7 @@ impl Crypter {
             assert!(key.len() <= c_int::max_value() as usize);
             cvt(ffi::EVP_CIPHER_CTX_set_key_length(
                 crypter.ctx,
-                key.len() as c_int,
+                key.len() as c_uint,
             ))?;
 
             let key = key.as_ptr() as *mut _;
@@ -624,7 +504,7 @@ impl Crypter {
             }
             let mut outl = cmp::min(output.len(), c_int::max_value() as usize) as c_int;
 
-            cvt(ffi::EVP_CipherFinal(
+            cvt(ffi::EVP_CipherFinal_ex(
                 self.ctx,
                 output.as_mut_ptr(),
                 &mut outl,
@@ -776,14 +656,6 @@ pub fn encrypt_aead(
     let mut c = Crypter::new(t, Mode::Encrypt, key, iv)?;
     let mut out = vec![0; data.len() + t.block_size()];
 
-    let is_ccm = t.is_ccm();
-    if is_ccm || t.is_ocb() {
-        c.set_tag_len(tag.len())?;
-        if is_ccm {
-            c.set_data_len(data.len())?;
-        }
-    }
-
     c.aad_update(aad)?;
     let count = c.update(data, &mut out)?;
     let rest = c.finalize(&mut out[count..])?;
@@ -807,23 +679,11 @@ pub fn decrypt_aead(
     let mut c = Crypter::new(t, Mode::Decrypt, key, iv)?;
     let mut out = vec![0; data.len() + t.block_size()];
 
-    let is_ccm = t.is_ccm();
-    if is_ccm || t.is_ocb() {
-        c.set_tag(tag)?;
-        if is_ccm {
-            c.set_data_len(data.len())?;
-        }
-    }
-
     c.aad_update(aad)?;
     let count = c.update(data, &mut out)?;
 
-    let rest = if t.is_ccm() {
-        0
-    } else {
-        c.set_tag(tag)?;
-        c.finalize(&mut out[count..])?
-    };
+    c.set_tag(tag)?;
+    let rest = c.finalize(&mut out[count..])?;
 
     out.truncate(count + rest);
     Ok(out)

@@ -79,21 +79,10 @@ pub const X509_V_ERR_HOSTNAME_MISMATCH: c_int = 62;
 pub const X509_V_ERR_EMAIL_MISMATCH: c_int = 63;
 #[cfg(ossl102)]
 pub const X509_V_ERR_IP_ADDRESS_MISMATCH: c_int = 64;
-cfg_if! {
-    if #[cfg(ossl110)] {
-        pub const X509_V_ERR_DANE_NO_MATCH: c_int = 65;
-        pub const X509_V_ERR_EE_KEY_TOO_SMALL: c_int = 66;
-        pub const X509_V_ERR_CA_KEY_TOO_SMALL: c_int = 67;
-        pub const X509_V_ERR_CA_MD_TOO_WEAK: c_int = 68;
-        pub const X509_V_ERR_INVALID_CALL: c_int = 69;
-        pub const X509_V_ERR_STORE_LOOKUP: c_int = 70;
-        pub const X509_V_ERR_NO_VALID_SCTS: c_int = 71;
-    } else if #[cfg(ossl102h)] {
-        pub const X509_V_ERR_INVALID_CALL: c_int = 65;
-        pub const X509_V_ERR_STORE_LOOKUP: c_int = 66;
-        pub const X509_V_ERR_PROXY_SUBJECT_NAME_VIOLATION: c_int = 67;
-    }
-}
+
+pub const X509_V_ERR_INVALID_CALL: c_int = 65;
+pub const X509_V_ERR_STORE_LOOKUP: c_int = 66;
+pub const X509_V_ERR_NAME_CONSTRAINTS_WITHOUT_SANS: c_int = 67;
 
 extern "C" {
     pub fn X509_STORE_new() -> *mut X509_STORE;

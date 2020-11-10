@@ -56,7 +56,7 @@
 //! ```
 //!
 use ffi;
-use libc::{c_int, c_uint};
+use libc::{c_int, c_uint, size_t};
 use std::{mem, ptr};
 
 use symm::Mode;
@@ -82,7 +82,7 @@ impl AesKey {
             let mut aes_key = mem::uninitialized();
             let r = ffi::AES_set_encrypt_key(
                 key.as_ptr() as *const _,
-                key.len() as c_int * 8,
+                key.len() as c_uint * 8,
                 &mut aes_key,
             );
             if r == 0 {
@@ -106,7 +106,7 @@ impl AesKey {
             let mut aes_key = mem::uninitialized();
             let r = ffi::AES_set_decrypt_key(
                 key.as_ptr() as *const _,
-                key.len() as c_int * 8,
+                key.len() as c_uint * 8,
                 &mut aes_key,
             );
 
@@ -147,14 +147,6 @@ pub fn aes_ige(in_: &[u8], out: &mut [u8], key: &AesKey, iv: &mut [u8], mode: Mo
             Mode::Encrypt => ffi::AES_ENCRYPT,
             Mode::Decrypt => ffi::AES_DECRYPT,
         };
-        ffi::AES_ige_encrypt(
-            in_.as_ptr() as *const _,
-            out.as_mut_ptr() as *mut _,
-            in_.len(),
-            &key.0,
-            iv.as_mut_ptr() as *mut _,
-            mode,
-        );
     }
 }
 
@@ -186,7 +178,7 @@ pub fn wrap_key(
                 .map_or(ptr::null(), |iv| iv.as_ptr() as *const _),
             out.as_ptr() as *mut _,
             in_.as_ptr() as *const _,
-            in_.len() as c_uint,
+            in_.len() as size_t,
         );
         if written <= 0 {
             Err(KeyError(()))
@@ -224,7 +216,7 @@ pub fn unwrap_key(
                 .map_or(ptr::null(), |iv| iv.as_ptr() as *const _),
             out.as_ptr() as *mut _,
             in_.as_ptr() as *const _,
-            in_.len() as c_uint,
+            in_.len() as size_t,
         );
 
         if written <= 0 {

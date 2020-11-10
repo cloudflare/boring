@@ -129,7 +129,7 @@ extern crate tempdir;
 #[doc(inline)]
 pub use ffi::init;
 
-use libc::c_int;
+use libc::{c_int, size_t};
 
 use error::ErrorStack;
 
@@ -143,15 +143,12 @@ pub mod aes;
 pub mod asn1;
 pub mod base64;
 pub mod bn;
-#[cfg(not(libressl))]
-pub mod cms;
 pub mod conf;
 pub mod derive;
 pub mod dh;
 pub mod dsa;
 pub mod ec;
 pub mod ecdsa;
-pub mod envelope;
 pub mod error;
 pub mod ex_data;
 #[cfg(not(libressl))]
@@ -159,7 +156,6 @@ pub mod fips;
 pub mod hash;
 pub mod memcmp;
 pub mod nid;
-pub mod ocsp;
 pub mod pkcs12;
 pub mod pkcs5;
 pub mod pkcs7;
@@ -178,6 +174,14 @@ pub mod x509;
 
 fn cvt_p<T>(r: *mut T) -> Result<*mut T, ErrorStack> {
     if r.is_null() {
+        Err(ErrorStack::get())
+    } else {
+        Ok(r)
+    }
+}
+
+fn cvt_0(r: size_t) -> Result<size_t, ErrorStack> {
+    if r == 0 {
         Err(ErrorStack::get())
     } else {
         Ok(r)

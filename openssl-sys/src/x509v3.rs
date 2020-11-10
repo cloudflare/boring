@@ -2,8 +2,6 @@ use libc::*;
 
 use *;
 
-pub enum CONF_METHOD {}
-
 pub const GEN_OTHERNAME: c_int = 0;
 pub const GEN_EMAIL: c_int = 1;
 pub const GEN_DNS: c_int = 2;
@@ -190,7 +188,7 @@ pub const XKU_DVCS: u32 = 0x80;
 pub const XKU_ANYEKU: u32 = 0x100;
 
 extern "C" {
-    pub fn X509V3_EXT_d2i(ext: *mut X509_EXTENSION) -> *mut c_void;
+    pub fn X509V3_EXT_d2i(ext: *const X509_EXTENSION) -> *mut c_void;
     pub fn X509V3_EXT_i2d(ext_nid: c_int, crit: c_int, ext: *mut c_void) -> *mut X509_EXTENSION;
     pub fn X509V3_add1_i2d(
         x: *mut *mut stack_st_X509_EXTENSION,

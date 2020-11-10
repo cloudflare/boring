@@ -24,7 +24,7 @@
 //! [`BIGNUM`]: https://wiki.openssl.org/index.php/Manual:Bn_internal(3)
 use ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::c_int;
+use libc::{c_int, size_t};
 use std::cmp::Ordering;
 use std::ffi::CString;
 use std::ops::{Add, Deref, Div, Mul, Neg, Rem, Shl, Shr, Sub};
@@ -32,34 +32,9 @@ use std::{fmt, ptr};
 
 use asn1::Asn1Integer;
 use error::ErrorStack;
+use ffi::BN_is_negative;
 use string::OpensslString;
 use {cvt, cvt_n, cvt_p};
-
-cfg_if! {
-    if #[cfg(ossl110)] {
-        use ffi::{
-            BN_get_rfc2409_prime_1024, BN_get_rfc2409_prime_768, BN_get_rfc3526_prime_1536,
-            BN_get_rfc3526_prime_2048, BN_get_rfc3526_prime_3072, BN_get_rfc3526_prime_4096,
-            BN_get_rfc3526_prime_6144, BN_get_rfc3526_prime_8192, BN_is_negative,
-        };
-    } else {
-        use ffi::{
-            get_rfc2409_prime_1024 as BN_get_rfc2409_prime_1024,
-            get_rfc2409_prime_768 as BN_get_rfc2409_prime_768,
-            get_rfc3526_prime_1536 as BN_get_rfc3526_prime_1536,
-            get_rfc3526_prime_2048 as BN_get_rfc3526_prime_2048,
-            get_rfc3526_prime_3072 as BN_get_rfc3526_prime_3072,
-            get_rfc3526_prime_4096 as BN_get_rfc3526_prime_4096,
-            get_rfc3526_prime_6144 as BN_get_rfc3526_prime_6144,
-            get_rfc3526_prime_8192 as BN_get_rfc3526_prime_8192,
-        };
-
-        #[allow(bad_style)]
-        unsafe fn BN_is_negative(bn: *const ffi::BIGNUM) -> c_int {
-            (*bn).neg
-        }
-    }
-}
 
 /// Options for the most significant bits of a randomly generated `BigNum`.
 pub struct MsbOption(c_int);
@@ -975,126 +950,6 @@ impl BigNum {
         }
     }
 
-    /// Returns a constant used in IKE as defined in [`RFC 2409`].  This prime number is in
-    /// the order of magnitude of `2 ^ 768`.  This number is used during calculated key
-    /// exchanges such as Diffie-Hellman.  This number is labeled Oakley group id 1.
-    ///
-    /// OpenSSL documentation at [`BN_get_rfc2409_prime_768`]
-    ///
-    /// [`RFC 2409`]: https://tools.ietf.org/html/rfc2409#page-21
-    /// [`BN_get_rfc2409_prime_768`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_get_rfc2409_prime_768.html
-    pub fn get_rfc2409_prime_768() -> Result<BigNum, ErrorStack> {
-        unsafe {
-            ffi::init();
-            cvt_p(BN_get_rfc2409_prime_768(ptr::null_mut())).map(BigNum)
-        }
-    }
-
-    /// Returns a constant used in IKE as defined in [`RFC 2409`].  This prime number is in
-    /// the order of magnitude of `2 ^ 1024`.  This number is used during calculated key
-    /// exchanges such as Diffie-Hellman.  This number is labeled Oakly group 2.
-    ///
-    /// OpenSSL documentation at [`BN_get_rfc2409_prime_1024`]
-    ///
-    /// [`RFC 2409`]: https://tools.ietf.org/html/rfc2409#page-21
-    /// [`BN_get_rfc2409_prime_1024`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_get_rfc2409_prime_1024.html
-    pub fn get_rfc2409_prime_1024() -> Result<BigNum, ErrorStack> {
-        unsafe {
-            ffi::init();
-            cvt_p(BN_get_rfc2409_prime_1024(ptr::null_mut())).map(BigNum)
-        }
-    }
-
-    /// Returns a constant used in IKE as defined in [`RFC 3526`].  The prime is in the order
-    /// of magnitude of `2 ^ 1536`.  This number is used during calculated key
-    /// exchanges such as Diffie-Hellman.  This number is labeled MODP group 5.
-    ///
-    /// OpenSSL documentation at [`BN_get_rfc3526_prime_1536`]
-    ///
-    /// [`RFC 3526`]: https://tools.ietf.org/html/rfc3526#page-3
-    /// [`BN_get_rfc3526_prime_1536`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_get_rfc3526_prime_1536.html
-    pub fn get_rfc3526_prime_1536() -> Result<BigNum, ErrorStack> {
-        unsafe {
-            ffi::init();
-            cvt_p(BN_get_rfc3526_prime_1536(ptr::null_mut())).map(BigNum)
-        }
-    }
-
-    /// Returns a constant used in IKE as defined in [`RFC 3526`].  The prime is in the order
-    /// of magnitude of `2 ^ 2048`.  This number is used during calculated key
-    /// exchanges such as Diffie-Hellman.  This number is labeled MODP group 14.
-    ///
-    /// OpenSSL documentation at [`BN_get_rfc3526_prime_2048`]
-    ///
-    /// [`RFC 3526`]: https://tools.ietf.org/html/rfc3526#page-3
-    /// [`BN_get_rfc3526_prime_2048`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_get_rfc3526_prime_2048.html
-    pub fn get_rfc3526_prime_2048() -> Result<BigNum, ErrorStack> {
-        unsafe {
-            ffi::init();
-            cvt_p(BN_get_rfc3526_prime_2048(ptr::null_mut())).map(BigNum)
-        }
-    }
-
-    /// Returns a constant used in IKE as defined in [`RFC 3526`].  The prime is in the order
-    /// of magnitude of `2 ^ 3072`.  This number is used during calculated key
-    /// exchanges such as Diffie-Hellman.  This number is labeled MODP group 15.
-    ///
-    /// OpenSSL documentation at [`BN_get_rfc3526_prime_3072`]
-    ///
-    /// [`RFC 3526`]: https://tools.ietf.org/html/rfc3526#page-4
-    /// [`BN_get_rfc3526_prime_3072`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_get_rfc3526_prime_3072.html
-    pub fn get_rfc3526_prime_3072() -> Result<BigNum, ErrorStack> {
-        unsafe {
-            ffi::init();
-            cvt_p(BN_get_rfc3526_prime_3072(ptr::null_mut())).map(BigNum)
-        }
-    }
-
-    /// Returns a constant used in IKE as defined in [`RFC 3526`].  The prime is in the order
-    /// of magnitude of `2 ^ 4096`.  This number is used during calculated key
-    /// exchanges such as Diffie-Hellman.  This number is labeled MODP group 16.
-    ///
-    /// OpenSSL documentation at [`BN_get_rfc3526_prime_4096`]
-    ///
-    /// [`RFC 3526`]: https://tools.ietf.org/html/rfc3526#page-4
-    /// [`BN_get_rfc3526_prime_4096`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_get_rfc3526_prime_4096.html
-    pub fn get_rfc3526_prime_4096() -> Result<BigNum, ErrorStack> {
-        unsafe {
-            ffi::init();
-            cvt_p(BN_get_rfc3526_prime_4096(ptr::null_mut())).map(BigNum)
-        }
-    }
-
-    /// Returns a constant used in IKE as defined in [`RFC 3526`].  The prime is in the order
-    /// of magnitude of `2 ^ 6144`.  This number is used during calculated key
-    /// exchanges such as Diffie-Hellman.  This number is labeled MODP group 17.
-    ///
-    /// OpenSSL documentation at [`BN_get_rfc3526_prime_6144`]
-    ///
-    /// [`RFC 3526`]: https://tools.ietf.org/html/rfc3526#page-6
-    /// [`BN_get_rfc3526_prime_6144`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_get_rfc3526_prime_6144.html
-    pub fn get_rfc3526_prime_6144() -> Result<BigNum, ErrorStack> {
-        unsafe {
-            ffi::init();
-            cvt_p(BN_get_rfc3526_prime_6144(ptr::null_mut())).map(BigNum)
-        }
-    }
-
-    /// Returns a constant used in IKE as defined in [`RFC 3526`].  The prime is in the order
-    /// of magnitude of `2 ^ 8192`.  This number is used during calculated key
-    /// exchanges such as Diffie-Hellman.  This number is labeled MODP group 18.
-    ///
-    /// OpenSSL documentation at [`BN_get_rfc3526_prime_8192`]
-    ///
-    /// [`RFC 3526`]: https://tools.ietf.org/html/rfc3526#page-6
-    /// [`BN_get_rfc3526_prime_8192`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_get_rfc3526_prime_8192.html
-    pub fn get_rfc3526_prime_8192() -> Result<BigNum, ErrorStack> {
-        unsafe {
-            ffi::init();
-            cvt_p(BN_get_rfc3526_prime_8192(ptr::null_mut())).map(BigNum)
-        }
-    }
-
     /// Creates a new `BigNum` from an unsigned, big-endian encoded number of arbitrary length.
     ///
     /// OpenSSL documentation at [`BN_bin2bn`]
@@ -1113,7 +968,7 @@ impl BigNum {
             assert!(n.len() <= c_int::max_value() as usize);
             cvt_p(ffi::BN_bin2bn(
                 n.as_ptr(),
-                n.len() as c_int,
+                n.len() as size_t,
                 ptr::null_mut(),
             ))
             .map(|p| BigNum::from_ptr(p))
