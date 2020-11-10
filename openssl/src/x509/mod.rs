@@ -1514,6 +1514,7 @@ cfg_if! {
     }
 }
 
+#[allow(bad_style)]
 unsafe fn X509_OBJECT_free(x: *mut ffi::X509_OBJECT) {
     ffi::X509_OBJECT_free_contents(x);
     ffi::OPENSSL_free(x as *mut libc::c_void);

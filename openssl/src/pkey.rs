@@ -59,8 +59,6 @@ use dsa::Dsa;
 use ec::EcKey;
 use error::ErrorStack;
 use rsa::Rsa;
-#[cfg(ossl110)]
-use symm::Cipher;
 use util::{invoke_passwd_cb, CallbackState};
 use {cvt, cvt_p};
 
@@ -393,28 +391,6 @@ impl<T> PKey<T> {
 }
 
 impl PKey<Private> {
-    #[cfg(ossl110)]
-    fn generate_eddsa(nid: c_int) -> Result<PKey<Private>, ErrorStack> {
-        unsafe {
-            let kctx = cvt_p(ffi::EVP_PKEY_CTX_new_id(nid, ptr::null_mut()))?;
-            let ret = cvt(ffi::EVP_PKEY_keygen_init(kctx));
-            if let Err(e) = ret {
-                ffi::EVP_PKEY_CTX_free(kctx);
-                return Err(e);
-            }
-            let mut key = ptr::null_mut();
-            let ret = cvt(ffi::EVP_PKEY_keygen(kctx, &mut key));
-
-            ffi::EVP_PKEY_CTX_free(kctx);
-
-            if let Err(e) = ret {
-                return Err(e);
-            }
-
-            Ok(PKey::from_ptr(key))
-        }
-    }
-
     /// Generates a new private Ed25519 key
     #[cfg(ossl111)]
     pub fn generate_x25519() -> Result<PKey<Private>, ErrorStack> {

@@ -1,4 +1,4 @@
-use bio::{MemBio, MemBioSlice};
+use bio::MemBioSlice;
 use error::ErrorStack;
 use ffi;
 use foreign_types::ForeignTypeRef;
@@ -6,8 +6,6 @@ use libc::c_int;
 use pkey::{HasPrivate, PKeyRef};
 use stack::StackRef;
 use std::ptr;
-use symm::Cipher;
-use x509::store::X509StoreRef;
 use x509::{X509Ref, X509};
 use {cvt, cvt_p};
 

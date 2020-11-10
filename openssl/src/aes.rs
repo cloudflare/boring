@@ -59,8 +59,6 @@ use ffi;
 use libc::{c_int, c_uint, size_t};
 use std::{mem, ptr};
 
-use symm::Mode;
-
 /// Provides Error handling for parsing keys.
 #[derive(Debug)]
 pub struct KeyError(());
@@ -116,37 +114,6 @@ impl AesKey {
                 Err(KeyError(()))
             }
         }
-    }
-}
-
-/// Performs AES IGE encryption or decryption
-///
-/// AES IGE (Infinite Garble Extension) is a form of AES block cipher utilized in
-/// OpenSSL.  Infinite Garble referes to propogating forward errors.  IGE, like other
-/// block ciphers implemented for AES requires an initalization vector.  The IGE mode
-/// allows a stream of blocks to be encrypted or decrypted without having the entire
-/// plaintext available.  For more information, visit [AES IGE Encryption].
-///
-/// This block cipher uses 16 byte blocks.  The rust implmentation will panic
-/// if the input or output does not meet this 16-byte boundry.  Attention must
-/// be made in this low level implementation to pad the value to the 128-bit boundry.
-///
-/// [AES IGE Encryption]: http://www.links.org/files/openssl-ige.pdf
-///
-/// # Panics
-///
-/// Panics if `in_` is not the same length as `out`, if that length is not a multiple of 16, or if
-/// `iv` is not at least 32 bytes.
-pub fn aes_ige(in_: &[u8], out: &mut [u8], key: &AesKey, iv: &mut [u8], mode: Mode) {
-    unsafe {
-        assert!(in_.len() == out.len());
-        assert!(in_.len() % ffi::AES_BLOCK_SIZE as usize == 0);
-        assert!(iv.len() >= ffi::AES_BLOCK_SIZE as usize * 2);
-
-        let mode = match mode {
-            Mode::Encrypt => ffi::AES_ENCRYPT,
-            Mode::Decrypt => ffi::AES_DECRYPT,
-        };
     }
 }
 

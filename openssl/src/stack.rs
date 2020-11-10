@@ -1,6 +1,6 @@
 use ffi;
 use foreign_types::{ForeignType, ForeignTypeRef, Opaque};
-use libc::{c_int, size_t};
+use libc::size_t;
 use std::borrow::Borrow;
 use std::convert::AsRef;
 use std::fmt;
@@ -10,7 +10,7 @@ use std::mem;
 use std::ops::{Deref, DerefMut, Index, IndexMut, Range};
 
 use error::ErrorStack;
-use {cvt, cvt_0, cvt_p};
+use {cvt_0, cvt_p};
 
 use ffi::{
     sk_free as OPENSSL_sk_free, sk_new_null as OPENSSL_sk_new_null, sk_num as OPENSSL_sk_num,

@@ -59,7 +59,7 @@
 //! ```
 use ffi;
 use foreign_types::{ForeignType, ForeignTypeRef, Opaque};
-use libc::{c_char, c_int, c_long, c_uchar, c_uint, c_ulong, c_void};
+use libc::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
 use std::any::TypeId;
 use std::cmp;
 use std::collections::HashMap;
@@ -2999,7 +2999,7 @@ impl SslRef {
             let mut p = ptr::null();
             let len = ffi::SSL_get_tlsext_status_ocsp_resp(self.as_ptr(), &mut p);
 
-            if len < 0 {
+            if len == 0 {
                 None
             } else {
                 Some(slice::from_raw_parts(p as *const u8, len as usize))

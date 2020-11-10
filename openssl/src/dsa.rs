@@ -7,7 +7,7 @@
 
 use ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::{c_int, c_uint};
+use libc::c_uint;
 use std::fmt;
 use std::mem;
 use std::ptr;

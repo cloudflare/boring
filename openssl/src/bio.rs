@@ -66,10 +66,6 @@ impl MemBio {
             slice::from_raw_parts(ptr as *const _ as *const _, len as usize)
         }
     }
-
-    pub unsafe fn from_ptr(bio: *mut ffi::BIO) -> MemBio {
-        MemBio(bio)
-    }
 }
 
 cfg_if! {
