@@ -27,62 +27,6 @@ pub enum SSL_CIPHER {}
 cfg_if! {
     if #[cfg(any(ossl110, libressl280))] {
         pub enum SSL_SESSION {}
-    } else if #[cfg(libressl251)] {
-        #[repr(C)]
-        pub struct SSL_SESSION {
-            ssl_version: c_int,
-            pub master_key_length: c_int,
-            pub master_key: [c_uchar; 48],
-            session_id_length: c_uint,
-            session_id: [c_uchar; ::SSL_MAX_SSL_SESSION_ID_LENGTH as usize],
-            sid_ctx_length: c_uint,
-            sid_ctx: [c_uchar; ::SSL_MAX_SID_CTX_LENGTH as usize],
-            peer: *mut ::X509,
-            verify_result: c_long,
-            timeout: c_long,
-            time: time_t,
-            pub references: c_int,
-            cipher: *const ::SSL_CIPHER,
-            cipher_id: c_long,
-            ciphers: *mut stack_st_SSL_CIPHER,
-            tlsext_hostname: *mut c_char,
-            tlsext_tick: *mut c_uchar,
-            tlsext_ticklen: size_t,
-            tlsext_tick_lifetime_int: c_long,
-            internal: *mut c_void,
-        }
-    } else if #[cfg(libressl)] {
-        #[repr(C)]
-        pub struct SSL_SESSION {
-            ssl_version: c_int,
-            pub master_key_length: c_int,
-            pub master_key: [c_uchar; 48],
-            session_id_length: c_uint,
-            session_id: [c_uchar; SSL_MAX_SSL_SESSION_ID_LENGTH as usize],
-            sid_ctx_length: c_uint,
-            sid_ctx: [c_uchar; SSL_MAX_SID_CTX_LENGTH as usize],
-            not_resumable: c_int,
-            sess_cert: *mut c_void,
-            peer: *mut X509,
-            verify_result: c_long,
-            timeout: c_long,
-            time: time_t,
-            pub references: c_int,
-            cipher: *const c_void,
-            cipher_id: c_ulong,
-            ciphers: *mut c_void,
-            ex_data: ::CRYPTO_EX_DATA,
-            prev: *mut c_void,
-            next: *mut c_void,
-            tlsext_hostname: *mut c_char,
-            tlsext_ecpointformatlist_length: size_t,
-            tlsext_ecpointformatlist: *mut u8,
-            tlsext_ellipticcurvelist_length: size_t,
-            tlsext_ellipticcurvelist: *mut u16,
-            tlsext_tick: *mut c_uchar,
-            tlsext_ticklen: size_t,
-            tlsext_tick_lifetime_hint: c_long,
-        }
     } else {
         #[repr(C)]
         pub struct SSL_SESSION {
@@ -262,13 +206,8 @@ cfg_if! {
 pub const SSL_OP_ENABLE_MIDDLEBOX_COMPAT: c_uint = 0x00100000;
 
 pub const SSL_OP_CIPHER_SERVER_PREFERENCE: c_uint = 0x00400000;
-cfg_if! {
-    if #[cfg(libressl280)] {
-        pub const SSL_OP_TLS_ROLLBACK_BUG: c_uint = 0;
-    } else {
-        pub const SSL_OP_TLS_ROLLBACK_BUG: c_uint = 0x00800000;
-    }
-}
+
+pub const SSL_OP_TLS_ROLLBACK_BUG: c_uint = 0x00800000;
 
 cfg_if! {
     if #[cfg(ossl101)] {
@@ -296,10 +235,6 @@ cfg_if! {
         pub const SSL_OP_ALL: c_uint =
             SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
             | SSL_OP_LEGACY_SERVER_CONNECT;
-    } else if #[cfg(libressl261)] {
-        pub const SSL_OP_ALL: c_uint = 0x4;
-    } else if #[cfg(libressl)] {
-        pub const SSL_OP_ALL: c_uint = 0x80000014;
     } else {
         pub const SSL_OP_ALL: c_uint = 0x80000BFF;
     }
@@ -336,10 +271,6 @@ cfg_if! {
         pub const SSL_OP_SSLEAY_080_CLIENT_DH_BUG: c_uint = 0x0;
         pub const SSL_OP_TLS_D5_BUG: c_uint = 0x0;
         pub const SSL_OP_TLS_BLOCK_PADDING_BUG: c_uint = 0x0;
-        #[cfg(libressl261)]
-        pub const SSL_OP_SINGLE_ECDH_USE: c_uint = 0x0;
-        #[cfg(not(libressl261))]
-        pub const SSL_OP_SINGLE_ECDH_USE: c_uint = 0x00080000;
         pub const SSL_OP_SINGLE_DH_USE: c_uint = 0x00100000;
         pub const SSL_OP_NO_SSLv2: c_uint = 0x0;
     }
@@ -986,11 +917,7 @@ extern "C" {
 }
 
 cfg_if! {
-    if #[cfg(libressl)] {
-        extern "C" {
-            pub fn SSL_get_current_compression(ssl: *mut SSL) -> *const libc::c_void;
-        }
-    } else if #[cfg(osslconf = "OPENSSL_NO_COMP")] {
+    if #[cfg(osslconf = "OPENSSL_NO_COMP")] {
     } else if #[cfg(ossl111b)] {
         extern "C" {
             pub fn SSL_get_current_compression(ssl: *const SSL) -> *const COMP_METHOD;
@@ -1002,11 +929,7 @@ cfg_if! {
     }
 }
 cfg_if! {
-    if #[cfg(libressl)] {
-        extern "C" {
-            pub fn SSL_COMP_get_name(comp: *const libc::c_void) -> *const c_char;
-        }
-    } else if #[cfg(not(osslconf = "OPENSSL_NO_COMP"))] {
+    if #[cfg(not(osslconf = "OPENSSL_NO_COMP"))] {
         extern "C" {
             pub fn SSL_COMP_get_name(comp: *const COMP_METHOD) -> *const c_char;
         }
