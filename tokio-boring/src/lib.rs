@@ -22,9 +22,10 @@ use std::error::Error;
 use std::fmt;
 use std::future::Future;
 use std::io::{self, Read, Write};
+use std::mem::MaybeUninit;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio::io::{AsyncRead, AsyncWrite};
 
 /// Asynchronously performs a client-side TLS handshake over the provided stream.
 pub async fn connect<S>(
@@ -98,13 +99,10 @@ where
     S: AsyncRead + Unpin,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.with_context(|ctx, stream| {
-            let mut buf = ReadBuf::new(buf);
-            match stream.poll_read(ctx, &mut buf)? {
-                Poll::Ready(()) => Ok(buf.filled().len()),
-                Poll::Pending => Err(io::Error::from(io::ErrorKind::WouldBlock)),
-            }
-        })
+        match self.with_context(|ctx, stream| stream.poll_read(ctx, buf)) {
+            Poll::Ready(r) => r,
+            Poll::Pending => Err(io::Error::from(io::ErrorKind::WouldBlock)),
+        }
     }
 }
 
@@ -176,7 +174,7 @@ impl<S> SslStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    /// Constructs an `SslStream` from a pointer to the underlying BoringSSL `SSL` struct.
+    /// Constructs an `SslStream` from a pointer to the underlying OpenSSL `SSL` struct.
     ///
     /// This is useful if the handshake has already been completed elsewhere.
     ///
@@ -193,18 +191,19 @@ impl<S> AsyncRead for SslStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
+    unsafe fn prepare_uninitialized_buffer(&self, _: &mut [MaybeUninit<u8>]) -> bool {
+        // Note that this does not forward to `S` because the buffer is
+        // unconditionally filled in by OpenSSL, not the actual object `S`.
+        // We're decrypting bytes from `S` into the buffer above!
+        false
+    }
+
     fn poll_read(
         mut self: Pin<&mut Self>,
         ctx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
-    ) -> Poll<io::Result<()>> {
-        self.with_context(ctx, |s| match cvt(s.read(buf.initialize_unfilled()))? {
-            Poll::Ready(nread) => {
-                buf.advance(nread);
-                Poll::Ready(Ok(()))
-            }
-            Poll::Pending => Poll::Pending,
-        })
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        self.with_context(ctx, |s| cvt(s.read(buf)))
     }
 }
 

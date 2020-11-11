@@ -14,8 +14,8 @@ An implementation of SSL streams for Tokio backed by BoringSSL
 [dependencies]
 boring = { version = "1.0.0", path = "../boring" }
 boring-sys = { version = "1.0.0", path = "../boring-sys" }
-tokio = "0.3"
+tokio = "0.2"
 
 [dev-dependencies]
 futures = "0.3"
-tokio = { version = "0.3", features = ["full"] }
+tokio = { version = "0.2", features = ["full"] }

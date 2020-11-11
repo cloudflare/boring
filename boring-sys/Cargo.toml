@@ -9,6 +9,18 @@ description = "FFI bindings to BoringSSL"
 repository = "https://github.com/inikulin/boring"
 readme = "README.md"
 categories = ["cryptography", "external-ffi-bindings"]
+include = [
+    "/*.md",
+    "/*.toml",
+    "/LICENSE-MIT",
+    "/deps/boringssl/**/*.[chS]",
+    "/deps/boringssl/src/**/*.cc",
+    "/deps/boringssl/**/CMakeLists.txt",
+    "/deps/boringssl/**/sources.cmake",
+    "/deps/boringssl/LICENSE",
+    "/buid.rs",
+    "/src",
+]
 
 [dependencies]
 libc = "0.2"
