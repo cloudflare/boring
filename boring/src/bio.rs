@@ -1,9 +1,9 @@
 use ffi;
+use ffi::BIO_new_mem_buf;
 use libc::c_int;
 use std::marker::PhantomData;
 use std::ptr;
 use std::slice;
-use ffi::BIO_new_mem_buf;
 
 use cvt_p;
 use error::ErrorStack;
@@ -68,6 +68,3 @@ impl MemBio {
         }
     }
 }
-
-
-

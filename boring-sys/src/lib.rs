@@ -8,7 +8,7 @@
     overflowing_literals,
     unused_imports
 )]
-#![doc(html_root_url = "https://docs.rs/openssl-sys/0.9")]
+#![doc(html_root_url = "https://docs.rs/boring-sys")]
 
 extern crate libc;
 

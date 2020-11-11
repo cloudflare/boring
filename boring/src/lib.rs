@@ -10,8 +10,8 @@ extern crate bitflags;
 extern crate foreign_types;
 #[macro_use]
 extern crate lazy_static;
+extern crate boring_sys as ffi;
 extern crate libc;
-extern crate openssl_sys as ffi;
 
 #[cfg(test)]
 extern crate hex;

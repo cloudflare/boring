@@ -6,7 +6,7 @@ fn main() {
     let mut cfg = ctest::TestGenerator::new();
     let target = env::var("TARGET").unwrap();
 
-    cfg.include("../openssl-sys/deps/boringssl/src/include");
+    cfg.include("../boring-sys/deps/boringssl/src/include");
 
     // Needed to get OpenSSL to correctly undef symbols that are already on
     // Windows like X509_NAME
@@ -109,5 +109,5 @@ fn main() {
         }
     });
     cfg.fn_cname(|rust, link_name| link_name.unwrap_or(rust).to_string());
-    cfg.generate("../openssl-sys/src/lib.rs", "all.rs");
+    cfg.generate("../boring-sys/src/lib.rs", "all.rs");
 }

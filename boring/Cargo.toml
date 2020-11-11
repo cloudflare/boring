@@ -1,0 +1,21 @@
+[package]
+name = "boring"
+version = "1.0.0"
+authors = ["Steven Fackler <sfackler@gmail.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
+license = "Apache-2.0"
+description = "BoringSSL bindings"
+repository = "https://github.com/inikulin/boring"
+readme = "README.md"
+keywords = ["crypto", "tls", "ssl", "dtls"]
+categories = ["cryptography", "api-bindings"]
+
+[dependencies]
+bitflags = "1.0"
+foreign-types = "0.3.1"
+lazy_static = "1"
+libc = "0.2"
+boring-sys = { version = "1.0.0", path = "../boring-sys" }
+
+[dev-dependencies]
+tempdir = "0.3"
+hex = "0.3"

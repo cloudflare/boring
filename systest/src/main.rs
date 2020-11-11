@@ -1,9 +1,9 @@
 #![allow(bad_style, clippy::all)]
 
+extern crate boring_sys;
 extern crate libc;
-extern crate openssl_sys;
 
+use boring_sys::*;
 use libc::*;
-use openssl_sys::*;
 
 include!(concat!(env!("OUT_DIR"), "/all.rs"));

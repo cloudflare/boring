@@ -1,3 +1,5 @@
+// NOTE: this build script is adopted from quiche (https://github.com/cloudflare/quiche)
+
 // Additional parameters for Android build of BoringSSL.
 //
 // Android NDK < 18 with GCC.
@@ -170,17 +172,14 @@ fn get_boringssl_cmake_config() -> cmake::Config {
 }
 
 fn main() {
-    let bssl_dir = std::env::var("QUICHE_BSSL_PATH").unwrap_or_else(|_| {
-        let mut cfg = get_boringssl_cmake_config();
+    let mut cfg = get_boringssl_cmake_config();
 
-        if cfg!(feature = "fuzzing") {
-            cfg.cxxflag("-DBORINGSSL_UNSAFE_DETERMINISTIC_MODE")
-                .cxxflag("-DBORINGSSL_UNSAFE_FUZZER_MODE");
-        }
+    if cfg!(feature = "fuzzing") {
+        cfg.cxxflag("-DBORINGSSL_UNSAFE_DETERMINISTIC_MODE")
+            .cxxflag("-DBORINGSSL_UNSAFE_FUZZER_MODE");
+    }
 
-        cfg.build_target("bssl").build().display().to_string()
-    });
-
+    let bssl_dir = cfg.build_target("bssl").build().display().to_string();
     let build_path = get_boringssl_platform_output_path();
     let build_dir = format!("{}/build/{}", bssl_dir, build_path);
     println!("cargo:rustc-link-search=native={}", build_dir);

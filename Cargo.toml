@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "openssl",
-    "openssl-sys",
+    "boring",
+    "boring-sys",
     "systest"
 ]

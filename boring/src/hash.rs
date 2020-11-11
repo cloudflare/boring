@@ -6,9 +6,9 @@ use std::ops::{Deref, DerefMut};
 use std::ptr;
 
 use error::ErrorStack;
+use ffi::{EVP_MD_CTX_free, EVP_MD_CTX_new};
 use nid::Nid;
 use {cvt, cvt_p};
-use ffi::{EVP_MD_CTX_free, EVP_MD_CTX_new};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct MessageDigest(*const ffi::EVP_MD);
