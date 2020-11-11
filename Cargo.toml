@@ -2,5 +2,6 @@
 members = [
     "boring",
     "boring-sys",
-    "systest"
+    "systest",
+    "tokio-boring"
 ]

@@ -19,3 +19,4 @@ boring-sys = { version = "1.0.0", path = "../boring-sys" }
 [dev-dependencies]
 tempdir = "0.3"
 hex = "0.3"
+rusty-hook = "^0.10.1"
