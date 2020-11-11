@@ -113,13 +113,4 @@ impl X509StoreRef {
     }
 }
 
-cfg_if! {
-    if #[cfg(any(ossl110, libressl270))] {
-        use ffi::X509_STORE_get0_objects;
-    } else {
-        #[allow(bad_style)]
-        unsafe fn X509_STORE_get0_objects(x: *mut ffi::X509_STORE) -> *mut ffi::stack_st_X509_OBJECT {
-            (*x).objs
-        }
-    }
-}
+use ffi::X509_STORE_get0_objects;

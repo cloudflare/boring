@@ -24,7 +24,6 @@ extern "C" {
     pub fn BN_mul(r: *mut BIGNUM, a: *const BIGNUM, b: *const BIGNUM, ctx: *mut BN_CTX) -> c_int;
     pub fn BN_sqr(r: *mut BIGNUM, a: *const BIGNUM, ctx: *mut BN_CTX) -> c_int;
     pub fn BN_set_negative(bn: *mut BIGNUM, n: c_int);
-    #[cfg(ossl110)]
     pub fn BN_is_negative(b: *const ::BIGNUM) -> c_int;
 
     pub fn BN_div(

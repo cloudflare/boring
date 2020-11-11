@@ -2,40 +2,17 @@ use libc::*;
 
 use *;
 
-#[cfg(not(ossl110))]
-pub const CRYPTO_LOCK_X509: c_int = 3;
-#[cfg(not(ossl110))]
-pub const CRYPTO_LOCK_EVP_PKEY: c_int = 10;
-#[cfg(not(ossl110))]
-pub const CRYPTO_LOCK_SSL_CTX: c_int = 12;
-#[cfg(not(ossl110))]
-pub const CRYPTO_LOCK_SSL_SESSION: c_int = 14;
-
 stack!(stack_st_void);
 
-cfg_if! {
-    if #[cfg(any(ossl110, libressl271))] {
-        extern "C" {
-            pub fn OpenSSL_version_num() -> c_ulong;
-            pub fn OpenSSL_version(key: c_int) -> *const c_char;
-        }
-        pub const OPENSSL_VERSION: c_int = 0;
-        pub const OPENSSL_CFLAGS: c_int = 1;
-        pub const OPENSSL_BUILT_ON: c_int = 2;
-        pub const OPENSSL_PLATFORM: c_int = 3;
-        pub const OPENSSL_DIR: c_int = 4;
-    } else {
-        extern "C" {
-            pub fn SSLeay() -> c_ulong;
-            pub fn SSLeay_version(key: c_int) -> *const c_char;
-        }
-        pub const SSLEAY_VERSION: c_int = 0;
-        pub const SSLEAY_CFLAGS: c_int = 2;
-        pub const SSLEAY_BUILT_ON: c_int = 3;
-        pub const SSLEAY_PLATFORM: c_int = 4;
-        pub const SSLEAY_DIR: c_int = 5;
-    }
+extern "C" {
+    pub fn OpenSSL_version_num() -> c_ulong;
+    pub fn OpenSSL_version(key: c_int) -> *const c_char;
 }
+pub const OPENSSL_VERSION: c_int = 0;
+pub const OPENSSL_CFLAGS: c_int = 1;
+pub const OPENSSL_BUILT_ON: c_int = 2;
+pub const OPENSSL_PLATFORM: c_int = 3;
+pub const OPENSSL_DIR: c_int = 4;
 
 // FIXME should be options
 pub type CRYPTO_EX_new = unsafe extern "C" fn(
@@ -64,27 +41,6 @@ pub type CRYPTO_EX_free = unsafe extern "C" fn(
 );
 
 pub const CRYPTO_LOCK: c_int = 1;
-
-extern "C" {
-    #[cfg(not(ossl110))]
-    pub fn CRYPTO_num_locks() -> c_int;
-    #[cfg(not(ossl110))]
-    pub fn CRYPTO_set_locking_callback(
-        func: unsafe extern "C" fn(mode: c_int, n: c_int, file: *const c_char, line: c_int),
-    );
-
-    #[cfg(not(ossl110))]
-    pub fn CRYPTO_set_id_callback(func: unsafe extern "C" fn() -> c_ulong);
-
-    #[cfg(not(ossl110))]
-    pub fn CRYPTO_add_lock(
-        pointer: *mut c_int,
-        amount: c_int,
-        type_: c_int,
-        file: *const c_char,
-        line: c_int,
-    ) -> c_int;
-}
 
 extern "C" {
     pub fn OPENSSL_malloc(num: size_t) -> *mut c_void;

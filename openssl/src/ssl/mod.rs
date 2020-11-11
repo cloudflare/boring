@@ -82,7 +82,6 @@ use dh::DhRef;
 use ec::EcKeyRef;
 use error::ErrorStack;
 use ex_data::Index;
-#[cfg(ossl110)]
 use nid::Nid;
 use pkey::{HasPrivate, PKeyRef, Params, Private};
 use srtp::{SrtpProtectionProfile, SrtpProtectionProfileRef};
@@ -187,7 +186,6 @@ bitflags! {
         /// Disallow all renegotiation in TLSv1.2 and earlier.
         ///
         /// Requires OpenSSL 1.1.0h or newer.
-        #[cfg(ossl110h)]
         const NO_RENEGOTIATION = ffi::SSL_OP_NO_RENEGOTIATION;
     }
 }
@@ -476,7 +474,6 @@ impl AlpnError {
     /// Terminate the handshake with a fatal alert.
     ///
     /// Requires OpenSSL 1.1.0 or newer.
-    #[cfg(any(ossl110))]
     pub const ALERT_FATAL: AlpnError = AlpnError(ffi::SSL_TLSEXT_ERR_ALERT_FATAL);
 
     /// Do not select a protocol, but continue the handshake.
@@ -971,7 +968,6 @@ impl SslContextBuilder {
     /// Requires OpenSSL 1.1.0 or LibreSSL 2.6.1 or newer.
     ///
     /// [`SSL_CTX_set_min_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_min_proto_version.html
-    #[cfg(any(ossl110, libressl261))]
     pub fn set_min_proto_version(&mut self, version: Option<SslVersion>) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::SSL_CTX_set_min_proto_version(
@@ -992,7 +988,6 @@ impl SslContextBuilder {
     /// Requires OpenSSL 1.1.0 or or LibreSSL 2.6.1 or newer.
     ///
     /// [`SSL_CTX_set_max_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_min_proto_version.html
-    #[cfg(any(ossl110, libressl261))]
     pub fn set_max_proto_version(&mut self, version: Option<SslVersion>) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::SSL_CTX_set_max_proto_version(
@@ -1729,7 +1724,6 @@ impl SslCipherRef {
     /// This corresponds to [`SSL_CIPHER_get_cipher_nid`].
     ///
     /// [`SSL_CIPHER_get_cipher_nid`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CIPHER_get_cipher_nid.html
-    #[cfg(any(ossl110))]
     pub fn cipher_nid(&self) -> Option<Nid> {
         let n = unsafe { ffi::SSL_CIPHER_get_cipher_nid(self.as_ptr()) };
         if n == 0 {
@@ -1849,7 +1843,6 @@ impl SslSessionRef {
     /// This corresponds to [`SSL_SESSION_get_protocol_version`].
     ///
     /// [`SSL_SESSION_get_protocol_version`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_SESSION_get_protocol_version.html
-    #[cfg(ossl110)]
     pub fn protocol_version(&self) -> SslVersion {
         unsafe {
             let version = ffi::SSL_SESSION_get_protocol_version(self.as_ptr());
@@ -2453,7 +2446,6 @@ impl SslRef {
     /// This corresponds to [`SSL_get_client_random`].
     ///
     /// [`SSL_get_client_random`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_get_client_random.html
-    #[cfg(any(ossl110))]
     pub fn client_random(&self, buf: &mut [u8]) -> usize {
         unsafe {
             ffi::SSL_get_client_random(self.as_ptr(), buf.as_mut_ptr() as *mut c_uchar, buf.len())
@@ -2470,7 +2462,6 @@ impl SslRef {
     /// This corresponds to [`SSL_get_server_random`].
     ///
     /// [`SSL_get_server_random`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_get_client_random.html
-    #[cfg(any(ossl110))]
     pub fn server_random(&self, buf: &mut [u8]) -> usize {
         unsafe {
             ffi::SSL_get_server_random(self.as_ptr(), buf.as_mut_ptr() as *mut c_uchar, buf.len())
@@ -2670,7 +2661,6 @@ impl SslRef {
     /// This corresponds to [`SSL_is_init_finished`].
     ///
     /// [`SSL_is_init_finished`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_is_init_finished.html
-    #[cfg(ossl110)]
     pub fn is_init_finished(&self) -> bool {
         unsafe { ffi::SSL_is_init_finished(self.as_ptr()) != 0 }
     }
@@ -3162,67 +3152,9 @@ bitflags! {
     }
 }
 
-cfg_if! {
-    if #[cfg(any(ossl110, libressl273))] {
-        use ffi::{SSL_CTX_up_ref, SSL_SESSION_get_master_key, SSL_SESSION_up_ref, SSL_is_server};
-    } else {
-        #[allow(bad_style)]
-        pub unsafe fn SSL_CTX_up_ref(ssl: *mut ffi::SSL_CTX) -> c_int {
-            ffi::CRYPTO_add_lock(
-                &mut (*ssl).references,
-                1,
-                ffi::CRYPTO_LOCK_SSL_CTX,
-                "mod.rs\0".as_ptr() as *const _,
-                line!() as c_int,
-            );
-            0
-        }
+use ffi::{SSL_CTX_up_ref, SSL_SESSION_get_master_key, SSL_SESSION_up_ref, SSL_is_server};
 
-        #[allow(bad_style)]
-        pub unsafe fn SSL_SESSION_get_master_key(
-            session: *const ffi::SSL_SESSION,
-            out: *mut c_uchar,
-            mut outlen: usize,
-        ) -> usize {
-            if outlen == 0 {
-                return (*session).master_key_length as usize;
-            }
-            if outlen > (*session).master_key_length as usize {
-                outlen = (*session).master_key_length as usize;
-            }
-            ptr::copy_nonoverlapping((*session).master_key.as_ptr(), out, outlen);
-            outlen
-        }
-
-        #[allow(bad_style)]
-        pub unsafe fn SSL_is_server(s: *mut ffi::SSL) -> c_int {
-            (*s).server
-        }
-
-        #[allow(bad_style)]
-        pub unsafe fn SSL_SESSION_up_ref(ses: *mut ffi::SSL_SESSION) -> c_int {
-            ffi::CRYPTO_add_lock(
-                &mut (*ses).references,
-                1,
-                ffi::CRYPTO_LOCK_SSL_CTX,
-                "mod.rs\0".as_ptr() as *const _,
-                line!() as c_int,
-            );
-            0
-        }
-    }
-}
-
-cfg_if! {
-    if #[cfg(any(ossl110, libressl291))] {
-        use ffi::{TLS_method, DTLS_method, TLS_client_method, TLS_server_method};
-    } else {
-        use ffi::{
-            SSLv23_method as TLS_method, DTLSv1_method as DTLS_method, SSLv23_client_method as TLS_client_method,
-            SSLv23_server_method as TLS_server_method,
-        };
-    }
-}
+use ffi::{DTLS_method, TLS_client_method, TLS_method, TLS_server_method};
 
 use std::sync::Once;
 

@@ -2,18 +2,9 @@ use libc::*;
 
 use *;
 
-cfg_if! {
-    if #[cfg(ossl110)] {
-        extern "C" {
-            pub fn HMAC_CTX_new() -> *mut HMAC_CTX;
-            pub fn HMAC_CTX_free(ctx: *mut HMAC_CTX);
-        }
-    } else {
-        extern "C" {
-            pub fn HMAC_CTX_init(ctx: *mut HMAC_CTX);
-            pub fn HMAC_CTX_cleanup(ctx: *mut HMAC_CTX);
-        }
-    }
+extern "C" {
+    pub fn HMAC_CTX_new() -> *mut HMAC_CTX;
+    pub fn HMAC_CTX_free(ctx: *mut HMAC_CTX);
 }
 
 extern "C" {

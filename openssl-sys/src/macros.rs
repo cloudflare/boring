@@ -55,16 +55,7 @@ macro_rules! cfg_if {
 
 macro_rules! stack {
     ($t:ident) => {
-        cfg_if! {
-            if #[cfg(ossl110)] {
-                pub enum $t {}
-            } else {
-                #[repr(C)]
-                pub struct $t {
-                    pub stack: ::_STACK,
-                }
-            }
-        }
+        pub enum $t {}
     };
 }
 

@@ -188,102 +188,39 @@ unsafe extern "C" fn destroy<S>(bio: *mut BIO) -> c_int {
     1
 }
 
-cfg_if! {
-    if #[cfg(any(ossl110, libressl273))] {
-        use ffi::{BIO_get_data, BIO_set_data, BIO_set_flags, BIO_set_init};
+use ffi::{BIO_get_data, BIO_set_data, BIO_set_flags, BIO_set_init};
 
-        #[allow(bad_style)]
-        unsafe fn BIO_set_num(_bio: *mut ffi::BIO, _num: c_int) {}
+#[allow(bad_style)]
+unsafe fn BIO_set_num(_bio: *mut ffi::BIO, _num: c_int) {}
 
-        #[allow(bad_style)]
-        struct BIO_METHOD(*mut ffi::BIO_METHOD);
+#[allow(bad_style)]
+struct BIO_METHOD(*mut ffi::BIO_METHOD);
 
-        impl BIO_METHOD {
-            fn new<S: Read + Write>() -> BIO_METHOD {
-                unsafe {
-                    let ptr = ffi::BIO_meth_new(ffi::BIO_TYPE_NONE, b"rust\0".as_ptr() as *const _);
-                    assert!(!ptr.is_null());
-                    let ret = BIO_METHOD(ptr);
-                    assert!(ffi::BIO_meth_set_write(ptr, bwrite::<S>) != 0);
-                    assert!(ffi::BIO_meth_set_read(ptr, bread::<S>) != 0);
-                    assert!(ffi::BIO_meth_set_puts(ptr, bputs::<S>) != 0);
-                    assert!(ffi::BIO_meth_set_ctrl(ptr, ctrl::<S>) != 0);
-                    assert!(ffi::BIO_meth_set_create(ptr, create) != 0);
-                    assert!(ffi::BIO_meth_set_destroy(ptr, destroy::<S>) != 0);
-                    ret
-                }
-            }
-
-            fn get(&self) -> *mut ffi::BIO_METHOD {
-                self.0
-            }
+impl BIO_METHOD {
+    fn new<S: Read + Write>() -> BIO_METHOD {
+        unsafe {
+            let ptr = ffi::BIO_meth_new(ffi::BIO_TYPE_NONE, b"rust\0".as_ptr() as *const _);
+            assert!(!ptr.is_null());
+            let ret = BIO_METHOD(ptr);
+            assert!(ffi::BIO_meth_set_write(ptr, bwrite::<S>) != 0);
+            assert!(ffi::BIO_meth_set_read(ptr, bread::<S>) != 0);
+            assert!(ffi::BIO_meth_set_puts(ptr, bputs::<S>) != 0);
+            assert!(ffi::BIO_meth_set_ctrl(ptr, ctrl::<S>) != 0);
+            assert!(ffi::BIO_meth_set_create(ptr, create) != 0);
+            assert!(ffi::BIO_meth_set_destroy(ptr, destroy::<S>) != 0);
+            ret
         }
+    }
 
-        impl Drop for BIO_METHOD {
-            fn drop(&mut self) {
-                unsafe {
-                    ffi::BIO_meth_free(self.0);
-                }
-            }
-        }
-    } else {
-        #[allow(bad_style)]
-        struct BIO_METHOD(*mut ffi::BIO_METHOD);
+    fn get(&self) -> *mut ffi::BIO_METHOD {
+        self.0
+    }
+}
 
-        impl BIO_METHOD {
-            fn new<S: Read + Write>() -> BIO_METHOD {
-                let ptr = Box::new(ffi::BIO_METHOD {
-                    type_: ffi::BIO_TYPE_NONE,
-                    name: b"rust\0".as_ptr() as *const _,
-                    bwrite: Some(bwrite::<S>),
-                    bread: Some(bread::<S>),
-                    bputs: Some(bputs::<S>),
-                    bgets: None,
-                    ctrl: Some(ctrl::<S>),
-                    create: Some(create),
-                    destroy: Some(destroy::<S>),
-                    callback_ctrl: None,
-                });
-
-                BIO_METHOD(Box::into_raw(ptr))
-            }
-
-            fn get(&self) -> *mut ffi::BIO_METHOD {
-                self.0
-            }
-        }
-
-        impl Drop for BIO_METHOD {
-            fn drop(&mut self) {
-                unsafe {
-                    Box::<ffi::BIO_METHOD>::from_raw(self.0);
-                }
-            }
-        }
-
-        #[allow(bad_style)]
-        unsafe fn BIO_set_init(bio: *mut ffi::BIO, init: c_int) {
-            (*bio).init = init;
-        }
-
-        #[allow(bad_style)]
-        unsafe fn BIO_set_flags(bio: *mut ffi::BIO, flags: c_int) {
-            (*bio).flags = flags;
-        }
-
-        #[allow(bad_style)]
-        unsafe fn BIO_get_data(bio: *mut ffi::BIO) -> *mut c_void {
-            (*bio).ptr
-        }
-
-        #[allow(bad_style)]
-        unsafe fn BIO_set_data(bio: *mut ffi::BIO, data: *mut c_void) {
-            (*bio).ptr = data;
-        }
-
-        #[allow(bad_style)]
-        unsafe fn BIO_set_num(bio: *mut ffi::BIO, num: c_int) {
-            (*bio).num = num;
+impl Drop for BIO_METHOD {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::BIO_meth_free(self.0);
         }
     }
 }

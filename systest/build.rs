@@ -23,14 +23,6 @@ fn main() {
         cfg.define("WIN32_LEAN_AND_MEAN", None);
     }
 
-    let mut cfgs = vec![];
-
-    cfgs.push("ossl110");
-
-    for c in cfgs {
-        cfg.cfg(c, None);
-    }
-
     cfg.header("openssl/dh.h")
         .header("openssl/ossl_typ.h")
         .header("openssl/stack.h")

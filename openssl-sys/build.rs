@@ -185,14 +185,6 @@ fn main() {
     let build_dir = format!("{}/build/{}", bssl_dir, build_path);
     println!("cargo:rustc-link-search=native={}", build_dir);
 
-    let mut cfgs = vec![];
-
-    cfgs.push("ossl110");
-
-    for cfg in cfgs {
-        println!("cargo:rustc-cfg={}", cfg);
-    }
-
     println!("cargo:rustc-link-lib=static=crypto");
     println!("cargo:rustc-link-lib=static=ssl");
 

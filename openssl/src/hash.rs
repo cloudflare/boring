@@ -8,14 +8,7 @@ use std::ptr;
 use error::ErrorStack;
 use nid::Nid;
 use {cvt, cvt_p};
-
-cfg_if! {
-    if #[cfg(ossl110)] {
-        use ffi::{EVP_MD_CTX_free, EVP_MD_CTX_new};
-    } else {
-        use ffi::{EVP_MD_CTX_create as EVP_MD_CTX_new, EVP_MD_CTX_destroy as EVP_MD_CTX_free};
-    }
-}
+use ffi::{EVP_MD_CTX_free, EVP_MD_CTX_new};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct MessageDigest(*const ffi::EVP_MD);

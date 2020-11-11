@@ -29,18 +29,9 @@ extern "C" {
     pub fn EVP_CIPHER_iv_length(cipher: *const EVP_CIPHER) -> c_uint;
 }
 
-cfg_if! {
-    if #[cfg(ossl110)] {
-        extern "C" {
-            pub fn EVP_MD_CTX_new() -> *mut EVP_MD_CTX;
-            pub fn EVP_MD_CTX_free(ctx: *mut EVP_MD_CTX);
-        }
-    } else {
-        extern "C" {
-            pub fn EVP_MD_CTX_create() -> *mut EVP_MD_CTX;
-            pub fn EVP_MD_CTX_destroy(ctx: *mut EVP_MD_CTX);
-        }
-    }
+extern "C" {
+    pub fn EVP_MD_CTX_new() -> *mut EVP_MD_CTX;
+    pub fn EVP_MD_CTX_free(ctx: *mut EVP_MD_CTX);
 }
 
 extern "C" {
@@ -215,26 +206,16 @@ extern "C" {
     pub fn EVP_aes_256_ctr() -> *const EVP_CIPHER;
     pub fn EVP_aes_256_gcm() -> *const EVP_CIPHER;
     pub fn EVP_aes_256_ofb() -> *const EVP_CIPHER;
-
-    #[cfg(not(ossl110))]
-    pub fn OPENSSL_add_all_algorithms_noconf();
-
     pub fn EVP_get_digestbyname(name: *const c_char) -> *const EVP_MD;
     pub fn EVP_get_cipherbyname(name: *const c_char) -> *const EVP_CIPHER;
 
     pub fn EVP_PKEY_id(pkey: *const EVP_PKEY) -> c_int;
 }
-cfg_if! {
-    if #[cfg(any(ossl110, libressl280))] {
-        extern "C" {
-            pub fn EVP_PKEY_bits(key: *const EVP_PKEY) -> c_int;
-        }
-    } else {
-        extern "C" {
-            pub fn EVP_PKEY_bits(key: *mut EVP_PKEY) -> c_int;
-        }
-    }
+
+extern "C" {
+    pub fn EVP_PKEY_bits(key: *const EVP_PKEY) -> c_int;
 }
+
 extern "C" {
     pub fn EVP_PKEY_assign(pkey: *mut EVP_PKEY, typ: c_int, key: *mut c_void) -> c_int;
 
@@ -246,7 +227,6 @@ extern "C" {
 
     pub fn EVP_PKEY_new() -> *mut EVP_PKEY;
     pub fn EVP_PKEY_free(k: *mut EVP_PKEY);
-    #[cfg(any(ossl110, libressl270))]
     pub fn EVP_PKEY_up_ref(pkey: *mut EVP_PKEY) -> c_int;
 
     pub fn d2i_AutoPrivateKey(
@@ -279,7 +259,6 @@ extern "C" {
         out: *mut u8,
     ) -> c_int;
 
-    #[cfg(ossl110)]
     pub fn EVP_PBE_scrypt(
         pass: *const c_char,
         passlen: size_t,

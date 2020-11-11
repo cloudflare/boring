@@ -43,38 +43,19 @@ pub const X509_CHECK_FLAG_MULTI_LABEL_WILDCARDS: c_uint = 0x8;
 pub const X509_CHECK_FLAG_SINGLE_LABEL_SUBDOMAINS: c_uint = 0x10;
 pub const X509_CHECK_FLAG_NEVER_CHECK_SUBJECT: c_uint = 0x20;
 
-cfg_if! {
-    if #[cfg(any(ossl110, libressl280))] {
-        extern "C" {
-            pub fn X509V3_EXT_nconf_nid(
-                conf: *mut CONF,
-                ctx: *mut X509V3_CTX,
-                ext_nid: c_int,
-                value: *const c_char,
-            ) -> *mut X509_EXTENSION;
-            pub fn X509V3_EXT_nconf(
-                conf: *mut CONF,
-                ctx: *mut X509V3_CTX,
-                name: *const c_char,
-                value: *const c_char,
-            ) -> *mut X509_EXTENSION;
-        }
-    } else {
-        extern "C" {
-            pub fn X509V3_EXT_nconf_nid(
-                conf: *mut CONF,
-                ctx: *mut X509V3_CTX,
-                ext_nid: c_int,
-                value: *mut c_char,
-            ) -> *mut X509_EXTENSION;
-            pub fn X509V3_EXT_nconf(
-                conf: *mut CONF,
-                ctx: *mut X509V3_CTX,
-                name: *mut c_char,
-                value: *mut c_char,
-            ) -> *mut X509_EXTENSION;
-        }
-    }
+extern "C" {
+    pub fn X509V3_EXT_nconf_nid(
+        conf: *mut CONF,
+        ctx: *mut X509V3_CTX,
+        ext_nid: c_int,
+        value: *const c_char,
+    ) -> *mut X509_EXTENSION;
+    pub fn X509V3_EXT_nconf(
+        conf: *mut CONF,
+        ctx: *mut X509V3_CTX,
+        name: *const c_char,
+        value: *const c_char,
+    ) -> *mut X509_EXTENSION;
 }
 
 extern "C" {
@@ -95,28 +76,20 @@ extern "C" {
     pub fn X509_get1_ocsp(x: *mut X509) -> *mut stack_st_OPENSSL_STRING;
 }
 
-cfg_if! {
-    if #[cfg(any(ossl110, libressl280))] {
-        extern "C" {
-            pub fn X509V3_get_d2i(
-                x: *const stack_st_X509_EXTENSION,
-                nid: c_int,
-                crit: *mut c_int,
-                idx: *mut c_int,
-            ) -> *mut c_void;
-            pub fn X509V3_extensions_print(out: *mut BIO, title: *const c_char, exts: *const stack_st_X509_EXTENSION, flag: c_ulong, indent: c_int) -> c_int;
-        }
-    } else {
-        extern "C" {
-            pub fn X509V3_get_d2i(
-                x: *mut stack_st_X509_EXTENSION,
-                nid: c_int,
-                crit: *mut c_int,
-                idx: *mut c_int,
-            ) -> *mut c_void;
-            pub fn X509V3_extensions_print(out: *mut BIO, title: *mut c_char, exts: *mut stack_st_X509_EXTENSION, flag: c_ulong, indent: c_int) -> c_int;
-        }
-    }
+extern "C" {
+    pub fn X509V3_get_d2i(
+        x: *const stack_st_X509_EXTENSION,
+        nid: c_int,
+        crit: *mut c_int,
+        idx: *mut c_int,
+    ) -> *mut c_void;
+    pub fn X509V3_extensions_print(
+        out: *mut BIO,
+        title: *const c_char,
+        exts: *const stack_st_X509_EXTENSION,
+        flag: c_ulong,
+        indent: c_int,
+    ) -> c_int;
 }
 
 // X509V3_add1_i2d (and *_add1_ext_i2d)
@@ -176,7 +149,6 @@ pub const XKU_SGC: u32 = 0x10;
 pub const XKU_OCSP_SIGN: u32 = 0x20;
 pub const XKU_TIMESTAMP: u32 = 0x40;
 pub const XKU_DVCS: u32 = 0x80;
-#[cfg(ossl110)]
 pub const XKU_ANYEKU: u32 = 0x100;
 
 extern "C" {
@@ -196,10 +168,7 @@ extern "C" {
         indent: c_int,
     ) -> c_int;
 
-    #[cfg(ossl110)]
     pub fn X509_get_extension_flags(x: *mut X509) -> u32;
-    #[cfg(ossl110)]
     pub fn X509_get_key_usage(x: *mut X509) -> u32;
-    #[cfg(ossl110)]
     pub fn X509_get_extended_key_usage(x: *mut X509) -> u32;
 }

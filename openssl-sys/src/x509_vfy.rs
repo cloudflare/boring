@@ -98,16 +98,9 @@ extern "C" {
     pub fn X509_STORE_CTX_get_error_depth(ctx: *mut X509_STORE_CTX) -> c_int;
     pub fn X509_STORE_CTX_get_current_cert(ctx: *mut X509_STORE_CTX) -> *mut X509;
 }
-cfg_if! {
-    if #[cfg(ossl110)] {
-        extern "C" {
-            pub fn X509_STORE_CTX_get0_chain(ctx: *mut X509_STORE_CTX) -> *mut stack_st_X509;
-        }
-    } else {
-        extern "C" {
-            pub fn X509_STORE_CTX_get_chain(ctx: *mut X509_STORE_CTX) -> *mut stack_st_X509;
-        }
-    }
+
+extern "C" {
+    pub fn X509_STORE_CTX_get0_chain(ctx: *mut X509_STORE_CTX) -> *mut stack_st_X509;
 }
 
 extern "C" {

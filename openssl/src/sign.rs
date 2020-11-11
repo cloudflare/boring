@@ -47,13 +47,7 @@ use pkey::{HasPrivate, HasPublic, PKeyRef};
 use rsa::Padding;
 use {cvt, cvt_p};
 
-cfg_if! {
-    if #[cfg(ossl110)] {
-        use ffi::{EVP_MD_CTX_free, EVP_MD_CTX_new};
-    } else {
-        use ffi::{EVP_MD_CTX_create as EVP_MD_CTX_new, EVP_MD_CTX_destroy as EVP_MD_CTX_free};
-    }
-}
+use ffi::{EVP_MD_CTX_free, EVP_MD_CTX_new};
 
 /// Salt lengths that must be used with `set_rsa_pss_saltlen`.
 pub struct RsaPssSaltlen(c_int);

@@ -47,7 +47,6 @@ extern "C" {
 
     pub fn EC_GROUP_get_degree(group: *const EC_GROUP) -> c_uint;
 
-    #[cfg(ossl110)]
     pub fn EC_GROUP_order_bits(group: *const EC_GROUP) -> c_int;
 
     pub fn EC_GROUP_new_curve_GFp(
@@ -149,27 +148,15 @@ extern "C" {
     ) -> c_int;
 }
 
-cfg_if! {
-    if #[cfg(any(ossl110, libressl280))] {
-        pub enum ECDSA_SIG {}
-    } else {
-        #[repr(C)]
-        pub struct ECDSA_SIG {
-            pub r: *mut BIGNUM,
-            pub s: *mut BIGNUM,
-        }
-    }
-}
+pub enum ECDSA_SIG {}
 
 extern "C" {
     pub fn ECDSA_SIG_new() -> *mut ECDSA_SIG;
 
     pub fn ECDSA_SIG_free(sig: *mut ECDSA_SIG);
 
-    #[cfg(any(ossl110, libressl273))]
     pub fn ECDSA_SIG_get0(sig: *const ECDSA_SIG, pr: *mut *const BIGNUM, ps: *mut *const BIGNUM);
 
-    #[cfg(any(ossl110, libressl273))]
     pub fn ECDSA_SIG_set0(sig: *mut ECDSA_SIG, pr: *mut BIGNUM, ps: *mut BIGNUM) -> c_int;
 
     pub fn ECDSA_do_sign(

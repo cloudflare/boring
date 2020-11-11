@@ -87,7 +87,6 @@ pub type PasswordCallback = unsafe extern "C" fn(
     user_data: *mut c_void,
 ) -> c_int;
 
-#[cfg(ossl110)]
 pub fn init() {
     use std::ptr;
     use std::sync::Once;
@@ -99,76 +98,5 @@ pub fn init() {
 
     INIT.call_once(|| unsafe {
         OPENSSL_init_ssl(init_options, ptr::null_mut());
-    })
-}
-
-#[cfg(not(ossl110))]
-pub fn init() {
-    use std::io::{self, Write};
-    use std::mem;
-    use std::process;
-    use std::sync::{Mutex, MutexGuard, Once};
-
-    static mut MUTEXES: *mut Vec<Mutex<()>> = 0 as *mut Vec<Mutex<()>>;
-    static mut GUARDS: *mut Vec<Option<MutexGuard<'static, ()>>> =
-        0 as *mut Vec<Option<MutexGuard<'static, ()>>>;
-
-    unsafe extern "C" fn locking_function(
-        mode: c_int,
-        n: c_int,
-        _file: *const c_char,
-        _line: c_int,
-    ) {
-        let mutex = &(*MUTEXES)[n as usize];
-
-        if mode & ::CRYPTO_LOCK != 0 {
-            (*GUARDS)[n as usize] = Some(mutex.lock().unwrap());
-        } else {
-            if let None = (*GUARDS)[n as usize].take() {
-                let _ = writeln!(
-                    io::stderr(),
-                    "BUG: rust-openssl lock {} already unlocked, aborting",
-                    n
-                );
-                process::abort();
-            }
-        }
-    }
-
-    cfg_if! {
-        if #[cfg(unix)] {
-            fn set_id_callback() {
-                unsafe extern "C" fn thread_id() -> c_ulong {
-                    ::libc::pthread_self() as c_ulong
-                }
-
-                unsafe {
-                    CRYPTO_set_id_callback(thread_id);
-                }
-            }
-        } else {
-            fn set_id_callback() {}
-        }
-    }
-
-    static INIT: Once = Once::new();
-
-    INIT.call_once(|| unsafe {
-        SSL_library_init();
-        SSL_load_error_strings();
-        OPENSSL_add_all_algorithms_noconf();
-
-        let num_locks = ::CRYPTO_num_locks();
-        let mut mutexes = Box::new(Vec::new());
-        for _ in 0..num_locks {
-            mutexes.push(Mutex::new(()));
-        }
-        MUTEXES = mem::transmute(mutexes);
-        let guards: Box<Vec<Option<MutexGuard<()>>>> =
-            Box::new((0..num_locks).map(|_| None).collect());
-        GUARDS = mem::transmute(guards);
-
-        CRYPTO_set_locking_callback(locking_function);
-        set_id_callback();
     })
 }

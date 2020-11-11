@@ -40,7 +40,6 @@ extern "C" {
     pub fn ERR_lib_error_string(err: c_uint) -> *const c_char;
     pub fn ERR_func_error_string(err: c_uint) -> *const c_char;
     pub fn ERR_reason_error_string(err: c_uint) -> *const c_char;
-    #[cfg(not(ossl110))]
     pub fn ERR_load_crypto_strings();
 
     pub fn ERR_get_next_error_library() -> c_int;

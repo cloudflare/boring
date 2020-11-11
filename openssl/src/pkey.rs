@@ -485,22 +485,7 @@ impl PKey<Public> {
     }
 }
 
-cfg_if! {
-    if #[cfg(any(ossl110, libressl270))] {
-        use ffi::EVP_PKEY_up_ref;
-    } else {
-        #[allow(bad_style)]
-        unsafe extern "C" fn EVP_PKEY_up_ref(pkey: *mut ffi::EVP_PKEY) {
-            ffi::CRYPTO_add_lock(
-                &mut (*pkey).references,
-                1,
-                ffi::CRYPTO_LOCK_EVP_PKEY,
-                "pkey.rs\0".as_ptr() as *const _,
-                line!() as c_int,
-            );
-        }
-    }
-}
+use ffi::EVP_PKEY_up_ref;
 
 #[cfg(test)]
 mod tests {

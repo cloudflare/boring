@@ -443,7 +443,6 @@ fn test_alpn_server_advertise_multiple() {
 }
 
 #[test]
-#[cfg(any(ossl110))]
 fn test_alpn_server_select_none_fatal() {
     let mut server = Server::builder();
     // NOTE: in Boring all alpn errors are treated as SSL_TLSEXT_ERR_NOACK
@@ -946,7 +945,6 @@ fn keying_export() {
 }
 
 #[test]
-#[cfg(any(ossl110, libressl261))]
 fn no_version_overlap() {
     let mut server = Server::builder();
     server.ctx().set_min_proto_version(None).unwrap();

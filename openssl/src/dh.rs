@@ -80,24 +80,7 @@ impl Dh<Params> {
     }
 }
 
-cfg_if! {
-    if #[cfg(any(ossl110, libressl273))] {
-        use ffi::DH_set0_pqg;
-    } else {
-        #[allow(bad_style)]
-        unsafe fn DH_set0_pqg(
-            dh: *mut ffi::DH,
-            p: *mut ffi::BIGNUM,
-            q: *mut ffi::BIGNUM,
-            g: *mut ffi::BIGNUM,
-        ) -> ::libc::c_int {
-            (*dh).p = p;
-            (*dh).q = q;
-            (*dh).g = g;
-            1
-        }
-    }
-}
+use ffi::DH_set0_pqg;
 
 #[cfg(test)]
 mod tests {

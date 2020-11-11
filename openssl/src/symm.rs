@@ -213,11 +213,6 @@ impl Cipher {
     pub fn block_size(&self) -> usize {
         unsafe { EVP_CIPHER_block_size(self.0) as usize }
     }
-
-    #[cfg(not(ossl110))]
-    const fn is_ocb(self) -> bool {
-        false
-    }
 }
 
 unsafe impl Sync for Cipher {}
@@ -689,26 +684,7 @@ pub fn decrypt_aead(
     Ok(out)
 }
 
-cfg_if! {
-    if #[cfg(any(ossl110, libressl273))] {
-        use ffi::{EVP_CIPHER_block_size, EVP_CIPHER_iv_length, EVP_CIPHER_key_length};
-    } else {
-        #[allow(bad_style)]
-        pub unsafe fn EVP_CIPHER_iv_length(ptr: *const ffi::EVP_CIPHER) -> c_int {
-            (*ptr).iv_len
-        }
-
-        #[allow(bad_style)]
-        pub unsafe fn EVP_CIPHER_block_size(ptr: *const ffi::EVP_CIPHER) -> c_int {
-            (*ptr).block_size
-        }
-
-        #[allow(bad_style)]
-        pub unsafe fn EVP_CIPHER_key_length(ptr: *const ffi::EVP_CIPHER) -> c_int {
-            (*ptr).key_len
-        }
-    }
-}
+use ffi::{EVP_CIPHER_block_size, EVP_CIPHER_iv_length, EVP_CIPHER_key_length};
 
 #[cfg(test)]
 mod tests {

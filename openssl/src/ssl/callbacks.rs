@@ -258,13 +258,7 @@ pub unsafe extern "C" fn raw_remove_session<F>(
     callback(ctx, session)
 }
 
-cfg_if! {
-    if #[cfg(any(ossl110, libressl280))] {
-        type DataPtr = *const c_uchar;
-    } else {
-        type DataPtr = *mut c_uchar;
-    }
-}
+type DataPtr = *const c_uchar;
 
 pub unsafe extern "C" fn raw_get_session<F>(
     ssl: *mut ffi::SSL,

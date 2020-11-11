@@ -44,17 +44,13 @@ extern "C" {
     pub fn i2d_DSAPublicKey(a: *const DSA, pp: *mut *mut c_uchar) -> c_int;
     pub fn i2d_DSAPrivateKey(a: *const DSA, pp: *mut *mut c_uchar) -> c_int;
 
-    #[cfg(any(ossl110, libressl273))]
     pub fn DSA_get0_pqg(
         d: *const DSA,
         p: *mut *const BIGNUM,
         q: *mut *const BIGNUM,
         q: *mut *const BIGNUM,
     );
-    #[cfg(any(ossl110, libressl273))]
     pub fn DSA_set0_pqg(d: *mut DSA, p: *mut BIGNUM, q: *mut BIGNUM, q: *mut BIGNUM) -> c_int;
-    #[cfg(any(ossl110, libressl273))]
     pub fn DSA_get0_key(d: *const DSA, pub_key: *mut *const BIGNUM, priv_key: *mut *const BIGNUM);
-    #[cfg(any(ossl110, libressl273))]
     pub fn DSA_set0_key(d: *mut DSA, pub_key: *mut BIGNUM, priv_key: *mut BIGNUM) -> c_int;
 }

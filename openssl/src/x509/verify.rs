@@ -14,8 +14,6 @@ bitflags! {
         const NO_PARTIAL_WILDCARDS = ffi::X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS;
         const MULTI_LABEL_WILDCARDS = ffi::X509_CHECK_FLAG_MULTI_LABEL_WILDCARDS;
         const SINGLE_LABEL_SUBDOMAINS = ffi::X509_CHECK_FLAG_SINGLE_LABEL_SUBDOMAINS;
-        /// Requires OpenSSL 1.1.0 or newer.
-        #[cfg(any(ossl110))]
         const NEVER_CHECK_SUBJECT = ffi::X509_CHECK_FLAG_NEVER_CHECK_SUBJECT;
 
         #[deprecated(since = "0.10.6", note = "renamed to NO_WILDCARDS")]

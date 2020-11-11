@@ -80,12 +80,6 @@ impl fmt::Debug for OpensslStringRef {
     }
 }
 
-#[cfg(not(ossl110))]
-unsafe fn free(buf: *mut c_char) {
-    ::ffi::CRYPTO_free(buf as *mut c_void);
-}
-
-#[cfg(ossl110)]
 unsafe fn free(buf: *mut c_char) {
     ::ffi::OPENSSL_free(buf as *mut c_void);
 }
