@@ -1,4 +1,4 @@
-//! Bindings to OpenSSL
+//! Bindings to BoringSSL
 //!
 //! This crate provides a safe interface to the BoringSSL cryptography library.
 
