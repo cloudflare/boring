@@ -40,20 +40,6 @@ pub fn rand_bytes(buf: &mut [u8]) -> Result<(), ErrorStack> {
     }
 }
 
-/// Controls random device file descriptor behavior.
-///
-/// Requires OpenSSL 1.1.1 or newer.
-///
-/// This corresponds to [`RAND_keep_random_devices_open`].
-///
-/// [`RAND_keep_random_devices_open`]: https://www.openssl.org/docs/manmaster/man3/RAND_keep_random_devices_open.html
-#[cfg(ossl111)]
-pub fn keep_random_devices_open(keep: bool) {
-    unsafe {
-        ffi::RAND_keep_random_devices_open(keep as c_int);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::rand_bytes;

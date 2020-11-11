@@ -29,17 +29,6 @@ extern "C" {
         use_context: c_int,
     ) -> c_int;
 
-    #[cfg(ossl111)]
-    pub fn SSL_export_keying_material_early(
-        s: *mut ::SSL,
-        out: *mut c_uchar,
-        olen: size_t,
-        label: *const c_char,
-        llen: size_t,
-        context: *const c_uchar,
-        contextlen: size_t,
-    ) -> c_int;
-
     pub fn SSL_set_tlsext_host_name(s: *mut SSL, name: *const c_char) -> c_int;
     pub fn SSL_set_tlsext_status_type(s: *mut SSL, type_: c_int) -> c_int;
     pub fn SSL_get_tlsext_status_ocsp_resp(ssl: *const SSL, resp: *mut *const c_uchar) -> size_t;

@@ -257,20 +257,6 @@ impl<'a> Signer<'a> {
         self.len_intern()
     }
 
-    #[cfg(not(ossl111))]
-    fn len_intern(&self) -> Result<usize, ErrorStack> {
-        unsafe {
-            let mut len = 0;
-            cvt(ffi::EVP_DigestSignFinal(
-                self.md_ctx,
-                ptr::null_mut(),
-                &mut len,
-            ))?;
-            Ok(len)
-        }
-    }
-
-    #[cfg(ossl111)]
     fn len_intern(&self) -> Result<usize, ErrorStack> {
         unsafe {
             let mut len = 0;
@@ -327,7 +313,6 @@ impl<'a> Signer<'a> {
     /// OpenSSL documentation at [`EVP_DigestSign`].
     ///
     /// [`EVP_DigestSign`]: https://www.openssl.org/docs/man1.1.1/man3/EVP_DigestSign.html
-    #[cfg(ossl111)]
     pub fn sign_oneshot(
         &mut self,
         sig_buf: &mut [u8],
@@ -349,7 +334,6 @@ impl<'a> Signer<'a> {
     /// Returns the signature.
     ///
     /// This is a simple convenience wrapper over `len` and `sign_oneshot`.
-    #[cfg(ossl111)]
     pub fn sign_oneshot_to_vec(&mut self, data_buf: &[u8]) -> Result<Vec<u8>, ErrorStack> {
         let mut sig_buf = vec![0; self.len()?];
         let len = self.sign_oneshot(&mut sig_buf, data_buf)?;
@@ -561,7 +545,6 @@ impl<'a> Verifier<'a> {
     /// OpenSSL documentation at [`EVP_DigestVerify`].
     ///
     /// [`EVP_DigestVerify`]: https://www.openssl.org/docs/man1.1.1/man3/EVP_DigestVerify.html
-    #[cfg(ossl111)]
     pub fn verify_oneshot(&mut self, signature: &[u8], buf: &[u8]) -> Result<bool, ErrorStack> {
         unsafe {
             let r = ffi::EVP_DigestVerify(
@@ -687,7 +670,6 @@ mod test {
     }
 
     #[test]
-    #[cfg(ossl111)]
     fn rsa_sign_verify() {
         let key = include_bytes!("../test/rsa.pem");
         let private_key = Rsa::private_key_from_pem(key).unwrap();

@@ -23,10 +23,7 @@ use pkey::PKey;
 use srtp::SrtpProfileId;
 use ssl;
 use ssl::test::server::Server;
-#[cfg(any(ossl110, ossl111, libressl261))]
 use ssl::SslVersion;
-#[cfg(ossl111)]
-use ssl::{ClientHelloResponse, ExtensionContext};
 use ssl::{
     Error, HandshakeError, MidHandshakeSslStream, ShutdownResult, ShutdownState, Ssl, SslAcceptor,
     SslAcceptorBuilder, SslConnector, SslContext, SslContextBuilder, SslFiletype, SslMethod,
@@ -793,7 +790,6 @@ fn connector_client_server_mozilla_intermediate_v5() {
     test_mozilla_server(SslAcceptor::mozilla_intermediate_v5);
 }
 
-
 #[test]
 fn shutdown() {
     let mut server = Server::builder();
@@ -906,7 +902,6 @@ fn active_session() {
     let copied = session.master_key(&mut buf);
     assert_eq!(copied, len);
 }
-
 
 #[test]
 fn new_session_callback() {

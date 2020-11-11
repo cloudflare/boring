@@ -7,13 +7,9 @@ pub const EVP_PKEY_RSA: c_int = NID_rsaEncryption;
 pub const EVP_PKEY_DSA: c_int = NID_dsa;
 pub const EVP_PKEY_DH: c_int = NID_dhKeyAgreement;
 pub const EVP_PKEY_EC: c_int = NID_X9_62_id_ecPublicKey;
-#[cfg(ossl111)]
 pub const EVP_PKEY_X25519: c_int = NID_X25519;
-#[cfg(ossl111)]
 pub const EVP_PKEY_ED25519: c_int = NID_ED25519;
-#[cfg(ossl111)]
 pub const EVP_PKEY_X448: c_int = NID_X448;
-#[cfg(ossl111)]
 pub const EVP_PKEY_ED448: c_int = NID_ED448;
 
 pub const EVP_CTRL_GCM_SET_IVLEN: c_int = 0x9;
@@ -54,7 +50,6 @@ extern "C" {
     pub fn EVP_DigestFinal_ex(ctx: *mut EVP_MD_CTX, res: *mut u8, n: *mut u32) -> c_int;
     pub fn EVP_DigestInit(ctx: *mut EVP_MD_CTX, typ: *const EVP_MD) -> c_int;
     pub fn EVP_DigestFinal(ctx: *mut EVP_MD_CTX, res: *mut u8, n: *mut u32) -> c_int;
-    #[cfg(ossl111)]
     pub fn EVP_DigestFinalXOF(ctx: *mut EVP_MD_CTX, res: *mut u8, len: usize) -> c_int;
 
     pub fn EVP_BytesToKey(
@@ -155,27 +150,24 @@ extern "C" {
     pub fn EVP_PKEY_size(pkey: *const EVP_PKEY) -> c_int;
 }
 
-cfg_if! {
-    if #[cfg(ossl111)] {
-        extern "C" {
-            pub fn EVP_DigestSign(
-                ctx: *mut EVP_MD_CTX,
-                sigret: *mut c_uchar,
-                siglen: *mut size_t,
-                tbs: *const c_uchar,
-                tbslen: size_t
-            ) -> c_int;
+extern "C" {
+    pub fn EVP_DigestSign(
+        ctx: *mut EVP_MD_CTX,
+        sigret: *mut c_uchar,
+        siglen: *mut size_t,
+        tbs: *const c_uchar,
+        tbslen: size_t,
+    ) -> c_int;
 
-            pub fn EVP_DigestVerify(
-                ctx: *mut EVP_MD_CTX,
-                sigret: *const c_uchar,
-                siglen: size_t,
-                tbs: *const c_uchar,
-                tbslen: size_t
-            ) -> c_int;
-        }
-    }
+    pub fn EVP_DigestVerify(
+        ctx: *mut EVP_MD_CTX,
+        sigret: *const c_uchar,
+        siglen: size_t,
+        tbs: *const c_uchar,
+        tbslen: size_t,
+    ) -> c_int;
 }
+
 cfg_if! {
     if #[cfg(any(ossl102, libressl280))] {
         extern "C" {
@@ -348,33 +340,29 @@ extern "C" {
     pub fn EVP_PKCS82PKEY(p8: *mut PKCS8_PRIV_KEY_INFO) -> *mut EVP_PKEY;
 }
 
-cfg_if! {
-    if #[cfg(any(ossl111))] {
-        extern "C" {
-            pub fn EVP_PKEY_get_raw_public_key(
-                pkey: *const EVP_PKEY,
-                ppub: *mut c_uchar,
-                len: *mut size_t,
-            ) -> c_int;
-            pub fn EVP_PKEY_new_raw_public_key(
-                ttype: c_int,
-                e: *mut ENGINE,
-                key: *const c_uchar,
-                keylen: size_t,
-            ) -> *mut EVP_PKEY;
-            pub fn EVP_PKEY_get_raw_private_key(
-                pkey: *const EVP_PKEY,
-                ppriv: *mut c_uchar,
-                len: *mut size_t,
-            ) -> c_int;
-            pub fn EVP_PKEY_new_raw_private_key(
-                ttype: c_int,
-                e: *mut ENGINE,
-                key: *const c_uchar,
-                keylen: size_t,
-            ) -> *mut EVP_PKEY;
-        }
-    }
+extern "C" {
+    pub fn EVP_PKEY_get_raw_public_key(
+        pkey: *const EVP_PKEY,
+        ppub: *mut c_uchar,
+        len: *mut size_t,
+    ) -> c_int;
+    pub fn EVP_PKEY_new_raw_public_key(
+        ttype: c_int,
+        e: *mut ENGINE,
+        key: *const c_uchar,
+        keylen: size_t,
+    ) -> *mut EVP_PKEY;
+    pub fn EVP_PKEY_get_raw_private_key(
+        pkey: *const EVP_PKEY,
+        ppriv: *mut c_uchar,
+        len: *mut size_t,
+    ) -> c_int;
+    pub fn EVP_PKEY_new_raw_private_key(
+        ttype: c_int,
+        e: *mut ENGINE,
+        key: *const c_uchar,
+        keylen: size_t,
+    ) -> *mut EVP_PKEY;
 }
 
 extern "C" {

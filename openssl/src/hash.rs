@@ -218,7 +218,6 @@ impl Hasher {
 
     /// Writes the hash of the data into the supplied buf and resets the XOF hasher.
     /// The hash will be as long as the buf.
-    #[cfg(ossl111)]
     pub fn finish_xof(&mut self, buf: &mut [u8]) -> Result<(), ErrorStack> {
         if self.state == Finalized {
             self.init()?;
@@ -330,7 +329,6 @@ pub fn hash(t: MessageDigest, data: &[u8]) -> Result<DigestBytes, ErrorStack> {
 }
 
 /// Computes the hash of the `data` with the XOF hasher `t` and stores it in `buf`.
-#[cfg(ossl111)]
 pub fn hash_xof(t: MessageDigest, data: &[u8], buf: &mut [u8]) -> Result<(), ErrorStack> {
     let mut h = Hasher::new(t)?;
     h.update(data)?;

@@ -80,14 +80,9 @@ impl Id {
     pub const DSA: Id = Id(ffi::EVP_PKEY_DSA);
     pub const DH: Id = Id(ffi::EVP_PKEY_DH);
     pub const EC: Id = Id(ffi::EVP_PKEY_EC);
-
-    #[cfg(ossl111)]
     pub const ED25519: Id = Id(ffi::EVP_PKEY_ED25519);
-    #[cfg(ossl111)]
     pub const ED448: Id = Id(ffi::EVP_PKEY_ED448);
-    #[cfg(ossl111)]
     pub const X25519: Id = Id(ffi::EVP_PKEY_X25519);
-    #[cfg(ossl111)]
     pub const X448: Id = Id(ffi::EVP_PKEY_X448);
 
     /// Creates a `Id` from an integer representation.
@@ -295,9 +290,7 @@ impl<T> fmt::Debug for PKey<T> {
             Id::DSA => "DSA",
             Id::DH => "DH",
             Id::EC => "EC",
-            #[cfg(ossl111)]
             Id::ED25519 => "Ed25519",
-            #[cfg(ossl111)]
             Id::ED448 => "Ed448",
             _ => "unknown",
         };

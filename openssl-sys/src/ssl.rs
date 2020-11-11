@@ -105,85 +105,6 @@ pub struct SRTP_PROTECTION_PROFILE {
 
 stack!(stack_st_SRTP_PROTECTION_PROFILE);
 
-#[cfg(ossl111)]
-pub const SSL_EXT_TLS_ONLY: c_uint = 0x0001;
-/* This extension is only allowed in DTLS */
-#[cfg(ossl111)]
-pub const SSL_EXT_DTLS_ONLY: c_uint = 0x0002;
-/* Some extensions may be allowed in DTLS but we don't implement them for it */
-#[cfg(ossl111)]
-pub const SSL_EXT_TLS_IMPLEMENTATION_ONLY: c_uint = 0x0004;
-/* Most extensions are not defined for SSLv3 but EXT_TYPE_renegotiate is */
-#[cfg(ossl111)]
-pub const SSL_EXT_SSL3_ALLOWED: c_uint = 0x0008;
-/* Extension is only defined for TLS1.2 and below */
-#[cfg(ossl111)]
-pub const SSL_EXT_TLS1_2_AND_BELOW_ONLY: c_uint = 0x0010;
-/* Extension is only defined for TLS1.3 and above */
-#[cfg(ossl111)]
-pub const SSL_EXT_TLS1_3_ONLY: c_uint = 0x0020;
-/* Ignore this extension during parsing if we are resuming */
-#[cfg(ossl111)]
-pub const SSL_EXT_IGNORE_ON_RESUMPTION: c_uint = 0x0040;
-#[cfg(ossl111)]
-pub const SSL_EXT_CLIENT_HELLO: c_uint = 0x0080;
-/* Really means TLS1.2 or below */
-#[cfg(ossl111)]
-pub const SSL_EXT_TLS1_2_SERVER_HELLO: c_uint = 0x0100;
-#[cfg(ossl111)]
-pub const SSL_EXT_TLS1_3_SERVER_HELLO: c_uint = 0x0200;
-#[cfg(ossl111)]
-pub const SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS: c_uint = 0x0400;
-#[cfg(ossl111)]
-pub const SSL_EXT_TLS1_3_HELLO_RETRY_REQUEST: c_uint = 0x0800;
-#[cfg(ossl111)]
-pub const SSL_EXT_TLS1_3_CERTIFICATE: c_uint = 0x1000;
-#[cfg(ossl111)]
-pub const SSL_EXT_TLS1_3_NEW_SESSION_TICKET: c_uint = 0x2000;
-#[cfg(ossl111)]
-pub const SSL_EXT_TLS1_3_CERTIFICATE_REQUEST: c_uint = 0x4000;
-
-#[cfg(ossl111)]
-pub type SSL_custom_ext_add_cb_ex = Option<
-    unsafe extern "C" fn(
-        ssl: *mut ::SSL,
-        ext_type: c_uint,
-        context: c_uint,
-        out: *mut *const c_uchar,
-        outlen: *mut size_t,
-        x: *mut ::X509,
-        chainidx: size_t,
-        al: *mut c_int,
-        add_arg: *mut c_void,
-    ) -> c_int,
->;
-
-#[cfg(ossl111)]
-pub type SSL_custom_ext_free_cb_ex = Option<
-    unsafe extern "C" fn(
-        ssl: *mut ::SSL,
-        ext_type: c_uint,
-        context: c_uint,
-        out: *mut *const c_uchar,
-        add_arg: *mut c_void,
-    ),
->;
-
-#[cfg(ossl111)]
-pub type SSL_custom_ext_parse_cb_ex = Option<
-    unsafe extern "C" fn(
-        ssl: *mut ::SSL,
-        ext_type: c_uint,
-        context: c_uint,
-        input: *const c_uchar,
-        inlen: size_t,
-        x: *mut ::X509,
-        chainidx: size_t,
-        al: *mut c_int,
-        parse_arg: *mut c_void,
-    ) -> c_int,
->;
-
 pub const SSL_OP_LEGACY_SERVER_CONNECT: c_uint = 0x00000004;
 
 pub const SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS: c_uint = 0x00000800;
@@ -201,9 +122,6 @@ cfg_if! {
         pub const SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION: c_uint = 0x0;
     }
 }
-
-#[cfg(ossl111)]
-pub const SSL_OP_ENABLE_MIDDLEBOX_COMPAT: c_uint = 0x00100000;
 
 pub const SSL_OP_CIPHER_SERVER_PREFERENCE: c_uint = 0x00400000;
 
@@ -292,9 +210,6 @@ extern "C" {
     pub fn SSL_CTX_set_mode(ctx: *mut SSL_CTX, op: c_uint) -> c_uint;
 }
 
-#[cfg(ossl111)]
-pub const SSL_COOKIE_LENGTH: c_int = 4096;
-
 extern "C" {
     pub fn SSL_CTX_get_options(ctx: *const SSL_CTX) -> c_uint;
     pub fn SSL_CTX_set_options(ctx: *mut SSL_CTX, op: c_uint) -> c_uint;
@@ -348,18 +263,6 @@ cfg_if! {
 }
 
 extern "C" {
-    #[cfg(ossl111)]
-    pub fn SSL_CTX_set_stateless_cookie_verify_cb(
-        s: *mut SSL_CTX,
-        cb: Option<
-            unsafe extern "C" fn(
-                ssl: *mut SSL,
-                cookie: *const c_uchar,
-                cookie_len: size_t,
-            ) -> c_int,
-        >,
-    );
-
     pub fn SSL_CTX_set_next_protos_advertised_cb(
         ssl: *mut SSL_CTX,
         cb: extern "C" fn(
@@ -448,23 +351,8 @@ extern "C" {
     );
 }
 
-#[cfg(ossl111)]
-pub type SSL_CTX_keylog_cb_func =
-    Option<unsafe extern "C" fn(ssl: *const SSL, line: *const c_char)>;
-
 extern "C" {
-    #[cfg(ossl111)]
-    pub fn SSL_CTX_set_keylog_callback(ctx: *mut SSL_CTX, cb: SSL_CTX_keylog_cb_func);
-
-    #[cfg(ossl111)]
-    pub fn SSL_CTX_set_max_early_data(ctx: *mut SSL_CTX, max_early_data: u32) -> c_int;
-    #[cfg(ossl111)]
-    pub fn SSL_CTX_get_max_early_data(ctx: *const SSL_CTX) -> u32;
-    #[cfg(ossl111)]
-    pub fn SSL_set_max_early_data(ctx: *mut SSL, max_early_data: u32) -> c_int;
-    #[cfg(ossl111)]
-    pub fn SSL_get_max_early_data(ctx: *const SSL) -> u32;
-
+    pub fn SSL_CTX_set_keylog_callback(ctx: *mut SSL_CTX, cb:  Option<unsafe extern "C" fn(ssl: *const SSL, line: *const c_char)>);
     pub fn SSL_get_finished(s: *const SSL, buf: *mut c_void, count: size_t) -> size_t;
     pub fn SSL_get_peer_finished(s: *const SSL, buf: *mut c_void, count: size_t) -> size_t;
 
@@ -488,8 +376,6 @@ pub const SSL_ERROR_WANT_READ: c_int = 2;
 pub const SSL_ERROR_WANT_WRITE: c_int = 3;
 pub const SSL_ERROR_WANT_X509_LOOKUP: c_int = 4;
 pub const SSL_ERROR_ZERO_RETURN: c_int = 6;
-#[cfg(ossl111)]
-pub const SSL_ERROR_WANT_CLIENT_HELLO_CB: c_int = 11;
 pub const SSL_VERIFY_NONE: c_int = 0;
 pub const SSL_VERIFY_PEER: c_int = 1;
 pub const SSL_VERIFY_FAIL_IF_NO_PEER_CERT: c_int = 2;
@@ -499,8 +385,6 @@ pub const SSL_CTRL_GET_SESSION_REUSED: c_int = 8;
 pub const SSL_CTRL_OPTIONS: c_int = 32;
 #[cfg(any(libressl, all(ossl101, not(ossl110))))]
 pub const SSL_CTRL_CLEAR_OPTIONS: c_int = 77;
-#[cfg(ossl111)]
-pub const SSL_CTRL_SET_GROUPS_LIST: c_int = 92;
 #[cfg(any(libressl, all(ossl102, not(ossl110))))]
 pub const SSL_CTRL_SET_ECDH_AUTO: c_int = 94;
 
@@ -546,18 +430,13 @@ cfg_if! {
     }
 }
 extern "C" {
-    #[cfg(ossl111)]
-    pub fn SSL_CIPHER_get_handshake_digest(cipher: *const ::SSL_CIPHER) -> *const ::EVP_MD;
     pub fn SSL_CIPHER_get_name(cipher: *const SSL_CIPHER) -> *const c_char;
-    #[cfg(ossl111)]
     pub fn SSL_CIPHER_standard_name(cipher: *const SSL_CIPHER) -> *const c_char;
 
     pub fn SSL_pending(ssl: *const SSL) -> c_int;
     pub fn SSL_set_bio(ssl: *mut SSL, rbio: *mut BIO, wbio: *mut BIO);
     pub fn SSL_get_rbio(ssl: *const SSL) -> *mut BIO;
     pub fn SSL_get_wbio(ssl: *const SSL) -> *mut BIO;
-    #[cfg(ossl111)]
-    pub fn SSL_set_ciphersuites(ssl: *mut ::SSL, str: *const c_char) -> c_int;
     pub fn SSL_set_verify(
         ssl: *mut SSL,
         mode: c_int,
@@ -592,11 +471,6 @@ extern "C" {
     pub fn SSL_SESSION_get_timeout(s: *const SSL_SESSION) -> u32;
     #[cfg(ossl110)]
     pub fn SSL_SESSION_get_protocol_version(s: *const SSL_SESSION) -> u16;
-
-    #[cfg(ossl111)]
-    pub fn SSL_SESSION_set_max_early_data(ctx: *mut SSL_SESSION, max_early_data: u32) -> c_int;
-    #[cfg(ossl111)]
-    pub fn SSL_SESSION_get_max_early_data(ctx: *const SSL_SESSION) -> u32;
 
     pub fn SSL_SESSION_get_id(s: *const SSL_SESSION, len: *mut c_uint) -> *const c_uchar;
     #[cfg(any(ossl110, libressl273))]
@@ -637,62 +511,15 @@ extern "C" {
     pub fn SSL_get0_param(ssl: *mut SSL) -> *mut X509_VERIFY_PARAM;
 }
 
-#[cfg(ossl111)]
-pub const SSL_CLIENT_HELLO_SUCCESS: c_int = 1;
-#[cfg(ossl111)]
-pub const SSL_CLIENT_HELLO_ERROR: c_int = 0;
-#[cfg(ossl111)]
-pub const SSL_CLIENT_HELLO_RETRY: c_int = -1;
-
-#[cfg(ossl111)]
-pub type SSL_client_hello_cb_fn =
-    Option<unsafe extern "C" fn(s: *mut SSL, al: *mut c_int, arg: *mut c_void) -> c_int>;
 extern "C" {
-    #[cfg(ossl111)]
-    pub fn SSL_client_hello_get1_extensions_present(
-        s: *mut SSL,
-        out: *mut *mut c_int,
-        outlen: *mut size_t,
-    ) -> c_int;
-    #[cfg(ossl111)]
-    pub fn SSL_client_hello_get0_ext(
-        s: *mut SSL,
-        type_: c_uint,
-        out: *mut *const c_uchar,
-        outlen: *mut size_t,
-    ) -> c_int;
-
     pub fn SSL_free(ssl: *mut SSL);
     pub fn SSL_accept(ssl: *mut SSL) -> c_int;
-    #[cfg(ossl111)]
-    pub fn SSL_stateless(s: *mut SSL) -> c_int;
     pub fn SSL_connect(ssl: *mut SSL) -> c_int;
     pub fn SSL_read(ssl: *mut SSL, buf: *mut c_void, num: c_int) -> c_int;
-    #[cfg(ossl111)]
-    pub fn SSL_read_early_data(
-        s: *mut ::SSL,
-        buf: *mut c_void,
-        num: size_t,
-        readbytes: *mut size_t,
-    ) -> c_int;
 }
-
-#[cfg(ossl111)]
-pub const SSL_READ_EARLY_DATA_ERROR: c_int = 0;
-#[cfg(ossl111)]
-pub const SSL_READ_EARLY_DATA_SUCCESS: c_int = 1;
-#[cfg(ossl111)]
-pub const SSL_READ_EARLY_DATA_FINISH: c_int = 2;
 
 extern "C" {
     pub fn SSL_write(ssl: *mut SSL, buf: *const c_void, num: c_int) -> c_int;
-    #[cfg(ossl111)]
-    pub fn SSL_write_early_data(
-        s: *mut SSL,
-        buf: *const c_void,
-        num: size_t,
-        written: *mut size_t,
-    ) -> c_int;
 }
 
 cfg_if! {
@@ -868,10 +695,6 @@ extern "C" {
 
 cfg_if! {
     if #[cfg(osslconf = "OPENSSL_NO_COMP")] {
-    } else if #[cfg(ossl111b)] {
-        extern "C" {
-            pub fn SSL_get_current_compression(ssl: *const SSL) -> *const COMP_METHOD;
-        }
     } else {
         extern "C" {
             pub fn SSL_get_current_compression(ssl: *mut SSL) -> *const COMP_METHOD;
@@ -911,8 +734,6 @@ cfg_if! {
 
 #[cfg(ossl110)]
 pub const OPENSSL_INIT_LOAD_SSL_STRINGS: u64 = 0x00200000;
-#[cfg(ossl111b)]
-pub const OPENSSL_INIT_NO_ATEXIT: u64 = 0x00080000;
 
 extern "C" {
     #[cfg(ossl110)]

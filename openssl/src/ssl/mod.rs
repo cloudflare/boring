@@ -84,8 +84,6 @@ use ec::EcKey;
 use ec::EcKeyRef;
 use error::ErrorStack;
 use ex_data::Index;
-#[cfg(ossl111)]
-use hash::MessageDigest;
 #[cfg(ossl110)]
 use nid::Nid;
 use pkey::{HasPrivate, PKeyRef, Params, Private};
@@ -196,13 +194,6 @@ bitflags! {
         /// Requires OpenSSL 1.1.0h or newer.
         #[cfg(ossl110h)]
         const NO_RENEGOTIATION = ffi::SSL_OP_NO_RENEGOTIATION;
-
-        /// Enable TLSv1.3 Compatibility mode.
-        ///
-        /// Requires OpenSSL 1.1.1 or newer. This is on by default in 1.1.1, but a future version
-        /// may have this disabled by default.
-        #[cfg(ossl111)]
-        const ENABLE_MIDDLEBOX_COMPAT = ffi::SSL_OP_ENABLE_MIDDLEBOX_COMPAT;
     }
 }
 
@@ -369,36 +360,6 @@ bitflags! {
     }
 }
 
-#[cfg(ossl111)]
-bitflags! {
-    /// Which messages and under which conditions an extension should be added or expected.
-    pub struct ExtensionContext: c_uint {
-        /// This extension is only allowed in TLS
-        const TLS_ONLY = ffi::SSL_EXT_TLS_ONLY;
-        /// This extension is only allowed in DTLS
-        const DTLS_ONLY = ffi::SSL_EXT_DTLS_ONLY;
-        /// Some extensions may be allowed in DTLS but we don't implement them for it
-        const TLS_IMPLEMENTATION_ONLY = ffi::SSL_EXT_TLS_IMPLEMENTATION_ONLY;
-        /// Most extensions are not defined for SSLv3 but EXT_TYPE_renegotiate is
-        const SSL3_ALLOWED = ffi::SSL_EXT_SSL3_ALLOWED;
-        /// Extension is only defined for TLS1.2 and below
-        const TLS1_2_AND_BELOW_ONLY = ffi::SSL_EXT_TLS1_2_AND_BELOW_ONLY;
-        /// Extension is only defined for TLS1.3 and above
-        const TLS1_3_ONLY = ffi::SSL_EXT_TLS1_3_ONLY;
-        /// Ignore this extension during parsing if we are resuming
-        const IGNORE_ON_RESUMPTION = ffi::SSL_EXT_IGNORE_ON_RESUMPTION;
-        const CLIENT_HELLO = ffi::SSL_EXT_CLIENT_HELLO;
-        /// Really means TLS1.2 or below
-        const TLS1_2_SERVER_HELLO = ffi::SSL_EXT_TLS1_2_SERVER_HELLO;
-        const TLS1_3_SERVER_HELLO = ffi::SSL_EXT_TLS1_3_SERVER_HELLO;
-        const TLS1_3_ENCRYPTED_EXTENSIONS = ffi::SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS;
-        const TLS1_3_HELLO_RETRY_REQUEST = ffi::SSL_EXT_TLS1_3_HELLO_RETRY_REQUEST;
-        const TLS1_3_CERTIFICATE = ffi::SSL_EXT_TLS1_3_CERTIFICATE;
-        const TLS1_3_NEW_SESSION_TICKET = ffi::SSL_EXT_TLS1_3_NEW_SESSION_TICKET;
-        const TLS1_3_CERTIFICATE_REQUEST = ffi::SSL_EXT_TLS1_3_CERTIFICATE_REQUEST;
-    }
-}
-
 /// An identifier of the format of a certificate or key file.
 #[derive(Copy, Clone)]
 pub struct SslFiletype(c_int);
@@ -529,22 +490,6 @@ impl AlpnError {
     pub const NOACK: AlpnError = AlpnError(ffi::SSL_TLSEXT_ERR_NOACK);
 }
 
-/// The result of a client hello callback.
-///
-/// Requires OpenSSL 1.1.1 or newer.
-#[cfg(ossl111)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct ClientHelloResponse(c_int);
-
-#[cfg(ossl111)]
-impl ClientHelloResponse {
-    /// Continue the handshake.
-    pub const SUCCESS: ClientHelloResponse = ClientHelloResponse(ffi::SSL_CLIENT_HELLO_SUCCESS);
-
-    /// Return from the handshake with an `ErrorCode::WANT_CLIENT_HELLO_CB` error.
-    pub const RETRY: ClientHelloResponse = ClientHelloResponse(ffi::SSL_CLIENT_HELLO_RETRY);
-}
-
 /// An SSL/TLS protocol version.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SslVersion(u16);
@@ -563,9 +508,6 @@ impl SslVersion {
     pub const TLS1_2: SslVersion = SslVersion(ffi::TLS1_2_VERSION);
 
     /// TLSv1.3
-    ///
-    /// Requires OpenSSL 1.1.1 or newer.
-    #[cfg(ossl111)]
     pub const TLS1_3: SslVersion = SslVersion(ffi::TLS1_3_VERSION);
 }
 
@@ -1419,7 +1361,6 @@ impl SslContextBuilder {
     /// This corresponds to [`SSL_CTX_set_keylog_callback`].
     ///
     /// [`SSL_CTX_set_keylog_callback`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_set_keylog_callback.html
-    #[cfg(ossl111)]
     pub fn set_keylog_callback<F>(&mut self, callback: F)
     where
         F: Fn(&SslRef, &str) + 'static + Sync + Send,
@@ -1444,30 +1385,6 @@ impl SslContextBuilder {
         }
     }
 
-    /// Sets the callback for verifying an application cookie for TLS1.3
-    /// stateless handshakes.
-    ///
-    /// The callback will be called with the SSL context and the cookie supplied by the
-    /// client. It should return true if and only if the cookie is valid.
-    ///
-    /// Note that the OpenSSL implementation independently verifies the integrity of
-    /// application cookies using an HMAC before invoking the supplied callback.
-    ///
-    /// This corresponds to `SSL_CTX_set_stateless_cookie_verify_cb`.
-    #[cfg(ossl111)]
-    pub fn set_stateless_cookie_verify_cb<F>(&mut self, callback: F)
-    where
-        F: Fn(&mut SslRef, &[u8]) -> bool + 'static + Sync + Send,
-    {
-        unsafe {
-            self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
-            ffi::SSL_CTX_set_stateless_cookie_verify_cb(
-                self.as_ptr(),
-                Some(raw_stateless_cookie_verify::<F>),
-            )
-        }
-    }
-
     /// Sets the extra data at the specified index.
     ///
     /// This can be used to provide data to callbacks registered with the context. Use the
@@ -1485,24 +1402,6 @@ impl SslContextBuilder {
             let data = Box::into_raw(Box::new(data)) as *mut c_void;
             ffi::SSL_CTX_set_ex_data(self.as_ptr(), index.as_raw(), data);
             data
-        }
-    }
-
-    /// Sets the maximum amount of early data that will be accepted on incoming connections.
-    ///
-    /// Defaults to 0.
-    ///
-    /// Requires OpenSSL 1.1.1 or newer.
-    ///
-    /// This corresponds to [`SSL_CTX_set_max_early_data`].
-    ///
-    /// [`SSL_CTX_set_max_early_data`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_CTX_set_max_early_data.html
-    #[cfg(ossl111)]
-    pub fn set_max_early_data(&mut self, bytes: u32) -> Result<(), ErrorStack> {
-        if unsafe { ffi::SSL_CTX_set_max_early_data(self.as_ptr(), bytes) } == 1 {
-            Ok(())
-        } else {
-            Err(ErrorStack::get())
         }
     }
 
@@ -1689,18 +1588,6 @@ impl SslContextRef {
         }
     }
 
-    /// Gets the maximum amount of early data that will be accepted on incoming connections.
-    ///
-    /// Requires OpenSSL 1.1.1 or newer.
-    ///
-    /// This corresponds to [`SSL_CTX_get_max_early_data`].
-    ///
-    /// [`SSL_CTX_get_max_early_data`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_CTX_get_max_early_data.html
-    #[cfg(ossl111)]
-    pub fn max_early_data(&self) -> u32 {
-        unsafe { ffi::SSL_CTX_get_max_early_data(self.as_ptr()) }
-    }
-
     /// Adds a session to the context's cache.
     ///
     /// Returns `true` if the session was successfully added to the cache, and `false` if it was already present.
@@ -1827,7 +1714,6 @@ impl SslCipherRef {
     /// This corresponds to [`SSL_CIPHER_standard_name`].
     ///
     /// [`SSL_CIPHER_standard_name`]: https://www.openssl.org/docs/manmaster/man3/SSL_CIPHER_get_name.html
-    #[cfg(ossl111)]
     pub fn standard_name(&self) -> Option<&'static str> {
         unsafe {
             let ptr = ffi::SSL_CIPHER_standard_name(self.as_ptr());
@@ -1881,25 +1767,6 @@ impl SslCipherRef {
             let mut buf = [0; 128];
             let ptr = ffi::SSL_CIPHER_description(self.as_ptr(), buf.as_mut_ptr(), 128);
             String::from_utf8(CStr::from_ptr(ptr as *const _).to_bytes().to_vec()).unwrap()
-        }
-    }
-
-    /// Returns the handshake digest of the cipher.
-    ///
-    /// Requires OpenSSL 1.1.1 or newer.
-    ///
-    /// This corresponds to [`SSL_CIPHER_get_handshake_digest`].
-    ///
-    /// [`SSL_CIPHER_get_handshake_digest`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_CIPHER_get_handshake_digest.html
-    #[cfg(ossl111)]
-    pub fn handshake_digest(&self) -> Option<MessageDigest> {
-        unsafe {
-            let ptr = ffi::SSL_CIPHER_get_handshake_digest(self.as_ptr());
-            if ptr.is_null() {
-                None
-            } else {
-                Some(MessageDigest::from_ptr(ptr))
-            }
         }
     }
 
@@ -1999,18 +1866,6 @@ impl SslSessionRef {
     /// [`SSL_SESSION_get_master_key`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_SESSION_get_master_key.html
     pub fn master_key(&self, buf: &mut [u8]) -> usize {
         unsafe { SSL_SESSION_get_master_key(self.as_ptr(), buf.as_mut_ptr(), buf.len()) }
-    }
-
-    /// Gets the maximum amount of early data that can be sent on this session.
-    ///
-    /// Requires OpenSSL 1.1.1 or newer.
-    ///
-    /// This corresponds to [`SSL_SESSION_get_max_early_data`].
-    ///
-    /// [`SSL_SESSION_get_max_early_data`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_SESSION_get_max_early_data.html
-    #[cfg(ossl111)]
-    pub fn max_early_data(&self) -> u32 {
-        unsafe { ffi::SSL_SESSION_get_max_early_data(self.as_ptr()) }
     }
 
     /// Returns the time at which the session was established, in seconds since the Unix epoch.
@@ -2735,37 +2590,6 @@ impl SslRef {
         }
     }
 
-    /// Derives keying material for application use in accordance to RFC 5705.
-    ///
-    /// This function is only usable with TLSv1.3, wherein there is no distinction between an empty context and no
-    /// context. Therefore, unlike `export_keying_material`, `context` must always be supplied.
-    ///
-    /// Requires OpenSSL 1.1.1 or newer.
-    ///
-    /// This corresponds to [`SSL_export_keying_material_early`].
-    ///
-    /// [`SSL_export_keying_material_early`]: https://www.openssl.org/docs/manmaster/man3/SSL_export_keying_material_early.html
-    #[cfg(ossl111)]
-    pub fn export_keying_material_early(
-        &self,
-        out: &mut [u8],
-        label: &str,
-        context: &[u8],
-    ) -> Result<(), ErrorStack> {
-        unsafe {
-            cvt(ffi::SSL_export_keying_material_early(
-                self.as_ptr(),
-                out.as_mut_ptr() as *mut c_uchar,
-                out.len(),
-                label.as_ptr() as *const c_char,
-                label.len(),
-                context.as_ptr() as *const c_uchar,
-                context.len(),
-            ))
-            .map(|_| ())
-        }
-    }
-
     /// Sets the session to be used.
     ///
     /// This should be called before the handshake to attempt to reuse a previously established
@@ -2899,34 +2723,6 @@ impl SslRef {
                 Some(&mut *(data as *mut T))
             }
         }
-    }
-
-    /// Sets the maximum amount of early data that will be accepted on this connection.
-    ///
-    /// Requires OpenSSL 1.1.1 or newer.
-    ///
-    /// This corresponds to [`SSL_set_max_early_data`].
-    ///
-    /// [`SSL_set_max_early_data`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_set_max_early_data.html
-    #[cfg(ossl111)]
-    pub fn set_max_early_data(&mut self, bytes: u32) -> Result<(), ErrorStack> {
-        if unsafe { ffi::SSL_set_max_early_data(self.as_ptr(), bytes) } == 1 {
-            Ok(())
-        } else {
-            Err(ErrorStack::get())
-        }
-    }
-
-    /// Gets the maximum amount of early data that can be sent on this connection.
-    ///
-    /// Requires OpenSSL 1.1.1 or newer.
-    ///
-    /// This corresponds to [`SSL_get_max_early_data`].
-    ///
-    /// [`SSL_get_max_early_data`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_get_max_early_data.html
-    #[cfg(ossl111)]
-    pub fn max_early_data(&self) -> u32 {
-        unsafe { ffi::SSL_get_max_early_data(self.as_ptr()) }
     }
 
     /// Copies the contents of the last Finished message sent to the peer into the provided buffer.
@@ -3292,30 +3088,6 @@ where
         }
     }
 
-    /// Perform a stateless server-side handshake
-    ///
-    /// Requires that cookie generation and verification callbacks were
-    /// set on the SSL context.
-    ///
-    /// Returns `Ok(true)` if a complete ClientHello containing a valid cookie
-    /// was read, in which case the handshake should be continued via
-    /// `accept`. If a HelloRetryRequest containing a fresh cookie was
-    /// transmitted, `Ok(false)` is returned instead. If the handshake cannot
-    /// proceed at all, `Err` is returned.
-    ///
-    /// This corresponds to [`SSL_stateless`]
-    ///
-    /// [`SSL_stateless`]: https://www.openssl.org/docs/manmaster/man3/SSL_stateless.html
-    #[cfg(ossl111)]
-    pub fn stateless(&mut self) -> Result<bool, ErrorStack> {
-        match unsafe { ffi::SSL_stateless(self.inner.ssl.as_ptr()) } {
-            1 => Ok(true),
-            0 => Ok(false),
-            -1 => Err(ErrorStack::get()),
-            _ => unreachable!(),
-        }
-    }
-
     /// Configure as an outgoing stream from a client.
     ///
     /// This corresponds to [`SSL_set_connect_state`].
@@ -3406,66 +3178,6 @@ where
                     error,
                 })),
             }
-        }
-    }
-
-    /// Read application data transmitted by a client before handshake
-    /// completion.
-    ///
-    /// Useful for reducing latency, but vulnerable to replay attacks. Call
-    /// `set_accept_state` first.
-    ///
-    /// Returns `Ok(0)` if all early data has been read.
-    ///
-    /// Requires OpenSSL 1.1.1 or newer.
-    ///
-    /// This corresponds to [`SSL_read_early_data`].
-    ///
-    /// [`SSL_read_early_data`]: https://www.openssl.org/docs/manmaster/man3/SSL_read_early_data.html
-    #[cfg(ossl111)]
-    pub fn read_early_data(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        let mut read = 0;
-        let ret = unsafe {
-            ffi::SSL_read_early_data(
-                self.inner.ssl.as_ptr(),
-                buf.as_ptr() as *mut c_void,
-                buf.len(),
-                &mut read,
-            )
-        };
-        match ret {
-            ffi::SSL_READ_EARLY_DATA_ERROR => Err(self.inner.make_error(ret)),
-            ffi::SSL_READ_EARLY_DATA_SUCCESS => Ok(read),
-            ffi::SSL_READ_EARLY_DATA_FINISH => Ok(0),
-            _ => unreachable!(),
-        }
-    }
-
-    /// Send data to the server without blocking on handshake completion.
-    ///
-    /// Useful for reducing latency, but vulnerable to replay attacks. Call
-    /// `set_connect_state` first.
-    ///
-    /// Requires OpenSSL 1.1.1 or newer.
-    ///
-    /// This corresponds to [`SSL_write_early_data`].
-    ///
-    /// [`SSL_write_early_data`]: https://www.openssl.org/docs/manmaster/man3/SSL_write_early_data.html
-    #[cfg(ossl111)]
-    pub fn write_early_data(&mut self, buf: &[u8]) -> Result<usize, Error> {
-        let mut written = 0;
-        let ret = unsafe {
-            ffi::SSL_write_early_data(
-                self.inner.ssl.as_ptr(),
-                buf.as_ptr() as *const c_void,
-                buf.len(),
-                &mut written,
-            )
-        };
-        if ret > 0 {
-            Ok(written as usize)
-        } else {
-            Err(self.inner.make_error(ret))
         }
     }
 }

@@ -1,17 +1,12 @@
 use ffi;
 use foreign_types::ForeignType;
 use foreign_types::ForeignTypeRef;
-#[cfg(any(ossl111, not(osslconf = "OPENSSL_NO_PSK")))]
 use libc::c_char;
-#[cfg(ossl111)]
-use libc::size_t;
 use libc::{c_int, c_uchar, c_uint, c_void};
-#[cfg(any(ossl111, not(osslconf = "OPENSSL_NO_PSK")))]
 use std::ffi::CStr;
 use std::mem;
 use std::ptr;
 use std::slice;
-#[cfg(ossl111)]
 use std::str;
 use std::sync::Arc;
 
@@ -359,7 +354,6 @@ where
     }
 }
 
-#[cfg(ossl111)]
 pub unsafe extern "C" fn raw_keylog<F>(ssl: *const ffi::SSL, line: *const c_char)
 where
     F: Fn(&SslRef, &str) + 'static + Sync + Send,
@@ -373,22 +367,4 @@ where
     let line = str::from_utf8_unchecked(line);
 
     callback(ssl, line);
-}
-
-#[cfg(ossl111)]
-pub unsafe extern "C" fn raw_stateless_cookie_verify<F>(
-    ssl: *mut ffi::SSL,
-    cookie: *const c_uchar,
-    cookie_len: size_t,
-) -> c_int
-where
-    F: Fn(&mut SslRef, &[u8]) -> bool + 'static + Sync + Send,
-{
-    let ssl = SslRef::from_ptr_mut(ssl);
-    let callback = ssl
-        .ssl_context()
-        .ex_data(SslContext::cached_ex_index::<F>())
-        .expect("BUG: stateless cookie verify callback missing") as *const F;
-    let slice = slice::from_raw_parts(cookie as *const c_uchar as *const u8, cookie_len as usize);
-    (*callback)(ssl, slice) as c_int
 }

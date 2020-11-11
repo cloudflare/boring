@@ -241,7 +241,6 @@ impl SslAcceptor {
     pub fn mozilla_intermediate(method: SslMethod) -> Result<SslAcceptorBuilder, ErrorStack> {
         let mut ctx = ctx(method)?;
         ctx.set_options(SslOptions::CIPHER_SERVER_PREFERENCE);
-        #[cfg(ossl111)]
         ctx.set_options(SslOptions::NO_TLSV1_3);
         let dh = Dh::params_from_pem(FFDHE_2048.as_bytes())?;
         ctx.set_tmp_dh(&dh)?;
@@ -271,7 +270,6 @@ impl SslAcceptor {
         ctx.set_options(
             SslOptions::CIPHER_SERVER_PREFERENCE | SslOptions::NO_TLSV1 | SslOptions::NO_TLSV1_1,
         );
-        #[cfg(ossl111)]
         ctx.set_options(SslOptions::NO_TLSV1_3);
         setup_curves(&mut ctx)?;
         ctx.set_cipher_list(
