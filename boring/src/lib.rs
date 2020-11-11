@@ -2,8 +2,6 @@
 //!
 //! This crate provides a safe interface to the BoringSSL cryptography library.
 
-#![doc(html_root_url = "https://docs.rs/openssl/0.10")]
-
 #[macro_use]
 extern crate bitflags;
 #[macro_use]

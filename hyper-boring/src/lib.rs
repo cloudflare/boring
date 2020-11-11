@@ -1,6 +1,5 @@
 //! Hyper SSL support via OpenSSL.
 #![warn(missing_docs)]
-#![doc(html_root_url = "https://docs.rs/hyper-boring")]
 
 use crate::cache::{SessionCache, SessionKey};
 use antidote::Mutex;

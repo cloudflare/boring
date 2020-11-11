@@ -8,7 +8,6 @@
     overflowing_literals,
     unused_imports
 )]
-#![doc(html_root_url = "https://docs.rs/boring-sys")]
 
 extern crate libc;
 
