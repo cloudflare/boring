@@ -19,7 +19,7 @@
 //! [`Cipher`]: ../symm/struct.Cipher.html
 //!
 //! # Examples
-//! 
+//!
 //! ## Key wrapping
 //! ```rust
 //! use openssl::aes::{AesKey, unwrap_key, wrap_key};

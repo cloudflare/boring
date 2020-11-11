@@ -30,7 +30,6 @@ fn main() {
     cfgs.push("ossl102f");
     cfgs.push("ossl102h");
     cfgs.push("ossl110");
-    cfgs.push("ossl110f");
 
     for c in cfgs {
         cfg.cfg(c, None);

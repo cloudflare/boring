@@ -36,7 +36,7 @@ fn test_debug() {
     let cert = include_bytes!("../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let debugged = format!("{:#?}", cert);
-    
+
     assert!(debugged.contains(r#"serial_number: "8771f7bdee982fa5""#));
     assert!(debugged.contains(r#"signature_algorithm: sha256WithRSAEncryption"#));
     assert!(debugged.contains(r#"countryName = "AU""#));

@@ -148,15 +148,7 @@ pub const SSL_OP_NO_TLSv1_3: c_uint = 0x20000000;
 #[cfg(ossl110h)]
 pub const SSL_OP_NO_RENEGOTIATION: c_uint = 0x40000000;
 
-cfg_if! {
-    if #[cfg(ossl110f)] {
-        pub const SSL_OP_ALL: c_uint =
-            SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
-            | SSL_OP_LEGACY_SERVER_CONNECT;
-    } else {
-        pub const SSL_OP_ALL: c_uint = 0x80000BFF;
-    }
-}
+pub const SSL_OP_ALL: c_uint = SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS | SSL_OP_LEGACY_SERVER_CONNECT;
 
 cfg_if! {
     if #[cfg(ossl110)] {
@@ -352,7 +344,10 @@ extern "C" {
 }
 
 extern "C" {
-    pub fn SSL_CTX_set_keylog_callback(ctx: *mut SSL_CTX, cb:  Option<unsafe extern "C" fn(ssl: *const SSL, line: *const c_char)>);
+    pub fn SSL_CTX_set_keylog_callback(
+        ctx: *mut SSL_CTX,
+        cb: Option<unsafe extern "C" fn(ssl: *const SSL, line: *const c_char)>,
+    );
     pub fn SSL_get_finished(s: *const SSL, buf: *mut c_void, count: size_t) -> size_t;
     pub fn SSL_get_peer_finished(s: *const SSL, buf: *mut c_void, count: size_t) -> size_t;
 
@@ -720,16 +715,8 @@ extern "C" {
     pub fn SSL_session_reused(ssl: *const SSL) -> c_int;
 }
 
-cfg_if! {
-    if #[cfg(any(ossl110f, libressl273))] {
-        extern "C" {
-            pub fn SSL_is_server(s: *const SSL) -> c_int;
-        }
-    } else if #[cfg(ossl102)] {
-        extern "C" {
-            pub fn SSL_is_server(s: *mut SSL) -> c_int;
-        }
-    }
+extern "C" {
+    pub fn SSL_is_server(s: *const SSL) -> c_int;
 }
 
 #[cfg(ossl110)]
