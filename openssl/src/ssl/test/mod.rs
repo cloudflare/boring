@@ -1010,7 +1010,6 @@ fn no_version_overlap() {
         .ctx()
         .set_max_proto_version(Some(SslVersion::TLS1_1))
         .unwrap();
-    #[cfg(any(ossl110g, libressl270))]
     assert_eq!(server.ctx().max_proto_version(), Some(SslVersion::TLS1_1));
     server.should_error();
     let server = server.build();
@@ -1020,7 +1019,6 @@ fn no_version_overlap() {
         .ctx()
         .set_min_proto_version(Some(SslVersion::TLS1_2))
         .unwrap();
-    #[cfg(ossl110g)]
     assert_eq!(client.ctx().min_proto_version(), Some(SslVersion::TLS1_2));
     client.ctx().set_max_proto_version(None).unwrap();
 

@@ -1054,7 +1054,6 @@ impl SslContextBuilder {
     /// Requires OpenSSL 1.1.0g or LibreSSL 2.7.0 or newer.
     ///
     /// [`SSL_CTX_get_min_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_min_proto_version.html
-    #[cfg(any(ossl110g, libressl270))]
     pub fn min_proto_version(&mut self) -> Option<SslVersion> {
         unsafe {
             let r = ffi::SSL_CTX_get_min_proto_version(self.as_ptr());
@@ -1076,7 +1075,6 @@ impl SslContextBuilder {
     /// Requires OpenSSL 1.1.0g or LibreSSL 2.7.0 or newer.
     ///
     /// [`SSL_CTX_get_max_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_min_proto_version.html
-    #[cfg(any(ossl110g, libressl270))]
     pub fn max_proto_version(&mut self) -> Option<SslVersion> {
         unsafe {
             let r = ffi::SSL_CTX_get_max_proto_version(self.as_ptr());
