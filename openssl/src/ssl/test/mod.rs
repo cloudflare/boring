@@ -19,7 +19,6 @@ use tempdir::TempDir;
 use dh::Dh;
 use error::ErrorStack;
 use hash::MessageDigest;
-use ocsp::{OcspResponse, OcspResponseStatus};
 use pkey::PKey;
 use srtp::SrtpProfileId;
 use ssl;
@@ -296,7 +295,8 @@ fn state() {
     let server = Server::builder().build();
 
     let s = server.client().connect();
-    assert_eq!(s.ssl().state_string(), "SSLOK ");
+    // NOTE: Boring returs a placeholder string for state_string
+    assert_eq!(s.ssl().state_string(), "!!!!!!");
     assert_eq!(
         s.ssl().state_string_long(),
         "SSL negotiation finished successfully"
@@ -453,16 +453,17 @@ fn test_alpn_server_advertise_multiple() {
 #[cfg(any(ossl110))]
 fn test_alpn_server_select_none_fatal() {
     let mut server = Server::builder();
+    // NOTE: in Boring all alpn errors are treated as SSL_TLSEXT_ERR_NOACK
     server.ctx().set_alpn_select_callback(|_, client| {
         ssl::select_next_proto(b"\x08http/1.1\x08spdy/3.1", client)
             .ok_or(ssl::AlpnError::ALERT_FATAL)
     });
-    server.should_error();
     let server = server.build();
 
     let mut client = server.client();
     client.ctx().set_alpn_protos(b"\x06http/2").unwrap();
-    client.connect_err();
+    let s = client.connect();
+    assert_eq!(None, s.ssl().selected_alpn_protocol());
 }
 
 #[test]
@@ -841,29 +842,6 @@ fn cert_store() {
 }
 
 #[test]
-fn tmp_dh_callback() {
-    static CALLED_BACK: AtomicBool = AtomicBool::new(false);
-
-    let mut server = Server::builder();
-    server.ctx().set_tmp_dh_callback(|_, _, _| {
-        CALLED_BACK.store(true, Ordering::SeqCst);
-        let dh = include_bytes!("../../../test/dhparams.pem");
-        Dh::params_from_pem(dh)
-    });
-
-    let server = server.build();
-
-    let mut client = server.client();
-    // TLS 1.3 has no DH suites, so make sure we don't pick that version
-    #[cfg(ossl111)]
-    client.ctx().set_options(super::SslOptions::NO_TLSV1_3);
-    client.ctx().set_cipher_list("EDH").unwrap();
-    client.connect();
-
-    assert!(CALLED_BACK.load(Ordering::SeqCst));
-}
-
-#[test]
 #[cfg(all(ossl101, not(ossl110)))]
 fn tmp_ecdh_callback() {
     use ec::EcKey;
@@ -881,31 +859,6 @@ fn tmp_ecdh_callback() {
 
     let mut client = server.client();
     client.ctx().set_cipher_list("ECDH").unwrap();
-    client.connect();
-
-    assert!(CALLED_BACK.load(Ordering::SeqCst));
-}
-
-#[test]
-fn tmp_dh_callback_ssl() {
-    static CALLED_BACK: AtomicBool = AtomicBool::new(false);
-
-    let mut server = Server::builder();
-    server.ssl_cb(|ssl| {
-        ssl.set_tmp_dh_callback(|_, _, _| {
-            CALLED_BACK.store(true, Ordering::SeqCst);
-            let dh = include_bytes!("../../../test/dhparams.pem");
-            Dh::params_from_pem(dh)
-        });
-    });
-
-    let server = server.build();
-
-    let mut client = server.client();
-    // TLS 1.3 has no DH suites, so make sure we don't pick that version
-    #[cfg(ossl111)]
-    client.ctx().set_options(super::SslOptions::NO_TLSV1_3);
-    client.ctx().set_cipher_list("EDH").unwrap();
     client.connect();
 
     assert!(CALLED_BACK.load(Ordering::SeqCst));
@@ -959,44 +912,6 @@ fn active_session() {
     assert_eq!(copied, len);
 }
 
-#[test]
-fn status_callbacks() {
-    static CALLED_BACK_SERVER: AtomicBool = AtomicBool::new(false);
-    static CALLED_BACK_CLIENT: AtomicBool = AtomicBool::new(false);
-
-    let mut server = Server::builder();
-    server
-        .ctx()
-        .set_status_callback(|ssl| {
-            CALLED_BACK_SERVER.store(true, Ordering::SeqCst);
-            let response = OcspResponse::create(OcspResponseStatus::UNAUTHORIZED, None).unwrap();
-            let response = response.to_der().unwrap();
-            ssl.set_ocsp_status(&response).unwrap();
-            Ok(true)
-        })
-        .unwrap();
-
-    let server = server.build();
-
-    let mut client = server.client();
-    client
-        .ctx()
-        .set_status_callback(|ssl| {
-            CALLED_BACK_CLIENT.store(true, Ordering::SeqCst);
-            let response = OcspResponse::from_der(ssl.ocsp_status().unwrap()).unwrap();
-            assert_eq!(response.status(), OcspResponseStatus::UNAUTHORIZED);
-            Ok(true)
-        })
-        .unwrap();
-
-    let mut client = client.build().builder();
-    client.ssl().set_status_type(StatusType::OCSP).unwrap();
-
-    client.connect();
-
-    assert!(CALLED_BACK_SERVER.load(Ordering::SeqCst));
-    assert!(CALLED_BACK_CLIENT.load(Ordering::SeqCst));
-}
 
 #[test]
 fn new_session_callback() {
@@ -1326,7 +1241,6 @@ fn psk_ciphers() {
 
     let mut client = server.client();
     // This test relies on TLS 1.2 suites
-    #[cfg(ossl111)]
     client.ctx().set_options(super::SslOptions::NO_TLSV1_3);
     client.ctx().set_cipher_list(CIPHER).unwrap();
     client

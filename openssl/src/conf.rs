@@ -33,14 +33,6 @@ foreign_type_and_impl_send_sync! {
 
 impl Conf {
     /// Create a configuration parser.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use openssl::conf::{Conf, ConfMethod};
-    ///
-    /// let conf = Conf::new(ConfMethod::default());
-    /// ```
     pub fn new(method: ConfMethod) -> Result<Conf, ErrorStack> {
         unsafe { cvt_p(ffi::NCONF_new(method.as_ptr())).map(Conf) }
     }

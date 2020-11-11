@@ -7,7 +7,6 @@ use *;
 pub const TLS1_VERSION: u16 = 0x301;
 pub const TLS1_1_VERSION: u16 = 0x302;
 pub const TLS1_2_VERSION: u16 = 0x303;
-#[cfg(ossl111)]
 pub const TLS1_3_VERSION: u16 = 0x304;
 
 pub const TLS1_AD_DECODE_ERROR: c_int = 50;

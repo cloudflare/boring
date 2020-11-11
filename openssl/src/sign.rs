@@ -34,33 +34,6 @@
 //! verifier.update(data2).unwrap();
 //! assert!(verifier.verify(&signature).unwrap());
 //! ```
-//!
-//! Compute an HMAC:
-//!
-//! ```rust
-//! use openssl::hash::MessageDigest;
-//! use openssl::memcmp;
-//! use openssl::pkey::PKey;
-//! use openssl::sign::Signer;
-//!
-//! // Create a PKey
-//! let key = PKey::hmac(b"my secret").unwrap();
-//!
-//! let data = b"hello, world!";
-//! let data2 = b"hola, mundo!";
-//!
-//! // Compute the HMAC
-//! let mut signer = Signer::new(MessageDigest::sha256(), &key).unwrap();
-//! signer.update(data).unwrap();
-//! signer.update(data2).unwrap();
-//! let hmac = signer.sign_to_vec().unwrap();
-//!
-//! // `Verifier` cannot be used with HMACs; use the `memcmp::eq` function instead
-//! //
-//! // Do not simply check for equality with `==`!
-//! # let target = hmac.clone();
-//! assert!(memcmp::eq(&hmac, &target));
-//! ```
 use ffi;
 use foreign_types::ForeignTypeRef;
 use libc::c_int;
@@ -637,14 +610,13 @@ unsafe fn EVP_DigestVerifyFinal(
 #[cfg(test)]
 mod test {
     use hex::{self, FromHex};
-    use std::iter;
 
     use ec::{EcGroup, EcKey};
     use hash::MessageDigest;
     use nid::Nid;
     use pkey::PKey;
     use rsa::{Padding, Rsa};
-    use sign::{RsaPssSaltlen, Signer, Verifier};
+    use sign::{Signer, Verifier};
 
     const INPUT: &str =
         "65794a68624763694f694a53557a49314e694a392e65794a7063334d694f694a71623255694c41304b49434a6c\
@@ -696,124 +668,6 @@ mod test {
         verifier.update(&Vec::from_hex(INPUT).unwrap()).unwrap();
         verifier.update(b"foobar").unwrap();
         assert!(!verifier.verify(&Vec::from_hex(SIGNATURE).unwrap()).unwrap());
-    }
-
-    fn test_hmac(ty: MessageDigest, tests: &[(Vec<u8>, Vec<u8>, Vec<u8>)]) {
-        for &(ref key, ref data, ref res) in tests.iter() {
-            let pkey = PKey::hmac(key).unwrap();
-            let mut signer = Signer::new(ty, &pkey).unwrap();
-            signer.update(data).unwrap();
-            assert_eq!(signer.sign_to_vec().unwrap(), *res);
-        }
-    }
-
-    #[test]
-    fn hmac_md5() {
-        // test vectors from RFC 2202
-        let tests: [(Vec<u8>, Vec<u8>, Vec<u8>); 7] = [
-            (
-                iter::repeat(0x0b_u8).take(16).collect(),
-                b"Hi There".to_vec(),
-                Vec::from_hex("9294727a3638bb1c13f48ef8158bfc9d").unwrap(),
-            ),
-            (
-                b"Jefe".to_vec(),
-                b"what do ya want for nothing?".to_vec(),
-                Vec::from_hex("750c783e6ab0b503eaa86e310a5db738").unwrap(),
-            ),
-            (
-                iter::repeat(0xaa_u8).take(16).collect(),
-                iter::repeat(0xdd_u8).take(50).collect(),
-                Vec::from_hex("56be34521d144c88dbb8c733f0e8b3f6").unwrap(),
-            ),
-            (
-                Vec::from_hex("0102030405060708090a0b0c0d0e0f10111213141516171819").unwrap(),
-                iter::repeat(0xcd_u8).take(50).collect(),
-                Vec::from_hex("697eaf0aca3a3aea3a75164746ffaa79").unwrap(),
-            ),
-            (
-                iter::repeat(0x0c_u8).take(16).collect(),
-                b"Test With Truncation".to_vec(),
-                Vec::from_hex("56461ef2342edc00f9bab995690efd4c").unwrap(),
-            ),
-            (
-                iter::repeat(0xaa_u8).take(80).collect(),
-                b"Test Using Larger Than Block-Size Key - Hash Key First".to_vec(),
-                Vec::from_hex("6b1ab7fe4bd7bf8f0b62e6ce61b9d0cd").unwrap(),
-            ),
-            (
-                iter::repeat(0xaa_u8).take(80).collect(),
-                b"Test Using Larger Than Block-Size Key \
-              and Larger Than One Block-Size Data"
-                    .to_vec(),
-                Vec::from_hex("6f630fad67cda0ee1fb1f562db3aa53e").unwrap(),
-            ),
-        ];
-
-        test_hmac(MessageDigest::md5(), &tests);
-    }
-
-    #[test]
-    fn hmac_sha1() {
-        // test vectors from RFC 2202
-        let tests: [(Vec<u8>, Vec<u8>, Vec<u8>); 7] = [
-            (
-                iter::repeat(0x0b_u8).take(20).collect(),
-                b"Hi There".to_vec(),
-                Vec::from_hex("b617318655057264e28bc0b6fb378c8ef146be00").unwrap(),
-            ),
-            (
-                b"Jefe".to_vec(),
-                b"what do ya want for nothing?".to_vec(),
-                Vec::from_hex("effcdf6ae5eb2fa2d27416d5f184df9c259a7c79").unwrap(),
-            ),
-            (
-                iter::repeat(0xaa_u8).take(20).collect(),
-                iter::repeat(0xdd_u8).take(50).collect(),
-                Vec::from_hex("125d7342b9ac11cd91a39af48aa17b4f63f175d3").unwrap(),
-            ),
-            (
-                Vec::from_hex("0102030405060708090a0b0c0d0e0f10111213141516171819").unwrap(),
-                iter::repeat(0xcd_u8).take(50).collect(),
-                Vec::from_hex("4c9007f4026250c6bc8414f9bf50c86c2d7235da").unwrap(),
-            ),
-            (
-                iter::repeat(0x0c_u8).take(20).collect(),
-                b"Test With Truncation".to_vec(),
-                Vec::from_hex("4c1a03424b55e07fe7f27be1d58bb9324a9a5a04").unwrap(),
-            ),
-            (
-                iter::repeat(0xaa_u8).take(80).collect(),
-                b"Test Using Larger Than Block-Size Key - Hash Key First".to_vec(),
-                Vec::from_hex("aa4ae5e15272d00e95705637ce8a3b55ed402112").unwrap(),
-            ),
-            (
-                iter::repeat(0xaa_u8).take(80).collect(),
-                b"Test Using Larger Than Block-Size Key \
-              and Larger Than One Block-Size Data"
-                    .to_vec(),
-                Vec::from_hex("e8e99d0f45237d786d6bbaa7965c7808bbff1a91").unwrap(),
-            ),
-        ];
-
-        test_hmac(MessageDigest::sha1(), &tests);
-    }
-
-    #[test]
-    #[cfg(ossl110)]
-    fn test_cmac() {
-        let cipher = ::symm::Cipher::aes_128_cbc();
-        let key = Vec::from_hex("9294727a3638bb1c13f48ef8158bfc9d").unwrap();
-        let pkey = PKey::cmac(&cipher, &key).unwrap();
-        let mut signer = Signer::new_without_digest(&pkey).unwrap();
-
-        let data = b"Hi There";
-        signer.update(data as &[u8]).unwrap();
-
-        let expected = vec![
-            136, 101, 61, 167, 61, 30, 248, 234, 124, 166, 196, 157, 203, 52, 171, 19,
-        ];
-        assert_eq!(signer.sign_to_vec().unwrap(), expected);
     }
 
     #[test]

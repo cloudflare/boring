@@ -590,15 +590,6 @@ mod tests {
     }
 
     #[test]
-    fn test_ripemd160() {
-        let tests = [("616263", "8eb208f7e05d987a9b044a8e98c6b087f15a0bfc")];
-
-        for test in tests.iter() {
-            hash_test(MessageDigest::ripemd160(), test);
-        }
-    }
-
-    #[test]
     fn from_nid() {
         assert_eq!(
             MessageDigest::from_nid(Nid::SHA256).unwrap().as_ptr(),

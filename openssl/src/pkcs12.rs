@@ -11,7 +11,7 @@ use nid::Nid;
 use pkey::{HasPrivate, PKey, PKeyRef, Private};
 use stack::Stack;
 use x509::{X509Ref, X509};
-use {cvt, cvt_p};
+use {cvt_0i, cvt_p};
 
 pub const PKCS12_DEFAULT_ITER: c_int = 2048;
 
@@ -43,7 +43,7 @@ impl Pkcs12Ref {
             let mut cert = ptr::null_mut();
             let mut chain = ptr::null_mut();
 
-            cvt(ffi::PKCS12_parse(
+            cvt_0i(ffi::PKCS12_parse(
                 self.as_ptr(),
                 pass.as_ptr(),
                 &mut pkey,
@@ -239,7 +239,7 @@ mod test {
         let der = include_bytes!("../test/keystore-empty-chain.p12");
         let pkcs12 = Pkcs12::from_der(der).unwrap();
         let parsed = pkcs12.parse("cassandra").unwrap();
-        assert!(parsed.chain.is_none());
+        assert_eq!(parsed.chain.unwrap().len(), 0);
     }
 
     #[test]

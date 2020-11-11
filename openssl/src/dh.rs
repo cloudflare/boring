@@ -106,16 +106,6 @@ mod tests {
     use ssl::{SslContext, SslMethod};
 
     #[test]
-    #[cfg(ossl102)]
-    fn test_dh_rfc5114() {
-        let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
-        let dh2 = Dh::get_2048_224().unwrap();
-        ctx.set_tmp_dh(&dh2).unwrap();
-        let dh3 = Dh::get_2048_256().unwrap();
-        ctx.set_tmp_dh(&dh3).unwrap();
-    }
-
-    #[test]
     fn test_dh() {
         let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
         let p = BigNum::from_hex_str(

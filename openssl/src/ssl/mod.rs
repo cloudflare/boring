@@ -78,7 +78,7 @@ use std::slice;
 use std::str;
 use std::sync::{Arc, Mutex};
 
-use dh::{Dh, DhRef};
+use dh::DhRef;
 #[cfg(all(ossl101, not(ossl110)))]
 use ec::EcKey;
 use ec::EcKeyRef;
@@ -197,7 +197,6 @@ bitflags! {
         /// Disables the use of TLSv1.3.
         ///
         /// Requires OpenSSL 1.1.1 or newer.
-        #[cfg(ossl111)]
         const NO_TLSV1_3 = ffi::SSL_OP_NO_TLSv1_3;
 
         /// Disables the use of DTLSv1.0
@@ -794,26 +793,6 @@ impl SslContextBuilder {
     /// [`SSL_CTX_set_tmp_dh`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_tmp_dh.html
     pub fn set_tmp_dh(&mut self, dh: &DhRef<Params>) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_CTX_set_tmp_dh(self.as_ptr(), dh.as_ptr()) as c_int).map(|_| ()) }
-    }
-
-    /// Sets the callback which will generate parameters to be used during ephemeral Diffie-Hellman
-    /// key exchange.
-    ///
-    /// The callback is provided with a reference to the `Ssl` for the session, as well as a boolean
-    /// indicating if the selected cipher is export-grade, and the key length. The export and key
-    /// length options are archaic and should be ignored in almost all cases.
-    ///
-    /// This corresponds to [`SSL_CTX_set_tmp_dh_callback`].
-    ///
-    /// [`SSL_CTX_set_tmp_dh_callback`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_tmp_dh.html
-    pub fn set_tmp_dh_callback<F>(&mut self, callback: F)
-    where
-        F: Fn(&mut SslRef, bool, u32) -> Result<Dh<Params>, ErrorStack> + 'static + Sync + Send,
-    {
-        unsafe {
-            self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
-            ffi::SSL_CTX_set_tmp_dh_callback(self.as_ptr(), raw_tmp_dh::<F>);
-        }
     }
 
     /// Sets the parameters to be used during ephemeral elliptic curve Diffie-Hellman key exchange.
@@ -2412,23 +2391,6 @@ impl SslRef {
     /// [`SSL_set_tmp_dh`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_set_tmp_dh.html
     pub fn set_tmp_dh(&mut self, dh: &DhRef<Params>) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_set_tmp_dh(self.as_ptr(), dh.as_ptr()) as c_int).map(|_| ()) }
-    }
-
-    /// Like [`SslContextBuilder::set_tmp_dh_callback`].
-    ///
-    /// This corresponds to [`SSL_set_tmp_dh_callback`].
-    ///
-    /// [`SslContextBuilder::set_tmp_dh_callback`]: struct.SslContextBuilder.html#method.set_tmp_dh_callback
-    /// [`SSL_set_tmp_dh_callback`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_set_tmp_dh.html
-    pub fn set_tmp_dh_callback<F>(&mut self, callback: F)
-    where
-        F: Fn(&mut SslRef, bool, u32) -> Result<Dh<Params>, ErrorStack> + 'static + Sync + Send,
-    {
-        unsafe {
-            // this needs to be in an Arc since the callback can register a new callback!
-            self.set_ex_data(Ssl::cached_ex_index(), Arc::new(callback));
-            ffi::SSL_set_tmp_dh_callback(self.as_ptr(), raw_tmp_dh_ssl::<F>);
-        }
     }
 
     /// Like [`SslContextBuilder::set_tmp_ecdh`].

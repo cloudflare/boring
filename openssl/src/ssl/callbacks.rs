@@ -15,11 +15,9 @@ use std::slice;
 use std::str;
 use std::sync::Arc;
 
-use dh::Dh;
 #[cfg(all(ossl101, not(ossl110)))]
 use ec::EcKey;
 use error::ErrorStack;
-use pkey::Params;
 #[cfg(any(ossl102, libressl261))]
 use ssl::AlpnError;
 #[cfg(ossl111)]
@@ -205,33 +203,6 @@ where
     }
 }
 
-pub unsafe extern "C" fn raw_tmp_dh<F>(
-    ssl: *mut ffi::SSL,
-    is_export: c_int,
-    keylength: c_int,
-) -> *mut ffi::DH
-where
-    F: Fn(&mut SslRef, bool, u32) -> Result<Dh<Params>, ErrorStack> + 'static + Sync + Send,
-{
-    let ssl = SslRef::from_ptr_mut(ssl);
-    let callback = ssl
-        .ssl_context()
-        .ex_data(SslContext::cached_ex_index::<F>())
-        .expect("BUG: tmp dh callback missing") as *const F;
-
-    match (*callback)(ssl, is_export != 0, keylength as u32) {
-        Ok(dh) => {
-            let ptr = dh.as_ptr();
-            mem::forget(dh);
-            ptr
-        }
-        Err(e) => {
-            e.put();
-            ptr::null_mut()
-        }
-    }
-}
-
 #[cfg(all(ossl101, not(ossl110)))]
 pub unsafe extern "C" fn raw_tmp_ecdh<F>(
     ssl: *mut ffi::SSL,
@@ -251,33 +222,6 @@ where
         Ok(ec_key) => {
             let ptr = ec_key.as_ptr();
             mem::forget(ec_key);
-            ptr
-        }
-        Err(e) => {
-            e.put();
-            ptr::null_mut()
-        }
-    }
-}
-
-pub unsafe extern "C" fn raw_tmp_dh_ssl<F>(
-    ssl: *mut ffi::SSL,
-    is_export: c_int,
-    keylength: c_int,
-) -> *mut ffi::DH
-where
-    F: Fn(&mut SslRef, bool, u32) -> Result<Dh<Params>, ErrorStack> + 'static + Sync + Send,
-{
-    let ssl = SslRef::from_ptr_mut(ssl);
-    let callback = ssl
-        .ex_data(Ssl::cached_ex_index::<Arc<F>>())
-        .expect("BUG: ssl tmp dh callback missing")
-        .clone();
-
-    match callback(ssl, is_export != 0, keylength as u32) {
-        Ok(dh) => {
-            let ptr = dh.as_ptr();
-            mem::forget(dh);
             ptr
         }
         Err(e) => {

@@ -881,7 +881,7 @@ impl BigNumRef {
     /// # use openssl::bn::BigNum;
     /// let s = -BigNum::from_u32(0x99ff).unwrap();
     ///
-    /// assert_eq!(&**s.to_hex_str().unwrap(), "-99FF");
+    /// assert_eq!(&**s.to_hex_str().unwrap(), "-99ff");
     /// ```
     pub fn to_hex_str(&self) -> Result<OpensslString, ErrorStack> {
         unsafe {

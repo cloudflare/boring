@@ -168,4 +168,4 @@ extern "C" {
     pub fn PEM_write_bio_PKCS7(bp: *mut BIO, x: *mut PKCS7) -> c_int;
 }
 
-pub const PEM_R_NO_START_LINE: c_int = 108;
+pub const PEM_R_NO_START_LINE: c_int = 110;

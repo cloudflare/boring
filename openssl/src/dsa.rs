@@ -359,9 +359,6 @@ cfg_if! {
 mod test {
     use super::*;
     use bn::BigNumContext;
-    use hash::MessageDigest;
-    use pkey::PKey;
-    use sign::{Signer, Verifier};
 
     #[test]
     pub fn test_generate() {
@@ -409,46 +406,6 @@ mod test {
         assert_eq!(dsa.p(), &BigNum::from_u32(283).unwrap());
         assert_eq!(dsa.q(), &BigNum::from_u32(47).unwrap());
         assert_eq!(dsa.g(), &BigNum::from_u32(60).unwrap());
-    }
-
-    #[test]
-    fn test_signature() {
-        const TEST_DATA: &[u8] = &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-        let dsa_ref = Dsa::generate(1024).unwrap();
-
-        let p = dsa_ref.p();
-        let q = dsa_ref.q();
-        let g = dsa_ref.g();
-
-        let pub_key = dsa_ref.pub_key();
-        let priv_key = dsa_ref.priv_key();
-
-        let priv_key = Dsa::from_private_components(
-            BigNumRef::to_owned(p).unwrap(),
-            BigNumRef::to_owned(q).unwrap(),
-            BigNumRef::to_owned(g).unwrap(),
-            BigNumRef::to_owned(priv_key).unwrap(),
-            BigNumRef::to_owned(pub_key).unwrap(),
-        )
-        .unwrap();
-        let priv_key = PKey::from_dsa(priv_key).unwrap();
-
-        let pub_key = Dsa::from_public_components(
-            BigNumRef::to_owned(p).unwrap(),
-            BigNumRef::to_owned(q).unwrap(),
-            BigNumRef::to_owned(g).unwrap(),
-            BigNumRef::to_owned(pub_key).unwrap(),
-        )
-        .unwrap();
-        let pub_key = PKey::from_dsa(pub_key).unwrap();
-
-        let mut signer = Signer::new(MessageDigest::sha256(), &priv_key).unwrap();
-        signer.update(TEST_DATA).unwrap();
-
-        let signature = signer.sign_to_vec().unwrap();
-        let mut verifier = Verifier::new(MessageDigest::sha256(), &pub_key).unwrap();
-        verifier.update(TEST_DATA).unwrap();
-        assert!(verifier.verify(&signature[..]).unwrap());
     }
 
     #[test]

@@ -285,7 +285,7 @@ pub const SSL_OP_NO_TLSv1: c_uint = 0x04000000;
 pub const SSL_OP_NO_DTLSv1: c_uint = 0x04000000;
 #[cfg(ossl102)]
 pub const SSL_OP_NO_DTLSv1_2: c_uint = 0x08000000;
-#[cfg(ossl111)]
+
 pub const SSL_OP_NO_TLSv1_3: c_uint = 0x20000000;
 
 #[cfg(ossl110h)]
@@ -963,16 +963,6 @@ extern "C" {
 }
 
 extern "C" {
-    // FIXME should take an option
-    pub fn SSL_CTX_set_tmp_dh_callback(
-        ctx: *mut SSL_CTX,
-        dh: unsafe extern "C" fn(ssl: *mut SSL, is_export: c_int, keylength: c_int) -> *mut DH,
-    );
-    // FIXME should take an option
-    pub fn SSL_set_tmp_dh_callback(
-        ctx: *mut SSL,
-        dh: unsafe extern "C" fn(ssl: *mut SSL, is_export: c_int, keylength: c_int) -> *mut DH,
-    );
     // FIXME should take an option
     #[cfg(not(ossl110))]
     pub fn SSL_CTX_set_tmp_ecdh_callback(

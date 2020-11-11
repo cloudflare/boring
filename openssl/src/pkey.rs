@@ -332,44 +332,6 @@ impl<T> PKey<T> {
         }
     }
 
-    /// Creates a new `PKey` containing a DSA key.
-    ///
-    /// This corresponds to [`EVP_PKEY_assign_DSA`].
-    ///
-    /// [`EVP_PKEY_assign_DSA`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_PKEY_assign_DSA.html
-    pub fn from_dsa(dsa: Dsa<T>) -> Result<PKey<T>, ErrorStack> {
-        unsafe {
-            let evp = cvt_p(ffi::EVP_PKEY_new())?;
-            let pkey = PKey::from_ptr(evp);
-            cvt(ffi::EVP_PKEY_assign(
-                pkey.0,
-                ffi::EVP_PKEY_DSA,
-                dsa.as_ptr() as *mut _,
-            ))?;
-            mem::forget(dsa);
-            Ok(pkey)
-        }
-    }
-
-    /// Creates a new `PKey` containing a Diffie-Hellman key.
-    ///
-    /// This corresponds to [`EVP_PKEY_assign_DH`].
-    ///
-    /// [`EVP_PKEY_assign_DH`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_PKEY_assign_DH.html
-    pub fn from_dh(dh: Dh<T>) -> Result<PKey<T>, ErrorStack> {
-        unsafe {
-            let evp = cvt_p(ffi::EVP_PKEY_new())?;
-            let pkey = PKey::from_ptr(evp);
-            cvt(ffi::EVP_PKEY_assign(
-                pkey.0,
-                ffi::EVP_PKEY_DH,
-                dh.as_ptr() as *mut _,
-            ))?;
-            mem::forget(dh);
-            Ok(pkey)
-        }
-    }
-
     /// Creates a new `PKey` containing an elliptic curve key.
     ///
     /// This corresponds to [`EVP_PKEY_assign_EC_KEY`].
@@ -573,8 +535,6 @@ cfg_if! {
 
 #[cfg(test)]
 mod tests {
-    use dh::Dh;
-    use dsa::Dsa;
     use ec::EcKey;
     use nid::Nid;
     use rsa::Rsa;
@@ -663,25 +623,6 @@ mod tests {
         pkey.rsa().unwrap();
         assert_eq!(pkey.id(), Id::RSA);
         assert!(pkey.dsa().is_err());
-    }
-
-    #[test]
-    fn test_dsa_accessor() {
-        let dsa = Dsa::generate(2048).unwrap();
-        let pkey = PKey::from_dsa(dsa).unwrap();
-        pkey.dsa().unwrap();
-        assert_eq!(pkey.id(), Id::DSA);
-        assert!(pkey.rsa().is_err());
-    }
-
-    #[test]
-    fn test_dh_accessor() {
-        let dh = include_bytes!("../test/dhparams.pem");
-        let dh = Dh::params_from_pem(dh).unwrap();
-        let pkey = PKey::from_dh(dh).unwrap();
-        pkey.dh().unwrap();
-        assert_eq!(pkey.id(), Id::DH);
-        assert!(pkey.rsa().is_err());
     }
 
     #[test]

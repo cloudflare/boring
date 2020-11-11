@@ -834,37 +834,6 @@ mod tests {
         }
     }
 
-    fn cipher_test_nopad(ciphertype: super::Cipher, pt: &str, ct: &str, key: &str, iv: &str) {
-        let pt = Vec::from_hex(pt).unwrap();
-        let ct = Vec::from_hex(ct).unwrap();
-        let key = Vec::from_hex(key).unwrap();
-        let iv = Vec::from_hex(iv).unwrap();
-
-        let computed = {
-            let mut c = Crypter::new(ciphertype, Mode::Decrypt, &key, Some(&iv)).unwrap();
-            c.pad(false);
-            let mut out = vec![0; ct.len() + ciphertype.block_size()];
-            let count = c.update(&ct, &mut out).unwrap();
-            let rest = c.finalize(&mut out[count..]).unwrap();
-            out.truncate(count + rest);
-            out
-        };
-        let expected = pt;
-
-        if computed != expected {
-            println!("Computed: {}", hex::encode(&computed));
-            println!("Expected: {}", hex::encode(&expected));
-            if computed.len() != expected.len() {
-                println!(
-                    "Lengths differ: {} in computed vs {} expected",
-                    computed.len(),
-                    expected.len()
-                );
-            }
-            panic!("test failure");
-        }
-    }
-
     #[test]
     fn test_rc4() {
         let pt = "0000000000000000000000000000000000000000000000000000000000000000000000000000";
@@ -873,21 +842,6 @@ mod tests {
         let iv = "";
 
         cipher_test(super::Cipher::rc4(), pt, ct, key, iv);
-    }
-
-    #[test]
-    fn test_aes256_xts() {
-        // Test case 174 from
-        // http://csrc.nist.gov/groups/STM/cavp/documents/aes/XTSTestVectors.zip
-        let pt = "77f4ef63d734ebd028508da66c22cdebdd52ecd6ee2ab0a50bc8ad0cfd692ca5fcd4e6dedc45df7f\
-                  6503f462611dc542";
-        let ct = "ce7d905a7776ac72f240d22aafed5e4eb7566cdc7211220e970da634ce015f131a5ecb8d400bc9e8\
-                  4f0b81d8725dbbc7";
-        let key = "b6bfef891f83b5ff073f2231267be51eb084b791fa19a154399c0684c8b2dfcb37de77d28bbda3b\
-                   4180026ad640b74243b3133e7b9fae629403f6733423dae28";
-        let iv = "db200efb7eaaa737dbdf40babb68953f";
-
-        cipher_test(super::Cipher::aes_256_xts(), pt, ct, key, iv);
     }
 
     #[test]
@@ -900,38 +854,6 @@ mod tests {
         let iv = "F0F1F2F3F4F5F6F7F8F9FAFBFCFDFEFF";
 
         cipher_test(super::Cipher::aes_128_ctr(), pt, ct, key, iv);
-    }
-
-    #[test]
-    fn test_aes128_cfb1() {
-        // Lifted from http://csrc.nist.gov/publications/nistpubs/800-38a/sp800-38a.pdf
-
-        let pt = "6bc1";
-        let ct = "68b3";
-        let key = "2b7e151628aed2a6abf7158809cf4f3c";
-        let iv = "000102030405060708090a0b0c0d0e0f";
-
-        cipher_test(super::Cipher::aes_128_cfb1(), pt, ct, key, iv);
-    }
-
-    #[test]
-    fn test_aes128_cfb128() {
-        let pt = "6bc1bee22e409f96e93d7e117393172a";
-        let ct = "3b3fd92eb72dad20333449f8e83cfb4a";
-        let key = "2b7e151628aed2a6abf7158809cf4f3c";
-        let iv = "000102030405060708090a0b0c0d0e0f";
-
-        cipher_test(super::Cipher::aes_128_cfb128(), pt, ct, key, iv);
-    }
-
-    #[test]
-    fn test_aes128_cfb8() {
-        let pt = "6bc1bee22e409f96e93d7e117393172aae2d";
-        let ct = "3b79424c9c0dd436bace9e0ed4586a4f32b9";
-        let key = "2b7e151628aed2a6abf7158809cf4f3c";
-        let iv = "000102030405060708090a0b0c0d0e0f";
-
-        cipher_test(super::Cipher::aes_128_cfb8(), pt, ct, key, iv);
     }
 
     #[test]
@@ -959,42 +881,6 @@ mod tests {
     }
 
     #[test]
-    fn test_aes192_cfb1() {
-        // Lifted from http://csrc.nist.gov/publications/nistpubs/800-38a/sp800-38a.pdf
-
-        let pt = "6bc1";
-        let ct = "9359";
-        let key = "8e73b0f7da0e6452c810f32b809079e562f8ead2522c6b7b";
-        let iv = "000102030405060708090a0b0c0d0e0f";
-
-        cipher_test(super::Cipher::aes_192_cfb1(), pt, ct, key, iv);
-    }
-
-    #[test]
-    fn test_aes192_cfb128() {
-        // Lifted from http://csrc.nist.gov/publications/nistpubs/800-38a/sp800-38a.pdf
-
-        let pt = "6bc1bee22e409f96e93d7e117393172aae2d8a571e03ac9c9eb76fac45af8e5130c81c46a35ce411e5fbc1191a0a52eff69f2445df4f9b17ad2b417be66c3710";
-        let ct = "cdc80d6fddf18cab34c25909c99a417467ce7f7f81173621961a2b70171d3d7a2e1e8a1dd59b88b1c8e60fed1efac4c9c05f9f9ca9834fa042ae8fba584b09ff";
-        let key = "8e73b0f7da0e6452c810f32b809079e562f8ead2522c6b7b";
-        let iv = "000102030405060708090a0b0c0d0e0f";
-
-        cipher_test(super::Cipher::aes_192_cfb128(), pt, ct, key, iv);
-    }
-
-    #[test]
-    fn test_aes192_cfb8() {
-        // Lifted from http://csrc.nist.gov/publications/nistpubs/800-38a/sp800-38a.pdf
-
-        let pt = "6bc1bee22e409f96e93d7e117393172aae2d";
-        let ct = "cda2521ef0a905ca44cd057cbf0d47a0678a";
-        let key = "8e73b0f7da0e6452c810f32b809079e562f8ead2522c6b7b";
-        let iv = "000102030405060708090a0b0c0d0e0f";
-
-        cipher_test(super::Cipher::aes_192_cfb8(), pt, ct, key, iv);
-    }
-
-    #[test]
     fn test_aes192_ofb() {
         // Lifted from http://csrc.nist.gov/publications/nistpubs/800-38a/sp800-38a.pdf
 
@@ -1007,36 +893,6 @@ mod tests {
     }
 
     #[test]
-    fn test_aes256_cfb1() {
-        let pt = "6bc1";
-        let ct = "9029";
-        let key = "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4";
-        let iv = "000102030405060708090a0b0c0d0e0f";
-
-        cipher_test(super::Cipher::aes_256_cfb1(), pt, ct, key, iv);
-    }
-
-    #[test]
-    fn test_aes256_cfb128() {
-        let pt = "6bc1bee22e409f96e93d7e117393172a";
-        let ct = "dc7e84bfda79164b7ecd8486985d3860";
-        let key = "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4";
-        let iv = "000102030405060708090a0b0c0d0e0f";
-
-        cipher_test(super::Cipher::aes_256_cfb128(), pt, ct, key, iv);
-    }
-
-    #[test]
-    fn test_aes256_cfb8() {
-        let pt = "6bc1bee22e409f96e93d7e117393172aae2d";
-        let ct = "dc1f1a8520a64db55fcc8ac554844e889700";
-        let key = "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4";
-        let iv = "000102030405060708090a0b0c0d0e0f";
-
-        cipher_test(super::Cipher::aes_256_cfb8(), pt, ct, key, iv);
-    }
-
-    #[test]
     fn test_aes256_ofb() {
         // Lifted from http://csrc.nist.gov/publications/nistpubs/800-38a/sp800-38a.pdf
 
@@ -1046,48 +902,6 @@ mod tests {
         let iv = "000102030405060708090a0b0c0d0e0f";
 
         cipher_test(super::Cipher::aes_256_ofb(), pt, ct, key, iv);
-    }
-
-    #[test]
-    fn test_bf_cbc() {
-        // https://www.schneier.com/code/vectors.txt
-
-        let pt = "37363534333231204E6F77206973207468652074696D6520666F722000000000";
-        let ct = "6B77B4D63006DEE605B156E27403979358DEB9E7154616D959F1652BD5FF92CC";
-        let key = "0123456789ABCDEFF0E1D2C3B4A59687";
-        let iv = "FEDCBA9876543210";
-
-        cipher_test_nopad(super::Cipher::bf_cbc(), pt, ct, key, iv);
-    }
-
-    #[test]
-    fn test_bf_ecb() {
-        let pt = "5CD54CA83DEF57DA";
-        let ct = "B1B8CC0B250F09A0";
-        let key = "0131D9619DC1376E";
-        let iv = "0000000000000000";
-
-        cipher_test_nopad(super::Cipher::bf_ecb(), pt, ct, key, iv);
-    }
-
-    #[test]
-    fn test_bf_cfb64() {
-        let pt = "37363534333231204E6F77206973207468652074696D6520666F722000";
-        let ct = "E73214A2822139CAF26ECF6D2EB9E76E3DA3DE04D1517200519D57A6C3";
-        let key = "0123456789ABCDEFF0E1D2C3B4A59687";
-        let iv = "FEDCBA9876543210";
-
-        cipher_test_nopad(super::Cipher::bf_cfb64(), pt, ct, key, iv);
-    }
-
-    #[test]
-    fn test_bf_ofb() {
-        let pt = "37363534333231204E6F77206973207468652074696D6520666F722000";
-        let ct = "E73214A2822139CA62B343CC5B65587310DD908D0C241B2263C2CF80DA";
-        let key = "0123456789ABCDEFF0E1D2C3B4A59687";
-        let iv = "FEDCBA9876543210";
-
-        cipher_test_nopad(super::Cipher::bf_ofb(), pt, ct, key, iv);
     }
 
     #[test]
@@ -1131,16 +945,6 @@ mod tests {
     }
 
     #[test]
-    fn test_des_ede3_cfb64() {
-        let pt = "2b1773784b5889dc788477367daa98ad";
-        let ct = "6f2867cfefda048a4046ef7e556c7132";
-        let key = "7cb66337f3d3c0fe7cb66337f3d3c0fe7cb66337f3d3c0fe";
-        let iv = "0001020304050607";
-
-        cipher_test(super::Cipher::des_ede3_cfb64(), pt, ct, key, iv);
-    }
-
-    #[test]
     fn test_aes128_gcm() {
         let key = "0e00c76561d2bd9b40c3c15427e2b08f";
         let iv = "492cadaccd3ca3fbc9cf9f06eb3325c4e159850b0dbe98199b89b7af528806610b6f63998e1eae80c348e7\
@@ -1172,230 +976,6 @@ mod tests {
 
         let out = decrypt_aead(
             Cipher::aes_128_gcm(),
-            &Vec::from_hex(key).unwrap(),
-            Some(&Vec::from_hex(iv).unwrap()),
-            &Vec::from_hex(aad).unwrap(),
-            &Vec::from_hex(ct).unwrap(),
-            &Vec::from_hex(tag).unwrap(),
-        )
-        .unwrap();
-        assert_eq!(pt, hex::encode(out));
-    }
-
-    #[test]
-    fn test_aes128_ccm() {
-        let key = "3ee186594f110fb788a8bf8aa8be5d4a";
-        let nonce = "44f705d52acf27b7f17196aa9b";
-        let aad = "2c16724296ff85e079627be3053ea95adf35722c21886baba343bd6c79b5cb57";
-
-        let pt = "d71864877f2578db092daba2d6a1f9f4698a9c356c7830a1";
-        let ct = "b4dd74e7a0cc51aea45dfb401a41d5822c96901a83247ea0";
-        let tag = "d6965f5aa6e31302a9cc2b36";
-
-        let mut actual_tag = [0; 12];
-        let out = encrypt_aead(
-            Cipher::aes_128_ccm(),
-            &Vec::from_hex(key).unwrap(),
-            Some(&Vec::from_hex(nonce).unwrap()),
-            &Vec::from_hex(aad).unwrap(),
-            &Vec::from_hex(pt).unwrap(),
-            &mut actual_tag,
-        )
-        .unwrap();
-
-        assert_eq!(ct, hex::encode(out));
-        assert_eq!(tag, hex::encode(actual_tag));
-
-        let out = decrypt_aead(
-            Cipher::aes_128_ccm(),
-            &Vec::from_hex(key).unwrap(),
-            Some(&Vec::from_hex(nonce).unwrap()),
-            &Vec::from_hex(aad).unwrap(),
-            &Vec::from_hex(ct).unwrap(),
-            &Vec::from_hex(tag).unwrap(),
-        )
-        .unwrap();
-        assert_eq!(pt, hex::encode(out));
-    }
-
-    #[test]
-    fn test_aes128_ccm_verify_fail() {
-        let key = "3ee186594f110fb788a8bf8aa8be5d4a";
-        let nonce = "44f705d52acf27b7f17196aa9b";
-        let aad = "2c16724296ff85e079627be3053ea95adf35722c21886baba343bd6c79b5cb57";
-
-        let ct = "b4dd74e7a0cc51aea45dfb401a41d5822c96901a83247ea0";
-        let tag = "00005f5aa6e31302a9cc2b36";
-
-        let out = decrypt_aead(
-            Cipher::aes_128_ccm(),
-            &Vec::from_hex(key).unwrap(),
-            Some(&Vec::from_hex(nonce).unwrap()),
-            &Vec::from_hex(aad).unwrap(),
-            &Vec::from_hex(ct).unwrap(),
-            &Vec::from_hex(tag).unwrap(),
-        );
-        assert!(out.is_err());
-    }
-
-    #[test]
-    fn test_aes256_ccm() {
-        let key = "7f4af6765cad1d511db07e33aaafd57646ec279db629048aa6770af24849aa0d";
-        let nonce = "dde2a362ce81b2b6913abc3095";
-        let aad = "404f5df97ece7431987bc098cce994fc3c063b519ffa47b0365226a0015ef695";
-
-        let pt = "7ebef26bf4ecf6f0ebb2eb860edbf900f27b75b4a6340fdb";
-        let ct = "353022db9c568bd7183a13c40b1ba30fcc768c54264aa2cd";
-        let tag = "2927a053c9244d3217a7ad05";
-
-        let mut actual_tag = [0; 12];
-        let out = encrypt_aead(
-            Cipher::aes_256_ccm(),
-            &Vec::from_hex(key).unwrap(),
-            Some(&Vec::from_hex(nonce).unwrap()),
-            &Vec::from_hex(aad).unwrap(),
-            &Vec::from_hex(pt).unwrap(),
-            &mut actual_tag,
-        )
-        .unwrap();
-
-        assert_eq!(ct, hex::encode(out));
-        assert_eq!(tag, hex::encode(actual_tag));
-
-        let out = decrypt_aead(
-            Cipher::aes_256_ccm(),
-            &Vec::from_hex(key).unwrap(),
-            Some(&Vec::from_hex(nonce).unwrap()),
-            &Vec::from_hex(aad).unwrap(),
-            &Vec::from_hex(ct).unwrap(),
-            &Vec::from_hex(tag).unwrap(),
-        )
-        .unwrap();
-        assert_eq!(pt, hex::encode(out));
-    }
-
-    #[test]
-    fn test_aes256_ccm_verify_fail() {
-        let key = "7f4af6765cad1d511db07e33aaafd57646ec279db629048aa6770af24849aa0d";
-        let nonce = "dde2a362ce81b2b6913abc3095";
-        let aad = "404f5df97ece7431987bc098cce994fc3c063b519ffa47b0365226a0015ef695";
-
-        let ct = "353022db9c568bd7183a13c40b1ba30fcc768c54264aa2cd";
-        let tag = "0000a053c9244d3217a7ad05";
-
-        let out = decrypt_aead(
-            Cipher::aes_256_ccm(),
-            &Vec::from_hex(key).unwrap(),
-            Some(&Vec::from_hex(nonce).unwrap()),
-            &Vec::from_hex(aad).unwrap(),
-            &Vec::from_hex(ct).unwrap(),
-            &Vec::from_hex(tag).unwrap(),
-        );
-        assert!(out.is_err());
-    }
-
-    #[test]
-    #[cfg(ossl110)]
-    fn test_aes_128_ocb() {
-        let key = "000102030405060708090a0b0c0d0e0f";
-        let aad = "0001020304050607";
-        let tag = "16dc76a46d47e1ead537209e8a96d14e";
-        let iv = "000102030405060708090a0b";
-        let pt = "0001020304050607";
-        let ct = "92b657130a74b85a";
-
-        let mut actual_tag = [0; 16];
-        let out = encrypt_aead(
-            Cipher::aes_128_ocb(),
-            &Vec::from_hex(key).unwrap(),
-            Some(&Vec::from_hex(iv).unwrap()),
-            &Vec::from_hex(aad).unwrap(),
-            &Vec::from_hex(pt).unwrap(),
-            &mut actual_tag,
-        )
-        .unwrap();
-
-        assert_eq!(ct, hex::encode(out));
-        assert_eq!(tag, hex::encode(actual_tag));
-
-        let out = decrypt_aead(
-            Cipher::aes_128_ocb(),
-            &Vec::from_hex(key).unwrap(),
-            Some(&Vec::from_hex(iv).unwrap()),
-            &Vec::from_hex(aad).unwrap(),
-            &Vec::from_hex(ct).unwrap(),
-            &Vec::from_hex(tag).unwrap(),
-        )
-        .unwrap();
-        assert_eq!(pt, hex::encode(out));
-    }
-
-    #[test]
-    #[cfg(ossl110)]
-    fn test_aes_128_ocb_fail() {
-        let key = "000102030405060708090a0b0c0d0e0f";
-        let aad = "0001020304050607";
-        let tag = "16dc76a46d47e1ead537209e8a96d14e";
-        let iv = "000000000405060708090a0b";
-        let ct = "92b657130a74b85a";
-
-        let out = decrypt_aead(
-            Cipher::aes_128_ocb(),
-            &Vec::from_hex(key).unwrap(),
-            Some(&Vec::from_hex(iv).unwrap()),
-            &Vec::from_hex(aad).unwrap(),
-            &Vec::from_hex(ct).unwrap(),
-            &Vec::from_hex(tag).unwrap(),
-        );
-        assert!(out.is_err());
-    }
-
-    #[test]
-    #[cfg(any(ossl110))]
-    fn test_chacha20() {
-        let key = "0000000000000000000000000000000000000000000000000000000000000000";
-        let iv = "00000000000000000000000000000000";
-        let pt =
-            "000000000000000000000000000000000000000000000000000000000000000000000000000000000\
-             00000000000000000000000000000000000000000000000";
-        let ct =
-            "76b8e0ada0f13d90405d6ae55386bd28bdd219b8a08ded1aa836efcc8b770dc7da41597c5157488d7\
-             724e03fb8d84a376a43b8f41518a11cc387b669b2ee6586";
-
-        cipher_test(Cipher::chacha20(), pt, ct, key, iv);
-    }
-
-    #[test]
-    #[cfg(any(ossl110))]
-    fn test_chacha20_poly1305() {
-        let key = "808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f";
-        let iv = "070000004041424344454647";
-        let aad = "50515253c0c1c2c3c4c5c6c7";
-        let pt =
-            "4c616469657320616e642047656e746c656d656e206f662074686520636c617373206f66202739393\
-             a204966204920636f756c64206f6666657220796f75206f6e6c79206f6e652074697020666f722074\
-             6865206675747572652c2073756e73637265656e20776f756c642062652069742e";
-        let ct =
-            "d31a8d34648e60db7b86afbc53ef7ec2a4aded51296e08fea9e2b5a736ee62d63dbea45e8ca967128\
-             2fafb69da92728b1a71de0a9e060b2905d6a5b67ecd3b3692ddbd7f2d778b8c9803aee328091b58fa\
-             b324e4fad675945585808b4831d7bc3ff4def08e4b7a9de576d26586cec64b6116";
-        let tag = "1ae10b594f09e26a7e902ecbd0600691";
-
-        let mut actual_tag = [0; 16];
-        let out = encrypt_aead(
-            Cipher::chacha20_poly1305(),
-            &Vec::from_hex(key).unwrap(),
-            Some(&Vec::from_hex(iv).unwrap()),
-            &Vec::from_hex(aad).unwrap(),
-            &Vec::from_hex(pt).unwrap(),
-            &mut actual_tag,
-        )
-        .unwrap();
-        assert_eq!(ct, hex::encode(out));
-        assert_eq!(tag, hex::encode(actual_tag));
-
-        let out = decrypt_aead(
-            Cipher::chacha20_poly1305(),
             &Vec::from_hex(key).unwrap(),
             Some(&Vec::from_hex(iv).unwrap()),
             &Vec::from_hex(aad).unwrap(),

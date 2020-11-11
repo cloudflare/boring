@@ -158,7 +158,6 @@ pub mod memcmp;
 pub mod nid;
 pub mod pkcs12;
 pub mod pkcs5;
-pub mod pkcs7;
 pub mod pkey;
 pub mod rand;
 pub mod rsa;
@@ -181,6 +180,14 @@ fn cvt_p<T>(r: *mut T) -> Result<*mut T, ErrorStack> {
 }
 
 fn cvt_0(r: size_t) -> Result<size_t, ErrorStack> {
+    if r == 0 {
+        Err(ErrorStack::get())
+    } else {
+        Ok(r)
+    }
+}
+
+fn cvt_0i(r: c_int) -> Result<c_int, ErrorStack> {
     if r == 0 {
         Err(ErrorStack::get())
     } else {

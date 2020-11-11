@@ -6,11 +6,9 @@
 //! Advanced Encryption Standard (AES) provides symmetric key cipher that
 //! the same key is used to encrypt and decrypt data.  This implementation
 //! uses 128, 192, or 256 bit keys.  This module provides functions to
-//! create a new key with [`new_encrypt`] and perform an encryption/decryption
-//! using that key with [`aes_ige`].
+//! create a new key with [`new_encrypt`].
 //!
 //! [`new_encrypt`]: struct.AesKey.html#method.new_encrypt
-//! [`aes_ige`]: fn.aes_ige.html
 //!
 //! The [`symm`] module should be used in preference to this module in most cases.
 //! The IGE block cypher is a non-traditional cipher mode.  More traditional AES
@@ -21,23 +19,7 @@
 //! [`Cipher`]: ../symm/struct.Cipher.html
 //!
 //! # Examples
-//!
-//! ## AES IGE
-//! ```rust
-//! use openssl::aes::{AesKey, aes_ige};
-//! use openssl::symm::Mode;
-//!
-//! let key = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
-//! let plaintext = b"\x12\x34\x56\x78\x90\x12\x34\x56\x12\x34\x56\x78\x90\x12\x34\x56";
-//! let mut iv = *b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F\
-//!                 \x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F";
-//!
-//!  let key = AesKey::new_encrypt(key).unwrap();
-//!  let mut output = [0u8; 16];
-//!  aes_ige(plaintext, &mut output, &key, &mut iv, Mode::Encrypt);
-//!  assert_eq!(output, *b"\xa6\xad\x97\x4d\x5c\xea\x1d\x36\xd2\xf3\x67\x98\x09\x07\xed\x32");
-//! ```
-//!
+//! 
 //! ## Key wrapping
 //! ```rust
 //! use openssl::aes::{AesKey, unwrap_key, wrap_key};
@@ -199,31 +181,6 @@ mod test {
     use hex::FromHex;
 
     use super::*;
-    use symm::Mode;
-
-    // From https://www.mgp25.com/AESIGE/
-    #[test]
-    fn ige_vector_1() {
-        let raw_key = "000102030405060708090A0B0C0D0E0F";
-        let raw_iv = "000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F";
-        let raw_pt = "0000000000000000000000000000000000000000000000000000000000000000";
-        let raw_ct = "1A8519A6557BE652E9DA8E43DA4EF4453CF456B4CA488AA383C79C98B34797CB";
-
-        let key = AesKey::new_encrypt(&Vec::from_hex(raw_key).unwrap()).unwrap();
-        let mut iv = Vec::from_hex(raw_iv).unwrap();
-        let pt = Vec::from_hex(raw_pt).unwrap();
-        let ct = Vec::from_hex(raw_ct).unwrap();
-
-        let mut ct_actual = vec![0; ct.len()];
-        aes_ige(&pt, &mut ct_actual, &key, &mut iv, Mode::Encrypt);
-        assert_eq!(ct_actual, ct);
-
-        let key = AesKey::new_decrypt(&Vec::from_hex(raw_key).unwrap()).unwrap();
-        let mut iv = Vec::from_hex(raw_iv).unwrap();
-        let mut pt_actual = vec![0; pt.len()];
-        aes_ige(&ct, &mut pt_actual, &key, &mut iv, Mode::Decrypt);
-        assert_eq!(pt_actual, pt);
-    }
 
     // from the RFC https://tools.ietf.org/html/rfc3394#section-2.2.3
     #[test]
