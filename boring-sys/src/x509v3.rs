@@ -116,17 +116,6 @@ pub const EXFLAG_PROXY: u32 = 0x400;
 pub const EXFLAG_INVALID_POLICY: u32 = 0x800;
 pub const EXFLAG_FRESHEST: u32 = 0x1000;
 pub const EXFLAG_SS: u32 = 0x2000;
-/*
-cfg_if! {
-    // probably gonna be in openssl-3.0.0-alpha7
-    if #[cfg(any(ossl300))] {
-        pub const EXFLAG_BCONS_CRITICAL: u32 = 0x10000;
-        pub const EXFLAG_AKID_CRITICAL: u32 = 0x20000;
-        pub const EXFLAG_SKID_CRITICAL: u32 = 0x40000;
-        pub const EXFLAG_SAN_CRITICAL: u32 = 0x80000;
-    }
-}
-*/
 
 // X509_get_key_usage
 pub const X509v3_KU_DIGITAL_SIGNATURE: u32 = 0x0080;

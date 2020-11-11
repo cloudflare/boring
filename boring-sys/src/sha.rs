@@ -5,11 +5,20 @@ pub const SHA_CBLOCK: c_uint = 64;
 #[repr(C)]
 #[derive(Clone)]
 pub struct SHA_CTX {
+    #[cfg(windows)]
+    pub h: [c_uint; 5],
+
+    #[cfg(not(windows))]
     pub h0: c_uint,
+    #[cfg(not(windows))]
     pub h1: c_uint,
+    #[cfg(not(windows))]
     pub h2: c_uint,
+    #[cfg(not(windows))]
     pub h3: c_uint,
+    #[cfg(not(windows))]
     pub h4: c_uint,
+
     pub Nl: c_uint,
     pub Nh: c_uint,
     pub data: [c_uchar; SHA_CBLOCK as usize],

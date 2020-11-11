@@ -1329,7 +1329,7 @@ impl SslContextBuilder {
     ///
     /// [`SSL_CTX_sess_get_cache_size`]: https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_sess_set_cache_size.html
     #[allow(clippy::useless_conversion)]
-    pub fn set_session_cache_size(&mut self, size: u64) -> u64 {
+    pub fn set_session_cache_size(&mut self, size: u32) -> u64 {
         unsafe { ffi::SSL_CTX_sess_set_cache_size(self.as_ptr(), size.into()).into() }
     }
 
