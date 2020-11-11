@@ -793,11 +793,6 @@ fn connector_client_server_mozilla_intermediate_v5() {
     test_mozilla_server(SslAcceptor::mozilla_intermediate_v5);
 }
 
-#[test]
-#[cfg(ossl111)]
-fn connector_client_server_mozilla_modern_v5() {
-    test_mozilla_server(SslAcceptor::mozilla_modern_v5);
-}
 
 #[test]
 fn shutdown() {
@@ -1037,186 +1032,12 @@ fn no_version_overlap() {
     client.connect_err();
 }
 
-#[test]
-#[cfg(ossl111)]
-fn custom_extensions() {
-    static FOUND_EXTENSION: AtomicBool = AtomicBool::new(false);
-
-    let mut server = Server::builder();
-    server
-        .ctx()
-        .add_custom_ext(
-            12345,
-            ExtensionContext::CLIENT_HELLO,
-            |_, _, _| -> Result<Option<&'static [u8]>, _> { unreachable!() },
-            |_, _, data, _| {
-                FOUND_EXTENSION.store(data == b"hello", Ordering::SeqCst);
-                Ok(())
-            },
-        )
-        .unwrap();
-
-    let server = server.build();
-
-    let mut client = server.client();
-    client
-        .ctx()
-        .add_custom_ext(
-            12345,
-            ssl::ExtensionContext::CLIENT_HELLO,
-            |_, _, _| Ok(Some(b"hello")),
-            |_, _, _, _| unreachable!(),
-        )
-        .unwrap();
-
-    client.connect();
-
-    assert!(FOUND_EXTENSION.load(Ordering::SeqCst));
-}
-
 fn _check_kinds() {
     fn is_send<T: Send>() {}
     fn is_sync<T: Sync>() {}
 
     is_send::<SslStream<TcpStream>>();
     is_sync::<SslStream<TcpStream>>();
-}
-
-#[test]
-#[cfg(ossl111)]
-fn stateless() {
-    use super::SslOptions;
-
-    #[derive(Debug)]
-    struct MemoryStream {
-        incoming: io::Cursor<Vec<u8>>,
-        outgoing: Vec<u8>,
-    }
-
-    impl MemoryStream {
-        pub fn new() -> Self {
-            Self {
-                incoming: io::Cursor::new(Vec::new()),
-                outgoing: Vec::new(),
-            }
-        }
-
-        pub fn extend_incoming(&mut self, data: &[u8]) {
-            self.incoming.get_mut().extend_from_slice(data);
-        }
-
-        pub fn take_outgoing(&mut self) -> Outgoing {
-            Outgoing(&mut self.outgoing)
-        }
-    }
-
-    impl Read for MemoryStream {
-        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-            let n = self.incoming.read(buf)?;
-            if self.incoming.position() == self.incoming.get_ref().len() as u64 {
-                self.incoming.set_position(0);
-                self.incoming.get_mut().clear();
-            }
-            if n == 0 {
-                return Err(io::Error::new(
-                    io::ErrorKind::WouldBlock,
-                    "no data available",
-                ));
-            }
-            Ok(n)
-        }
-    }
-
-    impl Write for MemoryStream {
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            self.outgoing.write(buf)
-        }
-
-        fn flush(&mut self) -> io::Result<()> {
-            Ok(())
-        }
-    }
-
-    pub struct Outgoing<'a>(&'a mut Vec<u8>);
-
-    impl<'a> Drop for Outgoing<'a> {
-        fn drop(&mut self) {
-            self.0.clear();
-        }
-    }
-
-    impl<'a> ::std::ops::Deref for Outgoing<'a> {
-        type Target = [u8];
-        fn deref(&self) -> &[u8] {
-            &self.0
-        }
-    }
-
-    impl<'a> AsRef<[u8]> for Outgoing<'a> {
-        fn as_ref(&self) -> &[u8] {
-            &self.0
-        }
-    }
-
-    fn send(from: &mut MemoryStream, to: &mut MemoryStream) {
-        to.extend_incoming(&from.take_outgoing());
-    }
-
-    fn hs<S: ::std::fmt::Debug>(
-        stream: Result<SslStream<S>, HandshakeError<S>>,
-    ) -> Result<SslStream<S>, MidHandshakeSslStream<S>> {
-        match stream {
-            Ok(stream) => Ok(stream),
-            Err(HandshakeError::WouldBlock(stream)) => Err(stream),
-            Err(e) => panic!("unexpected error: {:?}", e),
-        }
-    }
-
-    //
-    // Setup
-    //
-
-    let mut client_ctx = SslContext::builder(SslMethod::tls()).unwrap();
-    client_ctx.clear_options(SslOptions::ENABLE_MIDDLEBOX_COMPAT);
-    let client_stream = Ssl::new(&client_ctx.build()).unwrap();
-
-    let mut server_ctx = SslContext::builder(SslMethod::tls()).unwrap();
-    server_ctx
-        .set_certificate_file(&Path::new("test/cert.pem"), SslFiletype::PEM)
-        .unwrap();
-    server_ctx
-        .set_private_key_file(&Path::new("test/key.pem"), SslFiletype::PEM)
-        .unwrap();
-    const COOKIE: &[u8] = b"chocolate chip";
-    server_ctx.set_stateless_cookie_generate_cb(|_tls, buf| {
-        buf[0..COOKIE.len()].copy_from_slice(COOKIE);
-        Ok(COOKIE.len())
-    });
-    server_ctx.set_stateless_cookie_verify_cb(|_tls, buf| buf == COOKIE);
-    let mut server_stream =
-        ssl::SslStreamBuilder::new(Ssl::new(&server_ctx.build()).unwrap(), MemoryStream::new());
-
-    //
-    // Handshake
-    //
-
-    // Initial ClientHello
-    let mut client_stream = hs(client_stream.connect(MemoryStream::new())).unwrap_err();
-    send(client_stream.get_mut(), server_stream.get_mut());
-    // HelloRetryRequest
-    assert!(!server_stream.stateless().unwrap());
-    send(server_stream.get_mut(), client_stream.get_mut());
-    // Second ClientHello
-    let mut client_stream = hs(client_stream.handshake()).unwrap_err();
-    send(client_stream.get_mut(), server_stream.get_mut());
-    // OldServerHello
-    assert!(server_stream.stateless().unwrap());
-    let mut server_stream = hs(server_stream.accept()).unwrap_err();
-    send(server_stream.get_mut(), client_stream.get_mut());
-    // Finished
-    let mut client_stream = hs(client_stream.handshake()).unwrap();
-    send(client_stream.get_mut(), server_stream.get_mut());
-    hs(server_stream.handshake()).unwrap();
 }
 
 #[cfg(not(osslconf = "OPENSSL_NO_PSK"))]
@@ -1278,41 +1099,6 @@ fn sni_callback_swapped_ctx() {
     server.client().connect();
 
     assert!(CALLED_BACK.load(Ordering::SeqCst));
-}
-
-#[test]
-#[cfg(ossl111)]
-fn client_hello() {
-    static CALLED_BACK: AtomicBool = AtomicBool::new(false);
-
-    let mut server = Server::builder();
-    server.ctx().set_client_hello_callback(|ssl, _| {
-        assert!(!ssl.client_hello_isv2());
-        assert_eq!(ssl.client_hello_legacy_version(), Some(SslVersion::TLS1_2));
-        assert!(ssl.client_hello_random().is_some());
-        assert!(ssl.client_hello_session_id().is_some());
-        assert!(ssl.client_hello_ciphers().is_some());
-        assert!(ssl.client_hello_compression_methods().is_some());
-
-        CALLED_BACK.store(true, Ordering::SeqCst);
-        Ok(ClientHelloResponse::SUCCESS)
-    });
-
-    let server = server.build();
-    server.client().connect();
-
-    assert!(CALLED_BACK.load(Ordering::SeqCst));
-}
-
-#[test]
-#[cfg(ossl111)]
-fn openssl_cipher_name() {
-    assert_eq!(
-        super::cipher_name("TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384"),
-        "ECDHE-RSA-AES256-SHA384",
-    );
-
-    assert_eq!(super::cipher_name("asdf"), "(NONE)");
 }
 
 #[test]

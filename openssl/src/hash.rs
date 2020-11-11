@@ -70,36 +70,6 @@ impl MessageDigest {
         unsafe { MessageDigest(ffi::EVP_sha512()) }
     }
 
-    #[cfg(ossl111)]
-    pub fn sha3_224() -> MessageDigest {
-        unsafe { MessageDigest(ffi::EVP_sha3_224()) }
-    }
-
-    #[cfg(ossl111)]
-    pub fn sha3_256() -> MessageDigest {
-        unsafe { MessageDigest(ffi::EVP_sha3_256()) }
-    }
-
-    #[cfg(ossl111)]
-    pub fn sha3_384() -> MessageDigest {
-        unsafe { MessageDigest(ffi::EVP_sha3_384()) }
-    }
-
-    #[cfg(ossl111)]
-    pub fn sha3_512() -> MessageDigest {
-        unsafe { MessageDigest(ffi::EVP_sha3_512()) }
-    }
-
-    #[cfg(ossl111)]
-    pub fn shake_128() -> MessageDigest {
-        unsafe { MessageDigest(ffi::EVP_shake128()) }
-    }
-
-    #[cfg(ossl111)]
-    pub fn shake_256() -> MessageDigest {
-        unsafe { MessageDigest(ffi::EVP_shake256()) }
-    }
-
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn as_ptr(&self) -> *const ffi::EVP_MD {
         self.0
@@ -157,21 +127,6 @@ use self::State::*;
 /// h.update(data[1]).unwrap();
 /// let res = h.finish().unwrap();
 /// assert_eq!(&*res, spec);
-/// ```
-///
-/// Use an XOF hasher (OpenSSL 1.1.1+):
-///
-/// ```
-/// #[cfg(ossl111)]
-/// {
-///     use openssl::hash::{hash_xof, MessageDigest};
-///
-///     let data = b"\x41\x6c\x6c\x20\x79\x6f\x75\x72\x20\x62\x61\x73\x65\x20\x61\x72\x65\x20\x62\x65\x6c\x6f\x6e\x67\x20\x74\x6f\x20\x75\x73";
-///     let spec = b"\x49\xd0\x69\x7f\xf5\x08\x11\x1d\x8b\x84\xf1\x5e\x46\xda\xf1\x35";
-///     let mut buf = vec![0; 16];
-///     hash_xof(MessageDigest::shake_128(), data, buf.as_mut_slice()).unwrap();
-///     assert_eq!(buf, spec);
-/// }
 /// ```
 ///
 /// # Warning
@@ -394,19 +349,6 @@ mod tests {
         assert_eq!(hex::encode(res), hashtest.1);
     }
 
-    #[cfg(ossl111)]
-    fn hash_xof_test(hashtype: MessageDigest, hashtest: &(&str, &str)) {
-        let expected = Vec::from_hex(hashtest.1).unwrap();
-        let mut buf = vec![0; expected.len()];
-        hash_xof(
-            hashtype,
-            &Vec::from_hex(hashtest.0).unwrap(),
-            buf.as_mut_slice(),
-        )
-        .unwrap();
-        assert_eq!(buf, expected);
-    }
-
     fn hash_recycle_test(h: &mut Hasher, hashtest: &(&str, &str)) {
         h.write_all(&Vec::from_hex(hashtest.0).unwrap()).unwrap();
         let res = h.finish().unwrap();
@@ -508,84 +450,6 @@ mod tests {
 
         for test in tests.iter() {
             hash_test(MessageDigest::sha256(), test);
-        }
-    }
-
-    #[cfg(ossl111)]
-    #[test]
-    fn test_sha3_224() {
-        let tests = [(
-            "416c6c20796f75722062617365206172652062656c6f6e6720746f207573",
-            "1de092dd9fbcbbf450f26264f4778abd48af851f2832924554c56913",
-        )];
-
-        for test in tests.iter() {
-            hash_test(MessageDigest::sha3_224(), test);
-        }
-    }
-
-    #[cfg(ossl111)]
-    #[test]
-    fn test_sha3_256() {
-        let tests = [(
-            "416c6c20796f75722062617365206172652062656c6f6e6720746f207573",
-            "b38e38f08bc1c0091ed4b5f060fe13e86aa4179578513ad11a6e3abba0062f61",
-        )];
-
-        for test in tests.iter() {
-            hash_test(MessageDigest::sha3_256(), test);
-        }
-    }
-
-    #[cfg(ossl111)]
-    #[test]
-    fn test_sha3_384() {
-        let tests = [("416c6c20796f75722062617365206172652062656c6f6e6720746f207573",
-            "966ee786ab3482dd811bf7c8fa8db79aa1f52f6c3c369942ef14240ebd857c6ff626ec35d9e131ff64d328\
-            ef2008ff16"
-        )];
-
-        for test in tests.iter() {
-            hash_test(MessageDigest::sha3_384(), test);
-        }
-    }
-
-    #[cfg(ossl111)]
-    #[test]
-    fn test_sha3_512() {
-        let tests = [("416c6c20796f75722062617365206172652062656c6f6e6720746f207573",
-            "c072288ef728cd53a029c47687960b9225893532f42b923156e37020bdc1eda753aafbf30af859d4f4c3a1\
-            807caee3a79f8eb02dcd61589fbbdf5f40c8787a72"
-        )];
-
-        for test in tests.iter() {
-            hash_test(MessageDigest::sha3_512(), test);
-        }
-    }
-
-    #[cfg(ossl111)]
-    #[test]
-    fn test_shake_128() {
-        let tests = [(
-            "416c6c20796f75722062617365206172652062656c6f6e6720746f207573",
-            "49d0697ff508111d8b84f15e46daf135",
-        )];
-
-        for test in tests.iter() {
-            hash_xof_test(MessageDigest::shake_128(), test);
-        }
-    }
-
-    #[cfg(ossl111)]
-    #[test]
-    fn test_shake_256() {
-        let tests = [(
-            "416c6c20796f75722062617365206172652062656c6f6e6720746f207573",
-            "4e2dfdaa75d1e049d0eaeffe28e76b17cea47b650fb8826fe48b94664326a697",
-        )];
-
-        for test in tests.iter() {
-            hash_xof_test(MessageDigest::shake_256(), test);
         }
     }
 

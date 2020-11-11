@@ -227,28 +227,6 @@ impl SslAcceptor {
              ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:\
              DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384"
         )?;
-        #[cfg(ossl111)]
-        ctx.set_ciphersuites(
-            "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256",
-        )?;
-        Ok(SslAcceptorBuilder(ctx))
-    }
-
-    /// Creates a new builder configured to connect to modern clients.
-    ///
-    /// This corresponds to the modern configuration of version 5 of Mozilla's server side TLS recommendations.
-    /// See its [documentation][docs] for more details on specifics.
-    ///
-    /// Requires OpenSSL 1.1.1 or newer.
-    ///
-    /// [docs]: https://wiki.mozilla.org/Security/Server_Side_TLS
-    #[cfg(ossl111)]
-    pub fn mozilla_modern_v5(method: SslMethod) -> Result<SslAcceptorBuilder, ErrorStack> {
-        let mut ctx = ctx(method)?;
-        ctx.set_options(SslOptions::NO_SSL_MASK & !SslOptions::NO_TLSV1_3);
-        ctx.set_ciphersuites(
-            "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256",
-        )?;
         Ok(SslAcceptorBuilder(ctx))
     }
 

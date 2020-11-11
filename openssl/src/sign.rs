@@ -609,6 +609,7 @@ unsafe fn EVP_DigestVerifyFinal(
 
 #[cfg(test)]
 mod test {
+    use super::RsaPssSaltlen;
     use hex::{self, FromHex};
 
     use ec::{EcGroup, EcKey};
@@ -683,18 +684,6 @@ mod test {
         let mut verifier = Verifier::new(MessageDigest::sha256(), &key).unwrap();
         verifier.update(b"hello world").unwrap();
         assert!(verifier.verify(&signature).unwrap());
-    }
-
-    #[test]
-    #[cfg(ossl111)]
-    fn eddsa() {
-        let key = PKey::generate_ed25519().unwrap();
-
-        let mut signer = Signer::new_without_digest(&key).unwrap();
-        let signature = signer.sign_oneshot_to_vec(b"hello world").unwrap();
-
-        let mut verifier = Verifier::new_without_digest(&key).unwrap();
-        assert!(verifier.verify_oneshot(&signature, b"hello world").unwrap());
     }
 
     #[test]

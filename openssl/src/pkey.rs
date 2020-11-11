@@ -353,30 +353,6 @@ impl<T> PKey<T> {
 }
 
 impl PKey<Private> {
-    /// Generates a new private Ed25519 key
-    #[cfg(ossl111)]
-    pub fn generate_x25519() -> Result<PKey<Private>, ErrorStack> {
-        PKey::generate_eddsa(ffi::EVP_PKEY_X25519)
-    }
-
-    /// Generates a new private Ed448 key
-    #[cfg(ossl111)]
-    pub fn generate_x448() -> Result<PKey<Private>, ErrorStack> {
-        PKey::generate_eddsa(ffi::EVP_PKEY_X448)
-    }
-
-    /// Generates a new private Ed25519 key
-    #[cfg(ossl111)]
-    pub fn generate_ed25519() -> Result<PKey<Private>, ErrorStack> {
-        PKey::generate_eddsa(ffi::EVP_PKEY_ED25519)
-    }
-
-    /// Generates a new private Ed448 key
-    #[cfg(ossl111)]
-    pub fn generate_ed448() -> Result<PKey<Private>, ErrorStack> {
-        PKey::generate_eddsa(ffi::EVP_PKEY_ED448)
-    }
-
     private_key_from_pem! {
         /// Deserializes a private key from a PEM-encoded key type specific format.
         ///

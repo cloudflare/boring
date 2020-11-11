@@ -349,17 +349,6 @@ cfg_if! {
 
 extern "C" {
     #[cfg(ossl111)]
-    pub fn SSL_CTX_set_stateless_cookie_generate_cb(
-        s: *mut SSL_CTX,
-        cb: Option<
-            unsafe extern "C" fn(
-                ssl: *mut SSL,
-                cookie: *mut c_uchar,
-                cookie_len: *mut size_t,
-            ) -> c_int,
-        >,
-    );
-    #[cfg(ossl111)]
     pub fn SSL_CTX_set_stateless_cookie_verify_cb(
         s: *mut SSL_CTX,
         cb: Option<
@@ -457,20 +446,6 @@ extern "C" {
             extern "C" fn(*mut SSL, *const c_char, *mut c_uchar, c_uint) -> c_uint,
         >,
     );
-}
-
-extern "C" {
-    #[cfg(ossl111)]
-    pub fn SSL_CTX_add_custom_ext(
-        ctx: *mut ::SSL_CTX,
-        ext_type: c_uint,
-        context: c_uint,
-        add_cb: SSL_custom_ext_add_cb_ex,
-        free_cb: SSL_custom_ext_free_cb_ex,
-        add_arg: *mut c_void,
-        parse_cb: SSL_custom_ext_parse_cb_ex,
-        parse_arg: *mut c_void,
-    ) -> c_int;
 }
 
 #[cfg(ossl111)]
@@ -576,15 +551,11 @@ extern "C" {
     pub fn SSL_CIPHER_get_name(cipher: *const SSL_CIPHER) -> *const c_char;
     #[cfg(ossl111)]
     pub fn SSL_CIPHER_standard_name(cipher: *const SSL_CIPHER) -> *const c_char;
-    #[cfg(ossl111)]
-    pub fn OPENSSL_cipher_name(rfc_name: *const c_char) -> *const c_char;
 
     pub fn SSL_pending(ssl: *const SSL) -> c_int;
     pub fn SSL_set_bio(ssl: *mut SSL, rbio: *mut BIO, wbio: *mut BIO);
     pub fn SSL_get_rbio(ssl: *const SSL) -> *mut BIO;
     pub fn SSL_get_wbio(ssl: *const SSL) -> *mut BIO;
-    #[cfg(ossl111)]
-    pub fn SSL_CTX_set_ciphersuites(ctx: *mut SSL_CTX, str: *const c_char) -> c_int;
     #[cfg(ossl111)]
     pub fn SSL_set_ciphersuites(ssl: *mut ::SSL, str: *const c_char) -> c_int;
     pub fn SSL_set_verify(
@@ -677,27 +648,6 @@ pub const SSL_CLIENT_HELLO_RETRY: c_int = -1;
 pub type SSL_client_hello_cb_fn =
     Option<unsafe extern "C" fn(s: *mut SSL, al: *mut c_int, arg: *mut c_void) -> c_int>;
 extern "C" {
-    #[cfg(ossl111)]
-    pub fn SSL_CTX_set_client_hello_cb(
-        c: *mut SSL_CTX,
-        cb: SSL_client_hello_cb_fn,
-        arg: *mut c_void,
-    );
-    #[cfg(ossl111)]
-    pub fn SSL_client_hello_isv2(s: *mut SSL) -> c_int;
-    #[cfg(ossl111)]
-    pub fn SSL_client_hello_get0_legacy_version(s: *mut SSL) -> c_uint;
-    #[cfg(ossl111)]
-    pub fn SSL_client_hello_get0_random(s: *mut SSL, out: *mut *const c_uchar) -> size_t;
-    #[cfg(ossl111)]
-    pub fn SSL_client_hello_get0_session_id(s: *mut SSL, out: *mut *const c_uchar) -> size_t;
-    #[cfg(ossl111)]
-    pub fn SSL_client_hello_get0_ciphers(s: *mut SSL, out: *mut *const c_uchar) -> size_t;
-    #[cfg(ossl111)]
-    pub fn SSL_client_hello_get0_compression_methods(
-        s: *mut SSL,
-        out: *mut *const c_uchar,
-    ) -> size_t;
     #[cfg(ossl111)]
     pub fn SSL_client_hello_get1_extensions_present(
         s: *mut SSL,
