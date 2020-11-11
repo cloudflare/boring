@@ -136,13 +136,9 @@ bitflags! {
             ffi::SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION;
 
         /// Creates a new key for each session when using ECDHE.
-        ///
-        /// This is always enabled in OpenSSL 1.1.0.
         const SINGLE_ECDH_USE = ffi::SSL_OP_SINGLE_ECDH_USE;
 
         /// Creates a new key for each session when using DHE.
-        ///
-        /// This is always enabled in OpenSSL 1.1.0.
         const SINGLE_DH_USE = ffi::SSL_OP_SINGLE_DH_USE;
 
         /// Use the server's preferences rather than the client's when selecting a cipher.
@@ -169,23 +165,15 @@ bitflags! {
         const NO_TLSV1_2 = ffi::SSL_OP_NO_TLSv1_2;
 
         /// Disables the use of TLSv1.3.
-        ///
-        /// Requires OpenSSL 1.1.1 or newer.
         const NO_TLSV1_3 = ffi::SSL_OP_NO_TLSv1_3;
 
         /// Disables the use of DTLSv1.0
-        ///
-        /// Requires OpenSSL 1.0.2 or newer.
         const NO_DTLSV1 = ffi::SSL_OP_NO_DTLSv1;
 
         /// Disables the use of DTLSv1.2.
-        ///
-        /// Requires OpenSSL 1.0.2, or newer.
         const NO_DTLSV1_2 = ffi::SSL_OP_NO_DTLSv1_2;
 
         /// Disallow all renegotiation in TLSv1.2 and earlier.
-        ///
-        /// Requires OpenSSL 1.1.0h or newer.
         const NO_RENEGOTIATION = ffi::SSL_OP_NO_RENEGOTIATION;
     }
 }
@@ -234,7 +222,6 @@ bitflags! {
         /// attempted to downgrade the protocol version of the session.
         ///
         /// Do not use this unless you know what you're doing!
-        #[cfg(not(libressl))]
         const SEND_FALLBACK_SCSV = ffi::SSL_MODE_SEND_FALLBACK_SCSV;
     }
 }
@@ -465,15 +452,11 @@ impl SslAlert {
 }
 
 /// An error returned from an ALPN selection callback.
-///
-/// Requires OpenSSL 1.0.2 or LibreSSL 2.6.1 or newer.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct AlpnError(c_int);
 
 impl AlpnError {
     /// Terminate the handshake with a fatal alert.
-    ///
-    /// Requires OpenSSL 1.1.0 or newer.
     pub const ALERT_FATAL: AlpnError = AlpnError(ffi::SSL_TLSEXT_ERR_ALERT_FATAL);
 
     /// Do not select a protocol, but continue the handshake.
@@ -642,8 +625,6 @@ impl SslContextBuilder {
 
     /// Sets a custom certificate store for verifying peer certificates.
     ///
-    /// Requires OpenSSL 1.0.2 or newer.
-    ///
     /// This corresponds to [`SSL_CTX_set0_verify_cert_store`].
     ///
     /// [`SSL_CTX_set0_verify_cert_store`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set0_verify_cert_store.html
@@ -765,7 +746,6 @@ impl SslContextBuilder {
     /// This corresponds to [`SSL_CTX_add_client_CA`].
     ///
     /// [`SSL_CTX_add_client_CA`]: https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_client_CA_list.html
-    #[cfg(not(libressl))]
     pub fn add_client_ca(&mut self, cacert: &X509Ref) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_CTX_add_client_CA(self.as_ptr(), cacert.as_ptr())).map(|_| ()) }
     }
@@ -965,8 +945,6 @@ impl SslContextBuilder {
     ///
     /// This corresponds to [`SSL_CTX_set_min_proto_version`].
     ///
-    /// Requires OpenSSL 1.1.0 or LibreSSL 2.6.1 or newer.
-    ///
     /// [`SSL_CTX_set_min_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_min_proto_version.html
     pub fn set_min_proto_version(&mut self, version: Option<SslVersion>) -> Result<(), ErrorStack> {
         unsafe {
@@ -984,8 +962,6 @@ impl SslContextBuilder {
     /// OpenSSL.
     ///
     /// This corresponds to [`SSL_CTX_set_max_proto_version`].
-    ///
-    /// Requires OpenSSL 1.1.0 or or LibreSSL 2.6.1 or newer.
     ///
     /// [`SSL_CTX_set_max_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_min_proto_version.html
     pub fn set_max_proto_version(&mut self, version: Option<SslVersion>) -> Result<(), ErrorStack> {
@@ -1005,8 +981,6 @@ impl SslContextBuilder {
     ///
     /// This corresponds to [`SSL_CTX_get_min_proto_version`].
     ///
-    /// Requires OpenSSL 1.1.0g or LibreSSL 2.7.0 or newer.
-    ///
     /// [`SSL_CTX_get_min_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_min_proto_version.html
     pub fn min_proto_version(&mut self) -> Option<SslVersion> {
         unsafe {
@@ -1025,8 +999,6 @@ impl SslContextBuilder {
     /// OpenSSL are enabled.
     ///
     /// This corresponds to [`SSL_CTX_get_max_proto_version`].
-    ///
-    /// Requires OpenSSL 1.1.0g or LibreSSL 2.7.0 or newer.
     ///
     /// [`SSL_CTX_get_max_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_min_proto_version.html
     pub fn max_proto_version(&mut self) -> Option<SslVersion> {
@@ -1048,8 +1020,6 @@ impl SslContextBuilder {
     /// preference.
     ///
     /// This corresponds to [`SSL_CTX_set_alpn_protos`].
-    ///
-    /// Requires OpenSSL 1.0.2 or LibreSSL 2.6.1 or newer.
     ///
     /// [`SSL_CTX_set_alpn_protos`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_alpn_protos.html
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
@@ -1097,8 +1067,6 @@ impl SslContextBuilder {
     /// protocol selection algorithm.
     ///
     /// This corresponds to [`SSL_CTX_set_alpn_select_cb`].
-    ///
-    /// Requires OpenSSL 1.0.2 or LibreSSL 2.6.1 or newer.
     ///
     /// [`SslContextBuilder::set_alpn_protos`]: struct.SslContextBuilder.html#method.set_alpn_protos
     /// [`select_next_proto`]: fn.select_next_proto.html
@@ -1306,8 +1274,6 @@ impl SslContextBuilder {
     /// SSLKEYLOGFILE-formatted text. This can be used by tools like Wireshark to decrypt message
     /// traffic. The line does not contain a trailing newline.
     ///
-    /// Requires OpenSSL 1.1.1 or newer.
-    ///
     /// This corresponds to [`SSL_CTX_set_keylog_callback`].
     ///
     /// [`SSL_CTX_set_keylog_callback`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_set_keylog_callback.html
@@ -1370,8 +1336,6 @@ impl SslContextBuilder {
     /// Sets the context's supported signature algorithms.
     ///
     /// This corresponds to [`SSL_CTX_set1_sigalgs_list`].
-    ///
-    /// Requires OpenSSL 1.0.2 or newer.
     ///
     /// [`SSL_CTX_set1_sigalgs_list`]: https://www.openssl.org/docs/man1.1.0/man3/SSL_CTX_set1_sigalgs_list.html
     pub fn set_sigalgs_list(&mut self, sigalgs: &str) -> Result<(), ErrorStack> {
@@ -1464,8 +1428,6 @@ impl SslContext {
 impl SslContextRef {
     /// Returns the certificate associated with this `SslContext`, if present.
     ///
-    /// Requires OpenSSL 1.0.2 or newer.
-    ///
     /// This corresponds to [`SSL_CTX_get0_certificate`].
     ///
     /// [`SSL_CTX_get0_certificate`]: https://www.openssl.org/docs/man1.1.0/ssl/ssl.html
@@ -1481,8 +1443,6 @@ impl SslContextRef {
     }
 
     /// Returns the private key associated with this `SslContext`, if present.
-    ///
-    /// Requires OpenSSL 1.0.2 or newer.
     ///
     /// This corresponds to [`SSL_CTX_get0_privatekey`].
     ///
@@ -1656,8 +1616,6 @@ impl SslCipherRef {
 
     /// Returns the RFC-standard name of the cipher, if one exists.
     ///
-    /// Requires OpenSSL 1.1.1 or newer.
-    ///
     /// This corresponds to [`SSL_CIPHER_standard_name`].
     ///
     /// [`SSL_CIPHER_standard_name`]: https://www.openssl.org/docs/manmaster/man3/SSL_CIPHER_get_name.html
@@ -1718,8 +1676,6 @@ impl SslCipherRef {
     }
 
     /// Returns the NID corresponding to the cipher.
-    ///
-    /// Requires OpenSSL 1.1.0 or newer.
     ///
     /// This corresponds to [`SSL_CIPHER_get_cipher_nid`].
     ///
@@ -1837,8 +1793,6 @@ impl SslSessionRef {
     }
 
     /// Returns the session's TLS protocol version.
-    ///
-    /// Requires OpenSSL 1.1.0 or newer.
     ///
     /// This corresponds to [`SSL_SESSION_get_protocol_version`].
     ///
@@ -2057,8 +2011,6 @@ impl SslRef {
 
     /// Like [`SslContextBuilder::set_alpn_protos`].
     ///
-    /// Requires OpenSSL 1.0.2 or LibreSSL 2.6.1 or newer.
-    ///
     /// This corresponds to [`SSL_set_alpn_protos`].
     ///
     /// [`SslContextBuilder::set_alpn_protos`]: struct.SslContextBuilder.html#method.set_alpn_protos
@@ -2247,8 +2199,6 @@ impl SslRef {
     /// The protocol's name is returned is an opaque sequence of bytes. It is up to the client
     /// to interpret it.
     ///
-    /// Requires OpenSSL 1.0.2 or LibreSSL 2.6.1 or newer.
-    ///
     /// This corresponds to [`SSL_get0_alpn_selected`].
     ///
     /// [`SSL_get0_alpn_selected`]: https://www.openssl.org/docs/manmaster/man3/SSL_get0_next_proto_negotiated.html
@@ -2402,8 +2352,6 @@ impl SslRef {
 
     /// Returns a mutable reference to the X509 verification configuration.
     ///
-    /// Requires OpenSSL 1.0.2 or newer.
-    ///
     /// This corresponds to [`SSL_get0_param`].
     ///
     /// [`SSL_get0_param`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_get0_param.html
@@ -2441,8 +2389,6 @@ impl SslRef {
     /// Returns the number of bytes copied, or if the buffer is empty, the size of the client_random
     /// value.
     ///
-    /// Requires OpenSSL 1.1.0 or newer.
-    ///
     /// This corresponds to [`SSL_get_client_random`].
     ///
     /// [`SSL_get_client_random`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_get_client_random.html
@@ -2456,8 +2402,6 @@ impl SslRef {
     ///
     /// Returns the number of bytes copied, or if the buffer is empty, the size of the server_random
     /// value.
-    ///
-    /// Requires OpenSSL 1.1.0 or newer.
     ///
     /// This corresponds to [`SSL_get_server_random`].
     ///

@@ -110,8 +110,6 @@ pub fn pbkdf2_hmac(
 }
 
 /// Derives a key from a password and salt using the scrypt algorithm.
-///
-/// Requires OpenSSL 1.1.0 or newer.
 pub fn scrypt(
     pass: &[u8],
     salt: &[u8],
