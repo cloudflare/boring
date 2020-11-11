@@ -3,6 +3,7 @@ use libc::c_int;
 use std::marker::PhantomData;
 use std::ptr;
 use std::slice;
+use ffi::BIO_new_mem_buf;
 
 use cvt_p;
 use error::ErrorStack;
@@ -68,13 +69,5 @@ impl MemBio {
     }
 }
 
-cfg_if! {
-    if #[cfg(ossl102)] {
-        use ffi::BIO_new_mem_buf;
-    } else {
-        #[allow(bad_style)]
-        unsafe fn BIO_new_mem_buf(buf: *const ::libc::c_void, len: ::libc::c_int) -> *mut ffi::BIO {
-            ffi::BIO_new_mem_buf(buf as *mut _, len)
-        }
-    }
-}
+
+

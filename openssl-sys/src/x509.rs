@@ -211,26 +211,13 @@ extern "C" {
     pub fn i2d_ECPrivateKey(ec_key: *const EC_KEY, pp: *mut *mut c_uchar) -> c_int;
 }
 
-cfg_if! {
-    if #[cfg(ossl110)] {
-        extern "C" {
-            pub fn X509_ALGOR_get0(
-                paobj: *mut *const ASN1_OBJECT,
-                pptype: *mut c_int,
-                ppval: *mut *const c_void,
-                alg: *const X509_ALGOR,
-            );
-        }
-    } else if #[cfg(ossl102)] {
-        extern "C" {
-            pub fn X509_ALGOR_get0(
-                paobj: *mut *mut ASN1_OBJECT,
-                pptype: *mut c_int,
-                ppval: *mut *mut c_void,
-                alg: *mut X509_ALGOR,
-            );
-        }
-    }
+extern "C" {
+    pub fn X509_ALGOR_get0(
+        paobj: *mut *const ASN1_OBJECT,
+        pptype: *mut c_int,
+        ppval: *mut *const c_void,
+        alg: *const X509_ALGOR,
+    );
 }
 
 extern "C" {
@@ -269,27 +256,15 @@ extern "C" {
     pub fn i2d_X509_REQ(x: *mut X509_REQ, buf: *mut *mut u8) -> c_int;
 }
 
-cfg_if! {
-    if #[cfg(any(ossl110, libressl273))] {
-        extern "C" {
-            pub fn X509_get0_signature(
-                psig: *mut *const ASN1_BIT_STRING,
-                palg: *mut *const X509_ALGOR,
-                x: *const X509,
-            );
-        }
-    } else if #[cfg(ossl102)] {
-        extern "C" {
-            pub fn X509_get0_signature(
-                psig: *mut *mut ASN1_BIT_STRING,
-                palg: *mut *mut X509_ALGOR,
-                x: *const X509,
-            );
-        }
-    }
-}
 extern "C" {
-    #[cfg(ossl102)]
+    pub fn X509_get0_signature(
+        psig: *mut *const ASN1_BIT_STRING,
+        palg: *mut *const X509_ALGOR,
+        x: *const X509,
+    );
+}
+
+extern "C" {
     pub fn X509_get_signature_nid(x: *const X509) -> c_int;
 
     pub fn X509_EXTENSION_free(ext: *mut X509_EXTENSION);

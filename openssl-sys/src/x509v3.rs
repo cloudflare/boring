@@ -36,17 +36,11 @@ extern "C" {
     pub fn AUTHORITY_KEYID_free(akid: *mut AUTHORITY_KEYID);
 }
 
-#[cfg(any(ossl102, libressl261))]
 pub const X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT: c_uint = 0x1;
-#[cfg(any(ossl102, libressl261))]
 pub const X509_CHECK_FLAG_NO_WILDCARDS: c_uint = 0x2;
-#[cfg(any(ossl102, libressl261))]
 pub const X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS: c_uint = 0x4;
-#[cfg(any(ossl102, libressl261))]
 pub const X509_CHECK_FLAG_MULTI_LABEL_WILDCARDS: c_uint = 0x8;
-#[cfg(any(ossl102, libressl261))]
 pub const X509_CHECK_FLAG_SINGLE_LABEL_SUBDOMAINS: c_uint = 0x10;
-#[cfg(ossl110)]
 pub const X509_CHECK_FLAG_NEVER_CHECK_SUBJECT: c_uint = 0x20;
 
 cfg_if! {
@@ -148,8 +142,6 @@ pub const EXFLAG_CRITICAL: u32 = 0x200;
 pub const EXFLAG_PROXY: u32 = 0x400;
 pub const EXFLAG_INVALID_POLICY: u32 = 0x800;
 pub const EXFLAG_FRESHEST: u32 = 0x1000;
-// before ossl102 / libressl260 EXFLAG_SS was 0x20 (the same as EXFLAG_SI); probably not useful semantic
-#[cfg(any(ossl102, libressl261))]
 pub const EXFLAG_SS: u32 = 0x2000;
 /*
 cfg_if! {

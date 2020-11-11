@@ -2,11 +2,9 @@ use libc::*;
 
 use *;
 
-#[cfg(any(libressl, all(ossl102, not(ossl110))))]
 pub enum X509_VERIFY_PARAM_ID {}
 
 pub const X509_V_OK: c_int = 0;
-#[cfg(ossl102f)]
 pub const X509_V_ERR_UNSPECIFIED: c_int = 1;
 pub const X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT: c_int = 2;
 pub const X509_V_ERR_UNABLE_TO_GET_CRL: c_int = 3;
@@ -61,23 +59,14 @@ pub const X509_V_ERR_UNSUPPORTED_CONSTRAINT_TYPE: c_int = 51;
 pub const X509_V_ERR_UNSUPPORTED_CONSTRAINT_SYNTAX: c_int = 52;
 pub const X509_V_ERR_UNSUPPORTED_NAME_SYNTAX: c_int = 53;
 pub const X509_V_ERR_CRL_PATH_VALIDATION_ERROR: c_int = 54;
-#[cfg(ossl102)]
 pub const X509_V_ERR_SUITE_B_INVALID_VERSION: c_int = 56;
-#[cfg(ossl102)]
 pub const X509_V_ERR_SUITE_B_INVALID_ALGORITHM: c_int = 57;
-#[cfg(ossl102)]
 pub const X509_V_ERR_SUITE_B_INVALID_CURVE: c_int = 58;
-#[cfg(ossl102)]
 pub const X509_V_ERR_SUITE_B_INVALID_SIGNATURE_ALGORITHM: c_int = 59;
-#[cfg(ossl102)]
 pub const X509_V_ERR_SUITE_B_LOS_NOT_ALLOWED: c_int = 60;
-#[cfg(ossl102)]
 pub const X509_V_ERR_SUITE_B_CANNOT_SIGN_P_384_WITH_P_256: c_int = 61;
-#[cfg(ossl102)]
 pub const X509_V_ERR_HOSTNAME_MISMATCH: c_int = 62;
-#[cfg(ossl102)]
 pub const X509_V_ERR_EMAIL_MISMATCH: c_int = 63;
-#[cfg(ossl102)]
 pub const X509_V_ERR_IP_ADDRESS_MISMATCH: c_int = 64;
 
 pub const X509_V_ERR_INVALID_CALL: c_int = 65;
@@ -122,18 +111,14 @@ cfg_if! {
 }
 
 extern "C" {
-    #[cfg(any(ossl102, libressl261))]
     pub fn X509_VERIFY_PARAM_free(param: *mut X509_VERIFY_PARAM);
 
-    #[cfg(any(ossl102, libressl261))]
     pub fn X509_VERIFY_PARAM_set1_host(
         param: *mut X509_VERIFY_PARAM,
         name: *const c_char,
         namelen: size_t,
     ) -> c_int;
-    #[cfg(any(ossl102, libressl261))]
     pub fn X509_VERIFY_PARAM_set_hostflags(param: *mut X509_VERIFY_PARAM, flags: c_uint);
-    #[cfg(any(ossl102, libressl261))]
     pub fn X509_VERIFY_PARAM_set1_ip(
         param: *mut X509_VERIFY_PARAM,
         ip: *const c_uchar,

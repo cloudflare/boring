@@ -99,16 +99,9 @@ cfg_if! {
         }
     }
 }
-cfg_if! {
-    if #[cfg(any(ossl102, libressl280))] {
-        extern "C" {
-            pub fn BIO_new_mem_buf(buf: *const c_void, len: c_int) -> *mut BIO;
-        }
-    } else {
-        extern "C" {
-            pub fn BIO_new_mem_buf(buf: *mut c_void, len: c_int) -> *mut BIO;
-        }
-    }
+
+extern "C" {
+    pub fn BIO_new_mem_buf(buf: *const c_void, len: c_int) -> *mut BIO;
 }
 
 extern "C" {

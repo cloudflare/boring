@@ -91,7 +91,6 @@ use ssl::callbacks::*;
 use ssl::error::InnerError;
 use stack::{Stack, StackRef};
 use x509::store::{X509Store, X509StoreBuilderRef, X509StoreRef};
-#[cfg(any(ossl102, libressl261))]
 use x509::verify::X509VerifyParamRef;
 use x509::{X509Name, X509Ref, X509StoreContextRef, X509VerifyResult, X509};
 use {cvt, cvt_n, cvt_p, init};
@@ -178,13 +177,11 @@ bitflags! {
         /// Disables the use of DTLSv1.0
         ///
         /// Requires OpenSSL 1.0.2 or newer.
-        #[cfg(any(ossl102, ossl110))]
         const NO_DTLSV1 = ffi::SSL_OP_NO_DTLSv1;
 
         /// Disables the use of DTLSv1.2.
         ///
         /// Requires OpenSSL 1.0.2, or newer.
-        #[cfg(any(ossl102, ossl110))]
         const NO_DTLSV1_2 = ffi::SSL_OP_NO_DTLSv1_2;
 
         /// Disallow all renegotiation in TLSv1.2 and earlier.
@@ -472,11 +469,9 @@ impl SslAlert {
 /// An error returned from an ALPN selection callback.
 ///
 /// Requires OpenSSL 1.0.2 or LibreSSL 2.6.1 or newer.
-#[cfg(any(ossl102, libressl261))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct AlpnError(c_int);
 
-#[cfg(any(ossl102, libressl261))]
 impl AlpnError {
     /// Terminate the handshake with a fatal alert.
     ///
@@ -655,7 +650,6 @@ impl SslContextBuilder {
     /// This corresponds to [`SSL_CTX_set0_verify_cert_store`].
     ///
     /// [`SSL_CTX_set0_verify_cert_store`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set0_verify_cert_store.html
-    #[cfg(any(ossl102, ossl110))]
     pub fn set_verify_cert_store(&mut self, cert_store: X509Store) -> Result<(), ErrorStack> {
         unsafe {
             let ptr = cert_store.as_ptr();
@@ -932,18 +926,6 @@ impl SslContextBuilder {
         }
     }
 
-    /// Enables ECDHE key exchange with an automatically chosen curve list.
-    ///
-    /// Requires OpenSSL 1.0.2.
-    ///
-    /// This corresponds to [`SSL_CTX_set_ecdh_auto`].
-    ///
-    /// [`SSL_CTX_set_ecdh_auto`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_ecdh_auto.html
-    #[cfg(any(libressl, all(ossl102, not(ossl110))))]
-    pub fn set_ecdh_auto(&mut self, onoff: bool) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_CTX_set_ecdh_auto(self.as_ptr(), onoff as c_int)).map(|_| ()) }
-    }
-
     /// Sets the options used by the context, returning the old set.
     ///
     /// This corresponds to [`SSL_CTX_set_options`].
@@ -1075,7 +1057,6 @@ impl SslContextBuilder {
     /// Requires OpenSSL 1.0.2 or LibreSSL 2.6.1 or newer.
     ///
     /// [`SSL_CTX_set_alpn_protos`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_alpn_protos.html
-    #[cfg(any(ossl102, libressl261))]
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
             assert!(protocols.len() <= c_uint::max_value() as usize);
@@ -1127,7 +1108,6 @@ impl SslContextBuilder {
     /// [`SslContextBuilder::set_alpn_protos`]: struct.SslContextBuilder.html#method.set_alpn_protos
     /// [`select_next_proto`]: fn.select_next_proto.html
     /// [`SSL_CTX_set_alpn_select_cb`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_alpn_protos.html
-    #[cfg(any(ossl102, libressl261))]
     pub fn set_alpn_select_callback<F>(&mut self, callback: F)
     where
         F: for<'a> Fn(&mut SslRef, &'a [u8]) -> Result<&'a [u8], AlpnError> + 'static + Sync + Send,
@@ -1399,7 +1379,6 @@ impl SslContextBuilder {
     /// Requires OpenSSL 1.0.2 or newer.
     ///
     /// [`SSL_CTX_set1_sigalgs_list`]: https://www.openssl.org/docs/man1.1.0/man3/SSL_CTX_set1_sigalgs_list.html
-    #[cfg(ossl102)]
     pub fn set_sigalgs_list(&mut self, sigalgs: &str) -> Result<(), ErrorStack> {
         let sigalgs = CString::new(sigalgs).unwrap();
         unsafe {
@@ -1495,7 +1474,6 @@ impl SslContextRef {
     /// This corresponds to [`SSL_CTX_get0_certificate`].
     ///
     /// [`SSL_CTX_get0_certificate`]: https://www.openssl.org/docs/man1.1.0/ssl/ssl.html
-    #[cfg(any(ossl102, ossl110))]
     pub fn certificate(&self) -> Option<&X509Ref> {
         unsafe {
             let ptr = ffi::SSL_CTX_get0_certificate(self.as_ptr());
@@ -1514,7 +1492,6 @@ impl SslContextRef {
     /// This corresponds to [`SSL_CTX_get0_privatekey`].
     ///
     /// [`SSL_CTX_get0_privatekey`]: https://www.openssl.org/docs/man1.1.0/ssl/ssl.html
-    #[cfg(any(ossl102, ossl110))]
     pub fn private_key(&self) -> Option<&PKeyRef<Private>> {
         unsafe {
             let ptr = ffi::SSL_CTX_get0_privatekey(self.as_ptr());
@@ -2085,19 +2062,6 @@ impl SslRef {
         unsafe { cvt(ffi::SSL_set_tmp_ecdh(self.as_ptr(), key.as_ptr()) as c_int).map(|_| ()) }
     }
 
-    /// Like [`SslContextBuilder::set_ecdh_auto`].
-    ///
-    /// Requires OpenSSL 1.0.2.
-    ///
-    /// This corresponds to [`SSL_set_ecdh_auto`].
-    ///
-    /// [`SslContextBuilder::set_tmp_ecdh`]: struct.SslContextBuilder.html#method.set_tmp_ecdh
-    /// [`SSL_set_ecdh_auto`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_set_ecdh_auto.html
-    #[cfg(all(ossl102, not(ossl110)))]
-    pub fn set_ecdh_auto(&mut self, onoff: bool) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_set_ecdh_auto(self.as_ptr(), onoff as c_int)).map(|_| ()) }
-    }
-
     /// Like [`SslContextBuilder::set_alpn_protos`].
     ///
     /// Requires OpenSSL 1.0.2 or LibreSSL 2.6.1 or newer.
@@ -2106,7 +2070,6 @@ impl SslRef {
     ///
     /// [`SslContextBuilder::set_alpn_protos`]: struct.SslContextBuilder.html#method.set_alpn_protos
     /// [`SSL_set_alpn_protos`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_alpn_protos.html
-    #[cfg(any(ossl102, libressl261))]
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
             assert!(protocols.len() <= c_uint::max_value() as usize);
@@ -2296,7 +2259,6 @@ impl SslRef {
     /// This corresponds to [`SSL_get0_alpn_selected`].
     ///
     /// [`SSL_get0_alpn_selected`]: https://www.openssl.org/docs/manmaster/man3/SSL_get0_next_proto_negotiated.html
-    #[cfg(any(ossl102, libressl261))]
     pub fn selected_alpn_protocol(&self) -> Option<&[u8]> {
         unsafe {
             let mut data: *const c_uchar = ptr::null();
@@ -2452,7 +2414,6 @@ impl SslRef {
     /// This corresponds to [`SSL_get0_param`].
     ///
     /// [`SSL_get0_param`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_get0_param.html
-    #[cfg(any(ossl102, libressl261))]
     pub fn param_mut(&mut self) -> &mut X509VerifyParamRef {
         unsafe { X509VerifyParamRef::from_ptr_mut(ffi::SSL_get0_param(self.as_ptr())) }
     }

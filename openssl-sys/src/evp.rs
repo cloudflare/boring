@@ -168,24 +168,12 @@ extern "C" {
     ) -> c_int;
 }
 
-cfg_if! {
-    if #[cfg(any(ossl102, libressl280))] {
-        extern "C" {
-            pub fn EVP_DigestVerifyFinal(
-                ctx: *mut EVP_MD_CTX,
-                sigret: *const c_uchar,
-                siglen: size_t,
-            ) -> c_int;
-        }
-    } else {
-        extern "C" {
-            pub fn EVP_DigestVerifyFinal(
-                ctx: *mut EVP_MD_CTX,
-                sigret: *mut c_uchar,
-                siglen: size_t,
-            ) -> c_int;
-        }
-    }
+extern "C" {
+    pub fn EVP_DigestVerifyFinal(
+        ctx: *mut EVP_MD_CTX,
+        sigret: *const c_uchar,
+        siglen: size_t,
+    ) -> c_int;
 }
 
 extern "C" {

@@ -126,9 +126,7 @@ pub const SSL_OP_NO_TLSv1_1: c_uint = 0x10000000;
 pub const SSL_OP_NO_TLSv1_2: c_uint = 0x08000000;
 
 pub const SSL_OP_NO_TLSv1: c_uint = 0x04000000;
-#[cfg(ossl102)]
 pub const SSL_OP_NO_DTLSv1: c_uint = 0x04000000;
-#[cfg(ossl102)]
 pub const SSL_OP_NO_DTLSv1_2: c_uint = 0x08000000;
 
 pub const SSL_OP_NO_TLSv1_3: c_uint = 0x20000000;
@@ -258,12 +256,8 @@ pub const OPENSSL_NPN_NEGOTIATED: c_int = 1;
 pub const OPENSSL_NPN_NO_OVERLAP: c_int = 2;
 
 extern "C" {
-    #[cfg(any(ossl102, libressl261))]
     pub fn SSL_CTX_set_alpn_protos(s: *mut SSL_CTX, data: *const c_uchar, len: c_uint) -> c_int;
-    #[cfg(any(ossl102, libressl261))]
     pub fn SSL_set_alpn_protos(s: *mut SSL, data: *const c_uchar, len: c_uint) -> c_int;
-    // FIXME should take an Option<unsafe extern "C" fn>
-    #[cfg(any(ossl102, libressl261))]
     pub fn SSL_CTX_set_alpn_select_cb(
         ssl: *mut SSL_CTX,
         cb: extern "C" fn(
@@ -276,7 +270,6 @@ extern "C" {
         ) -> c_int,
         arg: *mut c_void,
     );
-    #[cfg(any(ossl102, libressl261))]
     pub fn SSL_get0_alpn_selected(s: *const SSL, data: *mut *const c_uchar, len: *mut c_uint);
 }
 
@@ -454,7 +447,6 @@ extern "C" {
 
     pub fn SSL_new(ctx: *mut SSL_CTX) -> *mut SSL;
 
-    #[cfg(any(ossl102, libressl261))]
     pub fn SSL_get0_param(ssl: *mut SSL) -> *mut X509_VERIFY_PARAM;
 }
 
@@ -499,7 +491,6 @@ cfg_if! {
 
             pub fn DTLSv1_method() -> *const SSL_METHOD;
 
-            #[cfg(ossl102)]
             pub fn DTLSv1_2_method() -> *const SSL_METHOD;
         }
     }
@@ -540,22 +531,13 @@ extern "C" {
 
     pub fn SSL_get_certificate(ssl: *const SSL) -> *mut X509;
 }
-cfg_if! {
-    if #[cfg(any(ossl102, libressl280))] {
-        extern "C" {
-            pub fn SSL_get_privatekey(ssl: *const SSL) -> *mut EVP_PKEY;
-        }
-    } else {
-        extern "C" {
-            pub fn SSL_get_privatekey(ssl: *mut SSL) -> *mut EVP_PKEY;
-        }
-    }
+
+extern "C" {
+    pub fn SSL_get_privatekey(ssl: *const SSL) -> *mut EVP_PKEY;
 }
 
 extern "C" {
-    #[cfg(ossl102)]
     pub fn SSL_CTX_get0_certificate(ctx: *const SSL_CTX) -> *mut X509;
-    #[cfg(ossl102)]
     pub fn SSL_CTX_get0_privatekey(ctx: *const SSL_CTX) -> *mut EVP_PKEY;
 
     pub fn SSL_set_shutdown(ss: *mut SSL, mode: c_int);

@@ -327,26 +327,7 @@ cfg_if! {
 }
 
 pub enum X509_STORE_CTX {}
-
-cfg_if! {
-    if #[cfg(any(ossl110, libressl280))] {
-        pub enum X509_VERIFY_PARAM {}
-    } else {
-        #[repr(C)]
-        pub struct X509_VERIFY_PARAM {
-            pub name: *mut c_char,
-            pub check_time: time_t,
-            pub inh_flags: c_ulong,
-            pub flags: c_ulong,
-            pub purpose: c_int,
-            pub trust: c_int,
-            pub depth: c_int,
-            pub policies: *mut stack_st_ASN1_OBJECT,
-            #[cfg(ossl102)]
-            pub id: *mut X509_VERIFY_PARAM_ID,
-        }
-    }
-}
+pub enum X509_VERIFY_PARAM {}
 
 #[repr(C)]
 pub struct X509V3_CTX {
@@ -522,9 +503,9 @@ cfg_if! {
             renegotiate: c_int,
             #[cfg(not(osslconf = "OPENSSL_NO_SRP"))]
             srp_ctx: ::SRP_CTX,
-            #[cfg(all(not(osslconf = "OPENSSL_NO_TLSEXT"), ossl102))]
+            #[cfg(all(not(osslconf = "OPENSSL_NO_TLSEXT")))]
             alpn_client_proto_list: *mut c_uchar,
-            #[cfg(all(not(osslconf = "OPENSSL_NO_TLSEXT"), ossl102))]
+            #[cfg(all(not(osslconf = "OPENSSL_NO_TLSEXT")))]
             alpn_client_proto_list_len: c_uint,
         }
     }
@@ -645,37 +626,33 @@ cfg_if! {
 
             #[cfg(all(not(osslconf = "OPENSSL_NO_TLSEXT")))]
             srtp_profiles: *mut c_void,
-            #[cfg(all(not(osslconf = "OPENSSL_NO_TLSEXT"), ossl102))]
+            #[cfg(all(not(osslconf = "OPENSSL_NO_TLSEXT")))]
             alpn_select_cb: *mut c_void,
-            #[cfg(all(not(osslconf = "OPENSSL_NO_TLSEXT"), ossl102))]
+            #[cfg(all(not(osslconf = "OPENSSL_NO_TLSEXT")))]
             alpn_select_cb_arg: *mut c_void,
-            #[cfg(all(not(osslconf = "OPENSSL_NO_TLSEXT"), ossl102))]
+            #[cfg(all(not(osslconf = "OPENSSL_NO_TLSEXT")))]
             alpn_client_proto_list: *mut c_void,
-            #[cfg(all(not(osslconf = "OPENSSL_NO_TLSEXT"), ossl102))]
+            #[cfg(all(not(osslconf = "OPENSSL_NO_TLSEXT")))]
             alpn_client_proto_list_len: c_uint,
 
             #[cfg(all(
                 not(osslconf = "OPENSSL_NO_TLSEXT"),
-                not(osslconf = "OPENSSL_NO_EC"),
-                ossl102
+                not(osslconf = "OPENSSL_NO_EC")
             ))]
             tlsext_ecpointformatlist_length: size_t,
             #[cfg(all(
                 not(osslconf = "OPENSSL_NO_TLSEXT"),
-                not(osslconf = "OPENSSL_NO_EC"),
-                ossl102
+                not(osslconf = "OPENSSL_NO_EC")
             ))]
             tlsext_ecpointformatlist: *mut c_uchar,
             #[cfg(all(
                 not(osslconf = "OPENSSL_NO_TLSEXT"),
-                not(osslconf = "OPENSSL_NO_EC"),
-                ossl102
+                not(osslconf = "OPENSSL_NO_EC")
             ))]
             tlsext_ellipticcurvelist_length: size_t,
             #[cfg(all(
                 not(osslconf = "OPENSSL_NO_TLSEXT"),
-                not(osslconf = "OPENSSL_NO_EC"),
-                ossl102
+                not(osslconf = "OPENSSL_NO_EC")
             ))]
             tlsext_ellipticcurvelist: *mut c_uchar,
         }

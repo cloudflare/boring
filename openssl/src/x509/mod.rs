@@ -33,9 +33,7 @@ use stack::{Stack, StackRef, Stackable};
 use string::OpensslString;
 use {cvt, cvt_n, cvt_p};
 
-#[cfg(any(ossl102, libressl261))]
 pub mod verify;
-
 pub mod extension;
 pub mod store;
 

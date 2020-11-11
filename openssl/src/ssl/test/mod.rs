@@ -29,9 +29,7 @@ use ssl::{
     SslAcceptorBuilder, SslConnector, SslContext, SslContextBuilder, SslFiletype, SslMethod,
     SslOptions, SslSessionCacheMode, SslStream, SslStreamBuilder, SslVerifyMode, StatusType,
 };
-#[cfg(ossl102)]
 use x509::store::X509StoreBuilder;
-#[cfg(ossl102)]
 use x509::verify::X509CheckFlags;
 use x509::{X509Name, X509StoreContext, X509VerifyResult, X509};
 
@@ -64,7 +62,6 @@ fn verify_trusted() {
 }
 
 #[test]
-#[cfg(ossl102)]
 fn verify_trusted_with_set_cert() {
     let server = Server::builder().build();
 
@@ -432,7 +429,6 @@ fn test_connect_with_srtp_ssl() {
 /// Tests that when the `SslStream` is created as a server stream, the protocols
 /// are correctly advertised to the client.
 #[test]
-#[cfg(any(ossl102, libressl261))]
 fn test_alpn_server_advertise_multiple() {
     let mut server = Server::builder();
     server.ctx().set_alpn_select_callback(|_, client| {
@@ -464,7 +460,6 @@ fn test_alpn_server_select_none_fatal() {
 }
 
 #[test]
-#[cfg(any(ossl102, libressl261))]
 fn test_alpn_server_select_none() {
     let mut server = Server::builder();
     server.ctx().set_alpn_select_callback(|_, client| {
@@ -479,7 +474,6 @@ fn test_alpn_server_select_none() {
 }
 
 #[test]
-#[cfg(any(ossl102, libressl261))]
 fn test_alpn_server_unilateral() {
     let server = Server::builder().build();
 
@@ -629,7 +623,6 @@ fn add_extra_chain_cert() {
 }
 
 #[test]
-#[cfg(ossl102)]
 fn verify_valid_hostname() {
     let server = Server::builder().build();
 
@@ -647,7 +640,6 @@ fn verify_valid_hostname() {
 }
 
 #[test]
-#[cfg(ossl102)]
 fn verify_invalid_hostname() {
     let mut server = Server::builder();
     server.should_error();

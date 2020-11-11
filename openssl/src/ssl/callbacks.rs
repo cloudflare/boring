@@ -11,7 +11,6 @@ use std::str;
 use std::sync::Arc;
 
 use error::ErrorStack;
-#[cfg(any(ossl102, libressl261))]
 use ssl::AlpnError;
 use ssl::{
     SniError, Ssl, SslAlert, SslContext, SslContextRef, SslRef, SslSession, SslSessionRef,
@@ -161,7 +160,6 @@ where
     }
 }
 
-#[cfg(any(ossl102, libressl261))]
 pub extern "C" fn raw_alpn_select<F>(
     ssl: *mut ffi::SSL,
     out: *mut *const c_uchar,
