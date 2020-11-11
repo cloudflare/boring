@@ -577,18 +577,7 @@ impl<'a> Write for Verifier<'a> {
     }
 }
 
-#[cfg(not(ossl101))]
 use ffi::EVP_DigestVerifyFinal;
-
-#[cfg(ossl101)]
-#[allow(bad_style)]
-unsafe fn EVP_DigestVerifyFinal(
-    ctx: *mut ffi::EVP_MD_CTX,
-    sigret: *const ::libc::c_uchar,
-    siglen: ::libc::size_t,
-) -> ::libc::c_int {
-    ffi::EVP_DigestVerifyFinal(ctx, sigret as *mut _, siglen)
-}
 
 #[cfg(test)]
 mod test {

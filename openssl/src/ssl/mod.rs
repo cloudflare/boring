@@ -79,8 +79,6 @@ use std::str;
 use std::sync::{Arc, Mutex};
 
 use dh::DhRef;
-#[cfg(all(ossl101, not(ossl110)))]
-use ec::EcKey;
 use ec::EcKeyRef;
 use error::ErrorStack;
 use ex_data::Index;
@@ -722,27 +720,6 @@ impl SslContextBuilder {
     /// This corresponds to `SSL_CTX_set_tmp_ecdh`.
     pub fn set_tmp_ecdh(&mut self, key: &EcKeyRef<Params>) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_CTX_set_tmp_ecdh(self.as_ptr(), key.as_ptr()) as c_int).map(|_| ()) }
-    }
-
-    /// Sets the callback which will generate parameters to be used during ephemeral elliptic curve
-    /// Diffie-Hellman key exchange.
-    ///
-    /// The callback is provided with a reference to the `Ssl` for the session, as well as a boolean
-    /// indicating if the selected cipher is export-grade, and the key length. The export and key
-    /// length options are archaic and should be ignored in almost all cases.
-    ///
-    /// Requires OpenSSL 1.0.1 or 1.0.2.
-    ///
-    /// This corresponds to `SSL_CTX_set_tmp_ecdh_callback`.
-    #[cfg(all(ossl101, not(ossl110)))]
-    pub fn set_tmp_ecdh_callback<F>(&mut self, callback: F)
-    where
-        F: Fn(&mut SslRef, bool, u32) -> Result<EcKey<Params>, ErrorStack> + 'static + Sync + Send,
-    {
-        unsafe {
-            self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
-            ffi::SSL_CTX_set_tmp_ecdh_callback(self.as_ptr(), raw_tmp_ecdh::<F>);
-        }
     }
 
     /// Use the default locations of trusted certificates for verification.
@@ -2106,25 +2083,6 @@ impl SslRef {
     /// [`SslContextBuilder::set_tmp_ecdh`]: struct.SslContextBuilder.html#method.set_tmp_ecdh
     pub fn set_tmp_ecdh(&mut self, key: &EcKeyRef<Params>) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_set_tmp_ecdh(self.as_ptr(), key.as_ptr()) as c_int).map(|_| ()) }
-    }
-
-    /// Like [`SslContextBuilder::set_tmp_ecdh_callback`].
-    ///
-    /// Requires OpenSSL 1.0.1 or 1.0.2.
-    ///
-    /// This corresponds to `SSL_set_tmp_ecdh_callback`.
-    ///
-    /// [`SslContextBuilder::set_tmp_ecdh_callback`]: struct.SslContextBuilder.html#method.set_tmp_ecdh_callback
-    #[cfg(any(all(ossl101, not(ossl110))))]
-    pub fn set_tmp_ecdh_callback<F>(&mut self, callback: F)
-    where
-        F: Fn(&mut SslRef, bool, u32) -> Result<EcKey<Params>, ErrorStack> + 'static + Sync + Send,
-    {
-        unsafe {
-            // this needs to be in an Arc since the callback can register a new callback!
-            self.set_ex_data(Ssl::cached_ex_index(), Arc::new(callback));
-            ffi::SSL_set_tmp_ecdh_callback(self.as_ptr(), raw_tmp_ecdh_ssl::<F>);
-        }
     }
 
     /// Like [`SslContextBuilder::set_ecdh_auto`].

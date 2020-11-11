@@ -643,7 +643,7 @@ cfg_if! {
             ))]
             next_proto_select_cb_arg: *mut c_void,
 
-            #[cfg(all(not(osslconf = "OPENSSL_NO_TLSEXT"), ossl101))]
+            #[cfg(all(not(osslconf = "OPENSSL_NO_TLSEXT")))]
             srtp_profiles: *mut c_void,
             #[cfg(all(not(osslconf = "OPENSSL_NO_TLSEXT"), ossl102))]
             alpn_select_cb: *mut c_void,

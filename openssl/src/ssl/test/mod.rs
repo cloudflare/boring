@@ -833,54 +833,6 @@ fn cert_store() {
 }
 
 #[test]
-#[cfg(all(ossl101, not(ossl110)))]
-fn tmp_ecdh_callback() {
-    use ec::EcKey;
-    use nid::Nid;
-
-    static CALLED_BACK: AtomicBool = AtomicBool::new(false);
-
-    let mut server = Server::builder();
-    server.ctx().set_tmp_ecdh_callback(|_, _, _| {
-        CALLED_BACK.store(true, Ordering::SeqCst);
-        EcKey::from_curve_name(Nid::X9_62_PRIME256V1)
-    });
-
-    let server = server.build();
-
-    let mut client = server.client();
-    client.ctx().set_cipher_list("ECDH").unwrap();
-    client.connect();
-
-    assert!(CALLED_BACK.load(Ordering::SeqCst));
-}
-
-#[test]
-#[cfg(all(ossl101, not(ossl110)))]
-fn tmp_ecdh_callback_ssl() {
-    use ec::EcKey;
-    use nid::Nid;
-
-    static CALLED_BACK: AtomicBool = AtomicBool::new(false);
-
-    let mut server = Server::builder();
-    server.ssl_cb(|ssl| {
-        ssl.set_tmp_ecdh_callback(|_, _, _| {
-            CALLED_BACK.store(true, Ordering::SeqCst);
-            EcKey::from_curve_name(Nid::X9_62_PRIME256V1)
-        });
-    });
-
-    let server = server.build();
-
-    let mut client = server.client();
-    client.ctx().set_cipher_list("ECDH").unwrap();
-    client.connect();
-
-    assert!(CALLED_BACK.load(Ordering::SeqCst));
-}
-
-#[test]
 fn idle_session() {
     let ctx = SslContext::builder(SslMethod::tls()).unwrap().build();
     let ssl = Ssl::new(&ctx).unwrap();

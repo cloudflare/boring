@@ -92,9 +92,7 @@ extern "C" {
 }
 
 extern "C" {
-    #[cfg(ossl101)]
     pub fn FIPS_mode() -> c_int;
-    #[cfg(ossl101)]
     pub fn FIPS_mode_set(onoff: c_int) -> c_int;
 
     pub fn CRYPTO_memcmp(a: *const c_void, b: *const c_void, len: size_t) -> c_int;

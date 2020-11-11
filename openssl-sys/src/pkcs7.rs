@@ -20,8 +20,6 @@ pub const PKCS7_BINARY: c_int = 0x80;
 pub const PKCS7_NOATTR: c_int = 0x100;
 pub const PKCS7_NOSMIMECAP: c_int = 0x200;
 pub const PKCS7_STREAM: c_int = 0x1000;
-#[cfg(not(any(ossl101, ossl102, libressl)))]
-pub const PKCS7_NO_DUAL_CONTENT: c_int = 0x10000;
 
 extern "C" {
     pub fn d2i_PKCS7(a: *mut *mut PKCS7, pp: *mut *const c_uchar, length: size_t) -> *mut PKCS7;

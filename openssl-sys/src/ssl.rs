@@ -113,27 +113,15 @@ pub const SSL_OP_NO_QUERY_MTU: c_uint = 0x00001000;
 pub const SSL_OP_NO_TICKET: c_uint = 0x00004000;
 
 pub const SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION: c_uint = 0x00010000;
-cfg_if! {
-    if #[cfg(ossl101)] {
-        pub const SSL_OP_NO_COMPRESSION: c_uint = 0x00020000;
-        pub const SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION: c_uint = 0x00040000;
-    } else {
-        pub const SSL_OP_NO_COMPRESSION: c_uint = 0x0;
-        pub const SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION: c_uint = 0x0;
-    }
-}
+
+pub const SSL_OP_NO_COMPRESSION: c_uint = 0x0;
+pub const SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION: c_uint = 0x0;
 
 pub const SSL_OP_CIPHER_SERVER_PREFERENCE: c_uint = 0x00400000;
 
 pub const SSL_OP_TLS_ROLLBACK_BUG: c_uint = 0x00800000;
 
-cfg_if! {
-    if #[cfg(ossl101)] {
-        pub const SSL_OP_NO_SSLv3: c_uint = 0x02000000;
-    } else {
-        pub const SSL_OP_NO_SSLv3: c_uint = 0x0;
-    }
-}
+pub const SSL_OP_NO_SSLv3: c_uint = 0x0;
 pub const SSL_OP_NO_TLSv1_1: c_uint = 0x10000000;
 pub const SSL_OP_NO_TLSv1_2: c_uint = 0x08000000;
 
@@ -150,52 +138,24 @@ pub const SSL_OP_NO_RENEGOTIATION: c_uint = 0x40000000;
 
 pub const SSL_OP_ALL: c_uint = SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS | SSL_OP_LEGACY_SERVER_CONNECT;
 
-cfg_if! {
-    if #[cfg(ossl110)] {
-        pub const SSL_OP_MICROSOFT_SESS_ID_BUG: c_uint = 0x00000000;
-        pub const SSL_OP_NETSCAPE_CHALLENGE_BUG: c_uint = 0x00000000;
-        pub const SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG: c_uint = 0x00000000;
-        pub const SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER: c_uint = 0x00000000;
-        pub const SSL_OP_SSLEAY_080_CLIENT_DH_BUG: c_uint = 0x00000000;
-        pub const SSL_OP_TLS_D5_BUG: c_uint = 0x00000000;
-        pub const SSL_OP_TLS_BLOCK_PADDING_BUG: c_uint = 0x00000000;
-        pub const SSL_OP_SINGLE_ECDH_USE: c_uint = 0x00000000;
-        pub const SSL_OP_SINGLE_DH_USE: c_uint = 0x00000000;
-        pub const SSL_OP_NO_SSLv2: c_uint = 0x00000000;
-    } else if #[cfg(ossl101)] {
-        pub const SSL_OP_MICROSOFT_SESS_ID_BUG: c_uint = 0x00000001;
-        pub const SSL_OP_NETSCAPE_CHALLENGE_BUG: c_uint = 0x00000002;
-        pub const SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG: c_uint = 0x00000008;
-        pub const SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER: c_uint = 0x00000020;
-        pub const SSL_OP_SSLEAY_080_CLIENT_DH_BUG: c_uint = 0x00000080;
-        pub const SSL_OP_TLS_D5_BUG: c_uint = 0x00000100;
-        pub const SSL_OP_TLS_BLOCK_PADDING_BUG: c_uint = 0x00000200;
-        pub const SSL_OP_SINGLE_ECDH_USE: c_uint = 0x00080000;
-        pub const SSL_OP_SINGLE_DH_USE: c_uint = 0x00100000;
-        pub const SSL_OP_NO_SSLv2: c_uint = 0x01000000;
-    } else {
-        pub const SSL_OP_MICROSOFT_SESS_ID_BUG: c_uint = 0x0;
-        pub const SSL_OP_NETSCAPE_CHALLENGE_BUG: c_uint = 0x0;
-        pub const SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG: c_uint = 0x0;
-        pub const SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER: c_uint = 0x0;
-        pub const SSL_OP_SSLEAY_080_CLIENT_DH_BUG: c_uint = 0x0;
-        pub const SSL_OP_TLS_D5_BUG: c_uint = 0x0;
-        pub const SSL_OP_TLS_BLOCK_PADDING_BUG: c_uint = 0x0;
-        pub const SSL_OP_SINGLE_DH_USE: c_uint = 0x00100000;
-        pub const SSL_OP_NO_SSLv2: c_uint = 0x0;
-    }
-}
+pub const SSL_OP_MICROSOFT_SESS_ID_BUG: c_uint = 0x00000000;
+pub const SSL_OP_NETSCAPE_CHALLENGE_BUG: c_uint = 0x00000000;
+pub const SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG: c_uint = 0x00000000;
+pub const SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER: c_uint = 0x00000000;
+pub const SSL_OP_SSLEAY_080_CLIENT_DH_BUG: c_uint = 0x00000000;
+pub const SSL_OP_TLS_D5_BUG: c_uint = 0x00000000;
+pub const SSL_OP_TLS_BLOCK_PADDING_BUG: c_uint = 0x00000000;
+pub const SSL_OP_SINGLE_ECDH_USE: c_uint = 0x00000000;
+pub const SSL_OP_SINGLE_DH_USE: c_uint = 0x00000000;
+pub const SSL_OP_NO_SSLv2: c_uint = 0x00000000;
 
 pub const SSL_MODE_ENABLE_PARTIAL_WRITE: c_uint = 0x1;
 pub const SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER: c_uint = 0x2;
 pub const SSL_MODE_AUTO_RETRY: c_uint = 0x4;
 pub const SSL_MODE_NO_AUTO_CHAIN: c_uint = 0x8;
 pub const SSL_MODE_RELEASE_BUFFERS: c_uint = 0x10;
-#[cfg(ossl101)]
 pub const SSL_MODE_SEND_CLIENTHELLO_TIME: c_uint = 0x20;
-#[cfg(ossl101)]
 pub const SSL_MODE_SEND_SERVERHELLO_TIME: c_uint = 0x40;
-#[cfg(ossl101)]
 pub const SSL_MODE_SEND_FALLBACK_SCSV: c_uint = 0x80;
 
 extern "C" {
@@ -374,14 +334,6 @@ pub const SSL_ERROR_ZERO_RETURN: c_int = 6;
 pub const SSL_VERIFY_NONE: c_int = 0;
 pub const SSL_VERIFY_PEER: c_int = 1;
 pub const SSL_VERIFY_FAIL_IF_NO_PEER_CERT: c_int = 2;
-#[cfg(any(libressl, all(ossl101, not(ossl110))))]
-pub const SSL_CTRL_GET_SESSION_REUSED: c_int = 8;
-#[cfg(any(libressl, all(ossl101, not(ossl110))))]
-pub const SSL_CTRL_OPTIONS: c_int = 32;
-#[cfg(any(libressl, all(ossl101, not(ossl110))))]
-pub const SSL_CTRL_CLEAR_OPTIONS: c_int = 77;
-#[cfg(any(libressl, all(ossl102, not(ossl110))))]
-pub const SSL_CTRL_SET_ECDH_AUTO: c_int = 94;
 
 extern "C" {
     pub fn SSL_CTX_set_tmp_dh(ctx: *mut SSL_CTX, dh: *const DH) -> c_int;
