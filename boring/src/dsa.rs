@@ -40,9 +40,9 @@ generic_foreign_type_and_impl_send_sync! {
     /// # Examples
     ///
     /// ```
-    /// use openssl::dsa::Dsa;
-    /// use openssl::error::ErrorStack;
-    /// use openssl::pkey::Private;
+    /// use boring::dsa::Dsa;
+    /// use boring::error::ErrorStack;
+    /// use boring::pkey::Private;
     ///
     /// fn create_dsa() -> Result<Dsa<Private>, ErrorStack> {
     ///     let sign = Dsa::generate(2048)?;

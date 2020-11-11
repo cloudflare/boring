@@ -33,7 +33,7 @@ pub struct SignatureAlgorithms {
 /// To view the integer representation of a `Nid`:
 ///
 /// ```
-/// use openssl::nid::Nid;
+/// use boring::nid::Nid;
 ///
 /// assert!(Nid::AES_256_GCM.as_raw() == 901);
 /// ```

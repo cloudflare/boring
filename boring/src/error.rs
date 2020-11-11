@@ -6,8 +6,8 @@
 //! # Examples
 //!
 //! ```
-//! use openssl::error::ErrorStack;
-//! use openssl::bn::BigNum;
+//! use boring::error::ErrorStack;
+//! use boring::bn::BigNum;
 //!
 //! let an_error = BigNum::from_dec_str("Cannot parse letters");
 //! match an_error {

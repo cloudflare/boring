@@ -10,10 +10,10 @@
 //! Sign and verify data given an RSA keypair:
 //!
 //! ```rust
-//! use openssl::sign::{Signer, Verifier};
-//! use openssl::rsa::Rsa;
-//! use openssl::pkey::PKey;
-//! use openssl::hash::MessageDigest;
+//! use boring::sign::{Signer, Verifier};
+//! use boring::rsa::Rsa;
+//! use boring::pkey::PKey;
+//! use boring::hash::MessageDigest;
 //!
 //! // Generate a keypair
 //! let keypair = Rsa::generate(2048).unwrap();

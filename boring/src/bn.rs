@@ -9,8 +9,8 @@
 //! # Examples
 //!
 //! ```
-//! use openssl::bn::BigNum;
-//! use openssl::error::ErrorStack;
+//! use boring::bn::BigNum;
+//! use boring::error::ErrorStack;
 //!
 //! fn main() -> Result<(), ErrorStack> {
 //!   let a = BigNum::new()?; // a = 0
@@ -103,8 +103,8 @@ foreign_type_and_impl_send_sync! {
     ///
     /// # Examples
     /// ```
-    /// use openssl::bn::BigNum;
-    /// # use openssl::error::ErrorStack;
+    /// use boring::bn::BigNum;
+    /// # use boring::error::ErrorStack;
     /// # fn bignums() -> Result< (), ErrorStack > {
     /// let little_big = BigNum::from_u32(std::u32::MAX)?;
     /// assert_eq!(*&little_big.num_bytes(), 4);
@@ -339,7 +339,7 @@ impl BigNumRef {
     /// # Examples
     ///
     /// ```
-    /// # use openssl::bn::BigNum;
+    /// # use boring::bn::BigNum;
     /// # use std::cmp::Ordering;
     /// let s = -BigNum::from_u32(8).unwrap();
     /// let o = BigNum::from_u32(8).unwrap();
@@ -380,8 +380,8 @@ impl BigNumRef {
     /// # Examples
     ///
     /// ```
-    /// use openssl::bn::{BigNum, MsbOption};
-    /// use openssl::error::ErrorStack;
+    /// use boring::bn::{BigNum, MsbOption};
+    /// use boring::error::ErrorStack;
     ///
     /// fn generate_random() -> Result< BigNum, ErrorStack > {
     ///    let mut big = BigNum::new()?;
@@ -439,8 +439,8 @@ impl BigNumRef {
     /// # Examples
     ///
     /// ```
-    /// use openssl::bn::BigNum;
-    /// use openssl::error::ErrorStack;
+    /// use boring::bn::BigNum;
+    /// use boring::error::ErrorStack;
     ///
     /// fn generate_weak_prime() -> Result< BigNum, ErrorStack > {
     ///    let mut big = BigNum::new()?;
@@ -843,7 +843,7 @@ impl BigNumRef {
     /// `self` can be recreated by using `from_slice`.
     ///
     /// ```
-    /// # use openssl::bn::BigNum;
+    /// # use boring::bn::BigNum;
     /// let s = -BigNum::from_u32(4543).unwrap();
     /// let r = BigNum::from_u32(4543).unwrap();
     ///
@@ -863,7 +863,7 @@ impl BigNumRef {
     /// Returns a decimal string representation of `self`.
     ///
     /// ```
-    /// # use openssl::bn::BigNum;
+    /// # use boring::bn::BigNum;
     /// let s = -BigNum::from_u32(12345).unwrap();
     ///
     /// assert_eq!(&**s.to_dec_str().unwrap(), "-12345");
@@ -878,7 +878,7 @@ impl BigNumRef {
     /// Returns a hexadecimal string representation of `self`.
     ///
     /// ```
-    /// # use openssl::bn::BigNum;
+    /// # use boring::bn::BigNum;
     /// let s = -BigNum::from_u32(0x99ff).unwrap();
     ///
     /// assert_eq!(&**s.to_hex_str().unwrap(), "-99ff");
@@ -957,7 +957,7 @@ impl BigNum {
     /// [`BN_bin2bn`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_bin2bn.html
     ///
     /// ```
-    /// # use openssl::bn::BigNum;
+    /// # use boring::bn::BigNum;
     /// let bignum = BigNum::from_slice(&[0x12, 0x00, 0x34]).unwrap();
     ///
     /// assert_eq!(bignum, BigNum::from_u32(0x120034).unwrap());

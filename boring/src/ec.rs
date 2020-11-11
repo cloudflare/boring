@@ -687,10 +687,10 @@ impl EcKey<Public> {
     /// # Example
     ///
     /// ```no_run
-    /// use openssl::bn::BigNumContext;
-    /// use openssl::ec::*;
-    /// use openssl::nid::Nid;
-    /// use openssl::pkey::PKey;
+    /// use boring::bn::BigNumContext;
+    /// use boring::ec::*;
+    /// use boring::nid::Nid;
+    /// use boring::pkey::PKey;
     ///
     /// // get bytes from somewhere, i.e. this will not produce a valid key
     /// let public_key: Vec<u8> = vec![];

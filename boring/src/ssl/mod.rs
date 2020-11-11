@@ -8,7 +8,7 @@
 //! To connect as a client to a remote server:
 //!
 //! ```no_run
-//! use openssl::ssl::{SslMethod, SslConnector};
+//! use boring::ssl::{SslMethod, SslConnector};
 //! use std::io::{Read, Write};
 //! use std::net::TcpStream;
 //!
@@ -26,7 +26,7 @@
 //! To accept connections as a server from remote clients:
 //!
 //! ```no_run
-//! use openssl::ssl::{SslMethod, SslAcceptor, SslStream, SslFiletype};
+//! use boring::ssl::{SslMethod, SslAcceptor, SslStream, SslFiletype};
 //! use std::net::{TcpListener, TcpStream};
 //! use std::sync::Arc;
 //! use std::thread;

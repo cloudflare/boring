@@ -22,7 +22,7 @@
 //!
 //! ## Key wrapping
 //! ```rust
-//! use openssl::aes::{AesKey, unwrap_key, wrap_key};
+//! use boring::aes::{AesKey, unwrap_key, wrap_key};
 //!
 //! let kek = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
 //! let key_to_wrap = b"\x00\x11\x22\x33\x44\x55\x66\x77\x88\x99\xAA\xBB\xCC\xDD\xEE\xFF";

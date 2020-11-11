@@ -29,20 +29,15 @@
 //! Generate a 2048-bit RSA public/private key pair and print the public key.
 //!
 //! ```rust
-//!
-//! extern crate openssl;
-//!
-//! use openssl::rsa::Rsa;
-//! use openssl::pkey::PKey;
+//! use boring::rsa::Rsa;
+//! use boring::pkey::PKey;
 //! use std::str;
 //!
-//! fn main() {
-//!     let rsa = Rsa::generate(2048).unwrap();
-//!     let pkey = PKey::from_rsa(rsa).unwrap();
+//! let rsa = Rsa::generate(2048).unwrap();
+//! let pkey = PKey::from_rsa(rsa).unwrap();
 //!
-//!     let pub_key: Vec<u8> = pkey.public_key_to_pem().unwrap();
-//!     println!("{:?}", str::from_utf8(pub_key.as_slice()).unwrap());
-//! }
+//! let pub_key: Vec<u8> = pkey.public_key_to_pem().unwrap();
+//! println!("{:?}", str::from_utf8(pub_key.as_slice()).unwrap());
 //! ```
 
 use ffi;

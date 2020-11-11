@@ -16,7 +16,7 @@
 //! values:
 //!
 //! ```
-//! use openssl::memcmp::eq;
+//! use boring::memcmp::eq;
 //!
 //! // We want to compare `a` to `b` and `c`, without giving
 //! // away through timing analysis that `c` is more similar to `a`
@@ -48,7 +48,7 @@ use libc::size_t;
 /// values:
 ///
 /// ```
-/// use openssl::memcmp::eq;
+/// use boring::memcmp::eq;
 ///
 /// // We want to compare `a` to `b` and `c`, without giving
 /// // away through timing analysis that `c` is more similar to `a`
