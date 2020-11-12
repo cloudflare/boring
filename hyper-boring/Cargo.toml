@@ -1,6 +1,6 @@
 [package]
 name = "hyper-boring"
-version = "1.0.1"
+version = "1.0.2"
 authors = ["Steven Fackler <sfackler@gmail.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
 edition = "2018"
 description = "Hyper TLS support via BoringSSL"
@@ -22,10 +22,10 @@ http = "0.2"
 hyper = { version = "0.13", default-features = false }
 linked_hash_set = "0.1"
 once_cell = "1.0"
-boring = { version = "1.0.1", path = "../boring" }
-boring-sys = { version = "1.0.1", path = "../boring-sys" }
+boring = { version = "1.0.2", path = "../boring" }
+boring-sys = { version = "1.0.2", path = "../boring-sys" }
 tokio = "0.2"
-tokio-boring = { version = "1.0.1", path = "../tokio-boring" }
+tokio-boring = { version = "1.0.2", path = "../tokio-boring" }
 tower-layer = "0.3"
 
 [dev-dependencies]
