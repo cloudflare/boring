@@ -78,6 +78,79 @@ impl fmt::Display for Asn1GeneralizedTimeRef {
     }
 }
 
+/// The type of an ASN.1 value.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Asn1Type(c_int);
+
+#[allow(missing_docs)] // no need to document the constants
+impl Asn1Type {
+    pub const EOC: Asn1Type = Asn1Type(ffi::V_ASN1_EOC);
+
+    pub const BOOLEAN: Asn1Type = Asn1Type(ffi::V_ASN1_BOOLEAN);
+
+    pub const INTEGER: Asn1Type = Asn1Type(ffi::V_ASN1_INTEGER);
+
+    pub const BIT_STRING: Asn1Type = Asn1Type(ffi::V_ASN1_BIT_STRING);
+
+    pub const OCTET_STRING: Asn1Type = Asn1Type(ffi::V_ASN1_OCTET_STRING);
+
+    pub const NULL: Asn1Type = Asn1Type(ffi::V_ASN1_NULL);
+
+    pub const OBJECT: Asn1Type = Asn1Type(ffi::V_ASN1_OBJECT);
+
+    pub const OBJECT_DESCRIPTOR: Asn1Type = Asn1Type(ffi::V_ASN1_OBJECT_DESCRIPTOR);
+
+    pub const EXTERNAL: Asn1Type = Asn1Type(ffi::V_ASN1_EXTERNAL);
+
+    pub const REAL: Asn1Type = Asn1Type(ffi::V_ASN1_REAL);
+
+    pub const ENUMERATED: Asn1Type = Asn1Type(ffi::V_ASN1_ENUMERATED);
+
+    pub const UTF8STRING: Asn1Type = Asn1Type(ffi::V_ASN1_UTF8STRING);
+
+    pub const SEQUENCE: Asn1Type = Asn1Type(ffi::V_ASN1_SEQUENCE);
+
+    pub const SET: Asn1Type = Asn1Type(ffi::V_ASN1_SET);
+
+    pub const NUMERICSTRING: Asn1Type = Asn1Type(ffi::V_ASN1_NUMERICSTRING);
+
+    pub const PRINTABLESTRING: Asn1Type = Asn1Type(ffi::V_ASN1_PRINTABLESTRING);
+
+    pub const T61STRING: Asn1Type = Asn1Type(ffi::V_ASN1_T61STRING);
+
+    pub const TELETEXSTRING: Asn1Type = Asn1Type(ffi::V_ASN1_TELETEXSTRING);
+
+    pub const VIDEOTEXSTRING: Asn1Type = Asn1Type(ffi::V_ASN1_VIDEOTEXSTRING);
+
+    pub const IA5STRING: Asn1Type = Asn1Type(ffi::V_ASN1_IA5STRING);
+
+    pub const UTCTIME: Asn1Type = Asn1Type(ffi::V_ASN1_UTCTIME);
+
+    pub const GENERALIZEDTIME: Asn1Type = Asn1Type(ffi::V_ASN1_GENERALIZEDTIME);
+
+    pub const GRAPHICSTRING: Asn1Type = Asn1Type(ffi::V_ASN1_GRAPHICSTRING);
+
+    pub const ISO64STRING: Asn1Type = Asn1Type(ffi::V_ASN1_ISO64STRING);
+
+    pub const VISIBLESTRING: Asn1Type = Asn1Type(ffi::V_ASN1_VISIBLESTRING);
+
+    pub const GENERALSTRING: Asn1Type = Asn1Type(ffi::V_ASN1_GENERALSTRING);
+
+    pub const UNIVERSALSTRING: Asn1Type = Asn1Type(ffi::V_ASN1_UNIVERSALSTRING);
+
+    pub const BMPSTRING: Asn1Type = Asn1Type(ffi::V_ASN1_BMPSTRING);
+
+    /// Constructs an `Asn1Type` from a raw OpenSSL value.
+    pub fn from_raw(value: c_int) -> Self {
+        Asn1Type(value)
+    }
+
+    /// Returns the raw OpenSSL value represented by this type.
+    pub fn as_raw(&self) -> c_int {
+        self.0
+    }
+}
+
 /// Difference between two ASN1 times.
 ///
 /// This `struct` is created by the [`diff`] method on [`Asn1TimeRef`]. See its
