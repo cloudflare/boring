@@ -20,10 +20,10 @@ use tokio_boring::{SslConnectorExt, SslAcceptorExt};
 ```
 
 This crate provides two extension traits, `SslConnectorExt` and
-`SslAcceptorExt`, which augment the functionality provided by the [`boring` crate](https://github.com/inikulin/boring). 
+`SslAcceptorExt`, which augment the functionality provided by the [`boring` crate](https://github.com/cloudflare/boring).
 These extension traits provide the ability to connect a stream
 asynchronously and accept a socket asynchronously. Configuration of BoringSSL
-parameters is still done through the support in the [`boring` crate](https://github.com/inikulin/boring).
+parameters is still done through the support in the [`boring` crate](https://github.com/cloudflare/boring).
 
 
 # License
