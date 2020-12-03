@@ -209,7 +209,12 @@ where
     }
 
     fn call(&mut self, uri: Uri) -> Self::Future {
-        let tls_setup = if uri.scheme() == Some(&Scheme::HTTPS) {
+        let is_tls_scheme = uri
+            .scheme()
+            .map(|s| s == &Scheme::HTTPS || s.as_str() == "wss")
+            .unwrap_or(false);
+
+        let tls_setup = if is_tls_scheme {
             Some((self.inner.clone(), uri.clone()))
         } else {
             None
