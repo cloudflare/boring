@@ -84,8 +84,6 @@ impl HttpsLayer {
     /// ALPN is configured to support both HTTP/1 and HTTP/1.1.
     pub fn new() -> Result<HttpsLayer, ErrorStack> {
         let mut ssl = SslConnector::builder(SslMethod::tls())?;
-        // avoid unused_mut warnings when building against OpenSSL 1.0.1
-        ssl = ssl;
 
         ssl.set_alpn_protos(b"\x02h2\x08http/1.1")?;
 
@@ -230,7 +228,7 @@ where
                 None => return Ok(MaybeHttpsStream::Http(conn)),
             };
 
-            let host = uri.host().ok_or_else(|| "URI missing host")?;
+            let host = uri.host().ok_or("URI missing host")?;
 
             let config = inner.setup_ssl(&uri, host)?;
             let stream = tokio_boring::connect(config, host, conn).await?;
@@ -340,8 +338,6 @@ where
             MaybeHttpsStream::Http(s) => s.connected(),
             MaybeHttpsStream::Https(s) => {
                 let mut connected = s.get_ref().connected();
-                // Avoid unused_mut warnings on OpenSSL 1.0.1
-                connected = connected;
 
                 if s.ssl().selected_alpn_protocol() == Some(b"h2") {
                     connected = connected.negotiated_h2();
