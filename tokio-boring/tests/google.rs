@@ -1,9 +1,11 @@
 use boring::ssl::{SslAcceptor, SslConnector, SslFiletype, SslMethod};
 use futures::future;
-use std::net::ToSocketAddrs;
+use std::future::Future;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::pin::Pin;
 use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
+use tokio_boring::{HandshakeError, SslStream};
 
 #[tokio::test]
 async fn google() {
@@ -31,9 +33,12 @@ async fn google() {
     assert!(response.ends_with("</html>") || response.ends_with("</HTML>"));
 }
 
-#[tokio::test]
-async fn server() {
-    let mut listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+fn create_server() -> (
+    impl Future<Output = Result<SslStream<TcpStream>, HandshakeError<TcpStream>>>,
+    SocketAddr,
+) {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let mut listener = TcpListener::from_std(listener).unwrap();
     let addr = listener.local_addr().unwrap();
 
     let server = async move {
@@ -47,8 +52,19 @@ async fn server() {
         let acceptor = acceptor.build();
 
         let stream = listener.accept().await.unwrap().0;
-        let mut stream = tokio_boring::accept(&acceptor, stream).await.unwrap();
 
+        tokio_boring::accept(&acceptor, stream).await
+    };
+
+    (server, addr)
+}
+
+#[tokio::test]
+async fn server() {
+    let (stream, addr) = create_server();
+
+    let server = async {
+        let mut stream = stream.await.unwrap();
         let mut buf = [0; 4];
         stream.read_exact(&mut buf).await.unwrap();
         assert_eq!(&buf, b"asdf");
@@ -57,7 +73,7 @@ async fn server() {
 
         future::poll_fn(|ctx| Pin::new(&mut stream).poll_shutdown(ctx))
             .await
-            .unwrap()
+            .unwrap();
     };
 
     let client = async {
@@ -75,6 +91,31 @@ async fn server() {
         let mut buf = vec![];
         stream.read_to_end(&mut buf).await.unwrap();
         assert_eq!(buf, b"jkl;");
+    };
+
+    future::join(server, client).await;
+}
+
+#[tokio::test]
+async fn handshake_error() {
+    let (stream, addr) = create_server();
+
+    let server = async {
+        let err = stream.await.unwrap_err();
+
+        assert!(err.into_source_stream().is_some());
+    };
+
+    let client = async {
+        let connector = SslConnector::builder(SslMethod::tls()).unwrap();
+        let config = connector.build().configure().unwrap();
+        let stream = TcpStream::connect(&addr).await.unwrap();
+
+        let err = tokio_boring::connect(config, "localhost", stream)
+            .await
+            .unwrap_err();
+
+        assert!(err.into_source_stream().is_some());
     };
 
     future::join(server, client).await;

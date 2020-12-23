@@ -252,6 +252,14 @@ impl<S> HandshakeError<S> {
             _ => None,
         }
     }
+
+    /// Converts error to the source data stream tha was used for the handshake.
+    pub fn into_source_stream(self) -> Option<S> {
+        match self.0 {
+            ssl::HandshakeError::Failure(s) => Some(s.into_source_stream().stream),
+            _ => None,
+        }
+    }
 }
 
 impl<S> fmt::Debug for HandshakeError<S>
