@@ -62,12 +62,25 @@ pub unsafe fn take_panic<S>(bio: *mut BIO) -> Option<Box<dyn Any + Send>> {
 }
 
 pub unsafe fn get_ref<'a, S: 'a>(bio: *mut BIO) -> &'a S {
-    let state = &*(BIO_get_data(bio) as *const StreamState<S>);
-    &state.stream
+    &state(bio).stream
 }
 
 pub unsafe fn get_mut<'a, S: 'a>(bio: *mut BIO) -> &'a mut S {
     &mut state(bio).stream
+}
+
+pub unsafe extern "C" fn take_stream<S>(bio: *mut BIO) -> S {
+    assert!(!bio.is_null());
+
+    let data = BIO_get_data(bio);
+
+    assert!(!data.is_null());
+
+    let state = Box::<StreamState<S>>::from_raw(data as *mut _);
+
+    BIO_set_data(bio, ptr::null_mut());
+
+    state.stream
 }
 
 pub unsafe fn set_dtls_mtu_size<S>(bio: *mut BIO, mtu_size: usize) {
@@ -81,7 +94,11 @@ pub unsafe fn set_dtls_mtu_size<S>(bio: *mut BIO, mtu_size: usize) {
 }
 
 unsafe fn state<'a, S: 'a>(bio: *mut BIO) -> &'a mut StreamState<S> {
-    &mut *(BIO_get_data(bio) as *mut _)
+    let data = BIO_get_data(bio) as *mut StreamState<S>;
+
+    assert!(!data.is_null());
+
+    &mut *data
 }
 
 unsafe extern "C" fn bwrite<S: Write>(bio: *mut BIO, buf: *const c_char, len: c_int) -> c_int {
@@ -181,9 +198,12 @@ unsafe extern "C" fn destroy<S>(bio: *mut BIO) -> c_int {
     }
 
     let data = BIO_get_data(bio);
-    assert!(!data.is_null());
-    Box::<StreamState<S>>::from_raw(data as *mut _);
-    BIO_set_data(bio, ptr::null_mut());
+
+    if !data.is_null() {
+        Box::<StreamState<S>>::from_raw(data as *mut _);
+        BIO_set_data(bio, ptr::null_mut());
+    }
+
     BIO_set_init(bio, 0);
     1
 }

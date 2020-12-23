@@ -2650,6 +2650,11 @@ impl<S> MidHandshakeSslStream<S> {
         self.error
     }
 
+    /// Returns the source data stream.
+    pub fn into_source_stream(self) -> S {
+        self.stream.into_inner()
+    }
+
     /// Restarts the handshake process.
     ///
     /// This corresponds to [`SSL_do_handshake`].
@@ -2854,6 +2859,11 @@ impl<S> SslStream<S> {
 
     fn get_bio_error(&mut self) -> Option<io::Error> {
         unsafe { bio::take_error::<S>(self.ssl.get_raw_rbio()) }
+    }
+
+    /// Converts the SslStream to the underlying data stream.
+    pub fn into_inner(self) -> S {
+        unsafe { bio::take_stream::<S>(self.ssl.get_raw_rbio()) }
     }
 
     /// Returns a shared reference to the underlying stream.
