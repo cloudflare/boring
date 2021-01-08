@@ -40,7 +40,7 @@ fn ctx(method: SslMethod) -> Result<SslContextBuilder, ErrorStack> {
     // This is quite a useful optimization for saving memory, but historically
     // caused CVEs in OpenSSL pre-1.0.1h, according to
     // https://bugs.python.org/issue25672
-    if version::number() >= 0x1_00_01_08_0 {
+    if version::number() >= 0x1000_1080 {
         mode |= SslMode::RELEASE_BUFFERS;
     }
 
