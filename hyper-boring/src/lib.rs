@@ -21,6 +21,7 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::io;
 use std::mem::MaybeUninit;
+use std::net;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -228,7 +229,21 @@ where
                 None => return Ok(MaybeHttpsStream::Http(conn)),
             };
 
-            let host = uri.host().ok_or("URI missing host")?;
+            let mut host = uri.host().ok_or("URI missing host")?;
+
+            // If `host` is an IPv6 address, we must strip away the square brackets that surround
+            // it (otherwise, boring will fail to parse the host as an IP address, eventually
+            // causing the handshake to fail due a hostname verification error).
+            if !host.is_empty() {
+                let last = host.len() - 1;
+                let mut chars = host.chars();
+
+                if let (Some('['), Some(']')) = (chars.next(), chars.last()) {
+                    if host[1..last].parse::<net::Ipv6Addr>().is_ok() {
+                        host = &host[1..last];
+                    }
+                }
+            }
 
             let config = inner.setup_ssl(&uri, host)?;
             let stream = tokio_boring::connect(config, host, conn).await?;
