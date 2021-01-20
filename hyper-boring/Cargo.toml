@@ -1,6 +1,6 @@
 [package]
 name = "hyper-boring"
-version = "1.0.3"
+version = "1.0.4"
 authors = ["Steven Fackler <sfackler@gmail.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
 edition = "2018"
 description = "Hyper TLS support via BoringSSL"
