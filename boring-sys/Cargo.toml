@@ -16,6 +16,7 @@ include = [
     "/*.toml",
     "/LICENSE-MIT",
     "/deps/boringssl/**/*.[chS]",
+    "/deps/boringssl/**/*.asm",
     "/deps/boringssl/src/**/*.cc",
     "/deps/boringssl/**/CMakeLists.txt",
     "/deps/boringssl/**/sources.cmake",
