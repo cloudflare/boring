@@ -1,6 +1,6 @@
 [package]
 name = "boring-sys"
-version = "1.0.2"
+version = "1.0.3"
 authors = ["Alex Crichton <alex@alexcrichton.com>",
            "Steven Fackler <sfackler@gmail.com>",
            "Ivan Nikulin <ifaaan@gmail.com>"]
@@ -21,7 +21,7 @@ include = [
     "/deps/boringssl/**/CMakeLists.txt",
     "/deps/boringssl/**/sources.cmake",
     "/deps/boringssl/LICENSE",
-    "/buid.rs",
+    "/build.rs",
     "/src",
 ]
 
