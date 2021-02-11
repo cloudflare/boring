@@ -203,8 +203,11 @@ extern "C" {
     pub fn X509_REVOKED_get0_revocationDate(req: *const X509_REVOKED) -> *const ASN1_TIME;
     pub fn X509_REVOKED_get0_extensions(r: *const X509_REVOKED) -> *const stack_st_X509_EXTENSION;
 
-    pub fn X509_REVOKED_set_serialNumber(r: *mut X509_REVOKED, serial: *mut ASN1_INTEGER) -> c_int;
-    pub fn X509_REVOKED_set_revocationDate(r: *mut X509_REVOKED, tm: *mut ASN1_TIME) -> c_int;
+    pub fn X509_REVOKED_set_serialNumber(
+        r: *mut X509_REVOKED,
+        serial: *const ASN1_INTEGER,
+    ) -> c_int;
+    pub fn X509_REVOKED_set_revocationDate(r: *mut X509_REVOKED, tm: *const ASN1_TIME) -> c_int;
 
     pub fn X509_CRL_sign(x: *mut X509_CRL, pkey: *mut EVP_PKEY, md: *const EVP_MD) -> c_int;
     pub fn X509_CRL_digest(
