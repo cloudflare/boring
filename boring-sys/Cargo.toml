@@ -1,6 +1,6 @@
 [package]
 name = "boring-sys"
-version = "1.0.3"
+version = "1.0.4"
 authors = ["Alex Crichton <alex@alexcrichton.com>",
            "Steven Fackler <sfackler@gmail.com>",
            "Ivan Nikulin <ifaaan@gmail.com>"]
