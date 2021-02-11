@@ -221,7 +221,6 @@ impl SslAcceptor {
         ctx.set_options(SslOptions::NO_TLSV1 | SslOptions::NO_TLSV1_1);
         let dh = Dh::params_from_pem(FFDHE_2048.as_bytes())?;
         ctx.set_tmp_dh(&dh)?;
-        setup_curves(&mut ctx)?;
         ctx.set_cipher_list(
             "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:\
              ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:\
@@ -244,7 +243,6 @@ impl SslAcceptor {
         ctx.set_options(SslOptions::NO_TLSV1_3);
         let dh = Dh::params_from_pem(FFDHE_2048.as_bytes())?;
         ctx.set_tmp_dh(&dh)?;
-        setup_curves(&mut ctx)?;
         ctx.set_cipher_list(
             "ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:\
              ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:\
@@ -271,7 +269,6 @@ impl SslAcceptor {
             SslOptions::CIPHER_SERVER_PREFERENCE | SslOptions::NO_TLSV1 | SslOptions::NO_TLSV1_1,
         );
         ctx.set_options(SslOptions::NO_TLSV1_3);
-        setup_curves(&mut ctx)?;
         ctx.set_cipher_list(
             "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:\
              ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:\
@@ -322,10 +319,6 @@ impl DerefMut for SslAcceptorBuilder {
     fn deref_mut(&mut self) -> &mut SslContextBuilder {
         &mut self.0
     }
-}
-
-fn setup_curves(_: &mut SslContextBuilder) -> Result<(), ErrorStack> {
-    Ok(())
 }
 
 fn setup_verify(ctx: &mut SslContextBuilder) {
