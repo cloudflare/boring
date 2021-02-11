@@ -1,4 +1,5 @@
 use ffi;
+use std::convert::TryInto;
 use std::fmt;
 use std::io;
 use std::io::prelude::*;
@@ -194,7 +195,7 @@ impl Hasher {
             self.init()?;
         }
         unsafe {
-            let mut len = ffi::EVP_MAX_MD_SIZE;
+            let mut len = ffi::EVP_MAX_MD_SIZE.try_into().unwrap();
             let mut buf = [0; ffi::EVP_MAX_MD_SIZE as usize];
             cvt(ffi::EVP_DigestFinal_ex(
                 self.ctx,

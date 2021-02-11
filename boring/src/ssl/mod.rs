@@ -110,71 +110,71 @@ bitflags! {
     /// Options controlling the behavior of an `SslContext`.
     pub struct SslOptions: c_uint {
         /// Disables a countermeasure against an SSLv3/TLSv1.0 vulnerability affecting CBC ciphers.
-        const DONT_INSERT_EMPTY_FRAGMENTS = ffi::SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS;
+        const DONT_INSERT_EMPTY_FRAGMENTS = ffi::SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS as _;
 
         /// A "reasonable default" set of options which enables compatibility flags.
-        const ALL = ffi::SSL_OP_ALL;
+        const ALL = ffi::SSL_OP_ALL as _;
 
         /// Do not query the MTU.
         ///
         /// Only affects DTLS connections.
-        const NO_QUERY_MTU = ffi::SSL_OP_NO_QUERY_MTU;
+        const NO_QUERY_MTU = ffi::SSL_OP_NO_QUERY_MTU as _;
 
         /// Disables the use of session tickets for session resumption.
-        const NO_TICKET = ffi::SSL_OP_NO_TICKET;
+        const NO_TICKET = ffi::SSL_OP_NO_TICKET as _;
 
         /// Always start a new session when performing a renegotiation on the server side.
         const NO_SESSION_RESUMPTION_ON_RENEGOTIATION =
-            ffi::SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION;
+            ffi::SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION as _;
 
         /// Disables the use of TLS compression.
-        const NO_COMPRESSION = ffi::SSL_OP_NO_COMPRESSION;
+        const NO_COMPRESSION = ffi::SSL_OP_NO_COMPRESSION as _;
 
         /// Allow legacy insecure renegotiation with servers or clients that do not support secure
         /// renegotiation.
         const ALLOW_UNSAFE_LEGACY_RENEGOTIATION =
-            ffi::SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION;
+            ffi::SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION as _;
 
         /// Creates a new key for each session when using ECDHE.
-        const SINGLE_ECDH_USE = ffi::SSL_OP_SINGLE_ECDH_USE;
+        const SINGLE_ECDH_USE = ffi::SSL_OP_SINGLE_ECDH_USE as _;
 
         /// Creates a new key for each session when using DHE.
-        const SINGLE_DH_USE = ffi::SSL_OP_SINGLE_DH_USE;
+        const SINGLE_DH_USE = ffi::SSL_OP_SINGLE_DH_USE as _;
 
         /// Use the server's preferences rather than the client's when selecting a cipher.
         ///
         /// This has no effect on the client side.
-        const CIPHER_SERVER_PREFERENCE = ffi::SSL_OP_CIPHER_SERVER_PREFERENCE;
+        const CIPHER_SERVER_PREFERENCE = ffi::SSL_OP_CIPHER_SERVER_PREFERENCE as _;
 
         /// Disables version rollback attach detection.
-        const TLS_ROLLBACK_BUG = ffi::SSL_OP_TLS_ROLLBACK_BUG;
+        const TLS_ROLLBACK_BUG = ffi::SSL_OP_TLS_ROLLBACK_BUG as _;
 
         /// Disables the use of SSLv2.
-        const NO_SSLV2 = ffi::SSL_OP_NO_SSLv2;
+        const NO_SSLV2 = ffi::SSL_OP_NO_SSLv2 as _;
 
         /// Disables the use of SSLv3.
-        const NO_SSLV3 = ffi::SSL_OP_NO_SSLv3;
+        const NO_SSLV3 = ffi::SSL_OP_NO_SSLv3 as _;
 
         /// Disables the use of TLSv1.0.
-        const NO_TLSV1 = ffi::SSL_OP_NO_TLSv1;
+        const NO_TLSV1 = ffi::SSL_OP_NO_TLSv1 as _;
 
         /// Disables the use of TLSv1.1.
-        const NO_TLSV1_1 = ffi::SSL_OP_NO_TLSv1_1;
+        const NO_TLSV1_1 = ffi::SSL_OP_NO_TLSv1_1 as _;
 
         /// Disables the use of TLSv1.2.
-        const NO_TLSV1_2 = ffi::SSL_OP_NO_TLSv1_2;
+        const NO_TLSV1_2 = ffi::SSL_OP_NO_TLSv1_2 as _;
 
         /// Disables the use of TLSv1.3.
-        const NO_TLSV1_3 = ffi::SSL_OP_NO_TLSv1_3;
+        const NO_TLSV1_3 = ffi::SSL_OP_NO_TLSv1_3 as _;
 
         /// Disables the use of DTLSv1.0
-        const NO_DTLSV1 = ffi::SSL_OP_NO_DTLSv1;
+        const NO_DTLSV1 = ffi::SSL_OP_NO_DTLSv1 as _;
 
         /// Disables the use of DTLSv1.2.
-        const NO_DTLSV1_2 = ffi::SSL_OP_NO_DTLSv1_2;
+        const NO_DTLSV1_2 = ffi::SSL_OP_NO_DTLSv1_2 as _;
 
         /// Disallow all renegotiation in TLSv1.2 and earlier.
-        const NO_RENEGOTIATION = ffi::SSL_OP_NO_RENEGOTIATION;
+        const NO_RENEGOTIATION = ffi::SSL_OP_NO_RENEGOTIATION as _;
     }
 }
 
@@ -186,11 +186,11 @@ bitflags! {
         /// Normally, a write in OpenSSL will always write out all of the requested data, even if it
         /// requires more than one TLS record or write to the underlying stream. This option will
         /// cause a write to return after writing a single TLS record instead.
-        const ENABLE_PARTIAL_WRITE = ffi::SSL_MODE_ENABLE_PARTIAL_WRITE;
+        const ENABLE_PARTIAL_WRITE = ffi::SSL_MODE_ENABLE_PARTIAL_WRITE as _;
 
         /// Disables a check that the data buffer has not moved between calls when operating in a
         /// nonblocking context.
-        const ACCEPT_MOVING_WRITE_BUFFER = ffi::SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER;
+        const ACCEPT_MOVING_WRITE_BUFFER = ffi::SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER as _;
 
         /// Enables automatic retries after TLS session events such as renegotiations or heartbeats.
         ///
@@ -201,19 +201,19 @@ bitflags! {
         /// Note that `SslStream::read` and `SslStream::write` will automatically retry regardless
         /// of the state of this option. It only affects `SslStream::ssl_read` and
         /// `SslStream::ssl_write`.
-        const AUTO_RETRY = ffi::SSL_MODE_AUTO_RETRY;
+        const AUTO_RETRY = ffi::SSL_MODE_AUTO_RETRY as _;
 
         /// Disables automatic chain building when verifying a peer's certificate.
         ///
         /// TLS peers are responsible for sending the entire certificate chain from the leaf to a
         /// trusted root, but some will incorrectly not do so. OpenSSL will try to build the chain
         /// out of certificates it knows of, and this option will disable that behavior.
-        const NO_AUTO_CHAIN = ffi::SSL_MODE_NO_AUTO_CHAIN;
+        const NO_AUTO_CHAIN = ffi::SSL_MODE_NO_AUTO_CHAIN as _;
 
         /// Release memory buffers when the session does not need them.
         ///
         /// This saves ~34 KiB of memory for idle streams.
-        const RELEASE_BUFFERS = ffi::SSL_MODE_RELEASE_BUFFERS;
+        const RELEASE_BUFFERS = ffi::SSL_MODE_RELEASE_BUFFERS as _;
 
         /// Sends the fake `TLS_FALLBACK_SCSV` cipher suite in the ClientHello message of a
         /// handshake.
@@ -222,7 +222,7 @@ bitflags! {
         /// attempted to downgrade the protocol version of the session.
         ///
         /// Do not use this unless you know what you're doing!
-        const SEND_FALLBACK_SCSV = ffi::SSL_MODE_SEND_FALLBACK_SCSV;
+        const SEND_FALLBACK_SCSV = ffi::SSL_MODE_SEND_FALLBACK_SCSV as _;
     }
 }
 
@@ -469,19 +469,19 @@ pub struct SslVersion(u16);
 
 impl SslVersion {
     /// SSLv3
-    pub const SSL3: SslVersion = SslVersion(ffi::SSL3_VERSION);
+    pub const SSL3: SslVersion = SslVersion(ffi::SSL3_VERSION as _);
 
     /// TLSv1.0
-    pub const TLS1: SslVersion = SslVersion(ffi::TLS1_VERSION);
+    pub const TLS1: SslVersion = SslVersion(ffi::TLS1_VERSION as _);
 
     /// TLSv1.1
-    pub const TLS1_1: SslVersion = SslVersion(ffi::TLS1_1_VERSION);
+    pub const TLS1_1: SslVersion = SslVersion(ffi::TLS1_1_VERSION as _);
 
     /// TLSv1.2
-    pub const TLS1_2: SslVersion = SslVersion(ffi::TLS1_2_VERSION);
+    pub const TLS1_2: SslVersion = SslVersion(ffi::TLS1_2_VERSION as _);
 
     /// TLSv1.3
-    pub const TLS1_3: SslVersion = SslVersion(ffi::TLS1_3_VERSION);
+    pub const TLS1_3: SslVersion = SslVersion(ffi::TLS1_3_VERSION as _);
 }
 
 /// A standard implementation of protocol selection for Application Layer Protocol Negotiation
@@ -1079,7 +1079,7 @@ impl SslContextBuilder {
             self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_set_alpn_select_cb(
                 self.as_ptr(),
-                callbacks::raw_alpn_select::<F>,
+                Some(callbacks::raw_alpn_select::<F>),
                 ptr::null_mut(),
             );
         }
@@ -1404,7 +1404,7 @@ impl SslContext {
     {
         unsafe {
             ffi::init();
-            let idx = cvt_n(get_new_idx(free_data_box::<T>))?;
+            let idx = cvt_n(get_new_idx(Some(free_data_box::<T>)))?;
             Ok(Index::from_raw(idx))
         }
     }
@@ -1854,7 +1854,7 @@ impl Ssl {
     {
         unsafe {
             ffi::init();
-            let idx = cvt_n(get_new_ssl_idx(free_data_box::<T>))?;
+            let idx = cvt_n(get_new_ssl_idx(Some(free_data_box::<T>)))?;
             Ok(Index::from_raw(idx))
         }
     }
@@ -3119,7 +3119,7 @@ unsafe fn get_new_idx(f: ffi::CRYPTO_EX_free) -> c_int {
         ffi::SSL_CTX_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, None);
     });
 
-    ffi::SSL_CTX_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, Some(f))
+    ffi::SSL_CTX_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, f)
 }
 
 unsafe fn get_new_ssl_idx(f: ffi::CRYPTO_EX_free) -> c_int {
@@ -3129,5 +3129,5 @@ unsafe fn get_new_ssl_idx(f: ffi::CRYPTO_EX_free) -> c_int {
         ffi::SSL_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, None);
     });
 
-    ffi::SSL_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, Some(f))
+    ffi::SSL_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, f)
 }

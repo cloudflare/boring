@@ -11,6 +11,7 @@ documentation = "https://docs.rs/boring-sys"
 links = "boringssl"
 readme = "README.md"
 categories = ["cryptography", "external-ffi-bindings"]
+edition = "2018"
 include = [
     "/*.md",
     "/*.toml",
@@ -25,8 +26,6 @@ include = [
     "/src",
 ]
 
-[dependencies]
-libc = "0.2"
-
 [build-dependencies]
+bindgen = "0.57"
 cmake = "0.1"

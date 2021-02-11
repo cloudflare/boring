@@ -222,12 +222,12 @@ impl BIO_METHOD {
             let ptr = ffi::BIO_meth_new(ffi::BIO_TYPE_NONE, b"rust\0".as_ptr() as *const _);
             assert!(!ptr.is_null());
             let ret = BIO_METHOD(ptr);
-            assert!(ffi::BIO_meth_set_write(ptr, bwrite::<S>) != 0);
-            assert!(ffi::BIO_meth_set_read(ptr, bread::<S>) != 0);
-            assert!(ffi::BIO_meth_set_puts(ptr, bputs::<S>) != 0);
-            assert!(ffi::BIO_meth_set_ctrl(ptr, ctrl::<S>) != 0);
-            assert!(ffi::BIO_meth_set_create(ptr, create) != 0);
-            assert!(ffi::BIO_meth_set_destroy(ptr, destroy::<S>) != 0);
+            assert!(ffi::BIO_meth_set_write(ptr, Some(bwrite::<S>)) != 0);
+            assert!(ffi::BIO_meth_set_read(ptr, Some(bread::<S>)) != 0);
+            assert!(ffi::BIO_meth_set_puts(ptr, Some(bputs::<S>)) != 0);
+            assert!(ffi::BIO_meth_set_ctrl(ptr, Some(ctrl::<S>)) != 0);
+            assert!(ffi::BIO_meth_set_create(ptr, Some(create)) != 0);
+            assert!(ffi::BIO_meth_set_destroy(ptr, Some(destroy::<S>)) != 0);
             ret
         }
     }

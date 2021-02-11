@@ -10,6 +10,7 @@
 use ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 use libc::{c_int, c_long};
+use std::convert::TryInto;
 use std::error::Error;
 use std::ffi::{CStr, CString};
 use std::fmt;
@@ -476,7 +477,7 @@ impl X509Ref {
                 buf: [0; ffi::EVP_MAX_MD_SIZE as usize],
                 len: ffi::EVP_MAX_MD_SIZE as usize,
             };
-            let mut len = ffi::EVP_MAX_MD_SIZE;
+            let mut len = ffi::EVP_MAX_MD_SIZE.try_into().unwrap();
             cvt(ffi::X509_digest(
                 self.as_ptr(),
                 hash_type.as_ptr(),
@@ -654,7 +655,7 @@ impl X509 {
                 if r.is_null() {
                     let err = ffi::ERR_peek_last_error();
 
-                    if ffi::ERR_GET_LIB(err) == ffi::ERR_LIB_PEM
+                    if ffi::ERR_GET_LIB(err) == ffi::ERR_LIB_PEM.0.try_into().unwrap()
                         && ffi::ERR_GET_REASON(err) == ffi::PEM_R_NO_START_LINE
                     {
                         ffi::ERR_clear_error();
@@ -1306,8 +1307,8 @@ impl GeneralNameRef {
                 return None;
             }
 
-            let ptr = ASN1_STRING_get0_data((*self.as_ptr()).d as *mut _);
-            let len = ffi::ASN1_STRING_length((*self.as_ptr()).d as *mut _);
+            let ptr = ASN1_STRING_get0_data((*self.as_ptr()).d.ia5 as *mut _);
+            let len = ffi::ASN1_STRING_length((*self.as_ptr()).d.ia5 as *mut _);
 
             let slice = slice::from_raw_parts(ptr as *const u8, len as usize);
             // IA5Strings are stated to be ASCII (specifically IA5). Hopefully
@@ -1339,8 +1340,8 @@ impl GeneralNameRef {
                 return None;
             }
 
-            let ptr = ASN1_STRING_get0_data((*self.as_ptr()).d as *mut _);
-            let len = ffi::ASN1_STRING_length((*self.as_ptr()).d as *mut _);
+            let ptr = ASN1_STRING_get0_data((*self.as_ptr()).d.ip as *mut _);
+            let len = ffi::ASN1_STRING_length((*self.as_ptr()).d.ip as *mut _);
 
             Some(slice::from_raw_parts(ptr as *const u8, len as usize))
         }
