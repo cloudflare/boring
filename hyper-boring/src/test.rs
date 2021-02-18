@@ -28,7 +28,7 @@ async fn google() {
 
 #[tokio::test]
 async fn localhost() {
-    let mut listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
 
     let server = async move {
@@ -89,7 +89,7 @@ async fn localhost() {
 async fn alpn_h2() {
     use boring::ssl::{self, AlpnError};
 
-    let mut listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
 
     let server = async move {

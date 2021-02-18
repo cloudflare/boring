@@ -8,7 +8,6 @@ use boring::ex_data::Index;
 use boring::ssl::{
     ConnectConfiguration, Ssl, SslConnector, SslConnectorBuilder, SslMethod, SslSessionCacheMode,
 };
-use bytes::{Buf, BufMut};
 use http::uri::Scheme;
 use hyper::client::connect::{Connected, Connection};
 #[cfg(feature = "runtime")]
@@ -20,12 +19,11 @@ use std::error::Error;
 use std::fmt::Debug;
 use std::future::Future;
 use std::io;
-use std::mem::MaybeUninit;
 use std::net;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_boring::SslStream;
 use tower_layer::Layer;
 
@@ -267,35 +265,14 @@ impl<T> AsyncRead for MaybeHttpsStream<T>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
-    unsafe fn prepare_uninitialized_buffer(&self, buf: &mut [MaybeUninit<u8>]) -> bool {
-        match &*self {
-            MaybeHttpsStream::Http(s) => s.prepare_uninitialized_buffer(buf),
-            MaybeHttpsStream::Https(s) => s.prepare_uninitialized_buffer(buf),
-        }
-    }
-
     fn poll_read(
         mut self: Pin<&mut Self>,
         ctx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<io::Result<usize>> {
+        buf: &mut ReadBuf,
+    ) -> Poll<io::Result<()>> {
         match &mut *self {
             MaybeHttpsStream::Http(s) => Pin::new(s).poll_read(ctx, buf),
             MaybeHttpsStream::Https(s) => Pin::new(s).poll_read(ctx, buf),
-        }
-    }
-
-    fn poll_read_buf<B>(
-        mut self: Pin<&mut Self>,
-        ctx: &mut Context<'_>,
-        buf: &mut B,
-    ) -> Poll<io::Result<usize>>
-    where
-        B: BufMut,
-    {
-        match &mut *self {
-            MaybeHttpsStream::Http(s) => Pin::new(s).poll_read_buf(ctx, buf),
-            MaybeHttpsStream::Https(s) => Pin::new(s).poll_read_buf(ctx, buf),
         }
     }
 }
@@ -326,20 +303,6 @@ where
         match &mut *self {
             MaybeHttpsStream::Http(s) => Pin::new(s).poll_shutdown(ctx),
             MaybeHttpsStream::Https(s) => Pin::new(s).poll_shutdown(ctx),
-        }
-    }
-
-    fn poll_write_buf<B>(
-        mut self: Pin<&mut Self>,
-        ctx: &mut Context<'_>,
-        buf: &mut B,
-    ) -> Poll<io::Result<usize>>
-    where
-        B: Buf,
-    {
-        match &mut *self {
-            MaybeHttpsStream::Http(s) => Pin::new(s).poll_write_buf(ctx, buf),
-            MaybeHttpsStream::Https(s) => Pin::new(s).poll_write_buf(ctx, buf),
         }
     }
 }
