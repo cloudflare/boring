@@ -22,10 +22,9 @@ use std::error::Error;
 use std::fmt;
 use std::future::Future;
 use std::io::{self, Read, Write};
-use std::mem::MaybeUninit;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 /// Asynchronously performs a client-side TLS handshake over the provided stream.
 pub async fn connect<S>(
@@ -69,6 +68,19 @@ struct StreamWrapper<S> {
     context: usize,
 }
 
+impl<S> StreamWrapper<S> {
+    /// # Safety
+    ///
+    /// Must be called with `context` set to a valid pointer to a live `Context` object, and the
+    /// wrapper must be pinned in memory.
+    unsafe fn parts(&mut self) -> (Pin<&mut S>, &mut Context<'_>) {
+        debug_assert_ne!(self.context, 0);
+        let stream = Pin::new_unchecked(&mut self.stream);
+        let context = &mut *(self.context as *mut _);
+        (stream, context)
+    }
+}
+
 impl<S> fmt::Debug for StreamWrapper<S>
 where
     S: fmt::Debug,
@@ -99,8 +111,10 @@ where
     S: AsyncRead + Unpin,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        match self.with_context(|ctx, stream| stream.poll_read(ctx, buf)) {
-            Poll::Ready(r) => r,
+        let (stream, cx) = unsafe { self.parts() };
+        let mut buf = ReadBuf::new(buf);
+        match stream.poll_read(cx, &mut buf)? {
+            Poll::Ready(()) => Ok(buf.filled().len()),
             Poll::Pending => Err(io::Error::from(io::ErrorKind::WouldBlock)),
         }
     }
@@ -191,19 +205,29 @@ impl<S> AsyncRead for SslStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    unsafe fn prepare_uninitialized_buffer(&self, _: &mut [MaybeUninit<u8>]) -> bool {
-        // Note that this does not forward to `S` because the buffer is
-        // unconditionally filled in by OpenSSL, not the actual object `S`.
-        // We're decrypting bytes from `S` into the buffer above!
-        false
-    }
-
     fn poll_read(
         mut self: Pin<&mut Self>,
         ctx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<io::Result<usize>> {
-        self.with_context(ctx, |s| cvt(s.read(buf)))
+        buf: &mut ReadBuf,
+    ) -> Poll<io::Result<()>> {
+        self.with_context(ctx, |s| {
+            // This isn't really "proper", but rust-openssl doesn't currently expose a suitable interface even though
+            // OpenSSL itself doesn't require the buffer to be initialized. So this is good enough for now.
+            let slice = unsafe {
+                let buf = buf.unfilled_mut();
+                std::slice::from_raw_parts_mut(buf.as_mut_ptr().cast::<u8>(), buf.len())
+            };
+            match cvt(s.read(slice))? {
+                Poll::Ready(nread) => {
+                    unsafe {
+                        buf.assume_init(nread);
+                    }
+                    buf.advance(nread);
+                    Poll::Ready(Ok(()))
+                }
+                Poll::Pending => Poll::Pending,
+            }
+        })
     }
 }
 

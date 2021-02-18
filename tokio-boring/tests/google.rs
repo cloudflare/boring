@@ -38,7 +38,10 @@ fn create_server() -> (
     SocketAddr,
 ) {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let mut listener = TcpListener::from_std(listener).unwrap();
+
+    listener.set_nonblocking(true).unwrap();
+
+    let listener = TcpListener::from_std(listener).unwrap();
     let addr = listener.local_addr().unwrap();
 
     let server = async move {
