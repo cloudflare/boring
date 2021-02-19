@@ -244,9 +244,9 @@ fn set_ctx_options() {
 #[test]
 fn clear_ctx_options() {
     let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
-    ctx.set_options(SslOptions::ALL);
-    let opts = ctx.clear_options(SslOptions::ALL);
-    assert!(!opts.contains(SslOptions::ALL));
+    ctx.set_options(SslOptions::NO_TICKET);
+    let opts = ctx.clear_options(SslOptions::NO_TICKET);
+    assert!(!opts.contains(SslOptions::NO_TICKET));
 }
 
 #[test]

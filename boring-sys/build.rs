@@ -172,6 +172,9 @@ fn get_boringssl_cmake_config() -> cmake::Config {
 }
 
 fn main() {
+    use std::env;
+    use std::path::PathBuf;
+
     let mut cfg = get_boringssl_cmake_config();
 
     if cfg!(feature = "fuzzing") {
@@ -191,4 +194,61 @@ fn main() {
     if cfg!(target_os = "macos") {
         println!("cargo:rustc-cdylib-link-arg=-Wl,-undefined,dynamic_lookup");
     }
+
+    let include_path = PathBuf::from("deps/boringssl/src/include");
+    let mut builder = bindgen::Builder::default()
+        .derive_copy(true)
+        .derive_debug(true)
+        .derive_default(true)
+        .derive_eq(true)
+        .default_enum_style(bindgen::EnumVariation::NewType { is_bitfield: false })
+        .default_macro_constant_type(bindgen::MacroTypeVariation::Signed)
+        .generate_comments(true)
+        .fit_macro_constants(false)
+        .size_t_is_usize(true)
+        .layout_tests(true)
+        .prepend_enum_name(true)
+        .rustfmt_bindings(true)
+        .clang_args(&["-I", include_path.to_str().unwrap()]);
+
+    let headers = [
+        "aes.h",
+        "asn1_mac.h",
+        "asn1t.h",
+        "blake2.h",
+        "blowfish.h",
+        "cast.h",
+        "chacha.h",
+        "cmac.h",
+        "cpu.h",
+        "curve25519.h",
+        "des.h",
+        "dtls1.h",
+        "hkdf.h",
+        "hrss.h",
+        "md4.h",
+        "md5.h",
+        "obj_mac.h",
+        "objects.h",
+        "opensslv.h",
+        "ossl_typ.h",
+        "pkcs12.h",
+        "poly1305.h",
+        "rand.h",
+        "rc4.h",
+        "ripemd.h",
+        "siphash.h",
+        "srtp.h",
+        "trust_token.h",
+        "x509v3.h",
+    ];
+    for header in &headers {
+        builder = builder.header(include_path.join("openssl").join(header).to_str().unwrap());
+    }
+
+    let bindings = builder.generate().expect("Unable to generate bindings");
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    bindings
+        .write_to_file(out_path.join("bindings.rs"))
+        .expect("Couldn't write bindings!");
 }

@@ -1,82 +1,63 @@
 #![allow(
     clippy::missing_safety_doc,
+    clippy::redundant_static_lifetimes,
+    clippy::too_many_arguments,
     clippy::unreadable_literal,
-    dead_code,
+    improper_ctypes,
     non_camel_case_types,
     non_snake_case,
     non_upper_case_globals,
-    overflowing_literals,
     unused_imports
 )]
 
-extern crate libc;
+use std::convert::TryInto;
+use std::ffi::c_void;
+use std::os::raw::{c_char, c_int, c_uint, c_ulong};
 
-use libc::*;
+include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-pub use aes::*;
-pub use asn1::*;
-pub use bio::*;
-pub use bn::*;
-pub use conf::*;
-pub use crypto::*;
-pub use dh::*;
-pub use dsa::*;
-pub use ec::*;
-pub use err::*;
-pub use evp::*;
-pub use hmac::*;
-pub use obj_mac::*;
-pub use object::*;
-pub use ossl_typ::*;
-pub use pem::*;
-pub use pkcs12::*;
-pub use pkcs7::*;
-pub use rand::*;
-pub use rsa::*;
-pub use safestack::*;
-pub use sha::*;
-pub use srtp::*;
-pub use ssl::*;
-pub use ssl3::*;
-pub use stack::*;
-pub use tls1::*;
-pub use x509::*;
-pub use x509_vfy::*;
-pub use x509v3::*;
+#[cfg(target_pointer_width = "64")]
+pub type BN_ULONG = u64;
+#[cfg(target_pointer_width = "32")]
+pub type BN_ULONG = u32;
 
-#[macro_use]
-mod macros;
+#[cfg(const_fn)]
+macro_rules! const_fn {
+    ($(pub const fn $name:ident($($arg:ident: $t:ty),*) -> $ret:ty $b:block)*) => {
+        $(
+            pub const fn $name($($arg: $t),*) -> $ret $b
+        )*
+    }
+}
 
-mod aes;
-mod asn1;
-mod bio;
-mod bn;
-mod conf;
-mod crypto;
-mod dh;
-mod dsa;
-mod ec;
-mod err;
-mod evp;
-mod hmac;
-mod obj_mac;
-mod object;
-mod ossl_typ;
-mod pem;
-mod pkcs12;
-mod pkcs7;
-mod rand;
-mod rsa;
-mod safestack;
-mod sha;
-mod srtp;
-mod ssl;
-mod ssl3;
-mod stack;
-mod tls1;
-mod x509;
-mod x509_vfy;
-mod x509v3;
+#[cfg(not(const_fn))]
+macro_rules! const_fn {
+    ($(pub const fn $name:ident($($arg:ident: $t:ty),*) -> $ret:ty $b:block)*) => {
+        $(
+            pub fn $name($($arg: $t),*) -> $ret $b
+        )*
+    }
+}
+
+const_fn! {
+    pub const fn ERR_PACK(l: c_int, f: c_int, r: c_int) -> c_ulong {
+        ((l as c_ulong & 0x0FF) << 24) |
+        ((f as c_ulong & 0xFFF) << 12) |
+        (r as c_ulong & 0xFFF)
+    }
+
+    pub const fn ERR_GET_LIB(l: c_uint) -> c_int {
+        ((l >> 24) & 0x0FF) as c_int
+    }
+
+    pub const fn ERR_GET_FUNC(l: c_uint) -> c_int {
+        ((l >> 12) & 0xFFF) as c_int
+    }
+
+    pub const fn ERR_GET_REASON(l: c_uint) -> c_int {
+        (l & 0xFFF) as c_int
+    }
+}
 
 // FIXME remove
 pub type PasswordCallback = unsafe extern "C" fn(
@@ -95,7 +76,10 @@ pub fn init() {
 
     let init_options = OPENSSL_INIT_LOAD_SSL_STRINGS;
 
-    INIT.call_once(|| unsafe {
-        OPENSSL_init_ssl(init_options, ptr::null_mut());
-    })
+    INIT.call_once(|| {
+        assert_eq!(
+            unsafe { OPENSSL_init_ssl(init_options.try_into().unwrap(), ptr::null_mut()) },
+            1
+        )
+    });
 }
