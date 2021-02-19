@@ -463,6 +463,15 @@ impl AlpnError {
     pub const NOACK: AlpnError = AlpnError(ffi::SSL_TLSEXT_ERR_NOACK);
 }
 
+/// An error returned from a certificate selection callback.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct SelectCertError(ffi::ssl_select_cert_result_t);
+
+impl SelectCertError {
+    /// A fatal error occured and the handshake should be terminated.
+    pub const ERROR: Self = Self(ffi::ssl_select_cert_result_t::ssl_select_cert_error);
+}
+
 /// An SSL/TLS protocol version.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SslVersion(u16);
@@ -1084,6 +1093,25 @@ impl SslContextBuilder {
             );
         }
     }
+    /// Sets a callback that is called before most ClientHello processing and before the decision whether
+    /// to resume a session is made. The callback may inspect the ClientHello and configure the
+    /// connection.
+    ///
+    /// This corresponds to [`SSL_CTX_set_select_certificate_cb`].
+    ///
+    /// [`SSL_CTX_set_select_certificate_cb`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_select_certificate_cb.html
+    pub fn set_select_certificate_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&ClientHello) -> Result<(), SelectCertError> + Sync + Send + 'static,
+    {
+        unsafe {
+            self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
+            ffi::SSL_CTX_set_select_certificate_cb(
+                self.as_ptr(),
+                Some(callbacks::raw_select_cert::<F>),
+            );
+        }
+    }
 
     /// Checks for consistency between the private key and certificate.
     ///
@@ -1559,6 +1587,9 @@ pub struct CipherBits {
     /// The number of bits processed by the chosen algorithm.
     pub algorithm: i32,
 }
+
+#[repr(transparent)]
+pub struct ClientHello(ffi::SSL_CLIENT_HELLO);
 
 /// Information about a cipher.
 pub struct SslCipher(*mut ffi::SSL_CIPHER);

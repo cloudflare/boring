@@ -12,6 +12,7 @@ use std::sync::Arc;
 
 use error::ErrorStack;
 use ssl::AlpnError;
+use ssl::{ClientHello, SelectCertError};
 use ssl::{
     SniError, Ssl, SslAlert, SslContext, SslContextRef, SslRef, SslSession, SslSessionRef,
     SESSION_CTX_INDEX,
@@ -187,6 +188,25 @@ where
             }
             Err(e) => e.0,
         }
+    }
+}
+
+pub unsafe extern "C" fn raw_select_cert<F>(
+    client_hello: *const ffi::SSL_CLIENT_HELLO,
+) -> ffi::ssl_select_cert_result_t
+where
+    F: Fn(&ClientHello) -> Result<(), SelectCertError> + Sync + Send + 'static,
+{
+    let ssl = SslRef::from_ptr_mut((*client_hello).ssl);
+    let client_hello = &*(client_hello as *const ClientHello);
+    let callback = ssl
+        .ssl_context()
+        .ex_data(SslContext::cached_ex_index::<F>())
+        .expect("BUG: select cert callback missing") as *const F;
+
+    match (*callback)(client_hello) {
+        Ok(()) => ffi::ssl_select_cert_result_t::ssl_select_cert_success,
+        Err(e) => e.0,
     }
 }
 

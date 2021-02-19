@@ -481,6 +481,31 @@ fn test_alpn_server_unilateral() {
 }
 
 #[test]
+fn test_select_cert_ok() {
+    let mut server = Server::builder();
+    server
+        .ctx()
+        .set_select_certificate_callback(|_client_hello| Ok(()));
+    let server = server.build();
+
+    let client = server.client();
+    client.connect();
+}
+
+#[test]
+fn test_select_cert_error() {
+    let mut server = Server::builder();
+    server.should_error();
+    server
+        .ctx()
+        .set_select_certificate_callback(|_client_hello| Err(ssl::SelectCertError::ERROR));
+    let server = server.build();
+
+    let client = server.client();
+    client.connect_err();
+}
+
+#[test]
 #[should_panic(expected = "blammo")]
 fn write_panic() {
     struct ExplodingStream(TcpStream);
