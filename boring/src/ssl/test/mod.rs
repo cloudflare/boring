@@ -506,6 +506,53 @@ fn test_select_cert_error() {
 }
 
 #[test]
+fn test_select_cert_unknown_extension() {
+    let mut server = Server::builder();
+    let unknown_extension = std::sync::Arc::new(std::sync::Mutex::new(None));
+
+    server.ctx().set_select_certificate_callback({
+        let unknown = unknown_extension.clone();
+        move |client_hello| {
+            *unknown.lock().unwrap() = client_hello.get_extension(1337).map(ToOwned::to_owned);
+            Ok(())
+        }
+    });
+
+    let server = server.build();
+    let client = server.client();
+
+    client.connect();
+    assert_eq!(unknown_extension.lock().unwrap().as_deref(), None);
+}
+
+#[test]
+fn test_select_cert_alpn_extension() {
+    let mut server = Server::builder();
+    let alpn_extension = std::sync::Arc::new(std::sync::Mutex::new(None));
+    server.ctx().set_select_certificate_callback({
+        let alpn = alpn_extension.clone();
+        move |client_hello| {
+            *alpn.lock().unwrap() = Some(
+                client_hello
+                    .get_extension(ffi::TLSEXT_TYPE_application_layer_protocol_negotiation as u16)
+                    .unwrap()
+                    .to_owned(),
+            );
+            Ok(())
+        }
+    });
+    let server = server.build();
+
+    let mut client = server.client();
+    client.ctx().set_alpn_protos(b"\x06http/2").unwrap();
+    client.connect();
+    assert_eq!(
+        alpn_extension.lock().unwrap().as_deref(),
+        Some(&b"\x00\x07\x06http/2"[..]),
+    );
+}
+
+#[test]
 #[should_panic(expected = "blammo")]
 fn write_panic() {
     struct ExplodingStream(TcpStream);

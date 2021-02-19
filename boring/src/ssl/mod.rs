@@ -1591,6 +1591,26 @@ pub struct CipherBits {
 #[repr(transparent)]
 pub struct ClientHello(ffi::SSL_CLIENT_HELLO);
 
+impl ClientHello {
+    /// Returns the data of a given extension, if present.
+    ///
+    /// This corresponds to [`SSL_early_callback_ctx_extension_get`].
+    ///
+    /// [`SSL_early_callback_ctx_extension_get`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_early_callback_ctx_extension_get
+    pub fn get_extension(&self, ext_type: u16) -> Option<&[u8]> {
+        unsafe {
+            let mut ptr = ptr::null();
+            let mut len = 0;
+            let result =
+                ffi::SSL_early_callback_ctx_extension_get(&self.0, ext_type, &mut ptr, &mut len);
+            if result == 0 {
+                return None;
+            }
+            Some(slice::from_raw_parts(ptr, len))
+        }
+    }
+}
+
 /// Information about a cipher.
 pub struct SslCipher(*mut ffi::SSL_CIPHER);
 
