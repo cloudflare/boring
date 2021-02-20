@@ -526,6 +526,25 @@ impl SslSignatureAlgorithm {
     pub const ED25519: SslSignatureAlgorithm = SslSignatureAlgorithm(ffi::SSL_SIGN_ED25519 as _);
 }
 
+/// A TLS Curve.
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct SslCurve(c_int);
+
+impl SslCurve {
+    pub const SECP224R1: SslCurve = SslCurve(ffi::NID_secp224r1);
+
+    pub const SECP256R1: SslCurve = SslCurve(ffi::NID_X9_62_prime256v1);
+
+    pub const SECP384R1: SslCurve = SslCurve(ffi::NID_secp384r1);
+
+    pub const SECP521R1: SslCurve = SslCurve(ffi::NID_secp521r1);
+
+    pub const X25519: SslCurve = SslCurve(ffi::NID_X25519);
+
+    pub const CECPQ2: SslCurve = SslCurve(ffi::NID_CECPQ2);
+}
+
 /// A standard implementation of protocol selection for Application Layer Protocol Negotiation
 /// (ALPN).
 ///
@@ -1432,6 +1451,22 @@ impl SslContextBuilder {
     /// [`SSL_CTX_enable_ocsp_stapling`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_enable_ocsp_stapling
     pub fn enable_ocsp_stapling(&mut self) {
         unsafe { ffi::SSL_CTX_enable_ocsp_stapling(self.as_ptr()) }
+    }
+
+    /// Sets the context's supported curves.
+    ///
+    /// This corresponds to [`SSL_CTX_set1_curves`]
+    ///
+    /// [`SSL_CTX_set1_curves`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set1_curves
+    pub fn set_curves(&mut self, curves: &[SslCurve]) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_CTX_set1_curves(
+                self.as_ptr(),
+                curves.as_ptr() as *const _,
+                curves.len(),
+            ))
+            .map(|_| ())
+        }
     }
 
     /// Consumes the builder, returning a new `SslContext`.
