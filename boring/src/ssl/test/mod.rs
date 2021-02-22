@@ -25,9 +25,10 @@ use ssl;
 use ssl::test::server::Server;
 use ssl::SslVersion;
 use ssl::{
-    Error, HandshakeError, MidHandshakeSslStream, ShutdownResult, ShutdownState, Ssl, SslAcceptor,
-    SslAcceptorBuilder, SslConnector, SslContext, SslContextBuilder, SslFiletype, SslMethod,
-    SslOptions, SslSessionCacheMode, SslStream, SslStreamBuilder, SslVerifyMode, StatusType,
+    Error, ExtensionType, HandshakeError, MidHandshakeSslStream, ShutdownResult, ShutdownState,
+    Ssl, SslAcceptor, SslAcceptorBuilder, SslConnector, SslContext, SslContextBuilder, SslFiletype,
+    SslMethod, SslOptions, SslSessionCacheMode, SslStream, SslStreamBuilder, SslVerifyMode,
+    StatusType,
 };
 use x509::store::X509StoreBuilder;
 use x509::verify::X509CheckFlags;
@@ -513,7 +514,9 @@ fn test_select_cert_unknown_extension() {
     server.ctx().set_select_certificate_callback({
         let unknown = unknown_extension.clone();
         move |client_hello| {
-            *unknown.lock().unwrap() = client_hello.get_extension(1337).map(ToOwned::to_owned);
+            *unknown.lock().unwrap() = client_hello
+                .get_extension(ExtensionType::QUIC_TRANSPORT_PARAMETERS_LEGACY)
+                .map(ToOwned::to_owned);
             Ok(())
         }
     });
@@ -534,7 +537,7 @@ fn test_select_cert_alpn_extension() {
         move |client_hello| {
             *alpn.lock().unwrap() = Some(
                 client_hello
-                    .get_extension(ffi::TLSEXT_TYPE_application_layer_protocol_negotiation as u16)
+                    .get_extension(ExtensionType::APPLICATION_LAYER_PROTOCOL_NEGOTIATION)
                     .unwrap()
                     .to_owned(),
             );

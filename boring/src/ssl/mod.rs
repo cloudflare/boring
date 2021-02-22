@@ -472,6 +472,53 @@ impl SelectCertError {
     pub const ERROR: Self = Self(ffi::ssl_select_cert_result_t::ssl_select_cert_error);
 }
 
+/// Extension types, to be used with `ClientHello::get_extension`.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct ExtensionType(u16);
+
+impl ExtensionType {
+    pub const SERVER_NAME: Self = Self(ffi::TLSEXT_TYPE_server_name as u16);
+    pub const STATUS_REQUEST: Self = Self(ffi::TLSEXT_TYPE_status_request as u16);
+    pub const EC_POINT_FORMATS: Self = Self(ffi::TLSEXT_TYPE_ec_point_formats as u16);
+    pub const SIGNATURE_ALGORITHMS: Self = Self(ffi::TLSEXT_TYPE_signature_algorithms as u16);
+    pub const SRTP: Self = Self(ffi::TLSEXT_TYPE_srtp as u16);
+    pub const APPLICATION_LAYER_PROTOCOL_NEGOTIATION: Self =
+        Self(ffi::TLSEXT_TYPE_application_layer_protocol_negotiation as u16);
+    pub const PADDING: Self = Self(ffi::TLSEXT_TYPE_padding as u16);
+    pub const EXTENDED_MASTER_SECRET: Self = Self(ffi::TLSEXT_TYPE_extended_master_secret as u16);
+    pub const TOKEN_BINDING: Self = Self(ffi::TLSEXT_TYPE_token_binding as u16);
+    pub const QUIC_TRANSPORT_PARAMETERS_LEGACY: Self =
+        Self(ffi::TLSEXT_TYPE_quic_transport_parameters_legacy as u16);
+    pub const QUIC_TRANSPORT_PARAMETERS_STANDARD: Self =
+        Self(ffi::TLSEXT_TYPE_quic_transport_parameters_standard as u16);
+    pub const CERT_COMPRESSION: Self = Self(ffi::TLSEXT_TYPE_cert_compression as u16);
+    pub const SESSION_TICKET: Self = Self(ffi::TLSEXT_TYPE_session_ticket as u16);
+    pub const SUPPORTED_GROUPS: Self = Self(ffi::TLSEXT_TYPE_supported_groups as u16);
+    pub const PRE_SHARED_KEY: Self = Self(ffi::TLSEXT_TYPE_pre_shared_key as u16);
+    pub const EARLY_DATA: Self = Self(ffi::TLSEXT_TYPE_early_data as u16);
+    pub const SUPPORTED_VERSIONS: Self = Self(ffi::TLSEXT_TYPE_supported_versions as u16);
+    pub const COOKIE: Self = Self(ffi::TLSEXT_TYPE_cookie as u16);
+    pub const PSK_KEY_EXCHANGE_MODES: Self = Self(ffi::TLSEXT_TYPE_psk_key_exchange_modes as u16);
+    pub const CERTIFICATE_AUTHORITIES: Self = Self(ffi::TLSEXT_TYPE_certificate_authorities as u16);
+    pub const SIGNATURE_ALGORITHMS_CERT: Self =
+        Self(ffi::TLSEXT_TYPE_signature_algorithms_cert as u16);
+    pub const KEY_SHARE: Self = Self(ffi::TLSEXT_TYPE_key_share as u16);
+    pub const RENEGOTIATE: Self = Self(ffi::TLSEXT_TYPE_renegotiate as u16);
+    pub const DELEGATED_CREDENTIAL: Self = Self(ffi::TLSEXT_TYPE_delegated_credential as u16);
+    pub const APPLICATION_SETTINGS: Self = Self(ffi::TLSEXT_TYPE_application_settings as u16);
+    pub const ENCRYPTED_CLIENT_HELLO: Self = Self(ffi::TLSEXT_TYPE_encrypted_client_hello as u16);
+    pub const ECH_IS_INNER: Self = Self(ffi::TLSEXT_TYPE_ech_is_inner as u16);
+    pub const CERTIFICATE_TIMESTAMP: Self = Self(ffi::TLSEXT_TYPE_certificate_timestamp as u16);
+    pub const NEXT_PROTO_NEG: Self = Self(ffi::TLSEXT_TYPE_next_proto_neg as u16);
+    pub const CHANNEL_ID: Self = Self(ffi::TLSEXT_TYPE_channel_id as u16);
+}
+
+impl From<u16> for ExtensionType {
+    fn from(value: u16) -> Self {
+        Self(value)
+    }
+}
+
 /// An SSL/TLS protocol version.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SslVersion(u16);
@@ -1597,12 +1644,12 @@ impl ClientHello {
     /// This corresponds to [`SSL_early_callback_ctx_extension_get`].
     ///
     /// [`SSL_early_callback_ctx_extension_get`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_early_callback_ctx_extension_get
-    pub fn get_extension(&self, ext_type: u16) -> Option<&[u8]> {
+    pub fn get_extension(&self, ext_type: ExtensionType) -> Option<&[u8]> {
         unsafe {
             let mut ptr = ptr::null();
             let mut len = 0;
             let result =
-                ffi::SSL_early_callback_ctx_extension_get(&self.0, ext_type, &mut ptr, &mut len);
+                ffi::SSL_early_callback_ctx_extension_get(&self.0, ext_type.0, &mut ptr, &mut len);
             if result == 0 {
                 return None;
             }
