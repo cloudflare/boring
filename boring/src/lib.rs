@@ -9,6 +9,7 @@ extern crate foreign_types;
 #[macro_use]
 extern crate lazy_static;
 extern crate boring_sys as ffi;
+extern crate brotli;
 extern crate libc;
 
 #[cfg(test)]

@@ -94,6 +94,7 @@ use x509::verify::X509VerifyParamRef;
 use x509::{X509Name, X509Ref, X509StoreContextRef, X509VerifyResult, X509};
 use {cvt, cvt_0i, cvt_n, cvt_p, init};
 
+pub use ssl::cert_compression::CertCompressionAlgorithm;
 pub use ssl::connector::{
     ConnectConfiguration, SslAcceptor, SslAcceptorBuilder, SslConnector, SslConnectorBuilder,
 };
@@ -101,6 +102,7 @@ pub use ssl::error::{Error, ErrorCode, HandshakeError};
 
 mod bio;
 mod callbacks;
+mod cert_compression;
 mod connector;
 mod error;
 #[cfg(test)]
@@ -1539,6 +1541,26 @@ impl SslContextBuilder {
                 self.as_ptr(),
                 curves.as_ptr() as *const _,
                 curves.len(),
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Sets whether a certificate compression algorithm should be used.
+    ///
+    /// This corresponds to [`SSL_CTX_add_cert_compression_alg`]
+    ///
+    /// [`SSL_CTX_add_cert_compression_alg`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_add_cert_compression_alg
+    pub fn add_cert_compression_alg(
+        &mut self,
+        algorithm: CertCompressionAlgorithm,
+    ) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_CTX_add_cert_compression_alg(
+                self.as_ptr(),
+                algorithm as _,
+                algorithm.compression_fn(),
+                algorithm.decompression_fn(),
             ))
             .map(|_| ())
         }
