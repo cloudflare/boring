@@ -92,7 +92,7 @@ use stack::{Stack, StackRef};
 use x509::store::{X509Store, X509StoreBuilderRef, X509StoreRef};
 use x509::verify::X509VerifyParamRef;
 use x509::{X509Name, X509Ref, X509StoreContextRef, X509VerifyResult, X509};
-use {cvt, cvt_n, cvt_p, init};
+use {cvt, cvt_0i, cvt_n, cvt_p, init};
 
 pub use ssl::connector::{
     ConnectConfiguration, SslAcceptor, SslAcceptorBuilder, SslConnector, SslConnectorBuilder,
@@ -538,6 +538,67 @@ impl SslVersion {
 
     /// TLSv1.3
     pub const TLS1_3: SslVersion = SslVersion(ffi::TLS1_3_VERSION as _);
+}
+
+/// A signature verification algorithm.
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct SslSignatureAlgorithm(u16);
+
+impl SslSignatureAlgorithm {
+    pub const RSA_PKCS1_SHA1: SslSignatureAlgorithm =
+        SslSignatureAlgorithm(ffi::SSL_SIGN_RSA_PKCS1_SHA1 as _);
+
+    pub const RSA_PKCS1_SHA256: SslSignatureAlgorithm =
+        SslSignatureAlgorithm(ffi::SSL_SIGN_RSA_PKCS1_SHA256 as _);
+
+    pub const RSA_PKCS1_SHA384: SslSignatureAlgorithm =
+        SslSignatureAlgorithm(ffi::SSL_SIGN_RSA_PKCS1_SHA384 as _);
+
+    pub const RSA_PKCS1_SHA512: SslSignatureAlgorithm =
+        SslSignatureAlgorithm(ffi::SSL_SIGN_RSA_PKCS1_SHA512 as _);
+
+    pub const ECDSA_SHA1: SslSignatureAlgorithm =
+        SslSignatureAlgorithm(ffi::SSL_SIGN_ECDSA_SHA1 as _);
+
+    pub const ECDSA_SECP256R1_SHA256: SslSignatureAlgorithm =
+        SslSignatureAlgorithm(ffi::SSL_SIGN_ECDSA_SECP256R1_SHA256 as _);
+
+    pub const ECDSA_SECP384R1_SHA384: SslSignatureAlgorithm =
+        SslSignatureAlgorithm(ffi::SSL_SIGN_ECDSA_SECP384R1_SHA384 as _);
+
+    pub const ECDSA_SECP521R1_SHA512: SslSignatureAlgorithm =
+        SslSignatureAlgorithm(ffi::SSL_SIGN_ECDSA_SECP521R1_SHA512 as _);
+
+    pub const RSA_PSS_RSAE_SHA256: SslSignatureAlgorithm =
+        SslSignatureAlgorithm(ffi::SSL_SIGN_RSA_PSS_RSAE_SHA256 as _);
+
+    pub const RSA_PSS_RSAE_SHA384: SslSignatureAlgorithm =
+        SslSignatureAlgorithm(ffi::SSL_SIGN_RSA_PSS_RSAE_SHA384 as _);
+
+    pub const RSA_PSS_RSAE_SHA512: SslSignatureAlgorithm =
+        SslSignatureAlgorithm(ffi::SSL_SIGN_RSA_PSS_RSAE_SHA512 as _);
+
+    pub const ED25519: SslSignatureAlgorithm = SslSignatureAlgorithm(ffi::SSL_SIGN_ED25519 as _);
+}
+
+/// A TLS Curve.
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct SslCurve(c_int);
+
+impl SslCurve {
+    pub const SECP224R1: SslCurve = SslCurve(ffi::NID_secp224r1);
+
+    pub const SECP256R1: SslCurve = SslCurve(ffi::NID_X9_62_prime256v1);
+
+    pub const SECP384R1: SslCurve = SslCurve(ffi::NID_secp384r1);
+
+    pub const SECP521R1: SslCurve = SslCurve(ffi::NID_secp521r1);
+
+    pub const X25519: SslCurve = SslCurve(ffi::NID_X25519);
+
+    pub const CECPQ2: SslCurve = SslCurve(ffi::NID_CECPQ2);
 }
 
 /// A standard implementation of protocol selection for Application Layer Protocol Negotiation
@@ -1418,6 +1479,68 @@ impl SslContextBuilder {
         unsafe {
             cvt(ffi::SSL_CTX_set1_sigalgs_list(self.as_ptr(), sigalgs.as_ptr()) as c_int)
                 .map(|_| ())
+        }
+    }
+
+    /// Set's whether the context should enable GREASE.
+    ///
+    /// This corresponds to [`SSL_CTX_set_grease_enabled`]
+    ///
+    /// [`SSL_CTX_set_grease_enabled`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set_grease_enabled
+    pub fn set_grease_enabled(&mut self, enabled: bool) {
+        unsafe { ffi::SSL_CTX_set_grease_enabled(self.as_ptr(), enabled as _) }
+    }
+
+    /// Sets the context's supported signature verification algorithms.
+    ///
+    /// This corresponds to [`SSL_CTX_set_verify_algorithm_prefs`]
+    ///
+    /// [`SSL_CTX_set_verify_algorithm_prefs`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set_verify_algorithm_prefs
+    pub fn set_verify_algorithm_prefs(
+        &mut self,
+        prefs: &[SslSignatureAlgorithm],
+    ) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_CTX_set_verify_algorithm_prefs(
+                self.as_ptr(),
+                prefs.as_ptr() as *const _,
+                prefs.len(),
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Enables SCT requests on all client SSL handshakes.
+    ///
+    /// This corresponds to [`SSL_CTX_enable_signed_cert_timestamps`]
+    ///
+    /// [`SSL_CTX_enable_signed_cert_timestamps`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_enable_signed_cert_timestamps
+    pub fn enable_signed_cert_timestamps(&mut self) {
+        unsafe { ffi::SSL_CTX_enable_signed_cert_timestamps(self.as_ptr()) }
+    }
+
+    /// Enables OCSP stapling on all client SSL handshakes.
+    ///
+    /// This corresponds to [`SSL_CTX_enable_ocsp_stapling`]
+    ///
+    /// [`SSL_CTX_enable_ocsp_stapling`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_enable_ocsp_stapling
+    pub fn enable_ocsp_stapling(&mut self) {
+        unsafe { ffi::SSL_CTX_enable_ocsp_stapling(self.as_ptr()) }
+    }
+
+    /// Sets the context's supported curves.
+    ///
+    /// This corresponds to [`SSL_CTX_set1_curves`]
+    ///
+    /// [`SSL_CTX_set1_curves`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set1_curves
+    pub fn set_curves(&mut self, curves: &[SslCurve]) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_CTX_set1_curves(
+                self.as_ptr(),
+                curves.as_ptr() as *const _,
+                curves.len(),
+            ))
+            .map(|_| ())
         }
     }
 
