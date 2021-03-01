@@ -1,6 +1,6 @@
 [package]
 name = "boring"
-version = "1.1.0"
+version = "1.1.1"
 authors = ["Steven Fackler <sfackler@gmail.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
 license = "Apache-2.0"
 description = "BoringSSL bindings"
