@@ -251,25 +251,13 @@ impl fmt::Debug for Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "error:{:08X}", self.code())?;
-        match self.library() {
-            Some(l) => write!(fmt, ":{}", l)?,
-            None => write!(fmt, ":lib({})", ffi::ERR_GET_LIB(self.code()))?,
-        }
-        match self.function() {
-            Some(f) => write!(fmt, ":{}", f)?,
-            None => write!(fmt, ":func({})", ffi::ERR_GET_FUNC(self.code()))?,
-        }
-        match self.reason() {
-            Some(r) => write!(fmt, ":{}", r)?,
-            None => write!(fmt, ":reason({})", ffi::ERR_GET_REASON(self.code()))?,
-        }
         write!(
             fmt,
-            ":{}:{}:{}",
+            "{}\n\nCode: {:08X}\nLoc: {}:{}",
+            self.reason().unwrap_or("unknown TLS error"),
+            self.code(),
             self.file(),
-            self.line(),
-            self.data().unwrap_or("")
+            self.line()
         )
     }
 }
