@@ -66,7 +66,7 @@ impl fmt::Display for ErrorStack {
         let mut first = true;
         for err in &self.0 {
             if !first {
-                fmt.write_str(", ")?;
+                fmt.write_str("\n--\n")?;
             }
             write!(fmt, "{}", err)?;
             first = false;
