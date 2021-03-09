@@ -2876,6 +2876,11 @@ impl<S> MidHandshakeSslStream<S> {
         self.stream.into_inner()
     }
 
+    /// Returns both the error and the source data stream, consuming `self`.
+    pub fn into_parts(self) -> (Error, S) {
+        (self.error, self.stream.into_inner())
+    }
+
     /// Restarts the handshake process.
     ///
     /// This corresponds to [`SSL_do_handshake`].
