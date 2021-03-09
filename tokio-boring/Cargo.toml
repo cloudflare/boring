@@ -1,6 +1,6 @@
 [package]
 name = "tokio-boring"
-version = "2.1.0"
+version = "2.1.1"
 authors = ["Alex Crichton <alex@alexcrichton.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
 license = "MIT/Apache-2.0"
 edition = "2018"
