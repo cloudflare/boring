@@ -277,10 +277,18 @@ impl<S> HandshakeError<S> {
         }
     }
 
-    /// Converts error to the source data stream tha was used for the handshake.
+    /// Converts error to the source data stream that was used for the handshake.
     pub fn into_source_stream(self) -> Option<S> {
         match self.0 {
             ssl::HandshakeError::Failure(s) => Some(s.into_source_stream().stream),
+            _ => None,
+        }
+    }
+
+    /// Returns a reference to the source data stream.
+    pub fn as_source_stream(&self) -> Option<&S> {
+        match &self.0 {
+            ssl::HandshakeError::Failure(s) => Some(&s.get_ref().stream),
             _ => None,
         }
     }
