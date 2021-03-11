@@ -4,7 +4,6 @@ use std::error;
 use std::error::Error as StdError;
 use std::fmt;
 use std::io;
-use std::path::Path;
 
 use error::ErrorStack;
 use ssl::MidHandshakeSslStream;
@@ -180,31 +179,11 @@ fn fmt_mid_handshake_error(
     }
 
     if let Some(error) = s.error().ssl_error() {
-        let errors = error.errors();
-
-        if errors.is_empty() {
-            return Ok(());
-        }
-
-        f.write_str(":\n")?;
-
-        for error in errors {
-            let path = error.file();
-            let file = Path::new(path)
-                .file_name()
-                .and_then(|name| name.to_str())
-                .unwrap_or(path);
-
-            write!(
-                f,
-                "\n{} [{}] ({}:{})",
-                error.reason().unwrap_or("unknown error"),
-                error.code(),
-                file,
-                error.line()
-            )?;
+        for error in error.errors() {
+            write!(f, " [{}]", error.reason().unwrap_or("unknown error"),)?;
         }
     }
+
     Ok(())
 }
 
