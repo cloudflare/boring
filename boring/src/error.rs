@@ -60,7 +60,7 @@ impl ErrorStack {
 impl fmt::Display for ErrorStack {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         if self.0.is_empty() {
-            return fmt.write_str("unknown OpenSSL error");
+            return fmt.write_str("unknown BoringSSL error");
         }
 
         let mut first = true;

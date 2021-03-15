@@ -110,7 +110,7 @@ impl fmt::Display for Error {
             },
             ErrorCode::SSL => match self.ssl_error() {
                 Some(e) => write!(fmt, "{}", e),
-                None => fmt.write_str("OpenSSL error"),
+                None => fmt.write_str("unknown BoringSSL error"),
             },
             ErrorCode(code) => write!(fmt, "unknown error code {}", code),
         }
@@ -174,15 +174,7 @@ fn fmt_mid_handshake_error(
         verify => write!(f, "{}: cert verification failed - {}", prefix, verify)?,
     }
 
-    if let Some(error) = s.error().io_error() {
-        return write!(f, " ({})", error);
-    }
-
-    if let Some(error) = s.error().ssl_error() {
-        write!(f, " {}", error)?;
-    }
-
-    Ok(())
+    write!(f, " {}", s.error())
 }
 
 impl<S> From<ErrorStack> for HandshakeError<S> {
