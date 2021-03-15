@@ -154,7 +154,7 @@ impl<S> fmt::Display for HandshakeError<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             HandshakeError::SetupFailure(ref e) => {
-                write!(f, "TLS stream setup failed:\n\n{}", e)
+                write!(f, "TLS stream setup failed {}", e)
             }
             HandshakeError::Failure(ref s) => fmt_mid_handshake_error(s, f, "TLS handshake failed"),
             HandshakeError::WouldBlock(ref s) => {
@@ -179,9 +179,7 @@ fn fmt_mid_handshake_error(
     }
 
     if let Some(error) = s.error().ssl_error() {
-        for error in error.errors() {
-            write!(f, " [{}]", error.reason().unwrap_or("unknown error"),)?;
-        }
+        write!(f, " {}", error)?;
     }
 
     Ok(())
