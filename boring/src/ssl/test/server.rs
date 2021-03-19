@@ -90,7 +90,7 @@ impl Builder {
             if should_error {
                 r.unwrap_err();
             } else {
-                let mut socket = r.unwrap();
+                let mut socket = r.unwrap().expect_done();
                 socket.write_all(&[0]).unwrap();
                 io_cb(socket);
             }
@@ -155,7 +155,7 @@ impl ClientSslBuilder {
 
     pub fn connect(self) -> SslStream<TcpStream> {
         let socket = TcpStream::connect(self.addr).unwrap();
-        let mut s = self.ssl.connect(socket).unwrap();
+        let mut s = self.ssl.connect(socket).unwrap().expect_done();
         s.read_exact(&mut [0]).unwrap();
         s
     }

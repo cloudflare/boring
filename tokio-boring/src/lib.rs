@@ -14,17 +14,17 @@
 #![warn(missing_docs)]
 
 use boring::ssl::{
-    self, ConnectConfiguration, ErrorCode, MidHandshakeSslStream, ShutdownResult, SslAcceptor,
-    SslRef,
+    self, ConnectConfiguration, MidHandshakeSslStream, ShutdownResult, SslAcceptor, SslRef,
 };
 use boring_sys as ffi;
-use std::error::Error;
 use std::fmt;
 use std::future::Future;
 use std::io::{self, Read, Write};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+
+pub use boring::ssl::HandshakeError;
 
 /// Asynchronously performs a client-side TLS handshake over the provided stream.
 pub async fn connect<S>(
@@ -50,9 +50,10 @@ async fn handshake<F, S>(f: F, stream: S) -> Result<SslStream<S>, HandshakeError
 where
     F: FnOnce(
             StreamWrapper<S>,
-        )
-            -> Result<ssl::SslStream<StreamWrapper<S>>, ssl::HandshakeError<StreamWrapper<S>>>
-        + Unpin,
+        ) -> Result<
+            ssl::HandshakeStream<StreamWrapper<S>>,
+            ssl::HandshakeError<StreamWrapper<S>>,
+        > + Unpin,
     S: AsyncRead + AsyncWrite + Unpin,
 {
     let start = StartHandshakeFuture(Some(StartHandshakeFutureInner { f, stream }));
@@ -249,75 +250,12 @@ where
 
     fn poll_shutdown(mut self: Pin<&mut Self>, ctx: &mut Context) -> Poll<io::Result<()>> {
         match self.with_context(ctx, |s| s.shutdown()) {
-            Ok(ShutdownResult::Sent) | Ok(ShutdownResult::Received) => {}
-            Err(ref e) if e.code() == ErrorCode::ZERO_RETURN => {}
-            Err(ref e) if e.code() == ErrorCode::WANT_READ || e.code() == ErrorCode::WANT_WRITE => {
-                return Poll::Pending;
+            Ok(ShutdownResult::Sent) | Ok(ShutdownResult::Received) => {
+                Pin::new(&mut self.0.get_mut().stream).poll_shutdown(ctx)
             }
-            Err(e) => {
-                return Poll::Ready(Err(e
-                    .into_io_error()
-                    .unwrap_or_else(|e| io::Error::new(io::ErrorKind::Other, e))));
-            }
+            Err(e) if e.kind() == io::ErrorKind::WouldBlock => Poll::Pending,
+            Err(e) => Poll::Ready(Err(e)),
         }
-
-        Pin::new(&mut self.0.get_mut().stream).poll_shutdown(ctx)
-    }
-}
-
-/// The error type returned after a failed handshake.
-pub struct HandshakeError<S>(ssl::HandshakeError<StreamWrapper<S>>);
-
-impl<S> HandshakeError<S> {
-    /// Returns a shared reference to the `Ssl` object associated with this error.
-    pub fn ssl(&self) -> Option<&SslRef> {
-        match &self.0 {
-            ssl::HandshakeError::Failure(s) => Some(s.ssl()),
-            _ => None,
-        }
-    }
-
-    /// Converts error to the source data stream that was used for the handshake.
-    pub fn into_source_stream(self) -> Option<S> {
-        match self.0 {
-            ssl::HandshakeError::Failure(s) => Some(s.into_source_stream().stream),
-            _ => None,
-        }
-    }
-
-    /// Returns a reference to the source data stream.
-    pub fn as_source_stream(&self) -> Option<&S> {
-        match &self.0 {
-            ssl::HandshakeError::Failure(s) => Some(&s.get_ref().stream),
-            _ => None,
-        }
-    }
-}
-
-impl<S> fmt::Debug for HandshakeError<S>
-where
-    S: fmt::Debug,
-{
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.0, fmt)
-    }
-}
-
-impl<S> fmt::Display for HandshakeError<S>
-where
-    S: fmt::Debug,
-{
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, fmt)
-    }
-}
-
-impl<S> Error for HandshakeError<S>
-where
-    S: fmt::Debug,
-{
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        self.0.source()
     }
 }
 
@@ -337,9 +275,10 @@ impl<F, S> Future for StartHandshakeFuture<F, S>
 where
     F: FnOnce(
             StreamWrapper<S>,
-        )
-            -> Result<ssl::SslStream<StreamWrapper<S>>, ssl::HandshakeError<StreamWrapper<S>>>
-        + Unpin,
+        ) -> Result<
+            ssl::HandshakeStream<StreamWrapper<S>>,
+            ssl::HandshakeError<StreamWrapper<S>>,
+        > + Unpin,
     S: Unpin,
 {
     type Output = Result<StartedHandshake<S>, HandshakeError<S>>;
@@ -355,15 +294,18 @@ where
             context: ctx as *mut _ as usize,
         };
         match (inner.f)(stream) {
-            Ok(mut s) => {
+            Ok(ssl::HandshakeStream::Done(mut s)) => {
                 s.get_mut().context = 0;
                 Poll::Ready(Ok(StartedHandshake::Done(SslStream(s))))
             }
-            Err(ssl::HandshakeError::WouldBlock(mut s)) => {
+            Ok(ssl::HandshakeStream::Mid(mut s)) => {
                 s.get_mut().context = 0;
                 Poll::Ready(Ok(StartedHandshake::Mid(s)))
             }
-            Err(e) => Poll::Ready(Err(HandshakeError(e))),
+            Err(e) => {
+                let (stream, error) = e.into_parts();
+                Poll::Ready(Err(HandshakeError::new(stream.stream, error)))
+            }
         }
     }
 }
@@ -384,16 +326,19 @@ where
 
         s.get_mut().context = ctx as *mut _ as usize;
         match s.handshake() {
-            Ok(mut s) => {
+            Ok(ssl::HandshakeStream::Done(mut s)) => {
                 s.get_mut().context = 0;
                 Poll::Ready(Ok(SslStream(s)))
             }
-            Err(ssl::HandshakeError::WouldBlock(mut s)) => {
+            Ok(ssl::HandshakeStream::Mid(mut s)) => {
                 s.get_mut().context = 0;
                 self.0 = Some(s);
                 Poll::Pending
             }
-            Err(e) => Poll::Ready(Err(HandshakeError(e))),
+            Err(e) => {
+                let (wrapper, error) = e.into_parts();
+                Poll::Ready(Err(HandshakeError::new(wrapper.stream, error)))
+            }
         }
     }
 }

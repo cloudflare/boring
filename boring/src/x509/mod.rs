@@ -1230,26 +1230,37 @@ impl X509ReqRef {
     }
 }
 
-/// The result of peer certificate verification.
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub struct X509VerifyResult(c_int);
+/// An error related to peer certificate verification.
+pub struct X509Error {
+    pub(crate) code: X509VerifyResult,
+}
 
-impl fmt::Debug for X509VerifyResult {
+impl fmt::Debug for X509Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("X509VerifyResult")
-            .field("code", &self.0)
-            .field("error", &self.error_string())
+            .field("code", &self.code.0)
+            .field("error", &self.code.error_string())
             .finish()
     }
 }
+
+impl fmt::Display for X509Error {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        self.code.fmt(fmt)
+    }
+}
+
+impl Error for X509Error {}
+
+/// The result of peer certificate verification.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct X509VerifyResult(c_int);
 
 impl fmt::Display for X509VerifyResult {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.write_str(self.error_string())
     }
 }
-
-impl Error for X509VerifyResult {}
 
 impl X509VerifyResult {
     /// Creates an `X509VerifyResult` from a raw error number.
@@ -1285,9 +1296,12 @@ impl X509VerifyResult {
 
     /// Successful peer certifiate verification.
     pub const OK: X509VerifyResult = X509VerifyResult(ffi::X509_V_OK);
+
     /// Application verification failure.
     pub const APPLICATION_VERIFICATION: X509VerifyResult =
         X509VerifyResult(ffi::X509_V_ERR_APPLICATION_VERIFICATION);
+
+    pub const INVALID_CALL: Self = Self(ffi::X509_V_ERR_INVALID_CALL);
 }
 
 foreign_type_and_impl_send_sync! {

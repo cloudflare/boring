@@ -104,9 +104,7 @@ async fn handshake_error() {
     let (stream, addr) = create_server();
 
     let server = async {
-        let err = stream.await.unwrap_err();
-
-        assert!(err.into_source_stream().is_some());
+        stream.await.unwrap_err();
     };
 
     let client = async {
@@ -114,11 +112,9 @@ async fn handshake_error() {
         let config = connector.build().configure().unwrap();
         let stream = TcpStream::connect(&addr).await.unwrap();
 
-        let err = tokio_boring::connect(config, "localhost", stream)
+        tokio_boring::connect(config, "localhost", stream)
             .await
             .unwrap_err();
-
-        assert!(err.into_source_stream().is_some());
     };
 
     future::join(server, client).await;

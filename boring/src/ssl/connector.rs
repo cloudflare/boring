@@ -4,8 +4,8 @@ use std::ops::{Deref, DerefMut};
 use dh::Dh;
 use error::ErrorStack;
 use ssl::{
-    HandshakeError, Ssl, SslContext, SslContextBuilder, SslContextRef, SslMethod, SslMode,
-    SslOptions, SslRef, SslStream, SslVerifyMode,
+    HandshakeError, HandshakeStream, Ssl, SslContext, SslContextBuilder, SslContextRef, SslMethod,
+    SslMode, SslOptions, SslRef, SslVerifyMode,
 };
 use version;
 
@@ -77,11 +77,18 @@ impl SslConnector {
     /// Initiates a client-side TLS session on a stream.
     ///
     /// The domain is used for SNI and hostname verification.
-    pub fn connect<S>(&self, domain: &str, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
+    pub fn connect<S>(
+        &self,
+        domain: &str,
+        stream: S,
+    ) -> Result<HandshakeStream<S>, HandshakeError<S>>
     where
         S: Read + Write,
     {
-        self.configure()?.connect(domain, stream)
+        match self.configure() {
+            Ok(config) => config.connect(domain, stream),
+            Err(e) => Err(HandshakeError::new(stream, e.into())),
+        }
     }
 
     /// Returns a structure allowing for configuration of a single TLS session before connection.
@@ -171,16 +178,24 @@ impl ConnectConfiguration {
     /// Initiates a client-side TLS session on a stream.
     ///
     /// The domain is used for SNI and hostname verification if enabled.
-    pub fn connect<S>(mut self, domain: &str, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
+    pub fn connect<S>(
+        mut self,
+        domain: &str,
+        stream: S,
+    ) -> Result<HandshakeStream<S>, HandshakeError<S>>
     where
         S: Read + Write,
     {
         if self.sni {
-            self.ssl.set_hostname(domain)?;
+            if let Err(e) = self.ssl.set_hostname(domain) {
+                return Err(HandshakeError::new(stream, e.into()));
+            }
         }
 
         if self.verify_hostname {
-            setup_verify_hostname(&mut self.ssl, domain)?;
+            if let Err(e) = setup_verify_hostname(&mut self.ssl, domain) {
+                return Err(HandshakeError::new(stream, e.into()));
+            }
         }
 
         self.ssl.connect(stream)
@@ -278,12 +293,14 @@ impl SslAcceptor {
     }
 
     /// Initiates a server-side TLS session on a stream.
-    pub fn accept<S>(&self, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
+    pub fn accept<S>(&self, stream: S) -> Result<HandshakeStream<S>, HandshakeError<S>>
     where
         S: Read + Write,
     {
-        let ssl = Ssl::new(&self.0)?;
-        ssl.accept(stream)
+        match Ssl::new(&self.0) {
+            Ok(ssl) => ssl.accept(stream),
+            Err(e) => Err(HandshakeError::new(stream, e.into())),
+        }
     }
 
     /// Consumes the `SslAcceptor`, returning the inner raw `SslContext`.

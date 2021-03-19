@@ -87,7 +87,6 @@ use pkey::{HasPrivate, PKeyRef, Params, Private};
 use srtp::{SrtpProtectionProfile, SrtpProtectionProfileRef};
 use ssl::bio::BioMethod;
 use ssl::callbacks::*;
-use ssl::error::InnerError;
 use stack::{Stack, StackRef};
 use x509::store::{X509Store, X509StoreBuilderRef, X509StoreRef};
 use x509::verify::X509VerifyParamRef;
@@ -2121,7 +2120,7 @@ impl Ssl {
     /// `SslConnector` rather than `Ssl` directly, as it manages that configuration.
     ///
     /// [`SSL_connect`]: https://www.openssl.org/docs/manmaster/man3/SSL_connect.html
-    pub fn connect<S>(self, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
+    pub fn connect<S>(self, stream: S) -> Result<HandshakeStream<S>, HandshakeError<S>>
     where
         S: Read + Write,
     {
@@ -2138,7 +2137,7 @@ impl Ssl {
     /// `SslAcceptor` rather than `Ssl` directly, as it manages that configuration.
     ///
     /// [`SSL_accept`]: https://www.openssl.org/docs/manmaster/man3/SSL_accept.html
-    pub fn accept<S>(self, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
+    pub fn accept<S>(self, stream: S) -> Result<HandshakeStream<S>, HandshakeError<S>>
     where
         S: Read + Write,
     {
@@ -2838,11 +2837,25 @@ impl SslRef {
     }
 }
 
+#[derive(Debug)]
+pub enum HandshakeStream<S> {
+    Done(SslStream<S>),
+    Mid(MidHandshakeSslStream<S>),
+}
+
+impl<S> HandshakeStream<S> {
+    pub fn expect_done(self) -> SslStream<S> {
+        match self {
+            Self::Done(stream) => stream,
+            Self::Mid(_) => panic!("handshake was not done"),
+        }
+    }
+}
+
 /// An SSL stream midway through the handshake process.
 #[derive(Debug)]
 pub struct MidHandshakeSslStream<S> {
     stream: SslStream<S>,
-    error: Error,
 }
 
 impl<S> MidHandshakeSslStream<S> {
@@ -2861,24 +2874,9 @@ impl<S> MidHandshakeSslStream<S> {
         self.stream.ssl()
     }
 
-    /// Returns the underlying error which interrupted this handshake.
-    pub fn error(&self) -> &Error {
-        &self.error
-    }
-
-    /// Consumes `self`, returning its error.
-    pub fn into_error(self) -> Error {
-        self.error
-    }
-
     /// Returns the source data stream.
     pub fn into_source_stream(self) -> S {
         self.stream.into_inner()
-    }
-
-    /// Returns both the error and the source data stream, consuming `self`.
-    pub fn into_parts(self) -> (Error, S) {
-        (self.error, self.stream.into_inner())
     }
 
     /// Restarts the handshake process.
@@ -2886,17 +2884,15 @@ impl<S> MidHandshakeSslStream<S> {
     /// This corresponds to [`SSL_do_handshake`].
     ///
     /// [`SSL_do_handshake`]: https://www.openssl.org/docs/manmaster/man3/SSL_do_handshake.html
-    pub fn handshake(mut self) -> Result<SslStream<S>, HandshakeError<S>> {
+    pub fn handshake(mut self) -> Result<HandshakeStream<S>, HandshakeError<S>> {
         let ret = unsafe { ffi::SSL_do_handshake(self.stream.ssl.as_ptr()) };
         if ret > 0 {
-            Ok(self.stream)
+            Ok(HandshakeStream::Done(self.stream))
         } else {
-            self.error = self.stream.make_error(ret);
-            match self.error.code() {
-                ErrorCode::WANT_READ | ErrorCode::WANT_WRITE => {
-                    Err(HandshakeError::WouldBlock(self))
-                }
-                _ => Err(HandshakeError::Failure(self)),
+            let error = self.stream.make_error(ret);
+            match error.kind() {
+                io::ErrorKind::WouldBlock => Ok(HandshakeStream::Mid(self)),
+                _ => Err(HandshakeError::new(self.stream.into_inner(), error)),
             }
         }
     }
@@ -2957,54 +2953,6 @@ impl<S: Read + Write> SslStream<S> {
         Self::new_base(ssl, stream)
     }
 
-    /// Like `read`, but returns an `ssl::Error` rather than an `io::Error`.
-    ///
-    /// It is particularly useful with a nonblocking socket, where the error value will identify if
-    /// OpenSSL is waiting on read or write readiness.
-    ///
-    /// This corresponds to [`SSL_read`].
-    ///
-    /// [`SSL_read`]: https://www.openssl.org/docs/manmaster/man3/SSL_read.html
-    pub fn ssl_read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        // The intepretation of the return code here is a little odd with a
-        // zero-length write. OpenSSL will likely correctly report back to us
-        // that it read zero bytes, but zero is also the sentinel for "error".
-        // To avoid that confusion short-circuit that logic and return quickly
-        // if `buf` has a length of zero.
-        if buf.is_empty() {
-            return Ok(0);
-        }
-
-        let ret = self.ssl.read(buf);
-        if ret > 0 {
-            Ok(ret as usize)
-        } else {
-            Err(self.make_error(ret))
-        }
-    }
-
-    /// Like `write`, but returns an `ssl::Error` rather than an `io::Error`.
-    ///
-    /// It is particularly useful with a nonblocking socket, where the error value will identify if
-    /// OpenSSL is waiting on read or write readiness.
-    ///
-    /// This corresponds to [`SSL_write`].
-    ///
-    /// [`SSL_write`]: https://www.openssl.org/docs/manmaster/man3/SSL_write.html
-    pub fn ssl_write(&mut self, buf: &[u8]) -> Result<usize, Error> {
-        // See above for why we short-circuit on zero-length buffers
-        if buf.is_empty() {
-            return Ok(0);
-        }
-
-        let ret = self.ssl.write(buf);
-        if ret > 0 {
-            Ok(ret as usize)
-        } else {
-            Err(self.make_error(ret))
-        }
-    }
-
     /// Shuts down the session.
     ///
     /// The shutdown process consists of two steps. The first step sends a close notify message to
@@ -3018,7 +2966,7 @@ impl<S: Read + Write> SslStream<S> {
     /// This corresponds to [`SSL_shutdown`].
     ///
     /// [`SSL_shutdown`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_shutdown.html
-    pub fn shutdown(&mut self) -> Result<ShutdownResult, Error> {
+    pub fn shutdown(&mut self) -> Result<ShutdownResult, io::Error> {
         match unsafe { ffi::SSL_shutdown(self.ssl.as_ptr()) } {
             0 => Ok(ShutdownResult::Sent),
             1 => Ok(ShutdownResult::Received),
@@ -3052,29 +3000,26 @@ impl<S: Read + Write> SslStream<S> {
 }
 
 impl<S> SslStream<S> {
-    fn make_error(&mut self, ret: c_int) -> Error {
+    fn make_error(&mut self, ret: c_int) -> io::Error {
         self.check_panic();
+
+        let stack = ErrorStack::get();
+
+        if let Some(io_error) = self.get_bio_error() {
+            return io_error;
+        }
+
+        match self.ssl().verify_result() {
+            X509VerifyResult::OK | X509VerifyResult::INVALID_CALL => {}
+            code => return io::Error::new(io::ErrorKind::Other, X509Error { code }),
+        }
 
         let code = self.ssl.get_error(ret);
 
-        let cause = match code {
-            ErrorCode::SSL => Some(InnerError::Ssl(ErrorStack::get())),
-            ErrorCode::SYSCALL => {
-                let errs = ErrorStack::get();
-                if errs.errors().is_empty() {
-                    self.get_bio_error().map(InnerError::Io)
-                } else {
-                    Some(InnerError::Ssl(errs))
-                }
-            }
-            ErrorCode::ZERO_RETURN => None,
-            ErrorCode::WANT_READ | ErrorCode::WANT_WRITE => {
-                self.get_bio_error().map(InnerError::Io)
-            }
-            _ => None,
-        };
-
-        Error { code, cause }
+        match code {
+            ErrorCode::WANT_READ | ErrorCode::WANT_WRITE => io::ErrorKind::WouldBlock.into(),
+            code => io::Error::new(io::ErrorKind::Other, Error { code, stack }),
+        }
     }
 
     fn check_panic(&mut self) {
@@ -3121,36 +3066,32 @@ impl<S> SslStream<S> {
 
 impl<S: Read + Write> Read for SslStream<S> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        loop {
-            match self.ssl_read(buf) {
-                Ok(n) => return Ok(n),
-                Err(ref e) if e.code() == ErrorCode::ZERO_RETURN => return Ok(0),
-                Err(ref e) if e.code() == ErrorCode::SYSCALL && e.io_error().is_none() => {
-                    return Ok(0);
-                }
-                Err(ref e) if e.code() == ErrorCode::WANT_READ && e.io_error().is_none() => {}
-                Err(e) => {
-                    return Err(e
-                        .into_io_error()
-                        .unwrap_or_else(|e| io::Error::new(io::ErrorKind::Other, e)));
-                }
-            }
+        if buf.is_empty() {
+            return Ok(0);
+        }
+
+        let ret = self.ssl.read(buf);
+
+        if ret > 0 {
+            Ok(ret as usize)
+        } else {
+            Err(self.make_error(ret))
         }
     }
 }
 
 impl<S: Read + Write> Write for SslStream<S> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        loop {
-            match self.ssl_write(buf) {
-                Ok(n) => return Ok(n),
-                Err(ref e) if e.code() == ErrorCode::WANT_READ && e.io_error().is_none() => {}
-                Err(e) => {
-                    return Err(e
-                        .into_io_error()
-                        .unwrap_or_else(|e| io::Error::new(io::ErrorKind::Other, e)));
-                }
-            }
+        if buf.is_empty() {
+            return Ok(0);
+        }
+
+        let ret = self.ssl.write(buf);
+
+        if ret > 0 {
+            Ok(ret as usize)
+        } else {
+            Err(self.make_error(ret))
         }
     }
 
@@ -3194,47 +3135,37 @@ where
     }
 
     /// See `Ssl::connect`
-    pub fn connect(self) -> Result<SslStream<S>, HandshakeError<S>> {
+    pub fn connect(self) -> Result<HandshakeStream<S>, HandshakeError<S>> {
         let mut stream = self.inner;
         let ret = unsafe { ffi::SSL_connect(stream.ssl.as_ptr()) };
+
         if ret > 0 {
-            Ok(stream)
+            Ok(HandshakeStream::Done(stream))
         } else {
             let error = stream.make_error(ret);
-            match error.code() {
-                ErrorCode::WANT_READ | ErrorCode::WANT_WRITE => {
-                    Err(HandshakeError::WouldBlock(MidHandshakeSslStream {
-                        stream,
-                        error,
-                    }))
-                }
-                _ => Err(HandshakeError::Failure(MidHandshakeSslStream {
-                    stream,
-                    error,
-                })),
+
+            if error.kind() == io::ErrorKind::WouldBlock {
+                Ok(HandshakeStream::Mid(MidHandshakeSslStream { stream }))
+            } else {
+                Err(HandshakeError::new(stream.into_inner(), error))
             }
         }
     }
 
     /// See `Ssl::accept`
-    pub fn accept(self) -> Result<SslStream<S>, HandshakeError<S>> {
+    pub fn accept(self) -> Result<HandshakeStream<S>, HandshakeError<S>> {
         let mut stream = self.inner;
         let ret = unsafe { ffi::SSL_accept(stream.ssl.as_ptr()) };
+
         if ret > 0 {
-            Ok(stream)
+            Ok(HandshakeStream::Done(stream))
         } else {
             let error = stream.make_error(ret);
-            match error.code() {
-                ErrorCode::WANT_READ | ErrorCode::WANT_WRITE => {
-                    Err(HandshakeError::WouldBlock(MidHandshakeSslStream {
-                        stream,
-                        error,
-                    }))
-                }
-                _ => Err(HandshakeError::Failure(MidHandshakeSslStream {
-                    stream,
-                    error,
-                })),
+
+            if error.kind() == io::ErrorKind::WouldBlock {
+                Ok(HandshakeStream::Mid(MidHandshakeSslStream { stream }))
+            } else {
+                Err(HandshakeError::new(stream.into_inner(), error))
             }
         }
     }
@@ -3246,24 +3177,19 @@ where
     /// This corresponds to [`SSL_do_handshake`].
     ///
     /// [`SSL_do_handshake`]: https://www.openssl.org/docs/manmaster/man3/SSL_do_handshake.html
-    pub fn handshake(self) -> Result<SslStream<S>, HandshakeError<S>> {
+    pub fn handshake(self) -> Result<HandshakeStream<S>, HandshakeError<S>> {
         let mut stream = self.inner;
         let ret = unsafe { ffi::SSL_do_handshake(stream.ssl.as_ptr()) };
+
         if ret > 0 {
-            Ok(stream)
+            Ok(HandshakeStream::Done(stream))
         } else {
             let error = stream.make_error(ret);
-            match error.code() {
-                ErrorCode::WANT_READ | ErrorCode::WANT_WRITE => {
-                    Err(HandshakeError::WouldBlock(MidHandshakeSslStream {
-                        stream,
-                        error,
-                    }))
-                }
-                _ => Err(HandshakeError::Failure(MidHandshakeSslStream {
-                    stream,
-                    error,
-                })),
+
+            if error.kind() == io::ErrorKind::WouldBlock {
+                Ok(HandshakeStream::Mid(MidHandshakeSslStream { stream }))
+            } else {
+                Err(HandshakeError::new(stream.into_inner(), error))
             }
         }
     }
@@ -3337,6 +3263,8 @@ use ffi::{SSL_CTX_up_ref, SSL_SESSION_get_master_key, SSL_SESSION_up_ref, SSL_is
 use ffi::{DTLS_method, TLS_client_method, TLS_method, TLS_server_method};
 
 use std::sync::Once;
+
+use crate::x509::X509Error;
 
 unsafe fn get_new_idx(f: ffi::CRYPTO_EX_free) -> c_int {
     // hack around https://rt.openssl.org/Ticket/Display.html?id=3710&user=guest&pass=guest
