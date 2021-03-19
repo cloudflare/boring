@@ -281,6 +281,7 @@ unsafe impl Send for Cipher {}
 pub struct Crypter {
     ctx: *mut ffi::EVP_CIPHER_CTX,
     block_size: usize,
+    padding: bool,
 }
 
 unsafe impl Sync for Crypter {}
@@ -364,6 +365,7 @@ impl Crypter {
     /// If padding is disabled, total amount of data encrypted/decrypted must
     /// be a multiple of the cipher's block size.
     pub fn pad(&mut self, padding: bool) {
+        self.padding = padding;
         unsafe {
             ffi::EVP_CIPHER_CTX_set_padding(self.ctx, padding as c_int);
         }
@@ -464,7 +466,11 @@ impl Crypter {
             } else {
                 0
             };
-            assert!(output.len() >= input.len() + block_size);
+            if self.padding {
+                assert!(output.len() >= input.len() + block_size);
+            } else {
+                assert!(output.len() >= input.len());
+            }
             assert!(output.len() <= c_int::max_value() as usize);
             let mut outl = output.len() as c_int;
             let inl = input.len() as c_int;
