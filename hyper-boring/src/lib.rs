@@ -16,7 +16,7 @@ use hyper::service::Service;
 use hyper::Uri;
 use once_cell::sync::OnceCell;
 use std::error::Error;
-use std::fmt::Debug;
+use std::fmt;
 use std::future::Future;
 use std::io;
 use std::net;
@@ -24,7 +24,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tokio_boring::SslStream;
+use tokio_boring::{HandshakeError, SslStream};
 use tower_layer::Layer;
 
 mod cache;
@@ -168,7 +168,7 @@ where
     S: Service<Uri, Response = T> + Send,
     S::Error: Into<Box<dyn Error + Send + Sync>>,
     S::Future: Unpin + Send + 'static,
-    T: AsyncRead + AsyncWrite + Connection + Unpin + Debug + Sync + Send + 'static,
+    T: AsyncRead + AsyncWrite + Connection + Unpin + fmt::Debug + Sync + Send + 'static,
 {
     /// Creates a new `HttpsConnector`.
     ///
@@ -192,17 +192,16 @@ where
 impl<S> Service<Uri> for HttpsConnector<S>
 where
     S: Service<Uri> + Send,
-    S::Error: Into<Box<dyn Error + Send + Sync>>,
     S::Future: Unpin + Send + 'static,
-    S::Response: AsyncRead + AsyncWrite + Connection + Unpin + Debug + Sync + Send + 'static,
+    S::Response: AsyncRead + AsyncWrite + Connection + Unpin + fmt::Debug + Sync + Send + 'static,
 {
     type Response = MaybeHttpsStream<S::Response>;
-    type Error = Box<dyn Error + Sync + Send>;
+    type Error = ConnectError<S>;
     #[allow(clippy::type_complexity)]
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        self.http.poll_ready(cx).map_err(Into::into)
+        self.http.poll_ready(cx).map_err(ConnectError::Inner)
     }
 
     fn call(&mut self, uri: Uri) -> Self::Future {
@@ -212,7 +211,12 @@ where
             .unwrap_or(false);
 
         let tls_setup = if is_tls_scheme {
-            Some((self.inner.clone(), uri.clone()))
+            let host = match uri.host() {
+                Some(host) => host.to_owned(),
+                None => return Box::pin(async { Err(ConnectError::MissingHost) }),
+            };
+
+            Some((host, self.inner.clone(), uri.clone()))
         } else {
             None
         };
@@ -220,14 +224,14 @@ where
         let connect = self.http.call(uri);
 
         let f = async {
-            let conn = connect.await.map_err(Into::into)?;
+            let conn = connect.await.map_err(ConnectError::Inner)?;
 
-            let (inner, uri) = match tls_setup {
-                Some((inner, uri)) => (inner, uri),
+            let (host, inner, uri) = match tls_setup {
+                Some(triple) => triple,
                 None => return Ok(MaybeHttpsStream::Http(conn)),
             };
 
-            let mut host = uri.host().ok_or("URI missing host")?;
+            let mut host = &*host;
 
             // If `host` is an IPv6 address, we must strip away the square brackets that surround
             // it (otherwise, boring will fail to parse the host as an IP address, eventually
@@ -243,13 +247,74 @@ where
                 }
             }
 
-            let config = inner.setup_ssl(&uri, host)?;
-            let stream = tokio_boring::connect(config, host, conn).await?;
+            let config = match inner.setup_ssl(&uri, host) {
+                Ok(config) => config,
+                Err(e) => {
+                    return Err(ConnectError::Handshake(HandshakeError::new(
+                        conn,
+                        io::Error::new(io::ErrorKind::Other, e),
+                    )))
+                }
+            };
+
+            let stream = tokio_boring::connect(config, host, conn)
+                .await
+                .map_err(ConnectError::Handshake)?;
 
             Ok(MaybeHttpsStream::Https(stream))
         };
 
         Box::pin(f)
+    }
+}
+
+/// A connection error.
+pub enum ConnectError<S>
+where
+    S: Service<Uri>,
+{
+    /// The URI passed to the service used a TLS scheme but didn't have a host.
+    MissingHost,
+    /// The inner service returned an error.
+    Inner(S::Error),
+    /// An error occured during the TLS handshake.
+    Handshake(HandshakeError<S::Response>),
+}
+
+impl<S> Error for ConnectError<S>
+where
+    S: Service<Uri>,
+    S::Response: fmt::Debug,
+    S::Error: Error,
+{
+}
+
+impl<S> fmt::Debug for ConnectError<S>
+where
+    S: Service<Uri>,
+    S::Response: fmt::Debug,
+    S::Error: Error,
+{
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::MissingHost => fmt.write_str("URI missing host"),
+            Self::Inner(e) => e.fmt(fmt),
+            Self::Handshake(e) => e.fmt(fmt),
+        }
+    }
+}
+
+impl<S> fmt::Display for ConnectError<S>
+where
+    S: Service<Uri>,
+    S::Error: Error,
+{
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::MissingHost => fmt.write_str("URI missing host"),
+            Self::Inner(e) => e.fmt(fmt),
+            Self::Handshake(e) => e.fmt(fmt),
+        }
     }
 }
 
