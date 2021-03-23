@@ -308,7 +308,7 @@ impl Crypter {
             let crypter = Crypter {
                 ctx,
                 block_size: t.block_size(),
-                padding: true
+                padding: true,
             };
 
             let mode = match mode {
