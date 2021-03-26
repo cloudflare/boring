@@ -93,7 +93,7 @@ fn get_boringssl_cmake_config() -> cmake::Config {
     let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
     let pwd = std::env::current_dir().unwrap();
 
-    let mut boringssl_cmake = cmake::Config::new("deps/boringssl");
+    let mut boringssl_cmake = cmake::Config::new("deps/boringssl/src");
 
     // Add platform-specific parameters.
     match os.as_ref() {
@@ -182,10 +182,14 @@ fn main() {
             .cxxflag("-DBORINGSSL_UNSAFE_FUZZER_MODE");
     }
 
+    #[cfg(feature = "fips")]
+    cfg.define("FIPS", "1");
+
     let bssl_dir = cfg.build_target("bssl").build().display().to_string();
     let build_path = get_boringssl_platform_output_path();
     let build_dir = format!("{}/build/{}", bssl_dir, build_path);
-    println!("cargo:rustc-link-search=native={}", build_dir);
+    println!("cargo:rustc-link-search=native={}/crypto", build_dir);
+    println!("cargo:rustc-link-search=native={}/ssl", build_dir);
 
     println!("cargo:rustc-link-lib=static=crypto");
     println!("cargo:rustc-link-lib=static=ssl");
