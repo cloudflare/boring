@@ -185,9 +185,9 @@ fn main() {
     #[cfg(feature = "fips")]
     cfg.define("FIPS", "1");
 
-    let bssl_dir = cfg.build_target("bssl").build().display().to_string();
+    let bssl_dir = cfg.build_target("bssl").build();
     let build_path = get_boringssl_platform_output_path();
-    let build_dir = PathBuf::from(format!("{}/build/{}", bssl_dir, build_path));
+    let build_dir = bssl_dir.join("build").join(build_path);
     println!(
         "cargo:rustc-link-search=native={}",
         build_dir.join("crypto").to_str().unwrap()
