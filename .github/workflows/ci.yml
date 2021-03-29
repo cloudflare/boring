@@ -57,7 +57,7 @@ jobs:
           path: target
           key: clippy-target-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
       - name: Run clippy
-        run: cargo clippy --all --all-targets
+        run: cargo clippy --all --all-targets -- -A clippy::upper_case_acronyms
   test:
     name: Test
     runs-on: ${{ matrix.os }}
