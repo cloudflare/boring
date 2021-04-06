@@ -292,6 +292,14 @@ impl<S> HandshakeError<S> {
             _ => None,
         }
     }
+
+    /// Returns a reference to the inner I/O error, if any.
+    pub fn as_io_error(&self) -> Option<&io::Error> {
+        match &self.0 {
+            ssl::HandshakeError::Failure(s) => s.error().io_error(),
+            _ => None,
+        }
+    }
 }
 
 impl<S> fmt::Debug for HandshakeError<S>

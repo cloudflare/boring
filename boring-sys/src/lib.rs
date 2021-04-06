@@ -3,6 +3,7 @@
     clippy::redundant_static_lifetimes,
     clippy::too_many_arguments,
     clippy::unreadable_literal,
+    clippy::upper_case_acronyms,
     improper_ctypes,
     non_camel_case_types,
     non_snake_case,
