@@ -213,7 +213,7 @@ use ffi::{BIO_get_data, BIO_set_data, BIO_set_flags, BIO_set_init};
 #[allow(bad_style)]
 unsafe fn BIO_set_num(_bio: *mut ffi::BIO, _num: c_int) {}
 
-#[allow(bad_style)]
+#[allow(bad_style, clippy::upper_case_acronyms)]
 struct BIO_METHOD(*mut ffi::BIO_METHOD);
 
 impl BIO_METHOD {
