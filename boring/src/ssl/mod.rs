@@ -1788,6 +1788,11 @@ impl ClientHello {
     pub fn servername(&self, type_: NameType) -> Option<&str> {
         self.ssl().servername(type_)
     }
+
+    /// Returns a string describing the protocol version of the session.
+    pub fn version_str(&self) -> &'static str {
+        self.ssl().version_str()
+    }
 }
 
 /// Information about a cipher.
