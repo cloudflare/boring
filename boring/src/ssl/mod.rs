@@ -1779,6 +1779,20 @@ impl ClientHello {
             Some(slice::from_raw_parts(ptr, len))
         }
     }
+
+    fn ssl(&self) -> &SslRef {
+        unsafe { SslRef::from_ptr(self.0.ssl) }
+    }
+
+    /// Returns the servername sent by the client via Server Name Indication (SNI).
+    pub fn servername(&self, type_: NameType) -> Option<&str> {
+        self.ssl().servername(type_)
+    }
+
+    /// Returns a string describing the protocol version of the session.
+    pub fn version_str(&self) -> &'static str {
+        self.ssl().version_str()
+    }
 }
 
 /// Information about a cipher.
