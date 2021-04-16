@@ -293,6 +293,14 @@ impl<S> HandshakeError<S> {
         }
     }
 
+    /// Returns the error code, if any.
+    pub fn code(&self) -> Option<ErrorCode> {
+        match &self.0 {
+            ssl::HandshakeError::Failure(s) => Some(s.error().code()),
+            _ => None,
+        }
+    }
+
     /// Returns a reference to the inner I/O error, if any.
     pub fn as_io_error(&self) -> Option<&io::Error> {
         match &self.0 {
