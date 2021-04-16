@@ -520,7 +520,7 @@ impl From<u16> for ExtensionType {
 }
 
 /// An SSL/TLS protocol version.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct SslVersion(u16);
 
 impl SslVersion {
@@ -538,6 +538,32 @@ impl SslVersion {
 
     /// TLSv1.3
     pub const TLS1_3: SslVersion = SslVersion(ffi::TLS1_3_VERSION as _);
+}
+
+impl fmt::Debug for SslVersion {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(match *self {
+            Self::SSL3 => "SSL3",
+            Self::TLS1 => "TLS1",
+            Self::TLS1_1 => "TLS1_1",
+            Self::TLS1_2 => "TLS1_2",
+            Self::TLS1_3 => "TLS1_3",
+            _ => return write!(f, "{:#06x}", self.0),
+        })
+    }
+}
+
+impl fmt::Display for SslVersion {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(match *self {
+            Self::SSL3 => "SSLv3",
+            Self::TLS1 => "TLSv1",
+            Self::TLS1_1 => "TLSv1.1",
+            Self::TLS1_2 => "TLSv1.2",
+            Self::TLS1_3 => "TLSv1.3",
+            _ => return write!(f, "unknown ({:#06x})", self.0),
+        })
+    }
 }
 
 /// A signature verification algorithm.
@@ -1789,7 +1815,12 @@ impl ClientHello {
         self.ssl().servername(type_)
     }
 
-    /// Returns a string describing the protocol version of the session.
+    /// Returns the version sent by the client in its Client Hello record.
+    pub fn client_version(&self) -> SslVersion {
+        SslVersion(self.0.version)
+    }
+
+    /// Returns a string describing the protocol version of the connection.
     pub fn version_str(&self) -> &'static str {
         self.ssl().version_str()
     }
