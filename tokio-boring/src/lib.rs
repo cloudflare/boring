@@ -285,6 +285,17 @@ impl<S> HandshakeError<S> {
         }
     }
 
+    /// Converts error to the source data stream that was used for the handshake.
+    pub fn into_parts(self) -> (ssl::Error, Option<S>) {
+        match self.0 {
+            ssl::HandshakeError::Failure(s) | ssl::HandshakeError::WouldBlock(s) => {
+                let (error, stream) = s.into_parts();
+                (error, Some(stream.stream))
+            }
+            ssl::HandshakeError::SetupFailure(s) => (s.into(), None),
+        }
+    }
+
     /// Returns a reference to the source data stream.
     pub fn as_source_stream(&self) -> Option<&S> {
         match &self.0 {
