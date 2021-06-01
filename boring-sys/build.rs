@@ -200,7 +200,7 @@ fn main() {
 
     let include_path = PathBuf::from(
         std::env::var("BORING_BSSL_INCLUDE_PATH")
-            .unwrap_or(String::from("deps/boringssl/src/include")),
+            .unwrap_or_else(|_| String::from("deps/boringssl/src/include")),
     );
 
     let mut builder = bindgen::Builder::default()
