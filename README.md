@@ -2,16 +2,27 @@
 
 [![crates.io](https://img.shields.io/crates/v/boring.svg)](https://crates.io/crates/boring)
 
-BoringSSL bindings for the Rust programming language and TLS adapters for [tokio](https://github.com/tokio-rs/tokio) 
+BoringSSL bindings for the Rust programming language and TLS adapters for [tokio](https://github.com/tokio-rs/tokio)
 and [hyper](https://github.com/hyperium/hyper) built on top of it.
 
 [Documentation](https://docs.rs/boring).
 
 ## Release Support
 
-The crate statically links with the latest BoringSSL master branch.
+By default, the crate statically links with the latest BoringSSL master branch.
 
-### Contribution
+## Support for pre-built binaries
+
+While this crate can build BoringSSL on its own, you may want to provide pre-built binaries instead.
+To do so, specify the environment variable `BORING_BSSL_PATH` with the path to the binaries.
+
+You can also provide specific headers by setting `BORING_BSSL_INCLUDE_PATH`.
+
+_Notes_: The crate will look for headers in the `$BORING_BSSL_INCLUDE_PATH/openssl/` folder, make sure to place your headers there.
+
+_Warning_: When providing a different version of BoringSSL make sure to use a compatible one, the crate relies on the presence of certain functions.
+
+## Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally
 submitted for inclusion in the work by you, as defined in the Apache-2.0
