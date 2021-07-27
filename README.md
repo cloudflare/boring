@@ -18,6 +18,9 @@ submitted for inclusion in the work by you, as defined in the Apache-2.0
 license, shall be dual licensed under the terms of both the Apache License,
 Version 2.0 and the MIT license without any additional terms or conditions.
 
+To compile from source, first run `git submodule update --init --recursive` to clone the upstream
+boringssl repo.
+
 ## Accolades
 
 The project is based on a fork of [rust-openssl](https://github.com/sfackler/rust-openssl).
