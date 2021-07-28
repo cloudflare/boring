@@ -15,7 +15,11 @@ use std::convert::TryInto;
 use std::ffi::c_void;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong};
 
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+#[allow(deref_nullptr)] // TODO: remove this when https://github.com/rust-lang/rust-bindgen/issues/1651 finally gets fixed
+mod generated {
+    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+}
+pub use generated::*;
 
 #[cfg(target_pointer_width = "64")]
 pub type BN_ULONG = u64;
