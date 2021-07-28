@@ -6,11 +6,10 @@
 //! ecosystem. Client connections initiated from this crate verify hostnames
 //! automatically and by default.
 //!
-//! This crate primarily exports this ability through two extension traits,
-//! `SslConnectorExt` and `SslAcceptorExt`. These traits augment the
-//! functionality provided by the [`boring` crate](https://github.com/cloudflare/boring) crate,
-//! on which this crate is built. Configuration of TLS parameters is still primarily done through
-//! the [`boring` crate](https://github.com/cloudflare/boring)
+//! `tokio-boring` exports this ability through [`accept`] and [`connect`]. `accept` should
+//! be used by servers, and `connect` by clients. These augment the functionality provided by the
+//! [`boring`] crate, on which this crate is built. Configuration of TLS parameters is still
+//! primarily done through the [`boring`] crate.
 #![warn(missing_docs)]
 
 use boring::ssl::{
