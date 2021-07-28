@@ -173,7 +173,25 @@ fn get_boringssl_cmake_config() -> cmake::Config {
 
 fn main() {
     use std::env;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    if !Path::new("deps/boringssl/CMakeLists.txt").exists() {
+        println!("cargo:warning=fetching boringssl git submodule");
+        // fetch the boringssl submodule
+        let status = Command::new("git")
+            .args(&[
+                "submodule",
+                "update",
+                "--init",
+                "--recursive",
+                "deps/boringssl",
+            ])
+            .status();
+        if !status.map_or(false, |status| status.success()) {
+            panic!("failed to fetch submodule - consider running `git submodule update --init --recursive deps/boringssl` yourself");
+        }
+    }
 
     let bssl_dir = std::env::var("BORING_BSSL_PATH").unwrap_or_else(|_| {
         let mut cfg = get_boringssl_cmake_config();
