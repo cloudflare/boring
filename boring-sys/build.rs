@@ -175,14 +175,17 @@ fn main() {
     use std::env;
     use std::path::PathBuf;
 
-    let mut cfg = get_boringssl_cmake_config();
+    let bssl_dir = std::env::var("BORING_BSSL_PATH").unwrap_or_else(|_| {
+        let mut cfg = get_boringssl_cmake_config();
 
-    if cfg!(feature = "fuzzing") {
-        cfg.cxxflag("-DBORINGSSL_UNSAFE_DETERMINISTIC_MODE")
-            .cxxflag("-DBORINGSSL_UNSAFE_FUZZER_MODE");
-    }
+        if cfg!(feature = "fuzzing") {
+            cfg.cxxflag("-DBORINGSSL_UNSAFE_DETERMINISTIC_MODE")
+                .cxxflag("-DBORINGSSL_UNSAFE_FUZZER_MODE");
+        }
 
-    let bssl_dir = cfg.build_target("bssl").build().display().to_string();
+        cfg.build_target("bssl").build().display().to_string()
+    });
+
     let build_path = get_boringssl_platform_output_path();
     let build_dir = format!("{}/build/{}", bssl_dir, build_path);
     println!("cargo:rustc-link-search=native={}", build_dir);
@@ -195,7 +198,11 @@ fn main() {
         println!("cargo:rustc-cdylib-link-arg=-Wl,-undefined,dynamic_lookup");
     }
 
-    let include_path = PathBuf::from("deps/boringssl/src/include");
+    let include_path = PathBuf::from(
+        std::env::var("BORING_BSSL_INCLUDE_PATH")
+            .unwrap_or_else(|_| String::from("deps/boringssl/src/include")),
+    );
+
     let mut builder = bindgen::Builder::default()
         .derive_copy(true)
         .derive_debug(true)
