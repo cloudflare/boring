@@ -65,7 +65,7 @@ fn mk_ca_cert() -> Result<(X509, PKey<Private>), ErrorStack> {
 /// Make a X509 request with the given private key
 fn mk_request(privkey: &PKey<Private>) -> Result<X509Req, ErrorStack> {
     let mut req_builder = X509ReqBuilder::new()?;
-    req_builder.set_pubkey(&privkey)?;
+    req_builder.set_pubkey(privkey)?;
 
     let mut x509_name = X509NameBuilder::new()?;
     x509_name.append_entry_by_text("C", "US")?;
@@ -75,7 +75,7 @@ fn mk_request(privkey: &PKey<Private>) -> Result<X509Req, ErrorStack> {
     let x509_name = x509_name.build();
     req_builder.set_subject_name(&x509_name)?;
 
-    req_builder.sign(&privkey, MessageDigest::sha256())?;
+    req_builder.sign(privkey, MessageDigest::sha256())?;
     let req = req_builder.build();
     Ok(req)
 }
@@ -133,7 +133,7 @@ fn mk_ca_signed_cert(
         .build(&cert_builder.x509v3_context(Some(ca_cert), None))?;
     cert_builder.append_extension(subject_alt_name)?;
 
-    cert_builder.sign(&ca_privkey, MessageDigest::sha256())?;
+    cert_builder.sign(ca_privkey, MessageDigest::sha256())?;
     let cert = cert_builder.build();
 
     Ok((cert, privkey))
