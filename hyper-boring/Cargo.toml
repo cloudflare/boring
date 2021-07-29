@@ -17,7 +17,7 @@ runtime = ["hyper/runtime"]
 
 [dependencies]
 antidote = "1.0.0"
-bytes = "0.5"
+bytes = "1"
 http = "0.2"
 hyper = { version = "0.14", default-features = false, features = ["client"] }
 linked_hash_set = "0.1"
