@@ -131,7 +131,7 @@ pub struct IntoIter<T: Stackable> {
 impl<T: Stackable> Drop for IntoIter<T> {
     fn drop(&mut self) {
         unsafe {
-            while let Some(_) = self.next() {}
+            for _ in &mut *self {}
             OPENSSL_sk_free(self.stack as *mut _);
         }
     }
