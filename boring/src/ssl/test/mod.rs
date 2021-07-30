@@ -1074,7 +1074,7 @@ fn psk_ciphers() {
     client
         .ctx()
         .set_psk_client_callback(move |_, _, identity, psk| {
-            identity[..CLIENT_IDENT.len()].copy_from_slice(&CLIENT_IDENT);
+            identity[..CLIENT_IDENT.len()].copy_from_slice(CLIENT_IDENT);
             identity[CLIENT_IDENT.len()] = 0;
             psk[..PSK.len()].copy_from_slice(PSK);
             CLIENT_CALLED.store(true, Ordering::SeqCst);
