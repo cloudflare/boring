@@ -107,10 +107,6 @@ foreign_type_and_impl_send_sync! {
     /// [wiki]: https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations
     /// [`Nid`]: ../nid/index.html
     pub struct EcGroup;
-    /// Reference to [`EcGroup`]
-    ///
-    /// [`EcGroup`]: struct.EcGroup.html
-    pub struct EcGroupRef;
 }
 
 impl EcGroup {
@@ -259,10 +255,6 @@ foreign_type_and_impl_send_sync! {
     ///
     /// [`EC_POINT_new`]: https://www.openssl.org/docs/man1.1.0/crypto/EC_POINT_new.html
     pub struct EcPoint;
-    /// Reference to [`EcPoint`]
-    ///
-    /// [`EcPoint`]: struct.EcPoint.html
-    pub struct EcPointRef;
 }
 
 impl EcPointRef {

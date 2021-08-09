@@ -47,9 +47,6 @@ foreign_type_and_impl_send_sync! {
 
     /// An `X509` certificate store context.
     pub struct X509StoreContext;
-
-    /// Reference to `X509StoreContext`.
-    pub struct X509StoreContextRef;
 }
 
 impl X509StoreContext {
@@ -379,8 +376,6 @@ foreign_type_and_impl_send_sync! {
 
     /// An `X509` public key certificate.
     pub struct X509;
-    /// Reference to `X509`.
-    pub struct X509Ref;
 }
 
 impl X509Ref {
@@ -733,8 +728,6 @@ foreign_type_and_impl_send_sync! {
 
     /// Permit additional fields to be added to an `X509` v3 certificate.
     pub struct X509Extension;
-    /// Reference to `X509Extension`.
-    pub struct X509ExtensionRef;
 }
 
 impl Stackable for X509Extension {
@@ -863,8 +856,6 @@ foreign_type_and_impl_send_sync! {
 
     /// The names of an `X509` certificate.
     pub struct X509Name;
-    /// Reference to `X509Name`.
-    pub struct X509NameRef;
 }
 
 impl X509Name {
@@ -956,8 +947,6 @@ foreign_type_and_impl_send_sync! {
 
     /// A name entry associated with a `X509Name`.
     pub struct X509NameEntry;
-    /// Reference to `X509NameEntry`.
-    pub struct X509NameEntryRef;
 }
 
 impl X509NameEntryRef {
@@ -1114,8 +1103,6 @@ foreign_type_and_impl_send_sync! {
 
     /// An `X509` certificate request.
     pub struct X509Req;
-    /// Reference to `X509Req`.
-    pub struct X509ReqRef;
 }
 
 impl X509Req {
@@ -1298,8 +1285,6 @@ foreign_type_and_impl_send_sync! {
 
     /// An `X509` certificate alternative names.
     pub struct GeneralName;
-    /// Reference to `GeneralName`.
-    pub struct GeneralNameRef;
 }
 
 impl GeneralNameRef {
@@ -1377,8 +1362,6 @@ foreign_type_and_impl_send_sync! {
 
     /// An `X509` certificate signature algorithm.
     pub struct X509Algorithm;
-    /// Reference to `X509Algorithm`.
-    pub struct X509AlgorithmRef;
 }
 
 impl X509AlgorithmRef {
@@ -1399,8 +1382,6 @@ foreign_type_and_impl_send_sync! {
 
     /// An `X509` or an X509 certificate revocation list.
     pub struct X509Object;
-    /// Reference to `X509Object`
-    pub struct X509ObjectRef;
 }
 
 impl X509ObjectRef {

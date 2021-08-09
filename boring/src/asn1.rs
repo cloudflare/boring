@@ -57,10 +57,6 @@ foreign_type_and_impl_send_sync! {
     ///
     /// [ASN1_GENERALIZEDTIME_set]: https://www.openssl.org/docs/manmaster/man3/ASN1_GENERALIZEDTIME_set.html
     pub struct Asn1GeneralizedTime;
-    /// Reference to a [`Asn1GeneralizedTime`]
-    ///
-    /// [`Asn1GeneralizedTime`]: struct.Asn1GeneralizedTime.html
-    pub struct Asn1GeneralizedTimeRef;
 }
 
 impl fmt::Display for Asn1GeneralizedTimeRef {
@@ -113,10 +109,6 @@ foreign_type_and_impl_send_sync! {
     ///
     /// [ASN_TIME_set]: https://www.openssl.org/docs/man1.1.0/crypto/ASN1_TIME_set.html
     pub struct Asn1Time;
-    /// Reference to an [`Asn1Time`]
-    ///
-    /// [`Asn1Time`]: struct.Asn1Time.html
-    pub struct Asn1TimeRef;
 }
 
 impl Asn1TimeRef {
@@ -327,10 +319,6 @@ foreign_type_and_impl_send_sync! {
     ///
     /// [ASN1_STRING-to_UTF8]: https://www.openssl.org/docs/man1.1.0/crypto/ASN1_STRING_to_UTF8.html
     pub struct Asn1String;
-    /// Reference to [`Asn1String`]
-    ///
-    /// [`Asn1String`]: struct.Asn1String.html
-    pub struct Asn1StringRef;
 }
 
 impl Asn1StringRef {
@@ -395,10 +383,6 @@ foreign_type_and_impl_send_sync! {
     /// [`bn`]: ../bn/index.html
     /// [`ASN1_INTEGER_set`]: https://www.openssl.org/docs/man1.1.0/crypto/ASN1_INTEGER_set.html
     pub struct Asn1Integer;
-    /// Reference to [`Asn1Integer`]
-    ///
-    /// [`Asn1Integer`]: struct.Asn1Integer.html
-    pub struct Asn1IntegerRef;
 }
 
 impl Asn1Integer {
@@ -458,10 +442,6 @@ foreign_type_and_impl_send_sync! {
     ///
     /// [`x509`]: ../x509/struct.X509.html#method.signature
     pub struct Asn1BitString;
-    /// Reference to [`Asn1BitString`]
-    ///
-    /// [`Asn1BitString`]: struct.Asn1BitString.html
-    pub struct Asn1BitStringRef;
 }
 
 impl Asn1BitStringRef {
@@ -499,10 +479,6 @@ foreign_type_and_impl_send_sync! {
     /// [`nid::COMMONNAME`]: ../nid/constant.COMMONNAME.html
     /// [`OBJ_nid2obj`]: https://www.openssl.org/docs/man1.1.0/crypto/OBJ_obj2nid.html
     pub struct Asn1Object;
-    /// Reference to [`Asn1Object`]
-    ///
-    /// [`Asn1Object`]: struct.Asn1Object.html
-    pub struct Asn1ObjectRef;
 }
 
 impl Asn1Object {

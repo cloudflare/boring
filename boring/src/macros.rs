@@ -139,8 +139,6 @@ macro_rules! foreign_type_and_impl_send_sync {
 
         $(#[$owned_attr:meta])*
         pub struct $owned:ident;
-        $(#[$borrowed_attr:meta])*
-        pub struct $borrowed:ident;
     )
         => {
             foreign_type! {

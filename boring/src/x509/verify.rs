@@ -27,8 +27,6 @@ foreign_type_and_impl_send_sync! {
 
     /// Adjust parameters associated with certificate verification.
     pub struct X509VerifyParam;
-    /// Reference to `X509VerifyParam`.
-    pub struct X509VerifyParamRef;
 }
 
 impl X509VerifyParamRef {

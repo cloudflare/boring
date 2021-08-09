@@ -22,10 +22,6 @@ foreign_type_and_impl_send_sync! {
     ///
     /// [`ECDSA_sign`]: https://www.openssl.org/docs/man1.1.0/crypto/ECDSA_sign.html
     pub struct EcdsaSig;
-    /// Reference to [`EcdsaSig`]
-    ///
-    /// [`EcdsaSig`]: struct.EcdsaSig.html
-    pub struct EcdsaSigRef;
 }
 
 impl EcdsaSig {
