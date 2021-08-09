@@ -1585,11 +1585,6 @@ foreign_type_and_impl_send_sync! {
     /// Applications commonly configure a single `SslContext` that is shared by all of its
     /// `SslStreams`.
     pub struct SslContext;
-
-    /// Reference to [`SslContext`]
-    ///
-    /// [`SslContext`]: struct.SslContext.html
-    pub struct SslContextRef;
 }
 
 impl Clone for SslContext {
@@ -1964,11 +1959,6 @@ foreign_type_and_impl_send_sync! {
     ///
     /// These can be cached to share sessions across connections.
     pub struct SslSession;
-
-    /// Reference to [`SslSession`].
-    ///
-    /// [`SslSession`]: struct.SslSession.html
-    pub struct SslSessionRef;
 }
 
 impl Clone for SslSession {
@@ -2092,11 +2082,6 @@ foreign_type_and_impl_send_sync! {
     ///
     /// [`SslContext`]: struct.SslContext.html
     pub struct Ssl;
-
-    /// Reference to an [`Ssl`].
-    ///
-    /// [`Ssl`]: struct.Ssl.html
-    pub struct SslRef;
 }
 
 impl fmt::Debug for Ssl {

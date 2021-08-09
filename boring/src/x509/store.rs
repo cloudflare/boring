@@ -49,8 +49,6 @@ foreign_type_and_impl_send_sync! {
 
     /// A builder type used to construct an `X509Store`.
     pub struct X509StoreBuilder;
-    /// Reference to an `X509StoreBuilder`.
-    pub struct X509StoreBuilderRef;
 }
 
 impl X509StoreBuilder {
@@ -96,8 +94,6 @@ foreign_type_and_impl_send_sync! {
 
     /// A certificate store to hold trusted `X509` certificates.
     pub struct X509Store;
-    /// Reference to an `X509Store`.
-    pub struct X509StoreRef;
 }
 
 impl X509StoreRef {

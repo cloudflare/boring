@@ -20,7 +20,6 @@ foreign_type_and_impl_send_sync! {
     fn drop = ffi::PKCS12_free;
 
     pub struct Pkcs12;
-    pub struct Pkcs12Ref;
 }
 
 impl Pkcs12Ref {

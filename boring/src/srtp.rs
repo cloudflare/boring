@@ -13,8 +13,6 @@ foreign_type_and_impl_send_sync! {
     fn drop = free;
 
     pub struct SrtpProtectionProfile;
-    /// Reference to `SrtpProtectionProfile`.
-    pub struct SrtpProtectionProfileRef;
 }
 
 impl Stackable for SrtpProtectionProfile {

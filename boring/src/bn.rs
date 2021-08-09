@@ -65,10 +65,6 @@ foreign_type_and_impl_send_sync! {
     ///
     /// [`BN_CTX`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_CTX_new.html
     pub struct BigNumContext;
-    /// Reference to [`BigNumContext`]
-    ///
-    /// [`BigNumContext`]: struct.BigNumContext.html
-    pub struct BigNumContextRef;
 }
 
 impl BigNumContext {
@@ -113,10 +109,6 @@ foreign_type_and_impl_send_sync! {
     /// # fn main () { bignums(); }
     /// ```
     pub struct BigNum;
-    /// Reference to a [`BigNum`]
-    ///
-    /// [`BigNum`]: struct.BigNum.html
-    pub struct BigNumRef;
 }
 
 impl BigNumRef {

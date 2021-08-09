@@ -14,7 +14,6 @@ foreign_type_and_impl_send_sync! {
     fn drop = free;
 
     pub struct OpensslString;
-    pub struct OpensslStringRef;
 }
 
 impl fmt::Display for OpensslString {

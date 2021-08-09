@@ -29,7 +29,6 @@ foreign_type_and_impl_send_sync! {
     fn drop = ffi::NCONF_free;
 
     pub struct Conf;
-    pub struct ConfRef;
 }
 
 impl Conf {
