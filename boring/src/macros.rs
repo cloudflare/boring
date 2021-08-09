@@ -145,19 +145,13 @@ macro_rules! foreign_type_and_impl_send_sync {
         => {
             foreign_type! {
                 $(#[$impl_attr])*
-                type CType = $ctype;
-                fn drop = $drop;
-                $(fn clone = $clone;)*
                 $(#[$owned_attr])*
-                pub struct $owned;
-                $(#[$borrowed_attr])*
-                pub struct $borrowed;
+                pub unsafe type $owned: Send + Sync {
+                    type CType = $ctype;
+                    fn drop = $drop;
+                    $(fn clone = $clone;)*
+                }
             }
-
-            unsafe impl Send for $owned{}
-            unsafe impl Send for $borrowed{}
-            unsafe impl Sync for $owned{}
-            unsafe impl Sync for $borrowed{}
         };
 }
 
@@ -177,7 +171,7 @@ macro_rules! generic_foreign_type_and_impl_send_sync {
         pub struct $owned<T>(*mut $ctype, ::std::marker::PhantomData<T>);
 
         $(#[$impl_attr])*
-        impl<T> ::foreign_types::ForeignType for $owned<T> {
+        unsafe impl<T> ::foreign_types::ForeignType for $owned<T> {
             type CType = $ctype;
             type Ref = $borrowed<T>;
 
@@ -257,7 +251,7 @@ macro_rules! generic_foreign_type_and_impl_send_sync {
         pub struct $borrowed<T>(::foreign_types::Opaque, ::std::marker::PhantomData<T>);
 
         $(#[$impl_attr])*
-        impl<T> ::foreign_types::ForeignTypeRef for $borrowed<T> {
+        unsafe impl<T> ::foreign_types::ForeignTypeRef for $borrowed<T> {
             type CType = $ctype;
         }
 

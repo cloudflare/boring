@@ -80,7 +80,7 @@ impl BigNumContext {
     pub fn new() -> Result<BigNumContext, ErrorStack> {
         unsafe {
             ffi::init();
-            cvt_p(ffi::BN_CTX_new()).map(BigNumContext)
+            cvt_p(ffi::BN_CTX_new()).map(|p| BigNumContext::from_ptr(p))
         }
     }
 }

@@ -35,7 +35,7 @@
 //! ```
 
 use crate::ffi;
-use foreign_types::ForeignTypeRef;
+use foreign_types::{ForeignType, ForeignTypeRef};
 use std::mem;
 
 use crate::error::ErrorStack;
@@ -61,7 +61,7 @@ impl X509StoreBuilder {
         unsafe {
             ffi::init();
 
-            cvt_p(ffi::X509_STORE_new()).map(X509StoreBuilder)
+            cvt_p(ffi::X509_STORE_new()).map(|p| X509StoreBuilder::from_ptr(p))
         }
     }
 
