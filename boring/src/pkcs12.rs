@@ -196,7 +196,7 @@ impl Pkcs12Builder {
                 self.mac_iter,
                 keytype,
             ))
-            .map(Pkcs12)
+            .map(|p| Pkcs12::from_ptr(p))
         }
     }
 }
