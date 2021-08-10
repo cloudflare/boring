@@ -13,8 +13,6 @@ extern crate libc;
 
 #[cfg(test)]
 extern crate hex;
-#[cfg(test)]
-extern crate tempdir;
 
 #[doc(inline)]
 pub use crate::ffi::init;
