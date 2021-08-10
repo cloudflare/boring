@@ -19,6 +19,5 @@ libc = "0.2"
 boring-sys = { version = "1.1.0", path = "../boring-sys" }
 
 [dev-dependencies]
-tempdir = "0.3"
 hex = "0.4"
 rusty-hook = "^0.11"
