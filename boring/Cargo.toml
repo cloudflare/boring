@@ -9,6 +9,7 @@ documentation = "https://docs.rs/boring"
 readme = "README.md"
 keywords = ["crypto", "tls", "ssl", "dtls"]
 categories = ["cryptography", "api-bindings"]
+edition = "2018"
 
 [dependencies]
 bitflags = "1.0"
