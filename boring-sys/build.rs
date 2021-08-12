@@ -272,8 +272,11 @@ fn main() {
     }
 
     let bindings = builder.generate().expect("Unable to generate bindings");
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let out_path = PathBuf::from(&out_dir);
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");
+
+    println!("cargo:rustc-env=BINDGEN_SRC={}/bindings.rs", out_dir);
 }

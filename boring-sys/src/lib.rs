@@ -17,7 +17,7 @@ use std::os::raw::{c_char, c_int, c_uint, c_ulong};
 
 #[allow(deref_nullptr)] // TODO: remove this when https://github.com/rust-lang/rust-bindgen/issues/1651 finally gets fixed
 mod generated {
-    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+    include!(env!("BINDGEN_SRC"));
 }
 pub use generated::*;
 
