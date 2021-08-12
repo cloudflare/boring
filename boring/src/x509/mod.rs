@@ -7,7 +7,7 @@
 //! Internet protocols, including SSL/TLS, which is the basis for HTTPS,
 //! the secure protocol for browsing the web.
 
-use ffi;
+use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 use libc::{c_int, c_long};
 use std::convert::TryInto;
@@ -21,18 +21,18 @@ use std::ptr;
 use std::slice;
 use std::str;
 
-use asn1::{Asn1BitStringRef, Asn1IntegerRef, Asn1ObjectRef, Asn1StringRef, Asn1TimeRef};
-use bio::MemBioSlice;
-use conf::ConfRef;
-use error::ErrorStack;
-use ex_data::Index;
-use hash::{DigestBytes, MessageDigest};
-use nid::Nid;
-use pkey::{HasPrivate, HasPublic, PKey, PKeyRef, Public};
-use ssl::SslRef;
-use stack::{Stack, StackRef, Stackable};
-use string::OpensslString;
-use {cvt, cvt_n, cvt_p};
+use crate::asn1::{Asn1BitStringRef, Asn1IntegerRef, Asn1ObjectRef, Asn1StringRef, Asn1TimeRef};
+use crate::bio::MemBioSlice;
+use crate::conf::ConfRef;
+use crate::error::ErrorStack;
+use crate::ex_data::Index;
+use crate::hash::{DigestBytes, MessageDigest};
+use crate::nid::Nid;
+use crate::pkey::{HasPrivate, HasPublic, PKey, PKeyRef, Public};
+use crate::ssl::SslRef;
+use crate::stack::{Stack, StackRef, Stackable};
+use crate::string::OpensslString;
+use crate::{cvt, cvt_n, cvt_p};
 
 pub mod extension;
 pub mod store;
@@ -1418,14 +1418,14 @@ impl Stackable for X509Object {
     type StackType = ffi::stack_st_X509_OBJECT;
 }
 
-use ffi::{X509_get0_signature, X509_getm_notAfter, X509_getm_notBefore, X509_up_ref};
+use crate::ffi::{X509_get0_signature, X509_getm_notAfter, X509_getm_notBefore, X509_up_ref};
 
-use ffi::{
+use crate::ffi::{
     ASN1_STRING_get0_data, X509_ALGOR_get0, X509_REQ_get_subject_name, X509_REQ_get_version,
     X509_STORE_CTX_get0_chain, X509_set1_notAfter, X509_set1_notBefore,
 };
 
-use ffi::X509_OBJECT_get0_X509;
+use crate::ffi::X509_OBJECT_get0_X509;
 
 #[allow(bad_style)]
 unsafe fn X509_OBJECT_free(x: *mut ffi::X509_OBJECT) {

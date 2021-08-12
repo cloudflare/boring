@@ -16,23 +16,23 @@ use std::thread;
 use std::time::Duration;
 use tempdir::TempDir;
 
-use dh::Dh;
-use error::ErrorStack;
-use hash::MessageDigest;
-use pkey::PKey;
-use srtp::SrtpProfileId;
-use ssl;
-use ssl::test::server::Server;
-use ssl::SslVersion;
-use ssl::{
+use crate::dh::Dh;
+use crate::error::ErrorStack;
+use crate::hash::MessageDigest;
+use crate::pkey::PKey;
+use crate::srtp::SrtpProfileId;
+use crate::ssl;
+use crate::ssl::test::server::Server;
+use crate::ssl::SslVersion;
+use crate::ssl::{
     Error, ExtensionType, HandshakeError, MidHandshakeSslStream, ShutdownResult, ShutdownState,
     Ssl, SslAcceptor, SslAcceptorBuilder, SslConnector, SslContext, SslContextBuilder, SslFiletype,
     SslMethod, SslOptions, SslSessionCacheMode, SslStream, SslStreamBuilder, SslVerifyMode,
     StatusType,
 };
-use x509::store::X509StoreBuilder;
-use x509::verify::X509CheckFlags;
-use x509::{X509Name, X509StoreContext, X509VerifyResult, X509};
+use crate::x509::store::X509StoreBuilder;
+use crate::x509::verify::X509CheckFlags;
+use crate::x509::{X509Name, X509StoreContext, X509VerifyResult, X509};
 
 mod server;
 

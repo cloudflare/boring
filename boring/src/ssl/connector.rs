@@ -1,13 +1,13 @@
 use std::io::{Read, Write};
 use std::ops::{Deref, DerefMut};
 
-use dh::Dh;
-use error::ErrorStack;
-use ssl::{
+use crate::dh::Dh;
+use crate::error::ErrorStack;
+use crate::ssl::{
     HandshakeError, Ssl, SslContext, SslContextBuilder, SslContextRef, SslMethod, SslMode,
     SslOptions, SslRef, SslStream, SslVerifyMode,
 };
-use version;
+use crate::version;
 
 const FFDHE_2048: &str = "
 -----BEGIN DH PARAMETERS-----
@@ -326,7 +326,7 @@ fn setup_verify(ctx: &mut SslContextBuilder) {
 }
 
 fn setup_verify_hostname(ssl: &mut SslRef, domain: &str) -> Result<(), ErrorStack> {
-    use x509::verify::X509CheckFlags;
+    use crate::x509::verify::X509CheckFlags;
 
     let param = ssl.param_mut();
     param.set_hostflags(X509CheckFlags::NO_PARTIAL_WILDCARDS);

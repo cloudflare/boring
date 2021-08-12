@@ -1,9 +1,9 @@
 //! Interface for processing OpenSSL configuration files.
-use ffi;
+use crate::ffi;
 use libc::c_void;
 
-use cvt_p;
-use error::ErrorStack;
+use crate::cvt_p;
+use crate::error::ErrorStack;
 
 pub struct ConfMethod(*mut c_void);
 

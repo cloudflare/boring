@@ -1,12 +1,12 @@
-use error::ErrorStack;
-use ffi;
+use crate::error::ErrorStack;
+use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 use std::mem;
 use std::ptr;
 
-use bn::BigNum;
-use pkey::{HasParams, Params};
-use {cvt, cvt_p};
+use crate::bn::BigNum;
+use crate::pkey::{HasParams, Params};
+use crate::{cvt, cvt_p};
 
 generic_foreign_type_and_impl_send_sync! {
     type CType = ffi::DH;
@@ -80,13 +80,13 @@ impl Dh<Params> {
     }
 }
 
-use ffi::DH_set0_pqg;
+use crate::ffi::DH_set0_pqg;
 
 #[cfg(test)]
 mod tests {
-    use bn::BigNum;
-    use dh::Dh;
-    use ssl::{SslContext, SslMethod};
+    use crate::bn::BigNum;
+    use crate::dh::Dh;
+    use crate::ssl::{SslContext, SslMethod};
 
     #[test]
     fn test_dh() {

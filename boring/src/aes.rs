@@ -37,7 +37,7 @@
 //! assert_eq!(&orig_key[..], &key_to_wrap[..]);
 //! ```
 //!
-use ffi;
+use crate::ffi;
 use libc::{c_int, c_uint, size_t};
 use std::{mem, ptr};
 

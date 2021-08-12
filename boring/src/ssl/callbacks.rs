@@ -1,4 +1,4 @@
-use ffi;
+use crate::ffi;
 use foreign_types::ForeignType;
 use foreign_types::ForeignTypeRef;
 use libc::c_char;
@@ -10,14 +10,14 @@ use std::slice;
 use std::str;
 use std::sync::Arc;
 
-use error::ErrorStack;
-use ssl::AlpnError;
-use ssl::{ClientHello, SelectCertError};
-use ssl::{
+use crate::error::ErrorStack;
+use crate::ssl::AlpnError;
+use crate::ssl::{ClientHello, SelectCertError};
+use crate::ssl::{
     SniError, Ssl, SslAlert, SslContext, SslContextRef, SslRef, SslSession, SslSessionRef,
     SESSION_CTX_INDEX,
 };
-use x509::{X509StoreContext, X509StoreContextRef};
+use crate::x509::{X509StoreContext, X509StoreContextRef};
 
 pub extern "C" fn raw_verify<F>(preverify_ok: c_int, x509_ctx: *mut ffi::X509_STORE_CTX) -> c_int
 where

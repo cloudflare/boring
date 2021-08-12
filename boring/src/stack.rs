@@ -1,4 +1,4 @@
-use ffi;
+use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef, Opaque};
 use libc::size_t;
 use std::borrow::Borrow;
@@ -9,10 +9,10 @@ use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Deref, DerefMut, Index, IndexMut, Range};
 
-use error::ErrorStack;
-use {cvt_0, cvt_p};
+use crate::error::ErrorStack;
+use crate::{cvt_0, cvt_p};
 
-use ffi::{
+use crate::ffi::{
     sk_free as OPENSSL_sk_free, sk_new_null as OPENSSL_sk_new_null, sk_num as OPENSSL_sk_num,
     sk_pop as OPENSSL_sk_pop, sk_push as OPENSSL_sk_push, sk_value as OPENSSL_sk_value,
     _STACK as OPENSSL_STACK,
