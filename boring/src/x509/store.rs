@@ -34,14 +34,14 @@
 //! let store: X509Store = builder.build();
 //! ```
 
-use ffi;
+use crate::ffi;
 use foreign_types::ForeignTypeRef;
 use std::mem;
 
-use error::ErrorStack;
-use stack::StackRef;
-use x509::{X509Object, X509};
-use {cvt, cvt_p};
+use crate::error::ErrorStack;
+use crate::stack::StackRef;
+use crate::x509::{X509Object, X509};
+use crate::{cvt, cvt_p};
 
 foreign_type_and_impl_send_sync! {
     type CType = ffi::X509_STORE;
@@ -107,4 +107,4 @@ impl X509StoreRef {
     }
 }
 
-use ffi::X509_STORE_get0_objects;
+use crate::ffi::X509_STORE_get0_objects;

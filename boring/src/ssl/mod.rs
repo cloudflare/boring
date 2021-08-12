@@ -57,7 +57,7 @@
 //!     }
 //! }
 //! ```
-use ffi;
+use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef, Opaque};
 use libc::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
 use std::any::TypeId;
@@ -78,26 +78,26 @@ use std::slice;
 use std::str;
 use std::sync::{Arc, Mutex};
 
-use dh::DhRef;
-use ec::EcKeyRef;
-use error::ErrorStack;
-use ex_data::Index;
-use nid::Nid;
-use pkey::{HasPrivate, PKeyRef, Params, Private};
-use srtp::{SrtpProtectionProfile, SrtpProtectionProfileRef};
-use ssl::bio::BioMethod;
-use ssl::callbacks::*;
-use ssl::error::InnerError;
-use stack::{Stack, StackRef};
-use x509::store::{X509Store, X509StoreBuilderRef, X509StoreRef};
-use x509::verify::X509VerifyParamRef;
-use x509::{X509Name, X509Ref, X509StoreContextRef, X509VerifyResult, X509};
-use {cvt, cvt_0i, cvt_n, cvt_p, init};
+use crate::dh::DhRef;
+use crate::ec::EcKeyRef;
+use crate::error::ErrorStack;
+use crate::ex_data::Index;
+use crate::nid::Nid;
+use crate::pkey::{HasPrivate, PKeyRef, Params, Private};
+use crate::srtp::{SrtpProtectionProfile, SrtpProtectionProfileRef};
+use crate::ssl::bio::BioMethod;
+use crate::ssl::callbacks::*;
+use crate::ssl::error::InnerError;
+use crate::stack::{Stack, StackRef};
+use crate::x509::store::{X509Store, X509StoreBuilderRef, X509StoreRef};
+use crate::x509::verify::X509VerifyParamRef;
+use crate::x509::{X509Name, X509Ref, X509StoreContextRef, X509VerifyResult, X509};
+use crate::{cvt, cvt_0i, cvt_n, cvt_p, init};
 
-pub use ssl::connector::{
+pub use crate::ssl::connector::{
     ConnectConfiguration, SslAcceptor, SslAcceptorBuilder, SslConnector, SslConnectorBuilder,
 };
-pub use ssl::error::{Error, ErrorCode, HandshakeError};
+pub use crate::ssl::error::{Error, ErrorCode, HandshakeError};
 
 mod bio;
 mod callbacks;
@@ -3377,9 +3377,9 @@ bitflags! {
     }
 }
 
-use ffi::{SSL_CTX_up_ref, SSL_SESSION_get_master_key, SSL_SESSION_up_ref, SSL_is_server};
+use crate::ffi::{SSL_CTX_up_ref, SSL_SESSION_get_master_key, SSL_SESSION_up_ref, SSL_is_server};
 
-use ffi::{DTLS_method, TLS_client_method, TLS_method, TLS_server_method};
+use crate::ffi::{DTLS_method, TLS_client_method, TLS_method, TLS_server_method};
 
 use std::sync::Once;
 

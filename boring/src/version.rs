@@ -13,7 +13,7 @@
 
 use std::ffi::CStr;
 
-use ffi::{
+use crate::ffi::{
     OpenSSL_version, OpenSSL_version_num, OPENSSL_BUILT_ON, OPENSSL_CFLAGS, OPENSSL_DIR,
     OPENSSL_PLATFORM, OPENSSL_VERSION,
 };

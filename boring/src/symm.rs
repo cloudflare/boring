@@ -52,14 +52,14 @@
 //! println!("Decrypted: '{}'", output_string);
 //! ```
 
-use ffi;
+use crate::ffi;
 use libc::{c_int, c_uint};
 use std::cmp;
 use std::ptr;
 
-use error::ErrorStack;
-use nid::Nid;
-use {cvt, cvt_p};
+use crate::error::ErrorStack;
+use crate::nid::Nid;
+use crate::{cvt, cvt_p};
 
 #[derive(Copy, Clone)]
 pub enum Mode {
@@ -684,7 +684,7 @@ pub fn decrypt_aead(
     Ok(out)
 }
 
-use ffi::{EVP_CIPHER_block_size, EVP_CIPHER_iv_length, EVP_CIPHER_key_length};
+use crate::ffi::{EVP_CIPHER_block_size, EVP_CIPHER_iv_length, EVP_CIPHER_key_length};
 
 #[cfg(test)]
 mod tests {

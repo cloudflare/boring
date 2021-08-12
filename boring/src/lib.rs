@@ -17,11 +17,11 @@ extern crate hex;
 extern crate tempdir;
 
 #[doc(inline)]
-pub use ffi::init;
+pub use crate::ffi::init;
 
 use libc::{c_int, size_t};
 
-use error::ErrorStack;
+use crate::error::ErrorStack;
 
 #[macro_use]
 mod macros;

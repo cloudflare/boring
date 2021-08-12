@@ -43,7 +43,7 @@
 //!     println!("Hash = {}", hex::encode(hash));
 //! }
 //! ```
-use ffi;
+use crate::ffi;
 use libc::c_void;
 use std::mem;
 

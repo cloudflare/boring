@@ -24,7 +24,7 @@ use std::io;
 use std::ptr;
 use std::str;
 
-use ffi;
+use crate::ffi;
 
 /// Collection of [`Error`]s from OpenSSL.
 ///
