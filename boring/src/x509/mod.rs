@@ -21,7 +21,8 @@ use std::ptr;
 use std::slice;
 use std::str;
 
-use crate::asn1::{Asn1BitStringRef, Asn1IntegerRef, Asn1ObjectRef, Asn1StringRef, Asn1TimeRef};
+use crate::asn1::Asn1TimeRef;
+use crate::asn1::{Asn1BitStringRef, Asn1IntegerRef, Asn1ObjectRef, Asn1StringRef};
 use crate::bio::MemBioSlice;
 use crate::conf::ConfRef;
 use crate::error::ErrorStack;
@@ -197,6 +198,7 @@ impl X509StoreContextRef {
         unsafe { ffi::X509_STORE_CTX_get_error_depth(self.as_ptr()) as u32 }
     }
 
+    #[cfg(not(feature = "fips"))]
     /// Returns a reference to a complete valid `X509` certificate chain.
     ///
     /// This corresponds to [`X509_STORE_CTX_get0_chain`].
@@ -227,11 +229,13 @@ impl X509Builder {
         }
     }
 
+    #[cfg(not(feature = "fips"))]
     /// Sets the notAfter constraint on the certificate.
     pub fn set_not_after(&mut self, not_after: &Asn1TimeRef) -> Result<(), ErrorStack> {
         unsafe { cvt(X509_set1_notAfter(self.0.as_ptr(), not_after.as_ptr())).map(|_| ()) }
     }
 
+    #[cfg(not(feature = "fips"))]
     /// Sets the notBefore constraint on the certificate.
     pub fn set_not_before(&mut self, not_before: &Asn1TimeRef) -> Result<(), ErrorStack> {
         unsafe { cvt(X509_set1_notBefore(self.0.as_ptr(), not_before.as_ptr())).map(|_| ()) }
@@ -691,7 +695,9 @@ impl fmt::Debug for X509 {
         if let Some(subject_alt_names) = &self.subject_alt_names() {
             debug_struct.field("subject_alt_names", subject_alt_names);
         }
+        #[cfg(not(feature = "fips"))]
         debug_struct.field("not_before", &self.not_before());
+        #[cfg(not(feature = "fips"))]
         debug_struct.field("not_after", &self.not_after());
 
         if let Ok(public_key) = &self.public_key() {
@@ -1160,6 +1166,7 @@ impl X509ReqRef {
         ffi::i2d_X509_REQ
     }
 
+    #[cfg(not(feature = "fips"))]
     /// Returns the numerical value of the version field of the certificate request.
     ///
     /// This corresponds to [`X509_REQ_get_version`]
@@ -1169,6 +1176,7 @@ impl X509ReqRef {
         unsafe { X509_REQ_get_version(self.as_ptr()) as i32 }
     }
 
+    #[cfg(not(feature = "fips"))]
     /// Returns the subject name of the certificate request.
     ///
     /// This corresponds to [`X509_REQ_get_subject_name`]
@@ -1403,9 +1411,11 @@ impl Stackable for X509Object {
 
 use crate::ffi::{X509_get0_notAfter, X509_get0_notBefore, X509_get0_signature, X509_up_ref};
 
+use crate::ffi::{ASN1_STRING_get0_data, X509_ALGOR_get0};
+#[cfg(not(feature = "fips"))]
 use crate::ffi::{
-    ASN1_STRING_get0_data, X509_ALGOR_get0, X509_REQ_get_subject_name, X509_REQ_get_version,
-    X509_STORE_CTX_get0_chain, X509_set1_notAfter, X509_set1_notBefore,
+    X509_REQ_get_subject_name, X509_REQ_get_version, X509_STORE_CTX_get0_chain, X509_set1_notAfter,
+    X509_set1_notBefore,
 };
 
 use crate::ffi::X509_OBJECT_get0_X509;

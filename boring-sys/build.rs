@@ -245,6 +245,7 @@ fn main() {
         "aes.h",
         "asn1_mac.h",
         "asn1t.h",
+        #[cfg(not(feature = "fips"))]
         "blake2.h",
         "blowfish.h",
         "cast.h",
@@ -269,6 +270,7 @@ fn main() {
         "ripemd.h",
         "siphash.h",
         "srtp.h",
+        #[cfg(not(feature = "fips"))]
         "trust_token.h",
         "x509v3.h",
     ];

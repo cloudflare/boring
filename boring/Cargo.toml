@@ -21,3 +21,8 @@ boring-sys = { version = "1.1.0", path = "../boring-sys" }
 [dev-dependencies]
 hex = "0.4"
 rusty-hook = "^0.11"
+
+[features]
+fips-3678 = ["fips", "boring-sys/fips-3678"]
+# The "fips" feature is used for conditional-compilation that is common to all supported FIPS-validated versions
+fips = ["boring-sys/fips"]
