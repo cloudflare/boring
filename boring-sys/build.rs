@@ -205,9 +205,12 @@ fn main() {
         cfg.build_target("bssl").build().display().to_string()
     });
 
-    let build_path = get_boringssl_platform_output_path();
-    let build_dir = format!("{}/build/{}", bssl_dir, build_path);
-    println!("cargo:rustc-link-search=native={}", build_dir);
+    println!("cargo:rerun-if-env-changed=BORING_BSSL_LIB_PATH");
+    let lib_path = std::env::var("BORING_BSSL_LIB_PATH").unwrap_or_else(|_| {
+        let build_path = get_boringssl_platform_output_path();
+        format!("{}/build/{}", bssl_dir, build_path)
+    });
+    println!("cargo:rustc-link-search=native={}", lib_path);
 
     println!("cargo:rustc-link-lib=static=crypto");
     println!("cargo:rustc-link-lib=static=ssl");
