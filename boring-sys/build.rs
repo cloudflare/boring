@@ -208,7 +208,7 @@ fn main() {
     });
 
     let build_path = get_boringssl_platform_output_path();
-    let build_dir = PathBuf::from(format!("{}/build/{}", bssl_dir, build_path));
+    let build_dir = bssl_dir.join("build").join(build_path);
     println!(
         "cargo:rustc-link-search=native={}",
         build_dir.join("crypto").to_str().unwrap()
