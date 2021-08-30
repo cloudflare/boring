@@ -200,14 +200,12 @@ fn main() {
             cfg.cxxflag("-DBORINGSSL_UNSAFE_DETERMINISTIC_MODE")
                 .cxxflag("-DBORINGSSL_UNSAFE_FUZZER_MODE");
         }
-        
         if cfg!(feature = "fips") {
             cfg.define("FIPS", "1");
         }
 
         cfg.build_target("bssl").build().display().to_string()
     });
-
 
     let build_path = get_boringssl_platform_output_path();
     let build_dir = format!("{}/build/{}", bssl_dir, build_path);
