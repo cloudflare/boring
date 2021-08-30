@@ -26,6 +26,9 @@ include = [
     "/src",
 ]
 
+[features]
+fips = []
+
 [build-dependencies]
 bindgen = "0.59"
 cmake = "0.1"

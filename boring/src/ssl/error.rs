@@ -153,9 +153,7 @@ impl<S: fmt::Debug> StdError for HandshakeError<S> {
 impl<S> fmt::Display for HandshakeError<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            HandshakeError::SetupFailure(ref e) => {
-                write!(f, "TLS stream setup failed {}", e)
-            }
+            HandshakeError::SetupFailure(ref e) => write!(f, "TLS stream setup failed {}", e),
             HandshakeError::Failure(ref s) => fmt_mid_handshake_error(s, f, "TLS handshake failed"),
             HandshakeError::WouldBlock(ref s) => {
                 fmt_mid_handshake_error(s, f, "TLS handshake interrupted")

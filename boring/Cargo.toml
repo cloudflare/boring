@@ -11,6 +11,9 @@ keywords = ["crypto", "tls", "ssl", "dtls"]
 categories = ["cryptography", "api-bindings"]
 edition = "2018"
 
+[features]
+fips = ["boring-sys/fips"]
+
 [dependencies]
 bitflags = "1.0"
 foreign-types = "0.5"
