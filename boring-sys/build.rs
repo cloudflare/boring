@@ -193,6 +193,7 @@ fn main() {
         }
     }
 
+    println!("cargo:rerun-if-env-changed=BORING_BSSL_PATH");
     let bssl_dir = std::env::var("BORING_BSSL_PATH").unwrap_or_else(|_| {
         let mut cfg = get_boringssl_cmake_config();
 
@@ -216,6 +217,7 @@ fn main() {
         println!("cargo:rustc-cdylib-link-arg=-Wl,-undefined,dynamic_lookup");
     }
 
+    println!("cargo:rerun-if-env-changed=BORING_BSSL_INCLUDE_PATH");
     let include_path = PathBuf::from(
         std::env::var("BORING_BSSL_INCLUDE_PATH")
             .unwrap_or_else(|_| String::from("deps/boringssl/src/include")),
