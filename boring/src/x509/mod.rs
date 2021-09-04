@@ -493,18 +493,18 @@ impl X509Ref {
     /// Returns the certificate's Not After validity period.
     pub fn not_after(&self) -> &Asn1TimeRef {
         unsafe {
-            let date = X509_getm_notAfter(self.as_ptr());
+            let date = X509_get0_notAfter(self.as_ptr());
             assert!(!date.is_null());
-            Asn1TimeRef::from_ptr(date)
+            Asn1TimeRef::from_ptr(date as *mut _)
         }
     }
 
     /// Returns the certificate's Not Before validity period.
     pub fn not_before(&self) -> &Asn1TimeRef {
         unsafe {
-            let date = X509_getm_notBefore(self.as_ptr());
+            let date = X509_get0_notBefore(self.as_ptr());
             assert!(!date.is_null());
-            Asn1TimeRef::from_ptr(date)
+            Asn1TimeRef::from_ptr(date as *mut _)
         }
     }
 
@@ -1401,7 +1401,7 @@ impl Stackable for X509Object {
     type StackType = ffi::stack_st_X509_OBJECT;
 }
 
-use crate::ffi::{X509_get0_signature, X509_getm_notAfter, X509_getm_notBefore, X509_up_ref};
+use crate::ffi::{X509_get0_notAfter, X509_get0_notBefore, X509_get0_signature, X509_up_ref};
 
 use crate::ffi::{
     ASN1_STRING_get0_data, X509_ALGOR_get0, X509_REQ_get_subject_name, X509_REQ_get_version,
