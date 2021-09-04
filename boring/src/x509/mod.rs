@@ -21,8 +21,7 @@ use std::ptr;
 use std::slice;
 use std::str;
 
-use crate::asn1::Asn1TimeRef;
-use crate::asn1::{Asn1BitStringRef, Asn1IntegerRef, Asn1ObjectRef, Asn1StringRef};
+use crate::asn1::{Asn1BitStringRef, Asn1IntegerRef, Asn1ObjectRef, Asn1StringRef, Asn1TimeRef};
 use crate::bio::MemBioSlice;
 use crate::conf::ConfRef;
 use crate::error::ErrorStack;
@@ -229,16 +228,28 @@ impl X509Builder {
         }
     }
 
-    #[cfg(not(feature = "fips"))]
     /// Sets the notAfter constraint on the certificate.
     pub fn set_not_after(&mut self, not_after: &Asn1TimeRef) -> Result<(), ErrorStack> {
-        unsafe { cvt(X509_set1_notAfter(self.0.as_ptr(), not_after.as_ptr())).map(|_| ()) }
+        #[cfg(feature = "fips")]
+        unsafe {
+            cvt(X509_set_notAfter(self.0.as_ptr(), not_after.as_ptr())).map(|_| ())
+        }
+        #[cfg(not(feature = "fips"))]
+        unsafe {
+            cvt(X509_set1_notAfter(self.0.as_ptr(), not_after.as_ptr())).map(|_| ())
+        }
     }
 
-    #[cfg(not(feature = "fips"))]
     /// Sets the notBefore constraint on the certificate.
     pub fn set_not_before(&mut self, not_before: &Asn1TimeRef) -> Result<(), ErrorStack> {
-        unsafe { cvt(X509_set1_notBefore(self.0.as_ptr(), not_before.as_ptr())).map(|_| ()) }
+        #[cfg(feature = "fips")]
+        unsafe {
+            cvt(X509_set_notBefore(self.0.as_ptr(), not_before.as_ptr())).map(|_| ())
+        }
+        #[cfg(not(feature = "fips"))]
+        unsafe {
+            cvt(X509_set1_notBefore(self.0.as_ptr(), not_before.as_ptr())).map(|_| ())
+        }
     }
 
     /// Sets the version of the certificate.
@@ -695,9 +706,7 @@ impl fmt::Debug for X509 {
         if let Some(subject_alt_names) = &self.subject_alt_names() {
             debug_struct.field("subject_alt_names", subject_alt_names);
         }
-        #[cfg(not(feature = "fips"))]
         debug_struct.field("not_before", &self.not_before());
-        #[cfg(not(feature = "fips"))]
         debug_struct.field("not_after", &self.not_after());
 
         if let Ok(public_key) = &self.public_key() {
@@ -1417,6 +1426,8 @@ use crate::ffi::{
     X509_REQ_get_subject_name, X509_REQ_get_version, X509_STORE_CTX_get0_chain, X509_set1_notAfter,
     X509_set1_notBefore,
 };
+#[cfg(feature = "fips")]
+use crate::ffi::{X509_set_notAfter, X509_set_notBefore};
 
 use crate::ffi::X509_OBJECT_get0_X509;
 
