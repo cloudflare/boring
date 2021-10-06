@@ -64,14 +64,6 @@ const_fn! {
     }
 }
 
-// FIXME remove
-pub type PasswordCallback = unsafe extern "C" fn(
-    buf: *mut c_char,
-    size: c_int,
-    rwflag: c_int,
-    user_data: *mut c_void,
-) -> c_int;
-
 pub fn init() {
     use std::ptr;
     use std::sync::Once;
