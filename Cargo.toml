@@ -1,7 +1,2 @@
 [workspace]
-members = [
-    "boring",
-    "boring-sys",
-    "tokio-boring",
-    "hyper-boring"
-]
+members = ["boring", "boring-sys", "tokio-boring", "hyper-boring"]

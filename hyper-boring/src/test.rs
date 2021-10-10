@@ -1,5 +1,7 @@
 use super::*;
-use boring::ssl::{SslAcceptor, SslFiletype, SslMethod};
+use boring::ssl::{
+    SslAcceptor, SslCurve, SslFiletype, SslMethod, SslSignatureAlgorithm, SslVerifyMode,
+};
 use futures::StreamExt;
 use hyper::client::HttpConnector;
 use hyper::server::conn::Http;
@@ -24,6 +26,48 @@ async fn google() {
         let mut body = resp.into_body();
         while body.next().await.transpose().unwrap().is_some() {}
     }
+}
+
+#[tokio::test]
+#[cfg(feature = "runtime")]
+async fn tls_fingerprint() {
+    let mut connector = HttpConnector::new();
+    connector.enforce_http(false);
+    let mut ssl = SslConnector::builder(SslMethod::tls()).unwrap();
+    ssl.set_cipher_list("ALL:!aPSK:!ECDSA+SHA1:!3DES").unwrap();
+    ssl.set_verify(SslVerifyMode::NONE);
+    ssl.set_grease_enabled(true);
+    ssl.add_cert_compression_alg(boring::ssl::CertCompressionAlgorithm::Brotli)
+        .unwrap();
+    ssl.enable_signed_cert_timestamps();
+    ssl.enable_ocsp_stapling();
+    ssl.set_verify_algorithm_prefs(&[
+        SslSignatureAlgorithm::ECDSA_SECP256R1_SHA256,
+        SslSignatureAlgorithm::RSA_PSS_RSAE_SHA256,
+        SslSignatureAlgorithm::RSA_PKCS1_SHA256,
+        SslSignatureAlgorithm::ECDSA_SECP384R1_SHA384,
+        SslSignatureAlgorithm::RSA_PSS_RSAE_SHA384,
+        SslSignatureAlgorithm::RSA_PKCS1_SHA384,
+        SslSignatureAlgorithm::RSA_PSS_RSAE_SHA512,
+        SslSignatureAlgorithm::RSA_PKCS1_SHA512,
+    ])
+    .unwrap();
+    ssl.set_curves(&[SslCurve::X25519, SslCurve::SECP256R1, SslCurve::SECP384R1])
+        .unwrap();
+    ssl.set_alpn_protos(b"\x02h2\x08http/1.1").unwrap();
+
+    let ssl = HttpsConnector::with_connector(connector, ssl).unwrap();
+    let client = Client::builder().build::<_, Body>(ssl);
+
+    let resp = client
+        .get("https://client.tlsfingerprint.io:8443/".parse().unwrap())
+        .await
+        .unwrap();
+    assert!(resp.status().is_success(), "{}", resp.status());
+    let mut body: Body = resp.into_body();
+
+    let value = body.next().await.unwrap().unwrap();
+    dbg!(String::from_utf8(value.to_vec()).unwrap());
 }
 
 #[tokio::test]

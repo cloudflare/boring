@@ -94,6 +94,7 @@ use crate::x509::verify::X509VerifyParamRef;
 use crate::x509::{X509Name, X509Ref, X509StoreContextRef, X509VerifyResult, X509};
 use crate::{cvt, cvt_0i, cvt_n, cvt_p, init};
 
+pub use crate::ssl::cert_compression::CertCompressionAlgorithm;
 pub use crate::ssl::connector::{
     ConnectConfiguration, SslAcceptor, SslAcceptorBuilder, SslConnector, SslConnectorBuilder,
 };
@@ -3388,8 +3389,6 @@ use crate::ffi::{SSL_CTX_up_ref, SSL_SESSION_get_master_key, SSL_SESSION_up_ref,
 use crate::ffi::{DTLS_method, TLS_client_method, TLS_method, TLS_server_method};
 
 use std::sync::Once;
-
-use self::cert_compression::CertCompressionAlgorithm;
 
 unsafe fn get_new_idx(f: ffi::CRYPTO_EX_free) -> c_int {
     // hack around https://rt.openssl.org/Ticket/Display.html?id=3710&user=guest&pass=guest
