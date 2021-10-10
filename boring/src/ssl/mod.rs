@@ -101,6 +101,7 @@ pub use crate::ssl::error::{Error, ErrorCode, HandshakeError};
 
 mod bio;
 mod callbacks;
+mod cert_compression;
 mod connector;
 mod error;
 #[cfg(test)]
@@ -1565,6 +1566,26 @@ impl SslContextBuilder {
                 self.as_ptr(),
                 curves.as_ptr() as *const _,
                 curves.len(),
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Sets whether a certificate compression algorithm should be used.
+    ///
+    /// This corresponds to [`SSL_CTX_add_cert_compression_alg`]
+    ///
+    /// [`SSL_CTX_add_cert_compression_alg`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_add_cert_compression_alg
+    pub fn add_cert_compression_alg(
+        &mut self,
+        algorithm: CertCompressionAlgorithm,
+    ) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_CTX_add_cert_compression_alg(
+                self.as_ptr(),
+                algorithm as _,
+                algorithm.compression_fn(),
+                algorithm.decompression_fn(),
             ))
             .map(|_| ())
         }
@@ -3367,6 +3388,8 @@ use crate::ffi::{SSL_CTX_up_ref, SSL_SESSION_get_master_key, SSL_SESSION_up_ref,
 use crate::ffi::{DTLS_method, TLS_client_method, TLS_method, TLS_server_method};
 
 use std::sync::Once;
+
+use self::cert_compression::CertCompressionAlgorithm;
 
 unsafe fn get_new_idx(f: ffi::CRYPTO_EX_free) -> c_int {
     // hack around https://rt.openssl.org/Ticket/Display.html?id=3710&user=guest&pass=guest

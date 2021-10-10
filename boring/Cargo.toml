@@ -1,7 +1,10 @@
 [package]
 name = "boring"
 version = "1.1.6"
-authors = ["Steven Fackler <sfackler@gmail.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
+authors = [
+    "Steven Fackler <sfackler@gmail.com>",
+    "Ivan Nikulin <ifaaan@gmail.com>"
+]
 license = "Apache-2.0"
 description = "BoringSSL bindings"
 repository = "https://github.com/cloudflare/boring"
@@ -12,6 +15,7 @@ categories = ["cryptography", "api-bindings"]
 edition = "2018"
 
 [dependencies]
+brotli = "3.3.0"
 bitflags = "1.0"
 foreign-types = "0.5"
 lazy_static = "1"
