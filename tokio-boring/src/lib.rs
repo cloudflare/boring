@@ -318,10 +318,7 @@ where
     }
 }
 
-impl<S> fmt::Display for HandshakeError<S>
-where
-    S: fmt::Debug,
-{
+impl<S> fmt::Display for HandshakeError<S> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, fmt)
     }
