@@ -307,6 +307,40 @@ impl<S> HandshakeError<S> {
             _ => None,
         }
     }
+
+    /// Returns a reference to the inner SSL error, if this error was caused by
+    /// a SSL error.
+    pub fn as_ssl_error(&self) -> Option<&boring::error::ErrorStack> {
+        match &self.0 {
+            ssl::HandshakeError::Failure(s) => s.error().ssl_error(),
+            ssl::HandshakeError::SetupFailure(ref s) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and returns the inner I/O error by value, if this error
+    /// was caused by an I/O error.
+    pub fn into_io_error(self) -> Option<io::Error> {
+        match self.0 {
+            ssl::HandshakeError::Failure(s) => s.into_error().into_io_error().ok(),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and returns the inner SSL error by value, if this error
+    /// was caused by n SSL error.
+    pub fn into_ssl_error(self) -> Option<boring::error::ErrorStack> {
+        match self.0 {
+            // TODO(eliza): it's not great that we have to clone in this case,
+            // but `boring::ssl::Error` doesn't currently expose an
+            // `into_ssl_error` the way it does for `io::Error`s. We could add
+            // that in a separate PR, but adding that here would make
+            // `tokio-boring` depend on a new release of `boring`...
+            ssl::HandshakeError::Failure(s) => s.into_error().ssl_error().cloned(),
+            ssl::HandshakeError::SetupFailure(stack) => Some(stack),
+            _ => None,
+        }
+    }
 }
 
 impl<S> fmt::Debug for HandshakeError<S>
