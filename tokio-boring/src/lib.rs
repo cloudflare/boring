@@ -320,25 +320,43 @@ impl<S> HandshakeError<S> {
 
     /// Consumes `self` and returns the inner I/O error by value, if this error
     /// was caused by an I/O error.
-    pub fn into_io_error(self) -> Option<io::Error> {
+    ///
+    /// If this error was not caused by an I/O error, returns `Err(self)` so
+    /// that the error value can be reused.
+    pub fn into_io_error(self) -> Result<io::Error, Self> {
         match self.0 {
-            ssl::HandshakeError::Failure(s) => s.into_error().into_io_error().ok(),
-            _ => None,
+            ssl::HandshakeError::Failure(s) => {
+                if s.error().io_error().is_some() {
+                    Ok(s.into_error().into_io_error().expect(
+                        "if `s.error().io_error().is_some()`, `into_io_error()` must succeed",
+                    ))
+                } else {
+                    Err(Self(ssl::HandshakeError::Failure(s)))
+                }
+            }
+            _ => Err(self),
         }
     }
 
     /// Consumes `self` and returns the inner SSL error by value, if this error
-    /// was caused by n SSL error.
-    pub fn into_ssl_error(self) -> Option<boring::error::ErrorStack> {
+    /// was caused by a SSL error.
+    ///
+    /// If this error was not caused by a SSL error, returns `Err(self)` so
+    /// that the error value can be reused.
+    pub fn into_ssl_error(self) -> Result<boring::error::ErrorStack, Self> {
         match self.0 {
             // TODO(eliza): it's not great that we have to clone in this case,
             // but `boring::ssl::Error` doesn't currently expose an
             // `into_ssl_error` the way it does for `io::Error`s. We could add
             // that in a separate PR, but adding that here would make
             // `tokio-boring` depend on a new release of `boring`...
-            ssl::HandshakeError::Failure(s) => s.into_error().ssl_error().cloned(),
-            ssl::HandshakeError::SetupFailure(stack) => Some(stack),
-            _ => None,
+            ssl::HandshakeError::Failure(s) => s
+                .error()
+                .ssl_error()
+                .cloned()
+                .ok_or_else(|| Self(ssl::HandshakeError::Failure(s))),
+            ssl::HandshakeError::SetupFailure(stack) => Ok(stack),
+            _ => Err(self),
         }
     }
 }
