@@ -2,6 +2,7 @@ use crate::ffi;
 use foreign_types::ForeignTypeRef;
 use libc::{c_uint, c_ulong};
 use std::net::IpAddr;
+use openssl_macros::corresponds;
 
 use crate::cvt;
 use crate::error::ErrorStack;
@@ -46,6 +47,7 @@ impl X509VerifyParamRef {
     /// This corresponds to [`X509_VERIFY_PARAM_set_flags`].
     ///
     /// [`X509_VERIFY_PARAM_set_flags`]: https://www.openssl.org/docs/man3.2/man3/X509_VERIFY_PARAM_set_flags.html
+    #[corresponds(X509_VERIFY_PARAM_set_flags)]
     pub fn set_flags(&mut self, flags: X509Flags) {
         unsafe {
             ffi::X509_VERIFY_PARAM_set_flags(self.as_ptr(), flags.bits());
@@ -59,6 +61,7 @@ impl X509VerifyParamRef {
     /// This corresponds to [`X509_VERIFY_PARAM_clear_flags`].
     ///
     /// [`X509_VERIFY_PARAM_set_flags`]: https://www.openssl.org/docs/man3.2/man3/X509_VERIFY_PARAM_set_flags.html
+    #[corresponds(X509_VERIFY_PARAM_clear_flags)]
     pub fn clear_flags(&mut self, flags: X509Flags) {
         unsafe {
             ffi::X509_VERIFY_PARAM_clear_flags(self.as_ptr(), flags.bits());
@@ -67,10 +70,7 @@ impl X509VerifyParamRef {
 
     ///
     /// Set the host flags.
-    ///
-    /// This corresponds to [`X509_VERIFY_PARAM_set_hostflags`].
-    ///
-    /// [`X509_VERIFY_PARAM_set_hostflags`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_VERIFY_PARAM_set_hostflags.html
+    #[corresponds(X509_VERIFY_PARAM_set_hostflags)]
     pub fn set_hostflags(&mut self, hostflags: X509CheckFlags) {
         unsafe {
             ffi::X509_VERIFY_PARAM_set_hostflags(self.as_ptr(), hostflags.bits());
@@ -78,10 +78,7 @@ impl X509VerifyParamRef {
     }
 
     /// Set the expected DNS hostname.
-    ///
-    /// This corresponds to [`X509_VERIFY_PARAM_set1_host`].
-    ///
-    /// [`X509_VERIFY_PARAM_set1_host`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_VERIFY_PARAM_set1_host.html
+    #[corresponds(X509_VERIFY_PARAM_set1_host)]
     pub fn set_host(&mut self, host: &str) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::X509_VERIFY_PARAM_set1_host(
@@ -94,10 +91,7 @@ impl X509VerifyParamRef {
     }
 
     /// Set the expected IPv4 or IPv6 address.
-    ///
-    /// This corresponds to [`X509_VERIFY_PARAM_set1_ip`].
-    ///
-    /// [`X509_VERIFY_PARAM_set1_ip`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_VERIFY_PARAM_set1_ip.html
+    #[corresponds(X509_VERIFY_PARAM_set1_ip)]
     pub fn set_ip(&mut self, ip: IpAddr) -> Result<(), ErrorStack> {
         unsafe {
             let mut buf = [0; 16];

@@ -460,6 +460,7 @@ impl X509Ref {
         }
     }
 
+    #[corresponds(X509_get_pubkey)]
     pub fn public_key(&self) -> Result<PKey<Public>, ErrorStack> {
         unsafe {
             let pkey = cvt_p(ffi::X509_get_pubkey(self.as_ptr()))?;
@@ -468,10 +469,7 @@ impl X509Ref {
     }
 
     /// Returns a digest of the DER representation of the certificate.
-    ///
-    /// This corresponds to [`X509_digest`].
-    ///
-    /// [`X509_digest`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_digest.html
+    #[corresponds(X509_digest)]
     pub fn digest(&self, hash_type: MessageDigest) -> Result<DigestBytes, ErrorStack> {
         unsafe {
             let mut digest = DigestBytes {
@@ -497,6 +495,7 @@ impl X509Ref {
     }
 
     /// Returns the certificate's Not After validity period.
+    #[corresponds(X509_getm_notAfter)]
     pub fn not_after(&self) -> &Asn1TimeRef {
         unsafe {
             let date = X509_getm_notAfter(self.as_ptr());
@@ -506,6 +505,7 @@ impl X509Ref {
     }
 
     /// Returns the certificate's Not Before validity period.
+    #[corresponds(X509_getm_notBefore)]
     pub fn not_before(&self) -> &Asn1TimeRef {
         unsafe {
             let date = X509_getm_notBefore(self.as_ptr());
@@ -515,6 +515,7 @@ impl X509Ref {
     }
 
     /// Returns the certificate's signature
+    #[corresponds(X509_get0_signature)]
     pub fn signature(&self) -> &Asn1BitStringRef {
         unsafe {
             let mut signature = ptr::null();
@@ -525,6 +526,7 @@ impl X509Ref {
     }
 
     /// Returns the certificate's signature algorithm.
+    #[corresponds(X509_get0_signature)]
     pub fn signature_algorithm(&self) -> &X509AlgorithmRef {
         unsafe {
             let mut algor = ptr::null();
@@ -536,11 +538,13 @@ impl X509Ref {
 
     /// Returns the list of OCSP responder URLs specified in the certificate's Authority Information
     /// Access field.
+    #[corresponds(X509_get1_ocsp)]
     pub fn ocsp_responders(&self) -> Result<Stack<OpensslString>, ErrorStack> {
         unsafe { cvt_p(ffi::X509_get1_ocsp(self.as_ptr())).map(|p| Stack::from_ptr(p)) }
     }
 
     /// Checks that this certificate issued `subject`.
+    #[corresponds(X509_check_issued)]
     pub fn issued(&self, subject: &X509Ref) -> X509VerifyResult {
         unsafe {
             let r = ffi::X509_check_issued(self.as_ptr(), subject.as_ptr());
@@ -554,10 +558,7 @@ impl X509Ref {
     /// are performed.
     ///
     /// Returns `true` if verification succeeds.
-    ///
-    /// This corresponds to [`X509_verify`].
-    ///
-    /// [`X509_verify`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_verify.html
+    #[corresponds(X509_verify)]
     pub fn verify<T>(&self, key: &PKeyRef<T>) -> Result<bool, ErrorStack>
     where
         T: HasPublic,
@@ -566,10 +567,7 @@ impl X509Ref {
     }
 
     /// Returns this certificate's serial number.
-    ///
-    /// This corresponds to [`X509_get_serialNumber`].
-    ///
-    /// [`X509_get_serialNumber`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_get_serialNumber.html
+    #[corresponds(X509_get_serialNumber)]
     pub fn serial_number(&self) -> &Asn1IntegerRef {
         unsafe {
             let r = ffi::X509_get_serialNumber(self.as_ptr());
@@ -595,20 +593,14 @@ impl X509Ref {
         /// Serializes the certificate into a PEM-encoded X509 structure.
         ///
         /// The output will have a header of `-----BEGIN CERTIFICATE-----`.
-        ///
-        /// This corresponds to [`PEM_write_bio_X509`].
-        ///
-        /// [`PEM_write_bio_X509`]: https://www.openssl.org/docs/man1.0.2/crypto/PEM_write_bio_X509.html
+        #[corresponds(PEM_write_bio_X509)]
         to_pem,
         ffi::PEM_write_bio_X509
     }
 
     to_der! {
         /// Serializes the certificate into a DER-encoded X509 structure.
-        ///
-        /// This corresponds to [`i2d_X509`].
-        ///
-        /// [`i2d_X509`]: https://www.openssl.org/docs/man1.1.0/crypto/i2d_X509.html
+        #[corresponds(i2d_X509)]
         to_der,
         ffi::i2d_X509
     }
@@ -635,10 +627,7 @@ impl X509 {
         /// Deserializes a PEM-encoded X509 structure.
         ///
         /// The input should have a header of `-----BEGIN CERTIFICATE-----`.
-        ///
-        /// This corresponds to [`PEM_read_bio_X509`].
-        ///
-        /// [`PEM_read_bio_X509`]: https://www.openssl.org/docs/man1.0.2/crypto/PEM_read_bio_X509.html
+        #[corresponds(PEM_read_bio_X509)]
         from_pem,
         X509,
         ffi::PEM_read_bio_X509
@@ -646,10 +635,7 @@ impl X509 {
 
     from_der! {
         /// Deserializes a DER-encoded X509 structure.
-        ///
-        /// This corresponds to [`d2i_X509`].
-        ///
-        /// [`d2i_X509`]: https://www.openssl.org/docs/manmaster/man3/d2i_X509.html
+        #[corresponds(d2i_X509)]
         from_der,
         X509,
         ffi::d2i_X509,
@@ -657,6 +643,7 @@ impl X509 {
     }
 
     /// Deserializes a list of PEM-formatted certificates.
+    #[corresponds(PEM_read_bio_X509)]
     pub fn stack_from_pem(pem: &[u8]) -> Result<Vec<X509>, ErrorStack> {
         unsafe {
             ffi::init();
