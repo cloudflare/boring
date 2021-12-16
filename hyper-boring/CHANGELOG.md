@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [v2.1.1] - 2021-12-16
+
+### Changed
+
+* Removed unnecessary `boring-sys` and `bytes` dependencies
+
 ## [v0.8.0] - 2019-12-10
 
 ### Changed
