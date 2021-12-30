@@ -70,6 +70,9 @@ jobs:
         - arm64-android
         - i686-android
         - x86_64-android
+        - aarch64-ios
+        - aarch64-ios-sim
+        - x86_64-ios
         - i686-linux
         - arm-linux
         - aarch64-linux
@@ -102,6 +105,15 @@ jobs:
           target: x86_64-linux-android
           rust: stable
           os: ubuntu-latest
+        - thing: aarch64-ios
+          target: aarch64-apple-ios
+          os: macos-latest
+        - thing: aarch64-ios-sim
+          target: aarch64-apple-ios-sim
+          os: macos-latest
+        - thing: x86_64-ios
+          target: x86_64-apple-ios
+          os: macos-latest
         - thing: i686-linux
           target: i686-unknown-linux-gnu
           rust: stable
@@ -159,6 +171,11 @@ jobs:
     - if: "!startsWith(matrix.os, 'windows') && !contains(matrix.target, 'ios')"
       run: cargo test
       name: Run tests (not Windows)
+    - if: "contains(matrix.target, 'ios')"
+      # It's... theoretically possible to run tests on iPhone Simulator,
+      # but for now, make sure that BoringSSL only builds.
+      run: cargo check --target ${{ matrix.target }} --all-targets
+      name: Check tests (iOS)
 
   test-fips:
     name: Test FIPS integration
