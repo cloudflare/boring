@@ -152,11 +152,11 @@ jobs:
     - name: Set LIBCLANG_PATH
       if: startsWith(matrix.os, 'windows')
       run: echo "LIBCLANG_PATH=$((gcm clang).source -replace "clang.exe")" >> $env:GITHUB_ENV
-    - if: startsWith(matrix.os, 'windows')
+    - if: "startsWith(matrix.os, 'windows') && !contains(matrix.target, 'ios')"
       # CI's Windows doesn't have require root certs
       run: cargo test --workspace --exclude tokio-boring --exclude hyper-boring
       name: Run tests (Windows)
-    - if: "!startsWith(matrix.os, 'windows')"
+    - if: "!startsWith(matrix.os, 'windows') && !contains(matrix.target, 'ios')"
       run: cargo test
       name: Run tests (not Windows)
 
