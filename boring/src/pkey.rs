@@ -93,6 +93,7 @@ impl Id {
 }
 
 /// A trait indicating that a key has parameters.
+#[allow(clippy::missing_safety_doc)]
 pub unsafe trait HasParams {}
 
 unsafe impl HasParams for Params {}
@@ -100,6 +101,7 @@ unsafe impl HasParams for Params {}
 unsafe impl<T> HasParams for T where T: HasPublic {}
 
 /// A trait indicating that a key has public components.
+#[allow(clippy::missing_safety_doc)]
 pub unsafe trait HasPublic {}
 
 unsafe impl HasPublic for Public {}
@@ -107,6 +109,7 @@ unsafe impl HasPublic for Public {}
 unsafe impl<T> HasPublic for T where T: HasPrivate {}
 
 /// A trait indicating that a key has private components.
+#[allow(clippy::missing_safety_doc)]
 pub unsafe trait HasPrivate {}
 
 unsafe impl HasPrivate for Private {}
