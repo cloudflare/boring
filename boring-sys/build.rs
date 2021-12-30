@@ -33,6 +33,21 @@ const CMAKE_PARAMS_ANDROID_NDK: &[(&str, &[(&str, &str)])] = &[
     ("x86_64", &[("ANDROID_ABI", "x86_64")]),
 ];
 
+fn cmake_params_android() -> &'static [(&'static str, &'static str)] {
+    let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+    let cmake_params_android = if cfg!(feature = "ndk-old-gcc") {
+        CMAKE_PARAMS_ANDROID_NDK_OLD_GCC
+    } else {
+        CMAKE_PARAMS_ANDROID_NDK
+    };
+    for (android_arch, params) in cmake_params_android {
+        if *android_arch == arch {
+            return *params;
+        }
+    }
+    &[]
+}
+
 const CMAKE_PARAMS_IOS: &[(&str, &[(&str, &str)])] = &[
     (
         "aarch64",
@@ -106,24 +121,14 @@ fn get_boringssl_cmake_config() -> cmake::Config {
     // Add platform-specific parameters.
     match os.as_ref() {
         "android" => {
-            let cmake_params_android = if cfg!(feature = "ndk-old-gcc") {
-                CMAKE_PARAMS_ANDROID_NDK_OLD_GCC
-            } else {
-                CMAKE_PARAMS_ANDROID_NDK
-            };
-
             // We need ANDROID_NDK_HOME to be set properly.
             println!("cargo:rerun-if-env-changed=ANDROID_NDK_HOME");
             let android_ndk_home = std::env::var("ANDROID_NDK_HOME")
                 .expect("Please set ANDROID_NDK_HOME for Android build");
             let android_ndk_home = std::path::Path::new(&android_ndk_home);
-            for (android_arch, params) in cmake_params_android {
-                if *android_arch == arch {
-                    for (name, value) in *params {
-                        eprintln!("android arch={} add {}={}", arch, name, value);
-                        boringssl_cmake.define(name, value);
-                    }
-                }
+            for (name, value) in cmake_params_android() {
+                eprintln!("android arch={} add {}={}", arch, name, value);
+                boringssl_cmake.define(name, value);
             }
             let toolchain_file = android_ndk_home.join("build/cmake/android.toolchain.cmake");
             let toolchain_file = toolchain_file.to_str().unwrap();
