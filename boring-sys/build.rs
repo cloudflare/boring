@@ -82,6 +82,16 @@ fn cmake_params_ios() -> &'static [(&'static str, &'static str)] {
     &[]
 }
 
+fn get_ios_sdk_name() -> &'static str {
+    for (name, value) in cmake_params_ios() {
+        if *name == "CMAKE_OSX_SYSROOT" {
+            return *value;
+        }
+    }
+    let target = std::env::var("TARGET").unwrap();
+    panic!("cannot find iOS SDK for {} in CMAKE_PARAMS_IOS", target);
+}
+
 /// Returns the platform-specific output path for lib.
 ///
 /// MSVC generator on Windows place static libs in a target sub-folder,
@@ -245,6 +255,45 @@ fn verify_fips_clang_version() -> (&'static str, &'static str) {
     unreachable!()
 }
 
+fn get_extra_clang_args_for_bindgen() -> Vec<String> {
+    let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+
+    let mut params = Vec::new();
+
+    // Add platform-specific parameters.
+    #[allow(clippy::single_match)]
+    match os.as_ref() {
+        "ios" => {
+            use std::io::Write;
+            // When cross-compiling for iOS, tell bindgen to use iOS sysroot,
+            // and *don't* use system headers of the host macOS.
+            let sdk = get_ios_sdk_name();
+            let output = std::process::Command::new("xcrun")
+                .args(["--show-sdk-path", "--sdk", sdk])
+                .output()
+                .unwrap();
+            if !output.status.success() {
+                if let Some(exit_code) = output.status.code() {
+                    eprintln!("xcrun failed: exit code {}", exit_code);
+                } else {
+                    eprintln!("xcrun failed: killed");
+                }
+                std::io::stderr().write_all(&output.stderr).unwrap();
+                // Uh... let's try anyway, I guess?
+                return params;
+            }
+            let mut sysroot = String::from_utf8(output.stdout).unwrap();
+            // There is typically a newline at the end which confuses clang.
+            sysroot.truncate(sysroot.trim_end().len());
+            params.push("-isysroot".to_string());
+            params.push(sysroot);
+        }
+        _ => {}
+    }
+
+    params
+}
+
 fn main() {
     use std::env;
 
@@ -331,6 +380,7 @@ fn main() {
         .layout_tests(true)
         .prepend_enum_name(true)
         .rustfmt_bindings(true)
+        .clang_args(get_extra_clang_args_for_bindgen())
         .clang_args(&["-I", &include_path]);
 
     let headers = [
