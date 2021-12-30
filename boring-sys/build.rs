@@ -65,6 +65,16 @@ const CMAKE_PARAMS_IOS: &[(&str, &[(&str, &str)])] = &[
     ),
 ];
 
+fn cmake_params_ios() -> &'static [(&'static str, &'static str)] {
+    let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+    for (ios_arch, params) in CMAKE_PARAMS_IOS {
+        if *ios_arch == arch {
+            return *params;
+        }
+    }
+    &[]
+}
+
 /// Returns the platform-specific output path for lib.
 ///
 /// MSVC generator on Windows place static libs in a target sub-folder,
@@ -143,13 +153,9 @@ fn get_boringssl_cmake_config() -> cmake::Config {
         }
 
         "ios" => {
-            for (ios_arch, params) in CMAKE_PARAMS_IOS {
-                if *ios_arch == arch {
-                    for (name, value) in *params {
-                        eprintln!("ios arch={} add {}={}", arch, name, value);
-                        boringssl_cmake.define(name, value);
-                    }
-                }
+            for (name, value) in cmake_params_ios() {
+                eprintln!("ios arch={} add {}={}", arch, name, value);
+                boringssl_cmake.define(name, value);
             }
 
             // Bitcode is always on.
