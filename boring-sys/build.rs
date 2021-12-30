@@ -57,6 +57,13 @@ const CMAKE_PARAMS_IOS: &[(&str, &[(&str, &str)])] = &[
         ],
     ),
     (
+        "aarch64-apple-ios-sim",
+        &[
+            ("CMAKE_OSX_ARCHITECTURES", "arm64"),
+            ("CMAKE_OSX_SYSROOT", "iphonesimulator"),
+        ],
+    ),
+    (
         "x86_64-apple-ios",
         &[
             ("CMAKE_OSX_ARCHITECTURES", "x86_64"),
