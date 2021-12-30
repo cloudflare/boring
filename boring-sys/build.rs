@@ -50,14 +50,14 @@ fn cmake_params_android() -> &'static [(&'static str, &'static str)] {
 
 const CMAKE_PARAMS_IOS: &[(&str, &[(&str, &str)])] = &[
     (
-        "aarch64",
+        "aarch64-apple-ios",
         &[
             ("CMAKE_OSX_ARCHITECTURES", "arm64"),
             ("CMAKE_OSX_SYSROOT", "iphoneos"),
         ],
     ),
     (
-        "x86_64",
+        "x86_64-apple-ios",
         &[
             ("CMAKE_OSX_ARCHITECTURES", "x86_64"),
             ("CMAKE_OSX_SYSROOT", "iphonesimulator"),
@@ -66,9 +66,9 @@ const CMAKE_PARAMS_IOS: &[(&str, &[(&str, &str)])] = &[
 ];
 
 fn cmake_params_ios() -> &'static [(&'static str, &'static str)] {
-    let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
-    for (ios_arch, params) in CMAKE_PARAMS_IOS {
-        if *ios_arch == arch {
+    let target = std::env::var("TARGET").unwrap();
+    for (ios_target, params) in CMAKE_PARAMS_IOS {
+        if *ios_target == target {
             return *params;
         }
     }
