@@ -176,7 +176,7 @@ jobs:
       run: echo "LIBCLANG_PATH=$((gcm clang).source -replace "clang.exe")" >> $env:GITHUB_ENV
     - if: matrix.test-type == 'run-without-hyper'
       run: cargo test --target ${{ matrix.target }} --workspace --exclude tokio-boring --exclude hyper-boring
-      name: Run tests (Windows)
+      name: Run tests (without hyper)
     - if: matrix.test-type == 'run'
       run: cargo test --target ${{ matrix.target }}
-      name: Run tests (not Windows)
+      name: Run tests
