@@ -89,6 +89,7 @@ jobs:
           os: macos-latest
           test-type: run
 
+        # FIXME: these targets fail to compile due to linker mismatch
         - thing: arm-android
           target: arm-linux-androideabi
           rust: stable
@@ -110,6 +111,7 @@ jobs:
           os: ubuntu-latest
           test-type: run
 
+        # FIXME: these targets fail to compile due missing cross-compilers
         - thing: i686-linux
           target: i686-unknown-linux-gnu
           rust: stable
@@ -131,6 +133,8 @@ jobs:
           os: ubuntu-latest
           test-type: run
 
+        # FIXME: mingw target fails to compile due missing cross-compilers
+        # (it fails building on Windows as well, for its own reasons)
         - thing: x86_64-mingw
           target: x86_64-pc-windows-gnu
           rust: stable
@@ -170,8 +174,8 @@ jobs:
       run: echo "LIBCLANG_PATH=$((gcm clang).source -replace "clang.exe")" >> $env:GITHUB_ENV
     - if: matrix.test-type == 'run-without-hyper'
       # CI's Windows doesn't have require root certs
-      run: cargo test --workspace --exclude tokio-boring --exclude hyper-boring
+      run: cargo test --target ${{ matrix.target }} --workspace --exclude tokio-boring --exclude hyper-boring
       name: Run tests (Windows)
     - if: matrix.test-type == 'run'
-      run: cargo test
+      run: cargo test --target ${{ matrix.target }}
       name: Run tests (not Windows)
