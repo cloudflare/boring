@@ -82,54 +82,70 @@ jobs:
           target: x86_64-unknown-linux-gnu
           rust: stable
           os: ubuntu-latest
+          test-type: run
         - thing: macos-x86_64
           target: x86_64-apple-darwin
           rust: stable
           os: macos-latest
+          test-type: run
+
         - thing: arm-android
           target: arm-linux-androideabi
           rust: stable
           os: ubuntu-latest
+          test-type: run
         - thing: arm64-android
           target: aarch64-linux-android
           rust: stable
           os: ubuntu-latest
+          test-type: run
         - thing: i686-android
           target: i686-linux-android
           rust: stable
           os: ubuntu-latest
+          test-type: run
         - thing: x86_64-android
           target: x86_64-linux-android
           rust: stable
           os: ubuntu-latest
+          test-type: run
+
         - thing: i686-linux
           target: i686-unknown-linux-gnu
           rust: stable
           os: ubuntu-latest
+          test-type: run
         - thing: arm-linux
           target: arm-unknown-linux-gnueabi
           rust: stable
           os: ubuntu-latest
+          test-type: run
         - thing: aarch64-linux
           target: aarch64-unknown-linux-gnu
           rust: stable
           os: ubuntu-latest
+          test-type: run
         - thing: x86_64-musl
           target: x86_64-unknown-linux-musl
           rust: stable
           os: ubuntu-latest
+          test-type: run
+
         - thing: x86_64-mingw
           target: x86_64-pc-windows-gnu
           rust: stable
           os: ubuntu-latest
+          test-type: run
         - thing: i686-msvc
           target: i686-pc-windows-msvc
           rust: stable-x86_64-msvc
           os: windows-latest
+          test-type: run-without-hyper
         - thing: x86_64-msvc
           target: x86_64-pc-windows-msvc
           rust: stable-x86_64-msvc
           os: windows-latest
+          test-type: run-without-hyper
 
     steps:
     - uses: actions/checkout@v2
@@ -152,10 +168,10 @@ jobs:
     - name: Set LIBCLANG_PATH
       if: startsWith(matrix.os, 'windows')
       run: echo "LIBCLANG_PATH=$((gcm clang).source -replace "clang.exe")" >> $env:GITHUB_ENV
-    - if: startsWith(matrix.os, 'windows')
+    - if: matrix.test-type == 'run-without-hyper'
       # CI's Windows doesn't have require root certs
       run: cargo test --workspace --exclude tokio-boring --exclude hyper-boring
       name: Run tests (Windows)
-    - if: "!startsWith(matrix.os, 'windows')"
+    - if: matrix.test-type == 'run'
       run: cargo test
       name: Run tests (not Windows)
