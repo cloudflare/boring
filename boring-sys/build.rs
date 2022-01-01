@@ -385,6 +385,22 @@ fn main() {
         .clang_args(get_extra_clang_args_for_bindgen())
         .clang_args(&["-I", &include_path]);
 
+    let target = std::env::var("TARGET").unwrap();
+    match target.as_ref() {
+        // bindgen produces alignment tests that cause undefined behavior [1]
+        // when applied to explicitly unaligned types like OSUnalignedU64.
+        //
+        // There is no way to disable these tests for only some types
+        // and it's not nice to suppress warnings for the entire crate,
+        // so let's disable all alignment tests and hope for the best.
+        //
+        // [1]: https://github.com/rust-lang/rust-bindgen/issues/1651
+        "aarch64-apple-ios" | "aarch64-apple-ios-sim" => {
+            builder = builder.layout_tests(false);
+        }
+        _ => {}
+    }
+
     let headers = [
         "aes.h",
         "asn1_mac.h",
