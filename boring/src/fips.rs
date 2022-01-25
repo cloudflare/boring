@@ -20,3 +20,11 @@ pub fn enable(enabled: bool) -> Result<(), ErrorStack> {
 pub fn enabled() -> bool {
     unsafe { ffi::FIPS_mode() != 0 }
 }
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn is_enabled() {
+        assert!(super::enabled());
+    }
+}

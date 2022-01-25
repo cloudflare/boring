@@ -105,6 +105,7 @@ fn get_boringssl_cmake_config() -> cmake::Config {
             };
 
             // We need ANDROID_NDK_HOME to be set properly.
+            println!("cargo:rerun-if-env-changed=ANDROID_NDK_HOME");
             let android_ndk_home = std::env::var("ANDROID_NDK_HOME")
                 .expect("Please set ANDROID_NDK_HOME for Android build");
             let android_ndk_home = std::path::Path::new(&android_ndk_home);

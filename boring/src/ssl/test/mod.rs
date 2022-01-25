@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 
 use hex;
+use std::cell::Cell;
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -508,14 +509,16 @@ fn test_select_cert_error() {
 #[test]
 fn test_select_cert_unknown_extension() {
     let mut server = Server::builder();
-    let unknown_extension = std::sync::Arc::new(std::sync::Mutex::new(None));
+    let unknown_extension = std::sync::Arc::new(std::sync::Mutex::new(Some(vec![])));
 
     server.ctx().set_select_certificate_callback({
         let unknown = unknown_extension.clone();
         move |client_hello| {
-            *unknown.lock().unwrap() = client_hello
-                .get_extension(ExtensionType::QUIC_TRANSPORT_PARAMETERS_LEGACY)
+            let ext = client_hello
+                .get_extension(ExtensionType::SERVER_NAME)
                 .map(ToOwned::to_owned);
+            assert!(ext.is_none());
+            *unknown.lock().unwrap() = ext;
             Ok(())
         }
     });
