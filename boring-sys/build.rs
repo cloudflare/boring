@@ -85,6 +85,11 @@ fn get_boringssl_platform_output_path() -> String {
     }
 }
 
+#[cfg(feature = "fips")]
+const BORING_SSL_PATH: &str = "deps/boringssl-fips";
+#[cfg(not(feature = "fips"))]
+const BORING_SSL_PATH: &str = "deps/boringssl";
+
 /// Returns a new cmake::Config for building BoringSSL.
 ///
 /// It will add platform-specific parameters if needed.
@@ -93,7 +98,7 @@ fn get_boringssl_cmake_config() -> cmake::Config {
     let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
     let pwd = std::env::current_dir().unwrap();
 
-    let mut boringssl_cmake = cmake::Config::new("deps/boringssl");
+    let mut boringssl_cmake = cmake::Config::new(BORING_SSL_PATH);
 
     // Add platform-specific parameters.
     match os.as_ref() {
@@ -162,7 +167,8 @@ fn get_boringssl_cmake_config() -> cmake::Config {
             if arch == "x86" && os != "windows" {
                 boringssl_cmake.define(
                     "CMAKE_TOOLCHAIN_FILE",
-                    pwd.join("deps/boringssl/src/util/32-bit-toolchain.cmake")
+                    pwd.join(BORING_SSL_PATH)
+                        .join("src/util/32-bit-toolchain.cmake")
                         .as_os_str(),
                 );
             }
@@ -179,7 +185,7 @@ fn main() {
 
     println!("cargo:rerun-if-env-changed=BORING_BSSL_PATH");
     let bssl_dir = std::env::var("BORING_BSSL_PATH").unwrap_or_else(|_| {
-        if !Path::new("deps/boringssl/CMakeLists.txt").exists() {
+        if !Path::new(BORING_SSL_PATH).join("CMakeLists.txt").exists() {
             println!("cargo:warning=fetching boringssl git submodule");
             // fetch the boringssl submodule
             let status = Command::new("git")
@@ -188,7 +194,7 @@ fn main() {
                     "update",
                     "--init",
                     "--recursive",
-                    "deps/boringssl",
+                    BORING_SSL_PATH,
                 ])
                 .status();
             if !status.map_or(false, |status| status.success()) {
@@ -202,16 +208,29 @@ fn main() {
             cfg.cxxflag("-DBORINGSSL_UNSAFE_DETERMINISTIC_MODE")
                 .cxxflag("-DBORINGSSL_UNSAFE_FUZZER_MODE");
         }
+        if cfg!(feature = "fips") {
+            cfg.define("FIPS", "1");
+        }
 
         cfg.build_target("bssl").build().display().to_string()
     });
 
-    println!("cargo:rerun-if-env-changed=BORING_BSSL_LIB_PATH");
-    let lib_path = std::env::var("BORING_BSSL_LIB_PATH").unwrap_or_else(|_| {
-        let build_path = get_boringssl_platform_output_path();
-        format!("{}/build/{}", bssl_dir, build_path)
-    });
-    println!("cargo:rustc-link-search=native={}", lib_path);
+    let build_path = get_boringssl_platform_output_path();
+    if cfg!(feature = "fips") {
+        println!(
+            "cargo:rustc-link-search=native={}/build/crypto/{}",
+            bssl_dir, build_path
+        );
+        println!(
+            "cargo:rustc-link-search=native={}/build/ssl/{}",
+            bssl_dir, build_path
+        );
+    } else {
+        println!(
+            "cargo:rustc-link-search=native={}/build/{}",
+            bssl_dir, build_path
+        );
+    }
 
     println!("cargo:rustc-link-lib=static=crypto");
     println!("cargo:rustc-link-lib=static=ssl");
@@ -221,11 +240,11 @@ fn main() {
         println!("cargo:rustc-cdylib-link-arg=-Wl,-undefined,dynamic_lookup");
     }
 
-    println!("cargo:rerun-if-env-changed=BORING_BSSL_INCLUDE_PATH");
-    let include_path = PathBuf::from(
-        std::env::var("BORING_BSSL_INCLUDE_PATH")
-            .unwrap_or_else(|_| String::from("deps/boringssl/src/include")),
-    );
+    let include_path = if cfg!(feature = "fips") {
+        format!("{}/include", BORING_SSL_PATH)
+    } else {
+        format!("{}/src/include", BORING_SSL_PATH)
+    };
 
     let mut builder = bindgen::Builder::default()
         .derive_copy(true)
@@ -240,7 +259,7 @@ fn main() {
         .layout_tests(true)
         .prepend_enum_name(true)
         .rustfmt_bindings(true)
-        .clang_args(&["-I", include_path.to_str().unwrap()]);
+        .clang_args(&["-I", &include_path]);
 
     let headers = [
         "aes.h",
@@ -276,7 +295,13 @@ fn main() {
         "x509v3.h",
     ];
     for header in &headers {
-        builder = builder.header(include_path.join("openssl").join(header).to_str().unwrap());
+        builder = builder.header(
+            Path::new(&include_path)
+                .join("openssl")
+                .join(header)
+                .to_str()
+                .unwrap(),
+        );
     }
 
     let bindings = builder.generate().expect("Unable to generate bindings");

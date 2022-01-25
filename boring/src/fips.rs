@@ -25,6 +25,9 @@ pub fn enabled() -> bool {
 mod test {
     #[test]
     fn is_enabled() {
+        #[cfg(feature = "fips")]
         assert!(super::enabled());
+        #[cfg(not(feature = "fips"))]
+        assert!(!super::enabled());
     }
 }
