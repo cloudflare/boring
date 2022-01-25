@@ -30,7 +30,7 @@ certified with [certificate
 is supported by this crate. Support is enabled by this crate's `fips-3678` feature.
 
 You must provide and build your own FIPS-validated module in order for this
-crate to link against it (see the instalation instructions in the
+crate to link against it (see the installation instructions in the
 [BoringCrypto FIPS 140-2 Non-Proprietary Security Policy] (https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf)
 ).
 
