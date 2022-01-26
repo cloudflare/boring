@@ -1,3 +1,6 @@
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
 // NOTE: this build script is adopted from quiche (https://github.com/cloudflare/quiche)
 
 // Additional parameters for Android build of BoringSSL.
@@ -178,10 +181,54 @@ fn get_boringssl_cmake_config() -> cmake::Config {
     }
 }
 
+/// Verify that the toolchains match https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf
+/// See "Installation Instructions" under section 12.1.
+// TODO: maybe this should also verify the Go and Ninja versions? But those haven't been an issue in practice ...
+fn verify_fips_clang_version() -> (&'static str, &'static str) {
+    fn version(tool: &str) -> String {
+        let output = match Command::new(tool).arg("--version").output() {
+            Ok(o) => o,
+            Err(e) => {
+                eprintln!("warning: missing {}, trying other compilers: {}", tool, e);
+                // NOTE: hard-codes that the loop below checks the version
+                return String::new();
+            }
+        };
+        assert!(output.status.success());
+        let output = std::str::from_utf8(&output.stdout).expect("invalid utf8 output");
+        output.lines().next().expect("empty output").to_string()
+    }
+
+    const REQUIRED_CLANG_VERSION: &str = "7.0.1";
+    for (cc, cxx) in [
+        ("clang-7", "clang++-7"),
+        ("clang", "clang++"),
+        ("cc", "c++"),
+    ] {
+        let cc_version = version(cc);
+        if cc_version.contains(REQUIRED_CLANG_VERSION) {
+            assert!(
+                version(cxx).contains(REQUIRED_CLANG_VERSION),
+                "mismatched versions of cc and c++"
+            );
+            return (cc, cxx);
+        } else if cc == "cc" {
+            panic!(
+                "unsupported clang version \"{}\": FIPS requires clang {}",
+                cc_version, REQUIRED_CLANG_VERSION
+            );
+        } else if !cc_version.is_empty() {
+            eprintln!(
+                "warning: FIPS requires clang version {}, skipping incompatible version \"{}\"",
+                REQUIRED_CLANG_VERSION, cc_version
+            );
+        }
+    }
+    unreachable!()
+}
+
 fn main() {
     use std::env;
-    use std::path::{Path, PathBuf};
-    use std::process::Command;
 
     println!("cargo:rerun-if-env-changed=BORING_BSSL_PATH");
     let bssl_dir = std::env::var("BORING_BSSL_PATH").unwrap_or_else(|_| {
@@ -209,6 +256,10 @@ fn main() {
                 .cxxflag("-DBORINGSSL_UNSAFE_FUZZER_MODE");
         }
         if cfg!(feature = "fips") {
+            let (clang, clangxx) = verify_fips_clang_version();
+            cfg.define("CMAKE_C_COMPILER", clang);
+            cfg.define("CMAKE_CXX_COMPILER", clangxx);
+            cfg.define("CMAKE_ASM_COMPILER", clang);
             cfg.define("FIPS", "1");
         }
 
