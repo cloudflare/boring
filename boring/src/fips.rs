@@ -21,13 +21,10 @@ pub fn enabled() -> bool {
     unsafe { ffi::FIPS_mode() != 0 }
 }
 
-#[cfg(test)]
-mod test {
-    #[test]
-    fn is_enabled() {
-        #[cfg(feature = "fips")]
-        assert!(super::enabled());
-        #[cfg(not(feature = "fips"))]
-        assert!(!super::enabled());
-    }
+#[test]
+fn is_enabled() {
+    #[cfg(feature = "fips")]
+    assert!(enabled());
+    #[cfg(not(feature = "fips"))]
+    assert!(!enabled());
 }

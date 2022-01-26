@@ -29,18 +29,9 @@ certified with [certificate
 3678](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/3678)
 is supported by this crate. Support is enabled by this crate's `fips-3678` feature.
 
-You must provide and build your own FIPS-validated module in order for this
-crate to link against it (see the installation instructions in the
-[BoringCrypto FIPS 140-2 Non-Proprietary Security Policy] (https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf)
-).
-
-After building the FIPS-validated module, you must build this crate with the
-`BORING_BSSL_PATH`, `BORING_BSSL_INCLUDE_PATH`, and maybe the
-`BORING_BSSL_LIB_PATH`. Once built, the `fips_enabled` example can be used to
-test that `boring` is running in FIPS mode:
+`boring-sys` comes with a test that FIPS is enabled/disabled depending on the feature flag. You can run it as follows:
 ```bash
-$ cargo run --features fips-3678 --example fips_enabled
-boring::fips::enabled(): true
+$ cargo test --features fips-3678 fips::enabled
 ```
 
 ## Contribution
