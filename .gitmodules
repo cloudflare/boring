@@ -2,3 +2,6 @@
 	path = boring-sys/deps/boringssl
 	url = https://github.com/google/boringssl.git
 	ignore = dirty
+[submodule "boring-sys/deps/boringssl-fips"]
+	path = boring-sys/deps/boringssl-fips
+	url = https://github.com/google/boringssl.git

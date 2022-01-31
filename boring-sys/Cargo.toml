@@ -31,6 +31,5 @@ bindgen = "0.59"
 cmake = "0.1"
 
 [features]
-fips-3678 = ["fips"]
-# The "fips" feature is used for conditional-compilation that is common to all supported FIPS-validated versions
+# Use a FIPS-validated version of boringssl.
 fips = []
