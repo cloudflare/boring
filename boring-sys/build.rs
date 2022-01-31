@@ -291,11 +291,14 @@ fn main() {
         println!("cargo:rustc-cdylib-link-arg=-Wl,-undefined,dynamic_lookup");
     }
 
-    let include_path = if cfg!(feature = "fips") {
-        format!("{}/include", BORING_SSL_PATH)
-    } else {
-        format!("{}/src/include", BORING_SSL_PATH)
-    };
+    println!("cargo:rerun-if-env-changed=BORING_BSSL_INCLUDE_PATH");
+    let include_path = std::env::var("BORING_BSSL_INCLUDE_PATH").unwrap_or_else(|_| {
+        if cfg!(feature = "fips") {
+            format!("{}/include", BORING_SSL_PATH)
+        } else {
+            format!("{}/src/include", BORING_SSL_PATH)
+        }
+    });
 
     let mut builder = bindgen::Builder::default()
         .derive_copy(true)
