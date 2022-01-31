@@ -197,6 +197,7 @@ impl X509StoreContextRef {
         unsafe { ffi::X509_STORE_CTX_get_error_depth(self.as_ptr()) as u32 }
     }
 
+    #[cfg(not(feature = "fips"))]
     /// Returns a reference to a complete valid `X509` certificate chain.
     ///
     /// This corresponds to [`X509_STORE_CTX_get0_chain`].
@@ -229,12 +230,14 @@ impl X509Builder {
 
     /// Sets the notAfter constraint on the certificate.
     pub fn set_not_after(&mut self, not_after: &Asn1TimeRef) -> Result<(), ErrorStack> {
-        unsafe { cvt(X509_set1_notAfter(self.0.as_ptr(), not_after.as_ptr())).map(|_| ()) }
+        // TODO: once FIPS supports `set1_notAfter`, use that instead
+        unsafe { cvt(X509_set_notAfter(self.0.as_ptr(), not_after.as_ptr())).map(|_| ()) }
     }
 
     /// Sets the notBefore constraint on the certificate.
     pub fn set_not_before(&mut self, not_before: &Asn1TimeRef) -> Result<(), ErrorStack> {
-        unsafe { cvt(X509_set1_notBefore(self.0.as_ptr(), not_before.as_ptr())).map(|_| ()) }
+        // TODO: once FIPS supports `set1_notBefore`, use that instead
+        unsafe { cvt(X509_set_notBefore(self.0.as_ptr(), not_before.as_ptr())).map(|_| ()) }
     }
 
     /// Sets the version of the certificate.
@@ -493,18 +496,18 @@ impl X509Ref {
     /// Returns the certificate's Not After validity period.
     pub fn not_after(&self) -> &Asn1TimeRef {
         unsafe {
-            let date = X509_getm_notAfter(self.as_ptr());
+            let date = X509_get0_notAfter(self.as_ptr());
             assert!(!date.is_null());
-            Asn1TimeRef::from_ptr(date)
+            Asn1TimeRef::from_ptr(date as *mut _)
         }
     }
 
     /// Returns the certificate's Not Before validity period.
     pub fn not_before(&self) -> &Asn1TimeRef {
         unsafe {
-            let date = X509_getm_notBefore(self.as_ptr());
+            let date = X509_get0_notBefore(self.as_ptr());
             assert!(!date.is_null());
-            Asn1TimeRef::from_ptr(date)
+            Asn1TimeRef::from_ptr(date as *mut _)
         }
     }
 
@@ -1160,6 +1163,7 @@ impl X509ReqRef {
         ffi::i2d_X509_REQ
     }
 
+    #[cfg(not(feature = "fips"))]
     /// Returns the numerical value of the version field of the certificate request.
     ///
     /// This corresponds to [`X509_REQ_get_version`]
@@ -1169,6 +1173,7 @@ impl X509ReqRef {
         unsafe { X509_REQ_get_version(self.as_ptr()) as i32 }
     }
 
+    #[cfg(not(feature = "fips"))]
     /// Returns the subject name of the certificate request.
     ///
     /// This corresponds to [`X509_REQ_get_subject_name`]
@@ -1401,14 +1406,12 @@ impl Stackable for X509Object {
     type StackType = ffi::stack_st_X509_OBJECT;
 }
 
-use crate::ffi::{X509_get0_signature, X509_getm_notAfter, X509_getm_notBefore, X509_up_ref};
-
-use crate::ffi::{
-    ASN1_STRING_get0_data, X509_ALGOR_get0, X509_REQ_get_subject_name, X509_REQ_get_version,
-    X509_STORE_CTX_get0_chain, X509_set1_notAfter, X509_set1_notBefore,
-};
+use crate::ffi::{X509_get0_notAfter, X509_get0_notBefore, X509_get0_signature, X509_up_ref};
 
 use crate::ffi::X509_OBJECT_get0_X509;
+use crate::ffi::{ASN1_STRING_get0_data, X509_ALGOR_get0, X509_set_notAfter, X509_set_notBefore};
+#[cfg(not(feature = "fips"))]
+use crate::ffi::{X509_REQ_get_subject_name, X509_REQ_get_version, X509_STORE_CTX_get0_chain};
 
 #[allow(bad_style)]
 unsafe fn X509_OBJECT_free(x: *mut ffi::X509_OBJECT) {

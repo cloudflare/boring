@@ -487,8 +487,10 @@ impl ExtensionType {
     pub const PADDING: Self = Self(ffi::TLSEXT_TYPE_padding as u16);
     pub const EXTENDED_MASTER_SECRET: Self = Self(ffi::TLSEXT_TYPE_extended_master_secret as u16);
     pub const TOKEN_BINDING: Self = Self(ffi::TLSEXT_TYPE_token_binding as u16);
+    #[cfg(not(feature = "fips"))]
     pub const QUIC_TRANSPORT_PARAMETERS_LEGACY: Self =
         Self(ffi::TLSEXT_TYPE_quic_transport_parameters_legacy as u16);
+    #[cfg(not(feature = "fips"))]
     pub const QUIC_TRANSPORT_PARAMETERS_STANDARD: Self =
         Self(ffi::TLSEXT_TYPE_quic_transport_parameters_standard as u16);
     pub const CERT_COMPRESSION: Self = Self(ffi::TLSEXT_TYPE_cert_compression as u16);
@@ -505,8 +507,11 @@ impl ExtensionType {
     pub const KEY_SHARE: Self = Self(ffi::TLSEXT_TYPE_key_share as u16);
     pub const RENEGOTIATE: Self = Self(ffi::TLSEXT_TYPE_renegotiate as u16);
     pub const DELEGATED_CREDENTIAL: Self = Self(ffi::TLSEXT_TYPE_delegated_credential as u16);
+    #[cfg(not(feature = "fips"))]
     pub const APPLICATION_SETTINGS: Self = Self(ffi::TLSEXT_TYPE_application_settings as u16);
+    #[cfg(not(feature = "fips"))]
     pub const ENCRYPTED_CLIENT_HELLO: Self = Self(ffi::TLSEXT_TYPE_encrypted_client_hello as u16);
+    #[cfg(not(feature = "fips"))]
     pub const ECH_IS_INNER: Self = Self(ffi::TLSEXT_TYPE_ech_is_inner as u16);
     pub const CERTIFICATE_TIMESTAMP: Self = Self(ffi::TLSEXT_TYPE_certificate_timestamp as u16);
     pub const NEXT_PROTO_NEG: Self = Self(ffi::TLSEXT_TYPE_next_proto_neg as u16);

@@ -29,3 +29,7 @@ include = [
 [build-dependencies]
 bindgen = { version = "0.59", default-features = false, features = ["runtime"] }
 cmake = "0.1"
+
+[features]
+# Use a FIPS-validated version of boringssl.
+fips = []

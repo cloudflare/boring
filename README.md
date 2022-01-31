@@ -22,6 +22,18 @@ _Notes_: The crate will look for headers in the `$BORING_BSSL_INCLUDE_PATH/opens
 
 _Warning_: When providing a different version of BoringSSL make sure to use a compatible one, the crate relies on the presence of certain functions.
 
+## Building with a FIPS-validated module
+
+Only BoringCrypto module version ae223d6138807a13006342edfeef32e813246b39, as
+certified with [certificate
+3678](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/3678)
+is supported by this crate. Support is enabled by this crate's `fips` feature.
+
+`boring-sys` comes with a test that FIPS is enabled/disabled depending on the feature flag. You can run it as follows:
+```bash
+$ cargo test --features fips fips::is_enabled
+```
+
 ## Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally
