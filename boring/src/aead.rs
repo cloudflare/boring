@@ -110,8 +110,6 @@ unsafe impl Sync for Aead {}
 unsafe impl Send for Aead {}
 
 /// Represents an AEAD context.
-///
-/// TODO: pick a better name!!
 pub struct AeadCrypter {
     ctx: *mut ffi::EVP_AEAD_CTX,
     max_overhead: usize,
@@ -281,7 +279,61 @@ mod tests {
     }
 
     #[test]
-    fn test_aes_128_gcm_nist_test_vector() {
+    fn test_xchacha20_poly1305_rfc_test_vector() {
+        // Test Vector from https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-xchacha#appendix-A.1
+        let key = Vec::from_hex("808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f")
+            .unwrap();
+        let nonce = Vec::from_hex("404142434445464748494a4b4c4d4e4f5051525354555657").unwrap();
+        let aad = Vec::from_hex("50515253c0c1c2c3c4c5c6c7").unwrap();
+        let data = Vec::from_hex("4c616469657320616e642047656e746c656d656e206f662074686520636c617373206f66202739393a204966204920636f756c64206f6666657220796f75206f6e6c79206f6e652074697020666f7220746865206675747572652c2073756e73637265656e20776f756c642062652069742e").unwrap();
+
+        let expected_tag = Vec::from_hex("c0875924c1c7987947deafd8780acf49").unwrap();
+        let expected_encrypted_data = Vec::from_hex("bd6d179d3e83d43b9576579493c0e939572a1700252bfaccbed2902c21396cbb731c7f1b0b4aa6440bf3a82f4eda7e39ae64c6708c54c216cb96b72e1213b4522f8c9ba40db5d945b11b69b982c1bb9e3f3fac2bc369488f76b2383565d3fff921f9664c97637da9768812f615c68b13b52e").unwrap();
+
+        let encrypted_data =
+            encrypt_aead(Aead::xchacha20_poly1305(), &key, &nonce, &aad, &data).unwrap();
+        assert_eq!(
+            encrypted_data,
+            [expected_encrypted_data, expected_tag].concat()
+        );
+
+        let decrypted_data = decrypt_aead(
+            Aead::xchacha20_poly1305(),
+            &key,
+            &nonce,
+            &aad,
+            &encrypted_data,
+        )
+        .unwrap();
+        assert_eq!(decrypted_data, data);
+    }
+
+    #[test]
+    fn test_aes_128_gcm_siv_rfc_test_vector() {
+        // Test Vector from https://datatracker.ietf.org/doc/html/rfc8452#appendix-C.1
+        let key = Vec::from_hex("f901cfe8a69615a93fdf7a98cad48179").unwrap();
+        let nonce = Vec::from_hex("6245709fb18853f68d833640").unwrap();
+        let aad =
+            Vec::from_hex("7576f7028ec6eb5ea7e298342a94d4b202b370ef9768ec6561c4fe6b7e7296fa859c21")
+                .unwrap();
+        let data = Vec::from_hex("e42a3c02c25b64869e146d7b233987bddfc240871d").unwrap();
+
+        let expected_encrypted_data = Vec::from_hex(
+            "391cc328d484a4f46406181bcd62efd9b3ee197d052d15506c84a9edd65e13e9d24a2a6e70",
+        )
+        .unwrap();
+
+        let encrypted_data =
+            encrypt_aead(Aead::aes_128_gcm_siv(), &key, &nonce, &aad, &data).unwrap();
+        assert_eq!(encrypted_data, expected_encrypted_data);
+
+        let decrypted_data =
+            decrypt_aead(Aead::aes_128_gcm_siv(), &key, &nonce, &aad, &encrypted_data).unwrap();
+        assert_eq!(decrypted_data, data);
+    }
+
+    #[test]
+    fn test_aes_256_gcm_nist_test_vector() {
         // A NIST AES-GCM Test Vector from https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/CAVP-TESTING-BLOCK-CIPHER-MODES#GCMVS
 
         let key = Vec::from_hex("78e53ed07c0f162406ee17c54344e2ae").unwrap();
@@ -289,12 +341,14 @@ mod tests {
         let aad = Vec::from_hex("64cc7dadca51bdcfa9fd03969c19b356fcea6b81").unwrap();
         let data = Vec::from_hex("85ca499a25cc7a85b22a8208f48f6316f6d06af9ef8589dca095d58e2a75ce9d41e9c4260327799f43de4939a9ca3b3fc66d26").unwrap();
 
-        let tag = Vec::from_hex("64dd1120250dfca1efd3a3043f0a1c33").unwrap(); // Note: the original NIST test vector had a 13-byte tag (because of course it did), I added the last "0a1c33" to make it the expected 16 bytes.
-
+        let expected_tag = Vec::from_hex("64dd1120250dfca1efd3a3043f0a1c33").unwrap(); // Note: the original NIST test vector had a 13-byte tag (because of course it did), I added the last "0a1c33" to make it the expected 16 bytes.
         let expected_encrypted_data = Vec::from_hex("070a337a3d84f6a6feea1d941c8287c2705a4b3af3e47f90e51303b7d37b9b9d7f977c2759a74ac6545f38d4022b642a6758de").unwrap();
 
         let encrypted_data = encrypt_aead(Aead::aes_128_gcm(), &key, &nonce, &aad, &data).unwrap();
-        assert_eq!(encrypted_data, [expected_encrypted_data, tag].concat());
+        assert_eq!(
+            encrypted_data,
+            [expected_encrypted_data, expected_tag].concat()
+        );
 
         let decrypted_data =
             decrypt_aead(Aead::aes_128_gcm(), &key, &nonce, &aad, &encrypted_data).unwrap();
