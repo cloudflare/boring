@@ -1,6 +1,6 @@
 [package]
 name = "boring"
-version = "1.1.6"
+version = "2.0.0"
 authors = ["Steven Fackler <sfackler@gmail.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
 license = "Apache-2.0"
 description = "BoringSSL bindings"
@@ -16,8 +16,12 @@ bitflags = "1.0"
 foreign-types = "0.5"
 lazy_static = "1"
 libc = "0.2"
-boring-sys = { version = "1.1.0", path = "../boring-sys" }
+boring-sys = { version = ">=1.1.0,<3.0.0", path = "../boring-sys" }
 
 [dev-dependencies]
 hex = "0.4"
 rusty-hook = "^0.11"
+
+[features]
+# Use a FIPS-validated version of boringssl.
+fips = ["boring-sys/fips"]

@@ -76,8 +76,10 @@ impl Id {
     pub const DH: Id = Id(ffi::EVP_PKEY_DH);
     pub const EC: Id = Id(ffi::EVP_PKEY_EC);
     pub const ED25519: Id = Id(ffi::EVP_PKEY_ED25519);
+    #[cfg(not(feature = "fips"))]
     pub const ED448: Id = Id(ffi::EVP_PKEY_ED448);
     pub const X25519: Id = Id(ffi::EVP_PKEY_X25519);
+    #[cfg(not(feature = "fips"))]
     pub const X448: Id = Id(ffi::EVP_PKEY_X448);
 
     /// Creates a `Id` from an integer representation.
@@ -93,6 +95,7 @@ impl Id {
 }
 
 /// A trait indicating that a key has parameters.
+#[allow(clippy::missing_safety_doc)]
 pub unsafe trait HasParams {}
 
 unsafe impl HasParams for Params {}
@@ -100,6 +103,7 @@ unsafe impl HasParams for Params {}
 unsafe impl<T> HasParams for T where T: HasPublic {}
 
 /// A trait indicating that a key has public components.
+#[allow(clippy::missing_safety_doc)]
 pub unsafe trait HasPublic {}
 
 unsafe impl HasPublic for Public {}
@@ -107,6 +111,7 @@ unsafe impl HasPublic for Public {}
 unsafe impl<T> HasPublic for T where T: HasPrivate {}
 
 /// A trait indicating that a key has private components.
+#[allow(clippy::missing_safety_doc)]
 pub unsafe trait HasPrivate {}
 
 unsafe impl HasPrivate for Private {}
@@ -286,6 +291,7 @@ impl<T> fmt::Debug for PKey<T> {
             Id::DH => "DH",
             Id::EC => "EC",
             Id::ED25519 => "Ed25519",
+            #[cfg(not(feature = "fips"))]
             Id::ED448 => "Ed448",
             _ => "unknown",
         };
