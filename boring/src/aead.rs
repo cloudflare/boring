@@ -81,6 +81,24 @@ impl Aead {
         unsafe { Aead(ffi::EVP_aead_aes_256_gcm_siv()) }
     }
 
+    #[cfg(feature = "fips")]
+    pub fn aes_128_gcm_randnonce() -> Aead {
+        unsafe { Aead(ffi::EVP_aead_aes_128_gcm_randnonce()) }
+    }
+
+    #[cfg(feature = "fips")]
+    pub fn aes_256_gcm_randnonce() -> Aead {
+        unsafe { Aead(ffi::EVP_aead_aes_256_gcm_randnonce()) }
+    }
+
+    pub fn aes_128_ccm_bluetooth() -> Aead {
+        unsafe { Aead(ffi::EVP_aead_aes_128_ccm_bluetooth()) }
+    }
+
+    pub fn aes_128_ccm_bluetooth_8() -> Aead {
+        unsafe { Aead(ffi::EVP_aead_aes_128_ccm_bluetooth_8()) }
+    }
+
     /// Returns the length of keys used with this AEAD.
     pub fn key_len(&self) -> usize {
         unsafe { EVP_AEAD_key_length(self.0) as usize }
@@ -91,8 +109,10 @@ impl Aead {
         unsafe { EVP_AEAD_nonce_length(self.0) as usize }
     }
 
-    /// Returns the maximum ciphertext overhead with this AEAD.
-    pub fn max_ciphertext_overhead(&self) -> usize {
+    /// Returns the maximum number of additional bytes added by the act of sealing data with `self`.
+    ///
+    /// Corresponds to [`EVP_AEAD_max_overhead`](https://commondatastorage.googleapis.com/chromium-boringssl-docs/aead.h.html#EVP_AEAD_max_overhead).
+    pub fn max_overhead(&self) -> usize {
         unsafe { EVP_AEAD_max_overhead(self.0) as usize }
     }
 
@@ -129,7 +149,7 @@ impl AeadCrypter {
             ))?;
             let aeadcrypter = AeadCrypter {
                 ctx,
-                max_overhead: aead.max_ciphertext_overhead(),
+                max_overhead: aead.max_overhead(),
             };
             Ok(aeadcrypter)
         }
@@ -239,9 +259,10 @@ pub fn encrypt_aead(
     data: &[u8],
 ) -> Result<Vec<u8>, ErrorStack> {
     let mut aeadcrypter = AeadCrypter::new(aead, key)?;
-    let mut output = vec![0u8; data.len() + aead.max_ciphertext_overhead()];
+    let mut output = vec![0u8; data.len() + aead.max_overhead()];
     let bytes_written_to_output = aeadcrypter.seal(nonce, aad, data, &mut output)?;
-    Ok(output[..bytes_written_to_output].to_vec())
+    output.truncate(bytes_written_to_output);
+    Ok(output)
 }
 
 /// Authenticates the provided data and aad and decrypts the provided data.
@@ -267,10 +288,10 @@ mod tests {
 
     #[test]
     fn test_aead_encrypt_decrypt() {
-        let key = [0u8; 16];
-        let nonce = [0u8; 16];
-        let aad = [0u8; 16];
-        let data = [0u8; 16];
+        let key = [42u8; 16];
+        let nonce = [42u8; 16];
+        let aad = [42u8; 16];
+        let data = [42u8; 16];
 
         let encrypted_data = encrypt_aead(Aead::aes_128_gcm(), &key, &nonce, &aad, &data).unwrap();
         let decrypted_data =
