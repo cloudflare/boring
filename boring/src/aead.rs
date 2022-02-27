@@ -130,14 +130,14 @@ unsafe impl Sync for Aead {}
 unsafe impl Send for Aead {}
 
 /// Represents an AEAD context.
-pub struct AeadCrypter {
+pub struct AeadContext {
     ctx: *mut ffi::EVP_AEAD_CTX,
     max_overhead: usize,
 }
 
-impl AeadCrypter {
-    /// Creates a new `AeadCrypter`.
-    pub fn new(aead: Aead, key: &[u8]) -> Result<AeadCrypter, ErrorStack> {
+impl AeadContext {
+    /// Creates a new `AeadContext`.
+    pub fn new(aead: Aead, key: &[u8]) -> Result<AeadContext, ErrorStack> {
         ffi::init();
 
         unsafe {
@@ -147,11 +147,11 @@ impl AeadCrypter {
                 key.len(),
                 0, // supply tag_len = 0 so it picks the default one.
             ))?;
-            let aeadcrypter = AeadCrypter {
+            let aeadcontext = AeadContext {
                 ctx,
                 max_overhead: aead.max_overhead(),
             };
-            Ok(aeadcrypter)
+            Ok(aeadcontext)
         }
     }
 
@@ -240,7 +240,7 @@ impl AeadCrypter {
     }
 }
 
-impl Drop for AeadCrypter {
+impl Drop for AeadContext {
     fn drop(&mut self) {
         unsafe {
             ffi::EVP_AEAD_CTX_free(self.ctx);
@@ -258,9 +258,9 @@ pub fn encrypt_aead(
     aad: &[u8],
     data: &[u8],
 ) -> Result<Vec<u8>, ErrorStack> {
-    let mut aeadcrypter = AeadCrypter::new(aead, key)?;
+    let mut aeadcontext = AeadContext::new(aead, key)?;
     let mut output = vec![0u8; data.len() + aead.max_overhead()];
-    let bytes_written_to_output = aeadcrypter.seal(nonce, aad, data, &mut output)?;
+    let bytes_written_to_output = aeadcontext.seal(nonce, aad, data, &mut output)?;
     output.truncate(bytes_written_to_output);
     Ok(output)
 }
@@ -275,9 +275,9 @@ pub fn decrypt_aead(
     aad: &[u8],
     data: &[u8],
 ) -> Result<Vec<u8>, ErrorStack> {
-    let mut aeadcrypter = AeadCrypter::new(aead, key)?;
+    let mut aeadcontext = AeadContext::new(aead, key)?;
     let mut output = vec![0u8; data.len()];
-    let bytes_written_to_output = aeadcrypter.open(nonce, aad, data, &mut output)?;
+    let bytes_written_to_output = aeadcontext.open(nonce, aad, data, &mut output)?;
     Ok(output[..bytes_written_to_output].to_vec())
 }
 
