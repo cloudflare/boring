@@ -126,9 +126,6 @@ impl Aead {
     }
 }
 
-unsafe impl Sync for Aead {}
-unsafe impl Send for Aead {}
-
 /// Represents an AEAD context.
 pub struct AeadContext {
     ctx: *mut ffi::EVP_AEAD_CTX,
