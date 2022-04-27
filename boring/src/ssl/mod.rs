@@ -486,7 +486,6 @@ impl ExtensionType {
         Self(ffi::TLSEXT_TYPE_application_layer_protocol_negotiation as u16);
     pub const PADDING: Self = Self(ffi::TLSEXT_TYPE_padding as u16);
     pub const EXTENDED_MASTER_SECRET: Self = Self(ffi::TLSEXT_TYPE_extended_master_secret as u16);
-    pub const TOKEN_BINDING: Self = Self(ffi::TLSEXT_TYPE_token_binding as u16);
     #[cfg(not(feature = "fips"))]
     pub const QUIC_TRANSPORT_PARAMETERS_LEGACY: Self =
         Self(ffi::TLSEXT_TYPE_quic_transport_parameters_legacy as u16);
@@ -511,8 +510,6 @@ impl ExtensionType {
     pub const APPLICATION_SETTINGS: Self = Self(ffi::TLSEXT_TYPE_application_settings as u16);
     #[cfg(not(feature = "fips"))]
     pub const ENCRYPTED_CLIENT_HELLO: Self = Self(ffi::TLSEXT_TYPE_encrypted_client_hello as u16);
-    #[cfg(not(feature = "fips"))]
-    pub const ECH_IS_INNER: Self = Self(ffi::TLSEXT_TYPE_ech_is_inner as u16);
     pub const CERTIFICATE_TIMESTAMP: Self = Self(ffi::TLSEXT_TYPE_certificate_timestamp as u16);
     pub const NEXT_PROTO_NEG: Self = Self(ffi::TLSEXT_TYPE_next_proto_neg as u16);
     pub const CHANNEL_ID: Self = Self(ffi::TLSEXT_TYPE_channel_id as u16);
@@ -2507,7 +2504,7 @@ impl SslRef {
             if chain.is_null() {
                 None
             } else {
-                Some(StackRef::from_ptr(chain))
+                Some(StackRef::from_ptr(chain as *mut _))
             }
         }
     }
