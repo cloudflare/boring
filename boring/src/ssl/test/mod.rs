@@ -444,17 +444,23 @@ fn test_alpn_server_advertise_multiple() {
 #[test]
 fn test_alpn_server_select_none_fatal() {
     let mut server = Server::builder();
-    // NOTE: in Boring all alpn errors are treated as SSL_TLSEXT_ERR_NOACK
     server.ctx().set_alpn_select_callback(|_, client| {
         ssl::select_next_proto(b"\x08http/1.1\x08spdy/3.1", client)
             .ok_or(ssl::AlpnError::ALERT_FATAL)
     });
+    #[cfg(not(feature = "fips"))]
+    server.should_error();
     let server = server.build();
 
     let mut client = server.client();
     client.ctx().set_alpn_protos(b"\x06http/2").unwrap();
-    let s = client.connect();
-    assert_eq!(None, s.ssl().selected_alpn_protocol());
+
+    if cfg!(feature = "fips") {
+        let s = client.connect();
+        assert_eq!(None, s.ssl().selected_alpn_protocol());
+    } else {
+        client.connect_err();
+    }
 }
 
 #[test]
