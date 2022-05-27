@@ -70,6 +70,20 @@ const CMAKE_PARAMS_IOS: &[(&str, &[(&str, &str)])] = &[
             ("CMAKE_OSX_SYSROOT", "iphonesimulator"),
         ],
     ),
+    (
+        "aarch64-apple-ios-macabi",
+        &[
+            ("CMAKE_OSX_ARCHITECTURES", "arm64"),
+            ("CMAKE_OSX_SYSROOT", "macosx"),
+        ],
+    ),
+    (
+        "x86_64-apple-ios-macabi",
+        &[
+            ("CMAKE_OSX_ARCHITECTURES", "x86_64"),
+            ("CMAKE_OSX_SYSROOT", "macosx"),
+        ],
+    ),
 ];
 
 fn cmake_params_ios() -> &'static [(&'static str, &'static str)] {
@@ -178,16 +192,28 @@ fn get_boringssl_cmake_config() -> cmake::Config {
                 // Bitcode is always on.
                 let bitcode_cflag = "-fembed-bitcode";
 
-                // Hack for Xcode 10.1.
-                let target_cflag = if arch == "x86_64" {
-                    "-target x86_64-apple-ios-simulator"
+                if target.ends_with("-macabi") {
+                    // Mac Catalyst
+                    let compiler_flags = format!("{} -target {}", bitcode_cflag, target);
+                    boringssl_cmake.define("CMAKE_ASM_FLAGS", &compiler_flags);
+                    // Work around hardcoded deployment target in cc crate by defining CMAKE_C_FLAGS
+                    // instead of using the cflag builder.
+                    boringssl_cmake.define("CMAKE_C_FLAGS", &compiler_flags);
+                    boringssl_cmake.define("CMAKE_CXX_FLAGS", &compiler_flags);
                 } else {
-                    ""
-                };
+                    // Normal iOS
 
-                let cflag = format!("{} {}", bitcode_cflag, target_cflag);
-                boringssl_cmake.define("CMAKE_ASM_FLAGS", &cflag);
-                boringssl_cmake.cflag(&cflag);
+                    // Hack for Xcode 10.1.
+                    let target_cflag = if arch == "x86_64" {
+                        "-target x86_64-apple-ios-simulator"
+                    } else {
+                        ""
+                    };
+
+                    let cflag = format!("{} {}", bitcode_cflag, target_cflag);
+                    boringssl_cmake.define("CMAKE_ASM_FLAGS", &cflag);
+                    boringssl_cmake.cflag(&cflag);
+                }
             }
 
             "windows" => {
@@ -424,7 +450,7 @@ fn main() {
         // so let's disable all alignment tests and hope for the best.
         //
         // [1]: https://github.com/rust-lang/rust-bindgen/issues/1651
-        "aarch64-apple-ios" | "aarch64-apple-ios-sim" => {
+        "aarch64-apple-ios" | "aarch64-apple-ios-sim" | "aarch64-apple-ios-macabi" => {
             builder = builder.layout_tests(false);
         }
         _ => {}
