@@ -149,11 +149,12 @@ jobs:
           target: x86_64-unknown-linux-musl
           rust: stable
           os: ubuntu-latest
+          apt_packages: musl-tools
         - thing: x86_64-mingw
           target: x86_64-pc-windows-gnu
           rust: stable
           os: ubuntu-latest
-          apt_packages: gcc-mingw-w64
+          apt_packages: mingw-w64 binutils-mingw-w64
         - thing: i686-msvc
           target: i686-pc-windows-msvc
           rust: stable-x86_64-msvc
