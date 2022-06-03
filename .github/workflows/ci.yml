@@ -188,8 +188,9 @@ jobs:
       run: cargo test --target ${{ matrix.target }} ${{ matrix.extra_test_args }}
       name: Run tests
     - if: matrix.check_only
-      run: cargo check --target ${{ matrix.target }} --all-targets
-      name: Check tests
+      # We `build` because we want the linker to verify we are cross-compiling correctly.
+      run: cargo build --target ${{ matrix.target }} --tests
+      name: Build tests
     - name: Test boring-sys cargo publish
       # Running `cargo publish --dry-run` tests two things:
       #
