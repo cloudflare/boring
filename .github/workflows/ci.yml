@@ -83,6 +83,7 @@ jobs:
         include:
         - check_only: false
         - extra_test_args: ''
+        - apt_packages: ''
         - thing: stable
           target: x86_64-unknown-linux-gnu
           rust: stable
@@ -120,7 +121,6 @@ jobs:
         - thing: x86_64-ios
           target: x86_64-apple-ios
           os: macos-latest
-
           check_only: true
         - thing: i686-linux
           target: i686-unknown-linux-gnu
@@ -164,8 +164,8 @@ jobs:
       shell: bash
     - run: rustup target add ${{ matrix.target }}
     - name: Install Linux cross-compile dependencies
-      if: "contains(matrix.target, 'linux') && !startsWith(matrix.target, 'x86_64')"
-      run: sudo apt install -y gcc-multilib g++-multilib
+      if: "matrix.apt_packages != ''"
+      run: sudo apt update && sudo apt install -y ${{ matrix.apt_packages }}
       shell: bash
     - name: Install nasm
       if: startsWith(matrix.os, 'windows')
