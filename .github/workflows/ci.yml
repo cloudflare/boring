@@ -97,13 +97,13 @@ jobs:
           target: arm-linux-androideabi
           rust: stable
           os: ubuntu-latest
-          apt_packages: gcc-multilib
+          apt_packages: gcc-multilib g++-multilib
           check_only: true # TODO run with qemu?
         - thing: arm64-android
           target: aarch64-linux-android
           rust: stable
           os: ubuntu-latest
-          apt_packages: gcc-multilib
+          apt_packages: gcc-multilib g++-multilib
           check_only: true # TODO run with qemu?
         - thing: i686-android
           target: i686-linux-android
