@@ -92,44 +92,6 @@ fn get_ios_sdk_name() -> &'static str {
     panic!("cannot find iOS SDK for {} in CMAKE_PARAMS_IOS", target);
 }
 
-/// Returns the platform-specific output path for lib.
-///
-/// MSVC generator on Windows place static libs in a target sub-folder,
-/// so adjust library location based on platform and build target.
-/// See issue: https://github.com/alexcrichton/cmake-rs/issues/18
-fn get_boringssl_platform_output_path() -> String {
-    if cfg!(windows) {
-        // Code under this branch should match the logic in cmake-rs
-        let debug_env_var = std::env::var("DEBUG").expect("DEBUG variable not defined in env");
-
-        let deb_info = match &debug_env_var[..] {
-            "false" => false,
-            "true" => true,
-            unknown => panic!("Unknown DEBUG={} env var.", unknown),
-        };
-
-        let opt_env_var =
-            std::env::var("OPT_LEVEL").expect("OPT_LEVEL variable not defined in env");
-
-        let subdir = match &opt_env_var[..] {
-            "0" => "Debug",
-            "1" | "2" | "3" => {
-                if deb_info {
-                    "RelWithDebInfo"
-                } else {
-                    "Release"
-                }
-            }
-            "s" | "z" => "MinSizeRel",
-            unknown => panic!("Unknown OPT_LEVEL={} env var.", unknown),
-        };
-
-        subdir.to_string()
-    } else {
-        "".to_string()
-    }
-}
-
 #[cfg(feature = "fips")]
 const BORING_SSL_PATH: &str = "deps/boringssl-fips";
 #[cfg(not(feature = "fips"))]
@@ -317,6 +279,7 @@ fn main() {
         }
 
         let mut cfg = get_boringssl_cmake_config();
+        cfg.generator("Ninja");
 
         if cfg!(feature = "fuzzing") {
             cfg.cxxflag("-DBORINGSSL_UNSAFE_DETERMINISTIC_MODE")
@@ -334,21 +297,11 @@ fn main() {
         cfg.build_target("crypto").build().display().to_string()
     });
 
-    let build_path = get_boringssl_platform_output_path();
     if cfg!(feature = "fips") {
-        println!(
-            "cargo:rustc-link-search=native={}/build/crypto/{}",
-            bssl_dir, build_path
-        );
-        println!(
-            "cargo:rustc-link-search=native={}/build/ssl/{}",
-            bssl_dir, build_path
-        );
+        println!("cargo:rustc-link-search=native={}/build/crypto", bssl_dir);
+        println!("cargo:rustc-link-search=native={}/build/ssl", bssl_dir);
     } else {
-        println!(
-            "cargo:rustc-link-search=native={}/build/{}",
-            bssl_dir, build_path
-        );
+        println!("cargo:rustc-link-search=native={}/build", bssl_dir);
     }
 
     println!("cargo:rustc-link-lib=static=crypto");
