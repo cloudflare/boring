@@ -35,6 +35,8 @@ jobs:
       - name: Get rust version
         id: rust-version
         run: echo "::set-output name=version::$(rustc --version)"
+      - name: Install Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v3
       - name: Cache cargo index
         uses: actions/cache@v1
         with:
@@ -136,7 +138,7 @@ jobs:
           os: ubuntu-latest
         - thing: i686-msvc
           target: i686-pc-windows-msvc
-          rust: stable-x86_64-msvc
+          rust: stable-i686-msvc
           os: windows-latest
         - thing: x86_64-msvc
           target: x86_64-pc-windows-msvc
@@ -189,6 +191,8 @@ jobs:
     - name: Install Rust (rustup)
       run: rustup update stable --no-self-update && rustup default stable
       shell: bash
+    - name: Install Ninja
+      uses: seanmiddleditch/gha-setup-ninja@v3
     - name: Install Clang-7
       run: sudo apt-get install -y clang-7
     - run: cargo test --features fips
