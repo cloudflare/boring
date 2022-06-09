@@ -144,7 +144,7 @@ jobs:
           target: aarch64-unknown-linux-gnu
           rust: stable
           os: ubuntu-latest
-          apt_packages: gcc-aarch64-linux-gnu g++-aarch64-linux-gnu binutils-aarch64-linux-gnu
+          apt_packages: crossbuild-essential-arm64
           check_only: true # TODO run with qemu?
         - thing: x86_64-musl
           target: x86_64-unknown-linux-musl
