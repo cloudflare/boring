@@ -40,6 +40,8 @@ use std::mem;
 
 use crate::error::ErrorStack;
 use crate::stack::StackRef;
+use crate::x509::crl::X509CRL;
+use crate::x509::verify::X509VerifyParamRef;
 use crate::x509::{X509Object, X509};
 use crate::{cvt, cvt_p};
 
@@ -76,6 +78,24 @@ impl X509StoreBuilderRef {
     // FIXME should take an &X509Ref
     pub fn add_cert(&mut self, cert: X509) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::X509_STORE_add_cert(self.as_ptr(), cert.as_ptr())).map(|_| ()) }
+    }
+
+    /// Adds a CRL to the certificate store.
+    ///
+    /// This corresponds to [`X509_STORE_add_crl`].
+    ///
+    /// [`X509_STORE_add_crl`]: https://www.openssl.org/docs/man1.1.1/man3/X509_STORE_add_crl
+    pub fn add_crl(&mut self, crl: X509CRL) -> Result<(), ErrorStack> {
+        unsafe { cvt(ffi::X509_STORE_add_crl(self.as_ptr(), crl.as_ptr())).map(|_| ()) }
+    }
+
+    /// Returns a mutable reference to the X509 verification configuration.
+    ///
+    /// This corresponds to [`X509_STORE_get0_param`].
+    ///
+    /// [`X509_STORE_add_crl`]: https://www.openssl.org/docs/man1.1.1/man3/X509_STORE_get0_param
+    pub fn param_mut(&mut self) -> &mut X509VerifyParamRef {
+        unsafe { X509VerifyParamRef::from_ptr_mut(ffi::X509_STORE_get0_param(self.as_ptr())) }
     }
 
     /// Load certificates from their default locations.

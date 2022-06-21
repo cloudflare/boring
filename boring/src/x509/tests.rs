@@ -6,17 +6,28 @@ use crate::hash::MessageDigest;
 use crate::nid::Nid;
 use crate::pkey::{PKey, Private};
 use crate::rsa::Rsa;
-use crate::stack::Stack;
+use crate::stack::{Stack, Stackable};
+use crate::x509::crl::{X509CRLBuilder, X509Revoked, X509CRL};
 use crate::x509::extension::{
     AuthorityKeyIdentifier, BasicConstraints, ExtendedKeyUsage, KeyUsage, SubjectAlternativeName,
     SubjectKeyIdentifier,
 };
 use crate::x509::store::X509StoreBuilder;
+use crate::x509::verify::X509VerifyFlags;
 use crate::x509::{X509Name, X509Req, X509StoreContext, X509VerifyResult, X509};
 
 fn pkey() -> PKey<Private> {
     let rsa = Rsa::generate(2048).unwrap();
     PKey::from_rsa(rsa).unwrap()
+}
+
+fn stack_of<T>(item: T) -> Stack<T>
+where
+    T: Stackable,
+{
+    let mut stack = Stack::new().expect("unable to initialize stack");
+    stack.push(item).expect("failed to add to stack");
+    stack
 }
 
 #[test]
@@ -251,6 +262,48 @@ fn x509_builder() {
 }
 
 #[test]
+fn x509_crl_builder() {
+    let mut builder = X509CRLBuilder::new().unwrap();
+
+    let mut name = X509Name::builder().unwrap();
+    name.append_entry_by_nid(Nid::COMMONNAME, "foobar.com")
+        .unwrap();
+    let name = name.build();
+    builder.set_issuer_name(&name).unwrap();
+
+    let mut serial = BigNum::new().unwrap();
+    serial.rand(128, MsbOption::MAYBE_ZERO, false).unwrap();
+    let serial_asn = serial.to_asn1_integer().unwrap();
+    let revoked =
+        X509Revoked::from_parts(&serial_asn, &Asn1Time::days_from_now(0).unwrap()).unwrap();
+    builder.add_revoked(revoked).unwrap();
+
+    builder
+        .set_last_update(&Asn1Time::days_from_now(0).unwrap())
+        .unwrap();
+    builder
+        .set_next_update(&Asn1Time::days_from_now(30).unwrap())
+        .unwrap();
+
+    let pkey = pkey();
+    builder.sign(&pkey, MessageDigest::sha256()).unwrap();
+
+    let crl = builder.build();
+
+    let cn = crl.issuer().entries_by_nid(Nid::COMMONNAME).next().unwrap();
+    assert_eq!(cn.data().as_slice(), b"foobar.com");
+    let revoked_sn = crl
+        .revoked()
+        .unwrap()
+        .iter()
+        .next()
+        .unwrap()
+        .serial_number();
+    assert_eq!(serial, revoked_sn.to_bn().unwrap());
+    assert!(crl.verify(&pkey).unwrap());
+}
+
+#[test]
 fn x509_req_builder() {
     let pkey = pkey();
 
@@ -378,4 +431,189 @@ fn test_verify_fails() {
     assert!(!context
         .init(&store, &cert, &chain, |c| c.verify_cert())
         .unwrap());
+}
+
+#[test]
+fn test_verify_revoked() {
+    let cert = include_bytes!("../../test/cert.pem");
+    let cert = X509::from_pem(cert).unwrap();
+    let ca = include_bytes!("../../test/root-ca.pem");
+    let ca = X509::from_pem(ca).unwrap();
+    let crl = include_bytes!("../../test/crl.pem");
+    let crl = X509CRL::from_pem(crl).unwrap();
+    let chain = Stack::new().unwrap();
+
+    let mut store_bldr = X509StoreBuilder::new().unwrap();
+    store_bldr.add_cert(ca).unwrap();
+    store_bldr.add_crl(crl).unwrap();
+    store_bldr
+        .param_mut()
+        .set_flags(X509VerifyFlags::CRL_CHECK | X509VerifyFlags::CRL_CHECK_ALL)
+        .unwrap();
+    let store = store_bldr.build();
+
+    let mut context = X509StoreContext::new().unwrap();
+    assert!(!context
+        .init(&store, &cert, &chain, |c| c.verify_cert())
+        .unwrap());
+}
+
+#[test]
+fn test_crl_signature() {
+    let ca = include_bytes!("../../test/root-ca.pem");
+    let ca = X509::from_pem(ca).unwrap();
+
+    let crl = include_bytes!("../../test/bad_sig.pem");
+    let crl = X509CRL::from_pem(crl).unwrap();
+    assert!(!crl.verify(&ca.public_key().unwrap()).unwrap());
+
+    let crl = include_bytes!("../../test/crl.pem");
+    let crl = X509CRL::from_pem(crl).unwrap();
+    assert!(crl.verify(&ca.public_key().unwrap()).unwrap());
+}
+
+#[test]
+fn test_untrusted_valid_crl() {
+    let cert = include_bytes!("../../test/cert.pem");
+    let cert = X509::from_pem(cert).unwrap();
+    let ca = include_bytes!("../../test/root-ca.pem");
+    let ca = X509::from_pem(ca).unwrap();
+    let chain = Stack::new().unwrap();
+
+    let mut store_bldr = X509StoreBuilder::new().unwrap();
+    store_bldr.add_cert(ca).unwrap();
+    store_bldr
+        .param_mut()
+        .set_flags(X509VerifyFlags::CRL_CHECK | X509VerifyFlags::CRL_CHECK_ALL)
+        .unwrap();
+    let store = store_bldr.build();
+
+    // cert is not revoked
+    let crl = include_bytes!("../../test/empty_crl.pem");
+    let crl = X509CRL::from_pem(crl).unwrap();
+    let mut context = X509StoreContext::new().unwrap();
+    assert!(context
+        .init(&store, &cert, &chain, |c| c
+            .verify_cert_with_crls(stack_of(crl)))
+        .unwrap());
+
+    // cert is revoked
+    let crl = include_bytes!("../../test/crl.pem");
+    let crl = X509CRL::from_pem(crl).unwrap();
+    let mut context = X509StoreContext::new().unwrap();
+    assert!(!context
+        .init(&store, &cert, &chain, |c| c
+            .verify_cert_with_crls(stack_of(crl)))
+        .unwrap());
+    assert_eq!(context.error().as_raw(), ffi::X509_V_ERR_CERT_REVOKED);
+}
+
+#[test]
+fn test_untrusted_invalid_crl() {
+    let cert = include_bytes!("../../test/cert.pem");
+    let cert = X509::from_pem(cert).unwrap();
+    let ca = include_bytes!("../../test/root-ca.pem");
+    let ca = X509::from_pem(ca).unwrap();
+    let chain = Stack::new().unwrap();
+
+    let mut store_bldr = X509StoreBuilder::new().unwrap();
+    store_bldr.add_cert(ca).unwrap();
+    store_bldr
+        .param_mut()
+        .set_flags(X509VerifyFlags::CRL_CHECK | X509VerifyFlags::CRL_CHECK_ALL)
+        .unwrap();
+    let store = store_bldr.build();
+
+    // this CRL was issued by a different CA (not in the trusted store)
+    let crl = include_bytes!("../../test/invalid_crl.pem");
+    let crl = X509CRL::from_pem(crl).unwrap();
+    let mut context = X509StoreContext::new().unwrap();
+    assert!(!context
+        .init(&store, &cert, &chain, |c| c
+            .verify_cert_with_crls(stack_of(crl)))
+        .unwrap());
+    assert_eq!(context.error().as_raw(), ffi::X509_V_ERR_UNABLE_TO_GET_CRL);
+
+    // this CRL has an invalid signature
+    let crl = include_bytes!("../../test/bad_sig.pem");
+    let crl = X509CRL::from_pem(crl).unwrap();
+    let mut context = X509StoreContext::new().unwrap();
+    assert!(!context
+        .init(&store, &cert, &chain, |c| c
+            .verify_cert_with_crls(stack_of(crl)))
+        .unwrap());
+    assert_eq!(
+        context.error().as_raw(),
+        ffi::X509_V_ERR_CRL_SIGNATURE_FAILURE
+    );
+}
+
+#[test]
+fn test_revoked_serial_numbers() {
+    let cert = include_bytes!("../../test/cert.pem");
+    let cert = X509::from_pem(cert).unwrap();
+    let cert_sn = cert.serial_number().to_bn().unwrap();
+
+    let crl = include_bytes!("../../test/crl.pem");
+    let crl = X509CRL::from_pem(crl).unwrap();
+
+    assert_eq!(
+        crl.revoked()
+            .unwrap()
+            .iter()
+            .filter(|revoked| revoked.serial_number().to_bn().unwrap() == cert_sn)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn test_serialize_crl() {
+    let crl = include_bytes!("../../test/crl.pem");
+    let crl = X509CRL::from_pem(crl).unwrap();
+    let digest = hex::encode(crl.digest(MessageDigest::sha1()).unwrap());
+
+    let serialized = crl.to_pem().unwrap();
+    let crl_deserialized = X509CRL::from_pem(&serialized).unwrap();
+    let new_digest = crl_deserialized.digest(MessageDigest::sha1()).unwrap();
+    assert_eq!(digest, hex::encode(new_digest));
+}
+
+#[test]
+fn test_crl_extensions() {
+    let crl = include_bytes!("../../test/crl.pem");
+    let crl = X509CRL::from_pem(crl).unwrap();
+    let extensions = crl.extensions();
+    assert_eq!(
+        extensions
+            .unwrap()
+            .iter()
+            .filter(|ext| ext.object().nid() == Nid::AUTHORITY_KEY_IDENTIFIER)
+            .count(),
+        1
+    );
+    assert_eq!(
+        extensions
+            .unwrap()
+            .iter()
+            .filter(|ext| ext.object().nid() == Nid::CRL_NUMBER)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn test_debug_crl() {
+    let crl = include_bytes!("../../test/crl.pem");
+    let crl = X509CRL::from_pem(crl).unwrap();
+    let debugged = format!("{:#?}", crl);
+    assert!(debugged.contains(r#"countryName = "AU""#));
+    assert!(debugged.contains(r#"stateOrProvinceName = "Some-State""#));
+    assert!(debugged.contains(r#"organizationName = "Internet Widgits Pty Ltd""#));
+    assert!(debugged.contains(r#"last_update: Jun 21 20:22:02 2022 GMT"#));
+    assert!(debugged.contains(r#"next_update: Jun 18 20:22:02 2032 GMT"#));
+    assert!(debugged.contains(r#"revocation_date: Jun 21 20:21:55 2022 GMT"#));
+    assert!(debugged.contains(r#"serial_number: "8771f7bdee982fa5""#));
+    assert!(debugged.contains(r#"object_nid: X509v3 Authority Key Identifier"#));
+    assert!(debugged.contains(r#"object_nid: X509v3 CRL Number"#));
 }
