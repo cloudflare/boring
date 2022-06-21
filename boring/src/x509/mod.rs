@@ -603,6 +603,21 @@ impl X509Ref {
         }
     }
 
+    /// Returns the extensions of the certificate.
+    ///
+    /// This corresponds to [`X509_get0_extensions`].
+    ///
+    /// [`X509_get0_extensions`]: https://www.openssl.org/docs/man1.1.1/man3/X509_get0_extensions.html
+    pub fn extensions(&self) -> Option<&StackRef<X509Extension>> {
+        unsafe {
+            let stack = ffi::X509_get0_extensions(self.as_ptr());
+            if stack.is_null() {
+                return None;
+            }
+            Some(StackRef::from_ptr(stack as *mut _))
+        }
+    }
+
     to_pem! {
         /// Serializes the certificate into a PEM-encoded X509 structure.
         ///

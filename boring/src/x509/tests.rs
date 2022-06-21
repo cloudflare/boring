@@ -251,6 +251,7 @@ fn x509_builder() {
 
     assert!(pkey.public_eq(&x509.public_key().unwrap()));
     assert!(x509.verify(&pkey).unwrap());
+    assert_eq!(x509.extensions().unwrap().len(), 6);
 
     let cn = x509
         .subject_name()
