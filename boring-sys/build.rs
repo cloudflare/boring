@@ -155,85 +155,104 @@ const BORING_SSL_PATH: &str = "deps/boringssl";
 fn get_boringssl_cmake_config() -> cmake::Config {
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
     let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+    let host = std::env::var("HOST").unwrap();
     let target = std::env::var("TARGET").unwrap();
     let pwd = std::env::current_dir().unwrap();
 
     let mut boringssl_cmake = cmake::Config::new(BORING_SSL_PATH);
+    if host != target {
+        // Add platform-specific parameters for cross-compilation.
+        match os.as_ref() {
+            "android" => {
+                // We need ANDROID_NDK_HOME to be set properly.
+                println!("cargo:rerun-if-env-changed=ANDROID_NDK_HOME");
+                let android_ndk_home = std::env::var("ANDROID_NDK_HOME")
+                    .expect("Please set ANDROID_NDK_HOME for Android build");
+                let android_ndk_home = std::path::Path::new(&android_ndk_home);
+                for (name, value) in cmake_params_android() {
+                    eprintln!("android arch={} add {}={}", arch, name, value);
+                    boringssl_cmake.define(name, value);
+                }
+                let toolchain_file = android_ndk_home.join("build/cmake/android.toolchain.cmake");
+                let toolchain_file = toolchain_file.to_str().unwrap();
+                eprintln!("android toolchain={}", toolchain_file);
+                boringssl_cmake.define("CMAKE_TOOLCHAIN_FILE", toolchain_file);
 
-    // Add platform-specific parameters.
-    match os.as_ref() {
-        "android" => {
-            // We need ANDROID_NDK_HOME to be set properly.
-            println!("cargo:rerun-if-env-changed=ANDROID_NDK_HOME");
-            let android_ndk_home = std::env::var("ANDROID_NDK_HOME")
-                .expect("Please set ANDROID_NDK_HOME for Android build");
-            let android_ndk_home = std::path::Path::new(&android_ndk_home);
-            for (name, value) in cmake_params_android() {
-                eprintln!("android arch={} add {}={}", arch, name, value);
-                boringssl_cmake.define(name, value);
-            }
-            let toolchain_file = android_ndk_home.join("build/cmake/android.toolchain.cmake");
-            let toolchain_file = toolchain_file.to_str().unwrap();
-            eprintln!("android toolchain={}", toolchain_file);
-            boringssl_cmake.define("CMAKE_TOOLCHAIN_FILE", toolchain_file);
-
-            // 21 is the minimum level tested. You can give higher value.
-            boringssl_cmake.define("ANDROID_NATIVE_API_LEVEL", "21");
-            boringssl_cmake.define("ANDROID_STL", "c++_shared");
-
-            boringssl_cmake
-        }
-
-        "ios" => {
-            for (name, value) in cmake_params_ios() {
-                eprintln!("ios arch={} add {}={}", arch, name, value);
-                boringssl_cmake.define(name, value);
+                // 21 is the minimum level tested. You can give higher value.
+                boringssl_cmake.define("ANDROID_NATIVE_API_LEVEL", "21");
+                boringssl_cmake.define("ANDROID_STL", "c++_shared");
             }
 
-            // Bitcode is always on.
-            let bitcode_cflag = "-fembed-bitcode";
+            "ios" => {
+                for (name, value) in cmake_params_ios() {
+                    eprintln!("ios arch={} add {}={}", arch, name, value);
+                    boringssl_cmake.define(name, value);
+                }
 
-            if target.ends_with("-macabi") {
-                // Mac Catalyst
-                let compiler_flags = format!("{} -target {}", bitcode_cflag, target);
-                boringssl_cmake.define("CMAKE_ASM_FLAGS", &compiler_flags);
-                // Work around hardcoded deployment target in cc crate by defining CMAKE_C_FLAGS
-                // instead of using the cflag builder.
-                boringssl_cmake.define("CMAKE_C_FLAGS", &compiler_flags);
-                boringssl_cmake.define("CMAKE_CXX_FLAGS", &compiler_flags);
-            } else {
-                // Normal iOS
+                // Bitcode is always on.
+                let bitcode_cflag = "-fembed-bitcode";
 
-                // Hack for Xcode 10.1.
-                let target_cflag = if arch == "x86_64" {
-                    "-target x86_64-apple-ios-simulator"
+                if target.ends_with("-macabi") {
+                    // Mac Catalyst
+                    let compiler_flags = format!("{} -target {}", bitcode_cflag, target);
+                    boringssl_cmake.define("CMAKE_ASM_FLAGS", &compiler_flags);
+                    // Work around hardcoded deployment target in cc crate by defining CMAKE_C_FLAGS
+                    // instead of using the cflag builder.
+                    boringssl_cmake.define("CMAKE_C_FLAGS", &compiler_flags);
+                    boringssl_cmake.define("CMAKE_CXX_FLAGS", &compiler_flags);
                 } else {
-                    ""
-                };
+                    // Normal iOS
 
-                let cflag = format!("{} {}", bitcode_cflag, target_cflag);
+                    // Hack for Xcode 10.1.
+                    let target_cflag = if arch == "x86_64" {
+                        "-target x86_64-apple-ios-simulator"
+                    } else {
+                        ""
+                    };
 
-                boringssl_cmake.define("CMAKE_ASM_FLAGS", &cflag);
-                boringssl_cmake.cflag(&cflag);
+                    let cflag = format!("{} {}", bitcode_cflag, target_cflag);
+
+                    boringssl_cmake.define("CMAKE_ASM_FLAGS", &cflag);
+                    boringssl_cmake.cflag(&cflag);
+                }
             }
 
-            boringssl_cmake
-        }
-
-        _ => {
-            // Configure BoringSSL for building on 32-bit non-windows platforms.
-            if arch == "x86" && os != "windows" {
-                boringssl_cmake.define(
-                    "CMAKE_TOOLCHAIN_FILE",
-                    pwd.join(BORING_SSL_PATH)
-                        .join("src/util/32-bit-toolchain.cmake")
-                        .as_os_str(),
-                );
+            "windows" => {
+                if host.contains("windows") {
+                    // BoringSSL's CMakeLists.txt isn't set up for cross-compiling using Visual Studio.
+                    // Disable assembly support so that it at least builds.
+                    boringssl_cmake.define("OPENSSL_NO_ASM", "YES");
+                }
             }
 
-            boringssl_cmake
+            "linux" => match arch.as_str() {
+                "x86" => {
+                    boringssl_cmake.define(
+                        "CMAKE_TOOLCHAIN_FILE",
+                        pwd.join(BORING_SSL_PATH)
+                            .join("src/util/32-bit-toolchain.cmake")
+                            .as_os_str(),
+                    );
+                }
+                "aarch64" => {
+                    boringssl_cmake.define(
+                        "CMAKE_TOOLCHAIN_FILE",
+                        pwd.join("cmake/aarch64-linux.cmake").as_os_str(),
+                    );
+                }
+                _ => {
+                    eprintln!(
+                        "warning: no toolchain file configured by boring-sys for {}",
+                        target
+                    );
+                }
+            },
+
+            _ => {}
         }
     }
+
+    boringssl_cmake
 }
 
 /// Verify that the toolchains match https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf
