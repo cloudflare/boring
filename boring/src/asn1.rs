@@ -33,7 +33,6 @@ use std::fmt;
 use std::ptr;
 use std::slice;
 use std::str;
-use std::str::Utf8Error;
 
 use crate::bio::MemBio;
 use crate::bn::{BigNum, BigNumRef};
@@ -510,13 +509,13 @@ impl Asn1ObjectRef {
     ///
     /// This corresponds to [`OBJ_obj2txt`] with `no_name = 1`.
     ///
-    /// [`OBJ_obj2txt`]: https://www.openssl.org/docs/man1.1.1/man3/OBJ_txt2obj.html
-    pub fn oid_string(&self) -> Result<String, Utf8Error> {
-        self.to_text(false)
+    /// [`OBJ_obj2txt`]: https://www.openssl.org/docs/man1.1.1/man3/OBJ_obj2txt.html
+    pub fn oid_string(&self) -> String {
+        self.to_text(true)
     }
 
     // To promote this to `pub`, the call-site parameter meaning ought to be clearer
-    fn to_text(&self, no_name: bool) -> Result<String, Utf8Error> {
+    fn to_text(&self, no_name: bool) -> String {
         unsafe {
             let mut buf = [0; 80];
             let len = ffi::OBJ_obj2txt(
@@ -525,17 +524,14 @@ impl Asn1ObjectRef {
                 self.as_ptr(),
                 no_name as c_int,
             );
-            str::from_utf8(&buf[..len as usize]).map(|s| s.to_string())
+            String::from_utf8_lossy(&buf[..len as usize]).into_owned()
         }
     }
 }
 
 impl fmt::Display for Asn1ObjectRef {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match self.to_text(false) {
-            Err(_) => fmt.write_str("error"),
-            Ok(s) => fmt.write_str(s.as_str()),
-        }
+        fmt.write_str(&self.to_text(false))
     }
 }
 
@@ -643,10 +639,8 @@ mod tests {
     fn object_to_text() {
         let oid = "2.16.840.1.101.3.4.2.1";
         let object = Asn1Object::from_str(oid).unwrap();
-        assert_eq!(
-            object.to_text(false).unwrap(),
-            Nid::SHA256.long_name().unwrap()
-        );
-        assert_eq!(object.to_text(true).unwrap(), oid.to_string());
+        assert_eq!(object.to_text(false), Nid::SHA256.long_name().unwrap());
+        assert_eq!(object.to_text(true), oid.to_string());
+        assert_eq!(object.oid_string(), oid.to_string());
     }
 }
