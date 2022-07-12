@@ -16,12 +16,15 @@ bitflags = "1.0"
 foreign-types = "0.5"
 lazy_static = "1"
 libc = "0.2"
-boring-sys = { version = ">=1.1.0,<3.0.0", path = "../boring-sys" }
+boring-sys = { version = ">=1.1.0,<3.0.0", path = "../boring-sys", default-features = false }
 
 [dev-dependencies]
 hex = "0.4"
 rusty-hook = "^0.11"
 
 [features]
+default = ["ssl"]
+ssl = ["boring-sys/ssl"]
+
 # Use a FIPS-validated version of boringssl.
 fips = ["boring-sys/fips"]

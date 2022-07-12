@@ -31,5 +31,8 @@ bindgen = { version = "0.60", default-features = false, features = ["runtime"] }
 cmake = "0.1"
 
 [features]
+default = ["ssl"]
+ssl = []
+
 # Use a FIPS-validated version of boringssl.
 fips = []
