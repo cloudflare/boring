@@ -6,13 +6,7 @@
 extern crate bitflags;
 #[macro_use]
 extern crate foreign_types;
-#[macro_use]
-extern crate lazy_static;
 extern crate boring_sys as ffi;
-extern crate libc;
-
-#[cfg(test)]
-extern crate hex;
 
 #[doc(inline)]
 pub use crate::ffi::init;
@@ -51,6 +45,7 @@ pub mod rsa;
 pub mod sha;
 pub mod sign;
 pub mod srtp;
+#[cfg(feature = "ssl")]
 pub mod ssl;
 pub mod stack;
 pub mod string;

@@ -330,7 +330,9 @@ fn main() {
             cfg.define("FIPS", "1");
         }
 
-        cfg.build_target("ssl").build();
+        if cfg!(feature = "ssl") {
+            cfg.build_target("ssl").build();
+        }
         cfg.build_target("crypto").build().display().to_string()
     });
 
@@ -352,7 +354,9 @@ fn main() {
     }
 
     println!("cargo:rustc-link-lib=static=crypto");
-    println!("cargo:rustc-link-lib=static=ssl");
+    if cfg!(feature = "ssl") {
+        println!("cargo:rustc-link-lib=static=ssl");
+    }
 
     // MacOS: Allow cdylib to link with undefined symbols
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();

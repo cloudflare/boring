@@ -59,6 +59,7 @@
 //! ```
 use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef, Opaque};
+use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
 use std::any::TypeId;
 use std::cmp;

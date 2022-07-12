@@ -64,18 +64,21 @@ const_fn! {
 }
 
 pub fn init() {
-    use std::ptr;
-    use std::sync::Once;
+    #[cfg(feature = "ssl")]
+    {
+        use std::ptr;
+        use std::sync::Once;
 
-    // explicitly initialize to work around https://github.com/openssl/openssl/issues/3505
-    static INIT: Once = Once::new();
+        // explicitly initialize to work around https://github.com/openssl/openssl/issues/3505
+        static INIT: Once = Once::new();
 
-    let init_options = OPENSSL_INIT_LOAD_SSL_STRINGS;
+        let init_options = OPENSSL_INIT_LOAD_SSL_STRINGS;
 
-    INIT.call_once(|| {
-        assert_eq!(
-            unsafe { OPENSSL_init_ssl(init_options.try_into().unwrap(), ptr::null_mut()) },
-            1
-        )
-    });
+        INIT.call_once(|| {
+            assert_eq!(
+                unsafe { OPENSSL_init_ssl(init_options.try_into().unwrap(), ptr::null_mut()) },
+                1
+            )
+        });
+    }
 }
