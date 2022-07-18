@@ -1,6 +1,6 @@
 use crate::ffi;
 use foreign_types::ForeignTypeRef;
-use libc::c_uint;
+use libc::{c_uint, time_t};
 use std::net::IpAddr;
 
 use crate::cvt;
@@ -109,6 +109,34 @@ impl X509VerifyParamRef {
             ))
             .map(|_| ())
         }
+    }
+
+    /// Sets the time to check certificates and CRLs against.
+    ///
+    /// If unset, uses the current time.
+    ///
+    /// This corresponds to [`X509_VERIFY_PARAM_set_time`]. Note that BoringSSL does not support
+    /// the OpenSSL `NO_CHECK_TIME` option.
+    ///
+    /// [`X509_VERIFY_PARAM_set_time`]: https://www.openssl.org/docs/man1.1.1/man3/X509_VERIFY_PARAM_set_time.html
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use boring::x509::store::X509StoreBuilder;
+    /// use std::convert::TryInto;
+    /// use std::time::SystemTime;
+    ///
+    /// let mut store_builder = X509StoreBuilder::new().expect("can create a new builder");
+    /// let duration_since_epoch = SystemTime::UNIX_EPOCH.elapsed().expect("it's after 1970");
+    /// let seconds_since_epoch: libc::time_t = duration_since_epoch
+    ///     .as_secs()
+    ///     .try_into()
+    ///     .expect("time_t is large enough to represent this time");
+    /// store_builder.param_mut().set_time(seconds_since_epoch);
+    /// ```
+    pub fn set_time(&mut self, unix_time: time_t) {
+        unsafe { ffi::X509_VERIFY_PARAM_set_time(self.as_ptr(), unix_time) }
     }
 
     /// Set the verify flags by OR-ing them with `flags`
