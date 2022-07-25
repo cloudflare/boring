@@ -288,6 +288,16 @@ fn get_extra_clang_args_for_bindgen() -> Vec<String> {
             params.push("-isysroot".to_string());
             params.push(sysroot);
         }
+        "android" => {
+            let android_ndk_home = std::env::var("ANDROID_NDK_HOME")
+                .expect("Please set ANDROID_NDK_HOME for Android build");
+            let mut android_sysroot = std::path::PathBuf::from(android_ndk_home);
+            android_sysroot.push("sysroot");
+            params.push("--sysroot".to_string());
+            // If ANDROID_NDK_HOME weren't a valid UTF-8 string,
+            // we'd already know from std::env::var.
+            params.push(android_sysroot.into_os_string().into_string().unwrap());
+        }
         _ => {}
     }
 
