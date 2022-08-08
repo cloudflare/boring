@@ -327,7 +327,7 @@ where
     }
 }
 
-impl<T: fmt::Debug> fmt::Debug for MaybeHttpsStream<T> {
+impl<T> fmt::Debug for MaybeHttpsStream<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             MaybeHttpsStream::Http(..) => f.pad("Http(..)"),
