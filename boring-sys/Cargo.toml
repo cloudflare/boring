@@ -31,5 +31,9 @@ bindgen = { version = "0.60", default-features = false, features = ["runtime"] }
 cmake = "0.1"
 
 [features]
+# Set the Android min SDK version to 19 instead of the default 21.
+# Has no effect for non-Android targets, or for 64-bit Android targets.
+android-api-19 = []
+
 # Use a FIPS-validated version of boringssl.
 fips = []

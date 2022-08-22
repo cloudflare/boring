@@ -164,7 +164,9 @@ fn get_boringssl_cmake_config() -> cmake::Config {
                 eprintln!("android toolchain={}", toolchain_file);
                 boringssl_cmake.define("CMAKE_TOOLCHAIN_FILE", toolchain_file);
 
-                // 21 is the minimum level tested. You can give higher value.
+                #[cfg(feature = "android-api-19")]
+                boringssl_cmake.define("ANDROID_NATIVE_API_LEVEL", "19");
+                #[cfg(not(feature = "android-api-19"))]
                 boringssl_cmake.define("ANDROID_NATIVE_API_LEVEL", "21");
                 boringssl_cmake.define("ANDROID_STL", "c++_shared");
             }
