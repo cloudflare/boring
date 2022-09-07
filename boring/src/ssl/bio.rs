@@ -200,7 +200,7 @@ unsafe extern "C" fn destroy<S>(bio: *mut BIO) -> c_int {
     let data = BIO_get_data(bio);
 
     if !data.is_null() {
-        Box::<StreamState<S>>::from_raw(data as *mut _);
+        drop(Box::<StreamState<S>>::from_raw(data as *mut _));
         BIO_set_data(bio, ptr::null_mut());
     }
 
