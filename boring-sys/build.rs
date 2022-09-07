@@ -42,7 +42,7 @@ fn cmake_params_android() -> &'static [(&'static str, &'static str)] {
     };
     for (android_arch, params) in cmake_params_android {
         if *android_arch == arch {
-            return *params;
+            return params;
         }
     }
     &[]
@@ -76,7 +76,7 @@ fn cmake_params_ios() -> &'static [(&'static str, &'static str)] {
     let target = std::env::var("TARGET").unwrap();
     for (ios_target, params) in CMAKE_PARAMS_IOS {
         if *ios_target == target {
-            return *params;
+            return params;
         }
     }
     &[]
@@ -85,7 +85,7 @@ fn cmake_params_ios() -> &'static [(&'static str, &'static str)] {
 fn get_ios_sdk_name() -> &'static str {
     for (name, value) in cmake_params_ios() {
         if *name == "CMAKE_OSX_SYSROOT" {
-            return *value;
+            return value;
         }
     }
     let target = std::env::var("TARGET").unwrap();
