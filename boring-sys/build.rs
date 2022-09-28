@@ -363,22 +363,28 @@ fn main() {
         cfg.build_target("crypto").build().display().to_string()
     });
 
-    let build_path = get_boringssl_platform_output_path();
-    if cfg!(feature = "fips") {
-        println!(
-            "cargo:rustc-link-search=native={}/build/crypto/{}",
-            bssl_dir, build_path
-        );
-        println!(
-            "cargo:rustc-link-search=native={}/build/ssl/{}",
-            bssl_dir, build_path
-        );
+    println!("cargo:rerun-if-env-changed=BORING_BSSL_NATIVE_SEARCH_PATH");
+    if let Ok(native_search_path) = std::env::var("BORING_BSSL_NATIVE_SEARCH_PATH") {
+        println!("cargo:rustc-link-search=native={}", native_search_path)
     } else {
-        println!(
-            "cargo:rustc-link-search=native={}/build/{}",
-            bssl_dir, build_path
-        );
+        let build_path = get_boringssl_platform_output_path();
+        if cfg!(feature = "fips") {
+            println!(
+                "cargo:rustc-link-search=native={}/build/crypto/{}",
+                bssl_dir, build_path
+            );
+            println!(
+                "cargo:rustc-link-search=native={}/build/ssl/{}",
+                bssl_dir, build_path
+            );
+        } else {
+            println!(
+                "cargo:rustc-link-search=native={}/build/{}",
+                bssl_dir, build_path
+            );
+        }
     }
+
 
     println!("cargo:rustc-link-lib=static=crypto");
     println!("cargo:rustc-link-lib=static=ssl");
