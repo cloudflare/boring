@@ -71,6 +71,7 @@ use std::io::prelude::*;
 use std::marker::PhantomData;
 use std::mem::{self, ManuallyDrop};
 use std::ops::{Deref, DerefMut};
+use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::panic::resume_unwind;
 use std::path::Path;
 use std::ptr::{self, NonNull};
@@ -2962,7 +2963,6 @@ where
             .finish()
     }
 }
-
 impl<S: Read + Write> SslStream<S> {
     fn new_base(ssl: Ssl, stream: S) -> Self {
         unsafe {
@@ -3188,6 +3188,13 @@ impl<S: Read + Write> Write for SslStream<S> {
 
     fn flush(&mut self) -> io::Result<()> {
         self.get_mut().flush()
+    }
+}
+
+impl<S> AsRawFd for SslStream<S> {
+    /// SslStream manipulates bytestream so this function will return -1
+    fn as_raw_fd(&self) -> RawFd {
+        -1
     }
 }
 

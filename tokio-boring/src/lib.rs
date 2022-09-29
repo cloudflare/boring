@@ -21,6 +21,7 @@ use std::error::Error;
 use std::fmt;
 use std::future::Future;
 use std::io::{self, Read, Write};
+use std::os::unix::prelude::{AsRawFd, RawFd};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
@@ -197,6 +198,13 @@ where
     pub unsafe fn from_raw_parts(ssl: *mut ffi::SSL, stream: S) -> Self {
         let stream = StreamWrapper { stream, context: 0 };
         SslStream(ssl::SslStream::from_raw_parts(ssl, stream))
+    }
+}
+
+impl<S> AsRawFd for SslStream<S> {
+    /// SslStream manipulates bytestream so this function will return -1
+    fn as_raw_fd(&self) -> RawFd {
+        self.0.as_raw_fd()
     }
 }
 
