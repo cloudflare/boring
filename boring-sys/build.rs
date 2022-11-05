@@ -382,6 +382,7 @@ fn main() {
 
     println!("cargo:rustc-link-lib=static=crypto");
     println!("cargo:rustc-link-lib=static=ssl");
+    println!("cargo:rustc-link-lib=static=decrepit");
 
     // MacOS: Allow cdylib to link with undefined symbols
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
