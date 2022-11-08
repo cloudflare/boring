@@ -224,6 +224,12 @@ fn get_boringssl_cmake_config() -> cmake::Config {
                         pwd.join("cmake/aarch64-linux.cmake").as_os_str(),
                     );
                 }
+                "arm" => {
+                    boringssl_cmake.define(
+                        "CMAKE_TOOLCHAIN_FILE",
+                        pwd.join("cmake/armv7-linux.cmake").as_os_str(),
+                    );
+                }
                 _ => {
                     eprintln!(
                         "warning: no toolchain file configured by boring-sys for {}",
