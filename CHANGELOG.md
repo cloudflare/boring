@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [v2.1.0] - 2022-09-16
+
+This release contains several changes to `boring-sys` as well; make sure to read its changelog.
+
+### Added
+
+* `BigNumRef::to_vec_padded`
+
+### Fixed
+
+* Remove uses of `mem::uninitialized`
+
 ## [v2.0.0] - 2021-12-16
 
 ### Changed

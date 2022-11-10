@@ -42,7 +42,7 @@ fn cmake_params_android() -> &'static [(&'static str, &'static str)] {
     };
     for (android_arch, params) in cmake_params_android {
         if *android_arch == arch {
-            return *params;
+            return params;
         }
     }
     &[]
@@ -107,7 +107,7 @@ fn cmake_params_apple() -> &'static [(&'static str, &'static str)] {
     let target = std::env::var("TARGET").unwrap();
     for (next_target, params) in CMAKE_PARAMS_APPLE {
         if *next_target == target {
-            return *params;
+            return params;
         }
     }
     &[]
@@ -116,7 +116,7 @@ fn cmake_params_apple() -> &'static [(&'static str, &'static str)] {
 fn get_apple_sdk_name() -> &'static str {
     for (name, value) in cmake_params_apple() {
         if *name == "CMAKE_OSX_SYSROOT" {
-            return *value;
+            return value;
         }
     }
     let target = std::env::var("TARGET").unwrap();
@@ -129,7 +129,7 @@ fn get_apple_sdk_name() -> &'static str {
 /// so adjust library location based on platform and build target.
 /// See issue: https://github.com/alexcrichton/cmake-rs/issues/18
 fn get_boringssl_platform_output_path() -> String {
-    if cfg!(windows) {
+    if cfg!(target_env = "msvc") {
         // Code under this branch should match the logic in cmake-rs
         let debug_env_var = std::env::var("DEBUG").expect("DEBUG variable not defined in env");
 
@@ -366,7 +366,9 @@ fn get_extra_clang_args_for_bindgen() -> Vec<String> {
             let mut android_sysroot = std::path::PathBuf::from(android_ndk_home);
             android_sysroot.push("sysroot");
             params.push("--sysroot".to_string());
-            params.push(android_sysroot.to_string_lossy().into());
+            // If ANDROID_NDK_HOME weren't a valid UTF-8 string,
+            // we'd already know from std::env::var.
+            params.push(android_sysroot.into_os_string().into_string().unwrap());
         }
         _ => {}
     }

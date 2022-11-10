@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+
+## [v2.1.2] - 2022-09-16
+
+### Added
+
+* `impl Debug for MaybeHttpsStream`
+
 ## [v2.1.1] - 2021-12-16
 
 ### Changed

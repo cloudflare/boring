@@ -15,7 +15,6 @@ use hyper::client::HttpConnector;
 use hyper::service::Service;
 use hyper::Uri;
 use once_cell::sync::OnceCell;
-use std::error::Error;
 use std::fmt::Debug;
 use std::future::Future;
 use std::io;
@@ -23,6 +22,7 @@ use std::net;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use std::{error::Error, fmt};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_boring::SslStream;
 use tower_layer::Layer;
@@ -323,6 +323,15 @@ where
 
                 connected
             }
+        }
+    }
+}
+
+impl<T> fmt::Debug for MaybeHttpsStream<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            MaybeHttpsStream::Http(..) => f.pad("Http(..)"),
+            MaybeHttpsStream::Https(..) => f.pad("Https(..)"),
         }
     }
 }

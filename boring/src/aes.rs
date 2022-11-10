@@ -39,7 +39,8 @@
 //!
 use crate::ffi;
 use libc::{c_int, c_uint, size_t};
-use std::{mem, ptr};
+use std::mem::MaybeUninit;
+use std::ptr;
 
 /// Provides Error handling for parsing keys.
 #[derive(Debug)]
@@ -59,14 +60,14 @@ impl AesKey {
         unsafe {
             assert!(key.len() <= c_int::max_value() as usize / 8);
 
-            let mut aes_key = mem::uninitialized();
+            let mut aes_key = MaybeUninit::uninit();
             let r = ffi::AES_set_encrypt_key(
                 key.as_ptr() as *const _,
                 key.len() as c_uint * 8,
-                &mut aes_key,
+                aes_key.as_mut_ptr(),
             );
             if r == 0 {
-                Ok(AesKey(aes_key))
+                Ok(AesKey(aes_key.assume_init()))
             } else {
                 Err(KeyError(()))
             }
@@ -83,15 +84,15 @@ impl AesKey {
         unsafe {
             assert!(key.len() <= c_int::max_value() as usize / 8);
 
-            let mut aes_key = mem::uninitialized();
+            let mut aes_key = MaybeUninit::uninit();
             let r = ffi::AES_set_decrypt_key(
                 key.as_ptr() as *const _,
                 key.len() as c_uint * 8,
-                &mut aes_key,
+                aes_key.as_mut_ptr(),
             );
 
             if r == 0 {
-                Ok(AesKey(aes_key))
+                Ok(AesKey(aes_key.assume_init()))
             } else {
                 Err(KeyError(()))
             }
