@@ -102,8 +102,19 @@ impl HttpsLayer {
     /// Creates a new `HttpsLayer`.
     ///
     /// The session cache configuration of `ssl` will be overwritten.
-    pub fn with_connector(mut ssl: SslConnectorBuilder) -> Result<HttpsLayer, ErrorStack> {
-        let cache = Arc::new(Mutex::new(SessionCache::new()));
+    pub fn with_connector(ssl: SslConnectorBuilder) -> Result<HttpsLayer, ErrorStack> {
+        Self::with_connector_and_capacity(ssl, 8)
+    }
+
+    /// Creates a new `HttpsLayer` with session capacity.
+    ///
+    /// The session cache configuration of `ssl` will be overwritten. Session capacity is per
+    /// session key (domain).
+    pub fn with_connector_and_capacity(
+        mut ssl: SslConnectorBuilder,
+        capacity: usize,
+    ) -> Result<HttpsLayer, ErrorStack> {
+        let cache = Arc::new(Mutex::new(SessionCache::with_capacity(capacity)));
 
         ssl.set_session_cache_mode(SslSessionCacheMode::CLIENT);
 
@@ -114,11 +125,6 @@ impl HttpsLayer {
                     cache.lock().insert(key.clone(), session);
                 }
             }
-        });
-
-        ssl.set_remove_session_callback({
-            let cache = cache.clone();
-            move |_, session| cache.lock().remove(session)
         });
 
         Ok(HttpsLayer {
