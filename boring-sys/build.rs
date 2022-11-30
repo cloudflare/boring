@@ -1,3 +1,4 @@
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -333,6 +334,33 @@ fn verify_fips_clang_version() -> (&'static str, &'static str) {
     unreachable!()
 }
 
+fn pick_best_android_ndk_toolchain(toolchains_dir: &Path) -> std::io::Result<OsString> {
+    let toolchains = std::fs::read_dir(toolchains_dir)?.collect::<Result<Vec<_>, _>>()?;
+    // First look for one of the toolchains that Google has documented.
+    // https://developer.android.com/ndk/guides/other_build_systems
+    for known_toolchain in ["linux-x86_64", "darwin-x86_64", "windows-x86_64"] {
+        if let Some(toolchain) = toolchains
+            .iter()
+            .find(|entry| entry.file_name() == known_toolchain)
+        {
+            return Ok(toolchain.file_name());
+        }
+    }
+    // Then fall back to any subdirectory, in case Google has added support for a new host.
+    // (Maybe there's a linux-aarch64 toolchain now.)
+    if let Some(toolchain) = toolchains
+        .into_iter()
+        .find(|entry| entry.file_type().map(|ty| ty.is_dir()).unwrap_or(false))
+    {
+        return Ok(toolchain.file_name());
+    }
+    // Finally give up.
+    Err(std::io::Error::new(
+        std::io::ErrorKind::NotFound,
+        "no subdirectories at given path",
+    ))
+}
+
 fn get_extra_clang_args_for_bindgen() -> Vec<String> {
     let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
 
@@ -367,14 +395,30 @@ fn get_extra_clang_args_for_bindgen() -> Vec<String> {
             params.push(sysroot);
         }
         "android" => {
-            let android_ndk_home = std::env::var("ANDROID_NDK_HOME")
+            let android_ndk_home = std::env::var_os("ANDROID_NDK_HOME")
                 .expect("Please set ANDROID_NDK_HOME for Android build");
             let mut android_sysroot = std::path::PathBuf::from(android_ndk_home);
+            android_sysroot.extend(["toolchains", "llvm", "prebuilt"]);
+            let toolchain = match pick_best_android_ndk_toolchain(&android_sysroot) {
+                Ok(toolchain) => toolchain,
+                Err(e) => {
+                    eprintln!(
+                        "warning: failed to find prebuilt Android NDK toolchain for bindgen: {}",
+                        e
+                    );
+                    // Uh... let's try anyway, I guess?
+                    return params;
+                }
+            };
+            android_sysroot.push(toolchain);
             android_sysroot.push("sysroot");
             params.push("--sysroot".to_string());
-            // If ANDROID_NDK_HOME weren't a valid UTF-8 string,
-            // we'd already know from std::env::var.
-            params.push(android_sysroot.into_os_string().into_string().unwrap());
+            params.push(
+                android_sysroot
+                    .into_os_string()
+                    .into_string()
+                    .expect("Android NDK toolchain path isn't valid UTF-8; this is unsupported"),
+            );
         }
         _ => {}
     }
