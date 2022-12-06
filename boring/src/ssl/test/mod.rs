@@ -199,7 +199,7 @@ fn verify_callback() {
             CALLED_BACK.store(true, Ordering::SeqCst);
             let cert = x509.current_cert().unwrap();
             let digest = cert.digest(MessageDigest::sha1()).unwrap();
-            assert_eq!(hex::encode(&digest), expected);
+            assert_eq!(hex::encode(digest), expected);
             true
         });
 
@@ -221,7 +221,7 @@ fn ssl_verify_callback() {
             CALLED_BACK.store(true, Ordering::SeqCst);
             let cert = x509.current_cert().unwrap();
             let digest = cert.digest(MessageDigest::sha1()).unwrap();
-            assert_eq!(hex::encode(&digest), expected);
+            assert_eq!(hex::encode(digest), expected);
             true
         });
 
@@ -311,9 +311,9 @@ fn test_connect_with_srtp_ctx() {
         let mut ctx = SslContext::builder(SslMethod::dtls()).unwrap();
         ctx.set_tlsext_use_srtp("SRTP_AES128_CM_SHA1_80:SRTP_AES128_CM_SHA1_32")
             .unwrap();
-        ctx.set_certificate_file(&Path::new("test/cert.pem"), SslFiletype::PEM)
+        ctx.set_certificate_file(Path::new("test/cert.pem"), SslFiletype::PEM)
             .unwrap();
-        ctx.set_private_key_file(&Path::new("test/key.pem"), SslFiletype::PEM)
+        ctx.set_private_key_file(Path::new("test/key.pem"), SslFiletype::PEM)
             .unwrap();
         let mut ssl = Ssl::new(&ctx.build()).unwrap();
         ssl.set_mtu(1500).unwrap();
@@ -367,9 +367,9 @@ fn test_connect_with_srtp_ssl() {
     let guard = thread::spawn(move || {
         let stream = listener.accept().unwrap().0;
         let mut ctx = SslContext::builder(SslMethod::dtls()).unwrap();
-        ctx.set_certificate_file(&Path::new("test/cert.pem"), SslFiletype::PEM)
+        ctx.set_certificate_file(Path::new("test/cert.pem"), SslFiletype::PEM)
             .unwrap();
-        ctx.set_private_key_file(&Path::new("test/key.pem"), SslFiletype::PEM)
+        ctx.set_private_key_file(Path::new("test/key.pem"), SslFiletype::PEM)
             .unwrap();
         let mut ssl = Ssl::new(&ctx.build()).unwrap();
         ssl.set_tlsext_use_srtp("SRTP_AES128_CM_SHA1_80:SRTP_AES128_CM_SHA1_32")
@@ -988,9 +988,9 @@ fn keying_export() {
     let guard = thread::spawn(move || {
         let stream = listener.accept().unwrap().0;
         let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
-        ctx.set_certificate_file(&Path::new("test/cert.pem"), SslFiletype::PEM)
+        ctx.set_certificate_file(Path::new("test/cert.pem"), SslFiletype::PEM)
             .unwrap();
-        ctx.set_private_key_file(&Path::new("test/key.pem"), SslFiletype::PEM)
+        ctx.set_private_key_file(Path::new("test/key.pem"), SslFiletype::PEM)
             .unwrap();
         let ssl = Ssl::new(&ctx.build()).unwrap();
         let mut stream = ssl.accept(stream).unwrap();
