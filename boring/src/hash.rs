@@ -72,7 +72,7 @@ impl MessageDigest {
     /// The size of the digest in bytes.
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn size(&self) -> usize {
-        unsafe { ffi::EVP_MD_size(self.0) as usize }
+        unsafe { ffi::EVP_MD_size(self.0) }
     }
 
     /// The name of the digest.

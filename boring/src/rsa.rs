@@ -298,7 +298,7 @@ where
     /// [`RSA_check_key`]: https://www.openssl.org/docs/man1.1.0/crypto/RSA_check_key.html
     pub fn check_key(&self) -> Result<bool, ErrorStack> {
         unsafe {
-            let result = ffi::RSA_check_key(self.as_ptr()) as i32;
+            let result = ffi::RSA_check_key(self.as_ptr());
             if result == -1 {
                 Err(ErrorStack::get())
             } else {
@@ -362,7 +362,7 @@ where
     ///
     /// [`RSA_size`]: https://www.openssl.org/docs/man1.1.0/crypto/RSA_size.html
     pub fn size(&self) -> u32 {
-        unsafe { ffi::RSA_size(self.as_ptr()) as u32 }
+        unsafe { ffi::RSA_size(self.as_ptr()) }
     }
 
     /// Decrypts data using the public key, returning the number of decrypted bytes.

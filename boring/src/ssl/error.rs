@@ -105,14 +105,14 @@ impl fmt::Display for Error {
                 None => fmt.write_str("the operation should be retried"),
             },
             ErrorCode::SYSCALL => match self.io_error() {
-                Some(err) => write!(fmt, "{}", err),
+                Some(err) => write!(fmt, "{err}"),
                 None => fmt.write_str("unexpected EOF"),
             },
             ErrorCode::SSL => match self.ssl_error() {
-                Some(e) => write!(fmt, "{}", e),
+                Some(e) => write!(fmt, "{e}"),
                 None => fmt.write_str("unknown BoringSSL error"),
             },
-            ErrorCode(code) => write!(fmt, "unknown error code {}", code),
+            ErrorCode(code) => write!(fmt, "unknown error code {code}"),
         }
     }
 }
@@ -154,7 +154,7 @@ impl<S> fmt::Display for HandshakeError<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             HandshakeError::SetupFailure(ref e) => {
-                write!(f, "TLS stream setup failed {}", e)
+                write!(f, "TLS stream setup failed {e}")
             }
             HandshakeError::Failure(ref s) => fmt_mid_handshake_error(s, f, "TLS handshake failed"),
             HandshakeError::WouldBlock(ref s) => {
@@ -170,8 +170,8 @@ fn fmt_mid_handshake_error(
     prefix: &str,
 ) -> fmt::Result {
     match s.ssl().verify_result() {
-        X509VerifyResult::OK => write!(f, "{}", prefix)?,
-        verify => write!(f, "{}: cert verification failed - {}", prefix, verify)?,
+        X509VerifyResult::OK => write!(f, "{prefix}")?,
+        verify => write!(f, "{prefix}: cert verification failed - {verify}")?,
     }
 
     write!(f, " {}", s.error())

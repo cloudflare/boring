@@ -68,7 +68,7 @@ async fn localhost() {
 
     let file = File::create("../target/keyfile.log").unwrap();
     ssl.set_keylog_callback(move |_, line| {
-        let _ = writeln!(&file, "{}", line);
+        let _ = writeln!(&file, "{line}");
     });
 
     let ssl = HttpsConnector::with_connector(connector, ssl).unwrap();
@@ -76,7 +76,7 @@ async fn localhost() {
 
     for _ in 0..3 {
         let resp = client
-            .get(format!("https://localhost:{}", port).parse().unwrap())
+            .get(format!("https://localhost:{port}").parse().unwrap())
             .await
             .unwrap();
         assert!(resp.status().is_success(), "{}", resp.status());
@@ -130,7 +130,7 @@ async fn alpn_h2() {
     let client = Client::builder().build::<_, Body>(ssl);
 
     let resp = client
-        .get(format!("https://localhost:{}", port).parse().unwrap())
+        .get(format!("https://localhost:{port}").parse().unwrap())
         .await
         .unwrap();
     assert!(resp.status().is_success(), "{}", resp.status());

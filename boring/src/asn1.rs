@@ -402,7 +402,7 @@ impl Asn1IntegerRef {
     #[allow(missing_docs)]
     #[deprecated(since = "0.10.6", note = "use to_bn instead")]
     pub fn get(&self) -> i64 {
-        unsafe { crate::ffi::ASN1_INTEGER_get(self.as_ptr()) as i64 }
+        unsafe { crate::ffi::ASN1_INTEGER_get(self.as_ptr()) }
     }
 
     /// Converts the integer to a `BigNum`.

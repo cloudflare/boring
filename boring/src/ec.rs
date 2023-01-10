@@ -175,7 +175,7 @@ impl EcGroupRef {
     ///
     /// [`EC_GROUP_get_degree`]: https://www.openssl.org/docs/man1.1.0/crypto/EC_GROUP_get_degree.html
     pub fn degree(&self) -> u32 {
-        unsafe { ffi::EC_GROUP_get_degree(self.as_ptr()) as u32 }
+        unsafe { ffi::EC_GROUP_get_degree(self.as_ptr()) }
     }
 
     /// Returns the number of bits in the group order.

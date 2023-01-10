@@ -18,7 +18,7 @@ pub fn encode_block(src: &[u8]) -> String {
     let src_len = src.len();
 
     let len = encoded_len(src_len).unwrap();
-    let mut out = Vec::with_capacity(len as usize);
+    let mut out = Vec::with_capacity(len);
 
     // SAFETY: `encoded_len` ensures space for 4 output characters
     // for every 3 input bytes including padding and nul terminator.
@@ -26,7 +26,7 @@ pub fn encode_block(src: &[u8]) -> String {
     // `EVP_EncodeBlock` will only write to not read from `out`.
     unsafe {
         let out_len = ffi::EVP_EncodeBlock(out.as_mut_ptr(), src.as_ptr(), src_len);
-        out.set_len(out_len as usize);
+        out.set_len(out_len);
         String::from_utf8_unchecked(out)
     }
 }
@@ -52,7 +52,7 @@ pub fn decode_block(src: &str) -> Result<Vec<u8>, ErrorStack> {
     let src_len = src.len();
 
     let len = decoded_len(src_len).unwrap();
-    let mut out = Vec::with_capacity(len as usize);
+    let mut out = Vec::with_capacity(len);
 
     // SAFETY: `decoded_len` ensures space for 3 output bytes
     // for every 4 input characters including padding.

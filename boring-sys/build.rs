@@ -156,12 +156,12 @@ fn get_boringssl_cmake_config() -> cmake::Config {
                     .expect("Please set ANDROID_NDK_HOME for Android build");
                 let android_ndk_home = std::path::Path::new(&android_ndk_home);
                 for (name, value) in cmake_params_android() {
-                    eprintln!("android arch={} add {}={}", arch, name, value);
+                    eprintln!("android arch={arch} add {name}={value}");
                     boringssl_cmake.define(name, value);
                 }
                 let toolchain_file = android_ndk_home.join("build/cmake/android.toolchain.cmake");
                 let toolchain_file = toolchain_file.to_str().unwrap();
-                eprintln!("android toolchain={}", toolchain_file);
+                eprintln!("android toolchain={toolchain_file}");
                 boringssl_cmake.define("CMAKE_TOOLCHAIN_FILE", toolchain_file);
 
                 // 21 is the minimum level tested. You can give higher value.
@@ -171,7 +171,7 @@ fn get_boringssl_cmake_config() -> cmake::Config {
 
             "ios" => {
                 for (name, value) in cmake_params_ios() {
-                    eprintln!("ios arch={} add {}={}", arch, name, value);
+                    eprintln!("ios arch={arch} add {name}={value}");
                     boringssl_cmake.define(name, value);
                 }
 
@@ -185,7 +185,7 @@ fn get_boringssl_cmake_config() -> cmake::Config {
                     ""
                 };
 
-                let cflag = format!("{} {}", bitcode_cflag, target_cflag);
+                let cflag = format!("{bitcode_cflag} {target_cflag}");
                 boringssl_cmake.define("CMAKE_ASM_FLAGS", &cflag);
                 boringssl_cmake.cflag(&cflag);
             }
@@ -214,10 +214,7 @@ fn get_boringssl_cmake_config() -> cmake::Config {
                     );
                 }
                 _ => {
-                    eprintln!(
-                        "warning: no toolchain file configured by boring-sys for {}",
-                        target
-                    );
+                    eprintln!("warning: no toolchain file configured by boring-sys for {target}");
                 }
             },
 
@@ -236,7 +233,7 @@ fn verify_fips_clang_version() -> (&'static str, &'static str) {
         let output = match Command::new(tool).arg("--version").output() {
             Ok(o) => o,
             Err(e) => {
-                eprintln!("warning: missing {}, trying other compilers: {}", tool, e);
+                eprintln!("warning: missing {tool}, trying other compilers: {e}");
                 // NOTE: hard-codes that the loop below checks the version
                 return String::new();
             }
@@ -266,8 +263,7 @@ fn verify_fips_clang_version() -> (&'static str, &'static str) {
             );
         } else if !cc_version.is_empty() {
             eprintln!(
-                "warning: FIPS requires clang version {}, skipping incompatible version \"{}\"",
-                REQUIRED_CLANG_VERSION, cc_version
+                "warning: FIPS requires clang version {REQUIRED_CLANG_VERSION}, skipping incompatible version \"{cc_version}\""
             );
         }
     }
@@ -293,7 +289,7 @@ fn get_extra_clang_args_for_bindgen() -> Vec<String> {
                 .unwrap();
             if !output.status.success() {
                 if let Some(exit_code) = output.status.code() {
-                    eprintln!("xcrun failed: exit code {}", exit_code);
+                    eprintln!("xcrun failed: exit code {exit_code}");
                 } else {
                     eprintln!("xcrun failed: killed");
                 }
@@ -332,7 +328,7 @@ fn main() {
             println!("cargo:warning=fetching boringssl git submodule");
             // fetch the boringssl submodule
             let status = Command::new("git")
-                .args(&[
+                .args([
                     "submodule",
                     "update",
                     "--init",
@@ -365,19 +361,10 @@ fn main() {
 
     let build_path = get_boringssl_platform_output_path();
     if cfg!(feature = "fips") {
-        println!(
-            "cargo:rustc-link-search=native={}/build/crypto/{}",
-            bssl_dir, build_path
-        );
-        println!(
-            "cargo:rustc-link-search=native={}/build/ssl/{}",
-            bssl_dir, build_path
-        );
+        println!("cargo:rustc-link-search=native={bssl_dir}/build/crypto/{build_path}");
+        println!("cargo:rustc-link-search=native={bssl_dir}/build/ssl/{build_path}");
     } else {
-        println!(
-            "cargo:rustc-link-search=native={}/build/{}",
-            bssl_dir, build_path
-        );
+        println!("cargo:rustc-link-search=native={bssl_dir}/build/{build_path}");
     }
 
     println!("cargo:rustc-link-lib=static=crypto");
@@ -392,9 +379,9 @@ fn main() {
     println!("cargo:rerun-if-env-changed=BORING_BSSL_INCLUDE_PATH");
     let include_path = std::env::var("BORING_BSSL_INCLUDE_PATH").unwrap_or_else(|_| {
         if cfg!(feature = "fips") {
-            format!("{}/include", BORING_SSL_PATH)
+            format!("{BORING_SSL_PATH}/include")
         } else {
-            format!("{}/src/include", BORING_SSL_PATH)
+            format!("{BORING_SSL_PATH}/src/include")
         }
     });
 

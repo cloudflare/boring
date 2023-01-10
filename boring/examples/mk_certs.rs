@@ -155,7 +155,7 @@ fn real_main() -> Result<(), ErrorStack> {
     // Verify that this cert was issued by this ca
     match ca_cert.issued(&cert) {
         X509VerifyResult::OK => println!("Certificate verified!"),
-        ver_err => println!("Failed to verify certificate: {}", ver_err),
+        ver_err => println!("Failed to verify certificate: {ver_err}"),
     };
 
     Ok(())
@@ -164,6 +164,6 @@ fn real_main() -> Result<(), ErrorStack> {
 fn main() {
     match real_main() {
         Ok(()) => println!("Finished."),
-        Err(e) => println!("Error: {}", e),
+        Err(e) => println!("Error: {e}"),
     };
 }

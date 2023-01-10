@@ -217,7 +217,7 @@ impl Error {
 
     /// Returns the line in the source file which encountered the error.
     pub fn line(&self) -> u32 {
-        self.line as u32
+        self.line
     }
 
     /// Returns additional data describing the error.

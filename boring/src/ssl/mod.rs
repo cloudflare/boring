@@ -2746,7 +2746,7 @@ impl SslRef {
             if len == 0 {
                 None
             } else {
-                Some(slice::from_raw_parts(p as *const u8, len as usize))
+                Some(slice::from_raw_parts(p as *const u8, len))
             }
         }
     }

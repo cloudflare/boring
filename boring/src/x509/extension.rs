@@ -76,7 +76,7 @@ impl BasicConstraints {
             value.push_str("FALSE");
         }
         if let Some(pathlen) = self.pathlen {
-            write!(value, ",pathlen:{}", pathlen).unwrap();
+            write!(value, ",pathlen:{pathlen}").unwrap();
         }
         X509Extension::new_nid(None, None, Nid::BASIC_CONSTRAINTS, &value)
     }
@@ -486,43 +486,43 @@ impl SubjectAlternativeName {
 
     /// Sets the `email` flag.
     pub fn email(&mut self, email: &str) -> &mut SubjectAlternativeName {
-        self.names.push(format!("email:{}", email));
+        self.names.push(format!("email:{email}"));
         self
     }
 
     /// Sets the `uri` flag.
     pub fn uri(&mut self, uri: &str) -> &mut SubjectAlternativeName {
-        self.names.push(format!("URI:{}", uri));
+        self.names.push(format!("URI:{uri}"));
         self
     }
 
     /// Sets the `dns` flag.
     pub fn dns(&mut self, dns: &str) -> &mut SubjectAlternativeName {
-        self.names.push(format!("DNS:{}", dns));
+        self.names.push(format!("DNS:{dns}"));
         self
     }
 
     /// Sets the `rid` flag.
     pub fn rid(&mut self, rid: &str) -> &mut SubjectAlternativeName {
-        self.names.push(format!("RID:{}", rid));
+        self.names.push(format!("RID:{rid}"));
         self
     }
 
     /// Sets the `ip` flag.
     pub fn ip(&mut self, ip: &str) -> &mut SubjectAlternativeName {
-        self.names.push(format!("IP:{}", ip));
+        self.names.push(format!("IP:{ip}"));
         self
     }
 
     /// Sets the `dirName` flag.
     pub fn dir_name(&mut self, dir_name: &str) -> &mut SubjectAlternativeName {
-        self.names.push(format!("dirName:{}", dir_name));
+        self.names.push(format!("dirName:{dir_name}"));
         self
     }
 
     /// Sets the `otherName` flag.
     pub fn other_name(&mut self, other_name: &str) -> &mut SubjectAlternativeName {
-        self.names.push(format!("otherName:{}", other_name));
+        self.names.push(format!("otherName:{other_name}"));
         self
     }
 
