@@ -448,19 +448,12 @@ fn test_alpn_server_select_none_fatal() {
         ssl::select_next_proto(b"\x08http/1.1\x08spdy/3.1", client)
             .ok_or(ssl::AlpnError::ALERT_FATAL)
     });
-    #[cfg(not(feature = "fips"))]
     server.should_error();
     let server = server.build();
 
     let mut client = server.client();
     client.ctx().set_alpn_protos(b"\x06http/2").unwrap();
-
-    if cfg!(feature = "fips") {
-        let s = client.connect();
-        assert_eq!(None, s.ssl().selected_alpn_protocol());
-    } else {
-        client.connect_err();
-    }
+    client.connect_err();
 }
 
 #[test]
