@@ -23,12 +23,7 @@ impl<'a> MemBioSlice<'a> {
         ffi::init();
 
         assert!(buf.len() <= c_int::max_value() as usize);
-        let bio = unsafe {
-            cvt_p(BIO_new_mem_buf(
-                buf.as_ptr() as *const _,
-                buf.len() as c_int,
-            ))?
-        };
+        let bio = unsafe { cvt_p(BIO_new_mem_buf(buf.as_ptr() as *const _, buf.len() as _))? };
 
         Ok(MemBioSlice(bio, PhantomData))
     }
