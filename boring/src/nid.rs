@@ -728,6 +728,7 @@ impl Nid {
     pub const SHA256: Nid = Nid(ffi::NID_sha256);
     pub const SHA384: Nid = Nid(ffi::NID_sha384);
     pub const SHA512: Nid = Nid(ffi::NID_sha512);
+    pub const SHA512_256: Nid = Nid(ffi::NID_sha512_256);
     pub const SHA224: Nid = Nid(ffi::NID_sha224);
     pub const DSA_WITH_SHA224: Nid = Nid(ffi::NID_dsa_with_SHA224);
     pub const DSA_WITH_SHA256: Nid = Nid(ffi::NID_dsa_with_SHA256);

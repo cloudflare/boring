@@ -64,6 +64,10 @@ impl MessageDigest {
         unsafe { MessageDigest(ffi::EVP_sha512()) }
     }
 
+    pub fn sha512_256() -> MessageDigest {
+        unsafe { MessageDigest(ffi::EVP_sha512_256()) }
+    }
+
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn as_ptr(&self) -> *const ffi::EVP_MD {
         self.0
