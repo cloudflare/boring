@@ -107,6 +107,17 @@ pub fn sha512(data: &[u8]) -> [u8; 64] {
     }
 }
 
+/// Computes the SHA512-256 hash of some data.
+#[inline]
+#[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+pub fn sha512_256(data: &[u8]) -> [u8; 32] {
+    unsafe {
+        let mut hash: MaybeUninit<[u8; 32]> = MaybeUninit::uninit();
+        ffi::SHA512_256(data.as_ptr(), data.len(), hash.as_mut_ptr().cast());
+        hash.assume_init()
+    }
+}
+
 /// An object which calculates a SHA1 hash of some data.
 ///
 /// # Warning
@@ -337,6 +348,51 @@ impl Sha512 {
     }
 }
 
+/// An object which calculates a SHA512-256 hash of some data.
+#[derive(Clone)]
+pub struct Sha512_256(ffi::SHA512_CTX);
+
+impl Default for Sha512_256 {
+    #[inline]
+    fn default() -> Sha512_256 {
+        Sha512_256::new()
+    }
+}
+
+impl Sha512_256 {
+    /// Creates a new hasher.
+    #[inline]
+    #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+    pub fn new() -> Sha512_256 {
+        unsafe {
+            let mut ctx = MaybeUninit::uninit();
+            ffi::SHA512_256_Init(ctx.as_mut_ptr());
+            Sha512_256(ctx.assume_init())
+        }
+    }
+
+    /// Feeds some data into the hasher.
+    ///
+    /// This can be called multiple times.
+    #[inline]
+    pub fn update(&mut self, buf: &[u8]) {
+        unsafe {
+            ffi::SHA512_256_Update(&mut self.0, buf.as_ptr() as *const c_void, buf.len());
+        }
+    }
+
+    /// Returns the hash of the data.
+    #[inline]
+    #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+    pub fn finish(mut self) -> [u8; 32] {
+        unsafe {
+            let mut hash: MaybeUninit<[u8; 32]> = MaybeUninit::uninit();
+            ffi::SHA512_256_Final(hash.as_mut_ptr().cast(), &mut self.0);
+            hash.assume_init()
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use hex;
@@ -450,6 +506,24 @@ mod test {
              fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f";
 
         let mut hasher = Sha512::new();
+        hasher.update(b"a");
+        hasher.update(b"bc");
+        assert_eq!(hex::encode(&hasher.finish()[..]), expected);
+    }
+
+    #[test]
+    fn standalone_512_256() {
+        let data = b"abc";
+        let expected = "53048e2681941ef99b2e29b76b4c7dabe4c2d0c634fc6d46e0e2f13107e7af23";
+
+        assert_eq!(hex::encode(&sha512_256(data)[..]), expected);
+    }
+
+    #[test]
+    fn struct_512_256() {
+        let expected = "53048e2681941ef99b2e29b76b4c7dabe4c2d0c634fc6d46e0e2f13107e7af23";
+
+        let mut hasher = Sha512_256::new();
         hasher.update(b"a");
         hasher.update(b"bc");
         assert_eq!(hex::encode(&hasher.finish()[..]), expected);
