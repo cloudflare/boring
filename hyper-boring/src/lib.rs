@@ -9,11 +9,9 @@ use boring::ssl::{
     ConnectConfiguration, Ssl, SslConnector, SslConnectorBuilder, SslMethod, SslSessionCacheMode,
 };
 use http::uri::Scheme;
-use hyper::client::connect::{Connected, Connection};
-#[cfg(feature = "runtime")]
-use hyper::client::HttpConnector;
-use hyper::service::Service;
 use hyper::Uri;
+use hyper_util::client::connect::HttpConnector;
+use hyper_util::client::connect::{Connected, Connection};
 use once_cell::sync::OnceCell;
 use std::fmt::Debug;
 use std::future::Future;
@@ -26,6 +24,7 @@ use std::{error::Error, fmt};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_boring::SslStream;
 use tower_layer::Layer;
+use tower_service::Service;
 
 mod cache;
 #[cfg(test)]
@@ -147,7 +146,6 @@ pub struct HttpsConnector<T> {
     inner: Inner,
 }
 
-#[cfg(feature = "runtime")]
 impl HttpsConnector<HttpConnector> {
     /// Creates a a new `HttpsConnector` using default settings.
     ///

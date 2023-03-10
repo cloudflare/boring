@@ -1,7 +1,11 @@
 # Change Log
 
-## [Unreleased]
+## [v3.0.0]
 
+### Changed
+
+* Upgraded to hyper 1.0.0-rc.3.
+* Removed the `runtime` feature.
 
 ## [v2.1.2] - 2022-09-16
 
