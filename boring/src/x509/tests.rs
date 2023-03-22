@@ -12,7 +12,7 @@ use crate::x509::extension::{
     SubjectKeyIdentifier,
 };
 use crate::x509::store::X509StoreBuilder;
-use crate::x509::{X509Name, X509Req, X509StoreContext, X509VerifyResult, X509};
+use crate::x509::{X509Extension, X509Name, X509Req, X509StoreContext, X509VerifyResult, X509};
 
 fn pkey() -> PKey<Private> {
     let rsa = Rsa::generate(2048).unwrap();
@@ -248,6 +248,14 @@ fn x509_builder() {
         .unwrap();
     assert_eq!(cn.data().as_slice(), b"foobar.com");
     assert_eq!(serial, x509.serial_number().to_bn().unwrap());
+}
+
+#[test]
+fn x509_extension_new() {
+    assert!(X509Extension::new(None, None, "crlDistributionPoints", "section").is_err());
+    assert!(X509Extension::new(None, None, "proxyCertInfo", "").is_err());
+    assert!(X509Extension::new(None, None, "certificatePolicies", "").is_err());
+    assert!(X509Extension::new(None, None, "subjectAltName", "dirName:section").is_err());
 }
 
 #[test]
