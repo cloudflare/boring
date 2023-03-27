@@ -103,4 +103,21 @@ impl X509StoreRef {
     }
 }
 
+impl ToOwned for X509StoreRef {
+    type Owned = X509Store;
+
+    fn to_owned(&self) -> X509Store {
+        unsafe {
+            ffi::X509_STORE_up_ref(self.as_ptr());
+            X509Store::from_ptr(self.as_ptr())
+        }
+    }
+}
+
+impl Clone for X509Store {
+    fn clone(&self) -> Self {
+        (**self).to_owned()
+    }
+}
+
 use crate::ffi::X509_STORE_get0_objects;
