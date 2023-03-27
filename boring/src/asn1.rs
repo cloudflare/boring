@@ -399,6 +399,7 @@ impl Asn1Integer {
 }
 
 impl Asn1IntegerRef {
+    #[allow(clippy::unnecessary_cast)]
     #[allow(missing_docs)]
     #[deprecated(since = "0.10.6", note = "use to_bn instead")]
     pub fn get(&self) -> i64 {

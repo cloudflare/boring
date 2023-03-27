@@ -332,7 +332,7 @@ fn main() {
             println!("cargo:warning=fetching boringssl git submodule");
             // fetch the boringssl submodule
             let status = Command::new("git")
-                .args(&[
+                .args([
                     "submodule",
                     "update",
                     "--init",
