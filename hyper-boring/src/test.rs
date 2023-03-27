@@ -19,8 +19,7 @@ async fn google() {
         let resp = client
             .get("https://www.google.com".parse().unwrap())
             .await
-            .unwrap();
-        assert!(resp.status().is_success(), "{}", resp.status());
+            .expect("connection should succeed");
         let mut body = resp.into_body();
         while body.next().await.transpose().unwrap().is_some() {}
     }
