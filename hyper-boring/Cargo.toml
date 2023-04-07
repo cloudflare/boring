@@ -18,7 +18,7 @@ fips = ["tokio-boring/fips"]
 antidote = "1.0.0"
 http = "0.2"
 hyper = { version = "1.0.0-rc.3",  default-features = false }
-hyper-util = { git = "https://github.com/howardjohn/hyper-util", branch = "client/h2-timer", features = ["client"] }
+hyper-util = { git = "https://github.com/howardjohn/hyper-util", branch = "h2-timer-expose-exec", features = ["client"] }
 linked_hash_set = "0.1"
 once_cell = "1.0"
 boring = { version = ">=1.1.0,<3.0.0", path = "../boring" }
@@ -29,6 +29,6 @@ tower-service = "0.3"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
-hyper-util = { git = "https://github.com/howardjohn/hyper-util", branch = "client/h2-timer", features = ["full"] }
+hyper-util = { git = "https://github.com/howardjohn/hyper-util", branch = "h2-timer-expose-exec", features = ["full"] }
 futures = "0.3"
 http-body-util = "0.1.0-rc.2"
