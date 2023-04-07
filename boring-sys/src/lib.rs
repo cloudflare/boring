@@ -10,10 +10,10 @@
     non_upper_case_globals,
     unused_imports
 )]
+#![cfg_attr(not(test), no_std)]
 
-use std::convert::TryInto;
-use std::ffi::c_void;
-use std::os::raw::{c_char, c_int, c_uint, c_ulong};
+use core::convert::TryInto;
+use core::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
 
 #[allow(clippy::useless_transmute, clippy::derive_partial_eq_without_eq)]
 mod generated {
@@ -64,19 +64,50 @@ const_fn! {
     }
 }
 
+//// Initialize BoringSSL.
+///
+/// This function must be called before using any library
+/// routines.
+///
+// See https://github.com/openssl/openssl/issues/3505
 pub fn init() {
-    use std::ptr;
-    use std::sync::Once;
+    use core::ptr;
+    use core::sync::atomic::{AtomicBool, Ordering};
 
-    // explicitly initialize to work around https://github.com/openssl/openssl/issues/3505
-    static INIT: Once = Once::new();
+    // lock is a spinlock guarding access to OPENSSL_init_ssl.
+    static lock: AtomicBool = AtomicBool::new(false);
 
-    let init_options = OPENSSL_INIT_LOAD_SSL_STRINGS;
+    // done is true if we have invoked OPENSSL_init_ssl.
+    static done: AtomicBool = AtomicBool::new(false);
 
-    INIT.call_once(|| {
-        assert_eq!(
-            unsafe { OPENSSL_init_ssl(init_options.try_into().unwrap(), ptr::null_mut()) },
-            1
-        )
-    });
+    if done.load(Ordering::SeqCst) {
+        // Fast path: we've already invoked OPENSSL_init_ssl.
+        return;
+    }
+
+    loop {
+        let res = lock.compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed);
+        match res {
+            Ok(_) => break,
+            Err(_) => (),
+        }
+    }
+
+    if done.load(Ordering::SeqCst) {
+        // Check again: perhaps somebody invoked OPENSSL_init_ssl
+        // while we were spinning.
+        return;
+    }
+
+    let opts = OPENSSL_INIT_LOAD_SSL_STRINGS;
+    assert_eq!(
+        unsafe { OPENSSL_init_ssl(opts.try_into().unwrap(), ptr::null_mut()) },
+        1
+    );
+
+    // Mark that we've finished prior to releasing the spinlock.
+    // Otherwise, somebody else could see done=false before we're
+    // able to mark our progress.
+    done.store(true, Ordering::SeqCst);
+    lock.store(false, Ordering::SeqCst)
 }

@@ -399,6 +399,8 @@ fn main() {
     });
 
     let mut builder = bindgen::Builder::default()
+        .use_core()
+        .ctypes_prefix("::core::ffi")
         .derive_copy(true)
         .derive_debug(true)
         .derive_default(true)
