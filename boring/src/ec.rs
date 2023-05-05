@@ -174,6 +174,7 @@ impl EcGroupRef {
     /// OpenSSL documentation at [`EC_GROUP_get_degree`]
     ///
     /// [`EC_GROUP_get_degree`]: https://www.openssl.org/docs/man1.1.0/crypto/EC_GROUP_get_degree.html
+    #[allow(clippy::unnecessary_cast)]
     pub fn degree(&self) -> u32 {
         unsafe { ffi::EC_GROUP_get_degree(self.as_ptr()) as u32 }
     }
