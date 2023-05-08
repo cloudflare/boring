@@ -12,6 +12,7 @@
 //! use boring::hash::MessageDigest;
 //! use boring::rsa::Rsa;
 //! use boring::nid::Nid;
+//! use boring::asn1::Asn1Time;
 //!
 //! let rsa = Rsa::generate(2048).unwrap();
 //! let pkey = PKey::from_rsa(rsa).unwrap();
@@ -26,6 +27,12 @@
 //! builder.set_subject_name(&name).unwrap();
 //! builder.set_issuer_name(&name).unwrap();
 //! builder.set_pubkey(&pkey).unwrap();
+//! builder
+//!   .set_not_before(&Asn1Time::days_from_now(0).unwrap())
+//!   .unwrap();
+//! builder
+//!   .set_not_after(&Asn1Time::days_from_now(365).unwrap())
+//!   .unwrap();
 //! builder.sign(&pkey, MessageDigest::sha256()).unwrap();
 //!
 //! let certificate: X509 = builder.build();

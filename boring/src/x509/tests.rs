@@ -314,7 +314,8 @@ fn x509_req_builder() {
     let name = name.build();
 
     let mut builder = X509Req::builder().unwrap();
-    builder.set_version(2).unwrap();
+    // This is the default, but only v1 (numeric value 0) is supported by BoringSSL.
+    builder.set_version(0).unwrap();
     builder.set_subject_name(&name).unwrap();
     builder.set_pubkey(&pkey).unwrap();
 
