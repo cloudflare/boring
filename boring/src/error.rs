@@ -216,6 +216,7 @@ impl Error {
     }
 
     /// Returns the line in the source file which encountered the error.
+    #[allow(clippy::unnecessary_cast)]
     pub fn line(&self) -> u32 {
         self.line as u32
     }

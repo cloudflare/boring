@@ -181,7 +181,7 @@ impl<T: Stackable> StackRef<T> {
 
     /// Returns the number of items in the stack.
     pub fn len(&self) -> usize {
-        unsafe { OPENSSL_sk_num(self.as_stack()) as usize }
+        unsafe { OPENSSL_sk_num(self.as_stack()) }
     }
 
     /// Determines if the stack is empty.
