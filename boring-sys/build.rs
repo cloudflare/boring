@@ -403,14 +403,16 @@ fn main() {
         .derive_debug(true)
         .derive_default(true)
         .derive_eq(true)
-        .default_enum_style(bindgen::EnumVariation::NewType { is_bitfield: false })
+        .default_enum_style(bindgen::EnumVariation::NewType {
+            is_bitfield: false,
+            is_global: false,
+        })
         .default_macro_constant_type(bindgen::MacroTypeVariation::Signed)
         .generate_comments(true)
         .fit_macro_constants(false)
         .size_t_is_usize(true)
         .layout_tests(true)
         .prepend_enum_name(true)
-        .rustfmt_bindings(true)
         .clang_args(get_extra_clang_args_for_bindgen())
         .clang_args(&["-I", &include_path]);
 
