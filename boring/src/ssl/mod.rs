@@ -621,8 +621,6 @@ impl SslCurve {
     pub const SECP521R1: SslCurve = SslCurve(ffi::NID_secp521r1);
 
     pub const X25519: SslCurve = SslCurve(ffi::NID_X25519);
-
-    pub const CECPQ2: SslCurve = SslCurve(ffi::NID_CECPQ2);
 }
 
 /// A standard implementation of protocol selection for Application Layer Protocol Negotiation
@@ -1165,11 +1163,14 @@ impl SslContextBuilder {
     /// [`SSL_CTX_set_alpn_protos`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_alpn_protos.html
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            assert!(protocols.len() <= c_uint::max_value() as usize);
+            #[cfg_attr(not(feature = "fips"), allow(clippy::unnecessary_cast))]
+            {
+                assert!(protocols.len() <= ProtosLen::max_value() as usize);
+            }
             let r = ffi::SSL_CTX_set_alpn_protos(
                 self.as_ptr(),
                 protocols.as_ptr(),
-                protocols.len() as c_uint,
+                protocols.len() as ProtosLen,
             );
             // fun fact, SSL_CTX_set_alpn_protos has a reversed return code D:
             if r == 0 {
@@ -1768,6 +1769,11 @@ impl SslContextRef {
     }
 }
 
+#[cfg(not(feature = "fips"))]
+type ProtosLen = usize;
+#[cfg(feature = "fips")]
+type ProtosLen = libc::c_uint;
+
 /// Information about the state of a cipher.
 pub struct CipherBits {
     /// The number of secret bits used for the cipher.
@@ -2266,11 +2272,14 @@ impl SslRef {
     /// [`SSL_set_alpn_protos`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_alpn_protos.html
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            assert!(protocols.len() <= c_uint::max_value() as usize);
+            #[cfg_attr(not(feature = "fips"), allow(clippy::unnecessary_cast))]
+            {
+                assert!(protocols.len() <= ProtosLen::max_value() as usize);
+            }
             let r = ffi::SSL_set_alpn_protos(
                 self.as_ptr(),
                 protocols.as_ptr(),
-                protocols.len() as c_uint,
+                protocols.len() as ProtosLen,
             );
             // fun fact, SSL_set_alpn_protos has a reversed return code D:
             if r == 0 {
