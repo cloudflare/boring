@@ -24,12 +24,12 @@ _Warning_: When providing a different version of BoringSSL make sure to use a co
 
 ## Building with a FIPS-validated module
 
-Only BoringCrypto module version ae223d6138807a13006342edfeef32e813246b39, as
-certified with [certificate
-3678](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/3678)
+Only BoringCrypto module version 853ca1ea1168dff08011e5d42d94609cc0ca2e27, as certified with
+[FIPS 140-2 certificate 4407](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4407)
 is supported by this crate. Support is enabled by this crate's `fips` feature.
 
 `boring-sys` comes with a test that FIPS is enabled/disabled depending on the feature flag. You can run it as follows:
+
 ```bash
 $ cargo test --features fips fips::is_enabled
 ```

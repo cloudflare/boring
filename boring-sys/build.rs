@@ -241,14 +241,16 @@ fn verify_fips_clang_version() -> (&'static str, &'static str) {
                 return String::new();
             }
         };
-        assert!(output.status.success());
+        if !output.status.success() {
+            return String::new();
+        }
         let output = std::str::from_utf8(&output.stdout).expect("invalid utf8 output");
         output.lines().next().expect("empty output").to_string()
     }
 
-    const REQUIRED_CLANG_VERSION: &str = "7.0.1";
+    const REQUIRED_CLANG_VERSION: &str = "12.0.0";
     for (cc, cxx) in [
-        ("clang-7", "clang++-7"),
+        ("clang-12", "clang++-12"),
         ("clang", "clang++"),
         ("cc", "c++"),
     ] {
@@ -436,7 +438,6 @@ fn main() {
         "aes.h",
         "asn1_mac.h",
         "asn1t.h",
-        #[cfg(not(feature = "fips"))]
         "blake2.h",
         "blowfish.h",
         "cast.h",
@@ -461,7 +462,6 @@ fn main() {
         "ripemd.h",
         "siphash.h",
         "srtp.h",
-        #[cfg(not(feature = "fips"))]
         "trust_token.h",
         "x509v3.h",
     ];
