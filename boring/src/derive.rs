@@ -14,6 +14,14 @@ pub struct Deriver<'a>(*mut ffi::EVP_PKEY_CTX, PhantomData<&'a ()>);
 unsafe impl<'a> Sync for Deriver<'a> {}
 unsafe impl<'a> Send for Deriver<'a> {}
 
+impl<'a> Drop for Deriver<'a> {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::EVP_PKEY_CTX_free(self.0);
+        }
+    }
+}
+
 #[allow(clippy::len_without_is_empty)]
 impl<'a> Deriver<'a> {
     /// Creates a new `Deriver` using the provided private key.
