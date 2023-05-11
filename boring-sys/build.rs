@@ -228,9 +228,11 @@ fn get_boringssl_cmake_config() -> cmake::Config {
     boringssl_cmake
 }
 
-/// Verify that the toolchains match https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf
+/// Verify that the toolchains match the ones specified in the security policy:
+/// https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp4407.pdf
 /// See "Installation Instructions" under section 12.1.
-// TODO: maybe this should also verify the Go and Ninja versions? But those haven't been an issue in practice ...
+///
+/// Go, Ninja, Cmake versions are not verified
 fn verify_fips_clang_version() -> (&'static str, &'static str) {
     fn version(tool: &str) -> String {
         let output = match Command::new(tool).arg("--version").output() {
@@ -246,9 +248,9 @@ fn verify_fips_clang_version() -> (&'static str, &'static str) {
         output.lines().next().expect("empty output").to_string()
     }
 
-    const REQUIRED_CLANG_VERSION: &str = "7.0.1";
+    const REQUIRED_CLANG_VERSION: &str = "12.0.0";
     for (cc, cxx) in [
-        ("clang-7", "clang++-7"),
+        ("clang-12", "clang++-12"),
         ("clang", "clang++"),
         ("cc", "c++"),
     ] {
@@ -436,7 +438,6 @@ fn main() {
         "aes.h",
         "asn1_mac.h",
         "asn1t.h",
-        #[cfg(not(feature = "fips"))]
         "blake2.h",
         "blowfish.h",
         "cast.h",
@@ -461,7 +462,6 @@ fn main() {
         "ripemd.h",
         "siphash.h",
         "srtp.h",
-        #[cfg(not(feature = "fips"))]
         "trust_token.h",
         "x509v3.h",
     ];

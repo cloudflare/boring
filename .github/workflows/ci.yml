@@ -179,7 +179,7 @@ jobs:
 
   test-fips:
     name: Test FIPS integration
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-20.04 # has clang-12=1:12.0.0-3ubuntu1
     steps:
     - uses: actions/checkout@v2
       with:
@@ -187,7 +187,7 @@ jobs:
     - name: Install Rust (rustup)
       run: rustup update stable --no-self-update && rustup default stable
       shell: bash
-    - name: Install Clang-7
-      run: sudo apt-get install -y clang-7
+    - name: Install Clang 12.0.0
+      run: sudo apt-get install -y clang-12
     - run: cargo test --features fips
       name: Run tests
