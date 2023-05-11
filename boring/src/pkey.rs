@@ -122,7 +122,7 @@ generic_foreign_type_and_impl_send_sync! {
 
     /// A public or private key.
     pub struct PKey<T>;
-    /// Reference to `PKey`.
+    /// Reference to [`PKey`].
     pub struct PKeyRef<T>;
 }
 

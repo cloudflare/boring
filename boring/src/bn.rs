@@ -403,9 +403,9 @@ impl BigNumRef {
 
     /// The cryptographically weak counterpart to `rand`.  Not suitable for key generation.
     ///
-    /// OpenSSL documentation at [`BN_psuedo_rand`]
+    /// OpenSSL documentation at [`BN_pseudo_rand`]
     ///
-    /// [`BN_psuedo_rand`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_pseudo_rand.html
+    /// [`BN_pseudo_rand`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_pseudo_rand.html
     #[allow(clippy::useless_conversion)]
     pub fn pseudo_rand(&mut self, bits: i32, msb: MsbOption, odd: bool) -> Result<(), ErrorStack> {
         unsafe {
