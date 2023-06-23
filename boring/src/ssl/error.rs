@@ -27,6 +27,17 @@ impl ErrorCode {
     /// Wait for write readiness and retry the operation.
     pub const WANT_WRITE: ErrorCode = ErrorCode(ffi::SSL_ERROR_WANT_WRITE);
 
+    pub const WANT_X509_LOOKUP: ErrorCode = ErrorCode(ffi::SSL_ERROR_WANT_X509_LOOKUP);
+
+    pub const PENDING_SESSION: ErrorCode = ErrorCode(ffi::SSL_ERROR_PENDING_SESSION);
+
+    pub const PENDING_CERTIFICATE: ErrorCode = ErrorCode(ffi::SSL_ERROR_PENDING_CERTIFICATE);
+
+    pub const WANT_PRIVATE_KEY_OPERATION: ErrorCode =
+        ErrorCode(ffi::SSL_ERROR_WANT_PRIVATE_KEY_OPERATION);
+
+    pub const PENDING_TICKET: ErrorCode = ErrorCode(ffi::SSL_ERROR_PENDING_TICKET);
+
     /// A non-recoverable IO error occurred.
     pub const SYSCALL: ErrorCode = ErrorCode(ffi::SSL_ERROR_SYSCALL);
 
@@ -83,7 +94,16 @@ impl Error {
     }
 
     pub fn would_block(&self) -> bool {
-        matches!(self.code, ErrorCode::WANT_READ | ErrorCode::WANT_WRITE)
+        matches!(
+            self.code,
+            ErrorCode::WANT_READ
+                | ErrorCode::WANT_WRITE
+                | ErrorCode::WANT_X509_LOOKUP
+                | ErrorCode::PENDING_SESSION
+                | ErrorCode::PENDING_CERTIFICATE
+                | ErrorCode::WANT_PRIVATE_KEY_OPERATION
+                | ErrorCode::PENDING_TICKET
+        )
     }
 }
 
