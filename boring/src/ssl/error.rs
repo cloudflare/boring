@@ -81,6 +81,10 @@ impl Error {
             _ => None,
         }
     }
+
+    pub fn would_block(&self) -> bool {
+        matches!(self.code, ErrorCode::WANT_READ | ErrorCode::WANT_WRITE)
+    }
 }
 
 impl From<ErrorStack> for Error {

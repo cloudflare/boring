@@ -3162,11 +3162,9 @@ impl<S> MidHandshakeSslStream<S> {
             Ok(self.stream)
         } else {
             self.error = self.stream.make_error(ret);
-            match self.error.code() {
-                ErrorCode::WANT_READ | ErrorCode::WANT_WRITE => {
-                    Err(HandshakeError::WouldBlock(self))
-                }
-                _ => Err(HandshakeError::Failure(self)),
+            match self.error.would_block() {
+                true => Err(HandshakeError::WouldBlock(self)),
+                false => Err(HandshakeError::Failure(self)),
             }
         }
     }
@@ -3471,14 +3469,12 @@ where
             Ok(stream)
         } else {
             let error = stream.make_error(ret);
-            match error.code() {
-                ErrorCode::WANT_READ | ErrorCode::WANT_WRITE => {
-                    Err(HandshakeError::WouldBlock(MidHandshakeSslStream {
-                        stream,
-                        error,
-                    }))
-                }
-                _ => Err(HandshakeError::Failure(MidHandshakeSslStream {
+            match error.would_block() {
+                true => Err(HandshakeError::WouldBlock(MidHandshakeSslStream {
+                    stream,
+                    error,
+                })),
+                false => Err(HandshakeError::Failure(MidHandshakeSslStream {
                     stream,
                     error,
                 })),
@@ -3494,14 +3490,12 @@ where
             Ok(stream)
         } else {
             let error = stream.make_error(ret);
-            match error.code() {
-                ErrorCode::WANT_READ | ErrorCode::WANT_WRITE => {
-                    Err(HandshakeError::WouldBlock(MidHandshakeSslStream {
-                        stream,
-                        error,
-                    }))
-                }
-                _ => Err(HandshakeError::Failure(MidHandshakeSslStream {
+            match error.would_block() {
+                true => Err(HandshakeError::WouldBlock(MidHandshakeSslStream {
+                    stream,
+                    error,
+                })),
+                false => Err(HandshakeError::Failure(MidHandshakeSslStream {
                     stream,
                     error,
                 })),
@@ -3523,14 +3517,12 @@ where
             Ok(stream)
         } else {
             let error = stream.make_error(ret);
-            match error.code() {
-                ErrorCode::WANT_READ | ErrorCode::WANT_WRITE => {
-                    Err(HandshakeError::WouldBlock(MidHandshakeSslStream {
-                        stream,
-                        error,
-                    }))
-                }
-                _ => Err(HandshakeError::Failure(MidHandshakeSslStream {
+            match error.would_block() {
+                true => Err(HandshakeError::WouldBlock(MidHandshakeSslStream {
+                    stream,
+                    error,
+                })),
+                false => Err(HandshakeError::Failure(MidHandshakeSslStream {
                     stream,
                     error,
                 })),
