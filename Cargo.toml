@@ -5,3 +5,4 @@ members = [
     "tokio-boring",
     "hyper-boring"
 ]
+resolver = "2"

@@ -1,0 +1,118 @@
+--- google_boringssl/ssl/ssl_cert.cc	2021-02-03 18:29:04.000000000 -0800
++++ boringssl/ssl/ssl_cert.cc	2021-02-03 20:24:49.000000000 -0800
+@@ -111,6 +111,25 @@
+  * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
+  * ECC cipher suite support in OpenSSL originally developed by
+  * SUN MICROSYSTEMS, INC., and contributed to the OpenSSL project. */
++/* ====================================================================
++ * Copyright 2020 Apple Inc.
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the “Software”),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom
++ * the Software is furnished to do so, subject to the following conditions:
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS
++ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
++ * IN THE SOFTWARE.
++ */
+ 
+ #include <openssl/ssl.h>
+ 
+@@ -302,6 +321,25 @@
+   return 1;
+ }
+ 
++static int cert_set_key(
++  CERT *cert,
++  EVP_PKEY *privkey, const SSL_PRIVATE_KEY_METHOD *privkey_method) {
++  if (privkey == NULL && privkey_method == NULL) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_PASSED_NULL_PARAMETER);
++    return 0;
++  }
++
++  if (privkey != NULL && privkey_method != NULL) {
++    OPENSSL_PUT_ERROR(SSL, SSL_R_CANNOT_HAVE_BOTH_PRIVKEY_AND_METHOD);
++    return 0;
++  }
++
++  cert->privatekey = UpRef(privkey);
++  cert->key_method = privkey_method;
++
++  return 1;
++}
++
+ bool ssl_set_cert(CERT *cert, UniquePtr<CRYPTO_BUFFER> buffer) {
+   switch (check_leaf_cert_and_privkey(buffer.get(), cert->privatekey.get())) {
+     case leaf_cert_and_privkey_error:
+@@ -343,6 +381,12 @@
+          ssl_has_private_key(hs);
+ }
+ 
++bool ssl_has_raw_public_key_certificate(const SSL_HANDSHAKE *hs) {
++  return hs->server_certificate_type_negotiated &&
++    hs->server_certificate_type == TLSEXT_CERTIFICATETYPE_RAW_PUBLIC_KEY &&
++    ssl_has_private_key(hs);
++}
++
+ bool ssl_parse_cert_chain(uint8_t *out_alert,
+                           UniquePtr<STACK_OF(CRYPTO_BUFFER)> *out_chain,
+                           UniquePtr<EVP_PKEY> *out_pubkey,
+@@ -727,11 +771,20 @@
+ 
+ bool ssl_on_certificate_selected(SSL_HANDSHAKE *hs) {
+   SSL *const ssl = hs->ssl;
+-  if (!ssl_has_certificate(hs)) {
++  if (!ssl_has_certificate(hs) &&
++      !ssl_has_raw_public_key_certificate(hs)) {
+     // Nothing to do.
+     return true;
+   }
+ 
++  if (ssl_has_raw_public_key_certificate(hs)) {
++    CBS spki = MakeConstSpan(
++      ssl->config->server_raw_public_key_certificate.data(),
++      ssl->config->server_raw_public_key_certificate.size());
++    hs->local_pubkey = UniquePtr<EVP_PKEY>(EVP_parse_public_key(&spki));
++    return hs->local_pubkey != NULL;
++  }
++
+   if (!ssl->ctx->x509_method->ssl_auto_chain_if_needed(hs)) {
+     return false;
+   }
+@@ -886,6 +939,15 @@
+                                 privkey, privkey_method);
+ }
+ 
++int SSL_set_nullchain_and_key(SSL *ssl,
++                              EVP_PKEY *privkey,
++                              const SSL_PRIVATE_KEY_METHOD *privkey_method) {
++  if (!ssl->config) {
++    return 0;
++  }
++  return cert_set_key(ssl->config->cert.get(), privkey, privkey_method);
++}
++
+ int SSL_CTX_set_chain_and_key(SSL_CTX *ctx, CRYPTO_BUFFER *const *certs,
+                               size_t num_certs, EVP_PKEY *privkey,
+                               const SSL_PRIVATE_KEY_METHOD *privkey_method) {
+@@ -893,6 +955,12 @@
+                                 privkey_method);
+ }
+ 
++int SSL_CTX_set_nullchain_and_key(SSL_CTX *ctx,
++  EVP_PKEY *privkey,
++  const SSL_PRIVATE_KEY_METHOD *privkey_method) {
++  return cert_set_key(ctx->cert.get(), privkey, privkey_method);
++}
++
+ const STACK_OF(CRYPTO_BUFFER)* SSL_CTX_get0_chain(const SSL_CTX *ctx) {
+   return ctx->cert->chain.get();
+ }

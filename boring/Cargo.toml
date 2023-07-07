@@ -9,7 +9,7 @@ documentation = "https://docs.rs/boring"
 readme = "README.md"
 keywords = ["crypto", "tls", "ssl", "dtls"]
 categories = ["cryptography", "api-bindings"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 bitflags = "1.0"
@@ -25,3 +25,9 @@ rusty-hook = "^0.11"
 [features]
 # Use a FIPS-validated version of boringssl.
 fips = ["boring-sys/fips"]
+
+# Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
+rpk = ["boring-sys/rpk"]
+
+# Enables post-quantum crypto (https://blog.cloudflare.com/post-quantum-for-all/)
+post-quantum = ["boring-sys/post-quantum"]

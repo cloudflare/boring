@@ -11,7 +11,7 @@ documentation = "https://docs.rs/boring-sys"
 links = "boringssl"
 readme = "README.md"
 categories = ["cryptography", "external-ffi-bindings"]
-edition = "2018"
+edition = "2021"
 include = [
     "/*.md",
     "/*.toml",
@@ -24,12 +24,21 @@ include = [
     "/deps/boringssl/LICENSE",
     "/build.rs",
     "/src",
+    "/patches",
+    "/scripts"
 ]
 
 [build-dependencies]
 bindgen = { version = "0.65.1", default-features = false, features = ["runtime"] }
 cmake = "0.1"
+fslock = "0.2.1"
 
 [features]
 # Use a FIPS-validated version of boringssl.
 fips = []
+
+# Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
+rpk = []
+
+# Enables post-quantum crypto (https://blog.cloudflare.com/post-quantum-for-all/)
+post-quantum = []

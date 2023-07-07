@@ -1,3 +1,7 @@
+use fslock::LockFile;
+use std::env;
+use std::io;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -285,7 +289,6 @@ fn get_extra_clang_args_for_bindgen() -> Vec<String> {
     #[allow(clippy::single_match)]
     match os.as_ref() {
         "ios" => {
-            use std::io::Write;
             // When cross-compiling for iOS, tell bindgen to use iOS sysroot,
             // and *don't* use system headers of the host macOS.
             let sdk = get_ios_sdk_name();
@@ -325,28 +328,93 @@ fn get_extra_clang_args_for_bindgen() -> Vec<String> {
     params
 }
 
+fn ensure_patches_applied() -> io::Result<()> {
+    let mut lock_file = LockFile::open(&PathBuf::from(BORING_SSL_PATH).join(".patch_lock"))?;
+
+    lock_file.lock()?;
+
+    let mut cmd = Command::new("git");
+
+    cmd.args(["reset", "--hard"])
+        .current_dir(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(BORING_SSL_PATH));
+
+    run_command(&mut cmd)?;
+
+    if cfg!(feature = "post-quantum") {
+        println!("cargo:warning=applying post quantum crypto patch to boringssl");
+        run_apply_patch_script("scripts/apply_pq_patch.sh", "")?;
+    }
+
+    if cfg!(feature = "rpk") {
+        println!("cargo:warning=applying RPK patch to boringssl");
+        run_apply_patch_script("scripts/apply_rpk_patch.sh", "src")?;
+    }
+
+    Ok(())
+}
+
+fn run_command(command: &mut Command) -> io::Result<()> {
+    let exit_status = command.spawn()?.wait()?;
+
+    if !exit_status.success() {
+        let err = match exit_status.code() {
+            Some(code) => format!("{:?} exited with status: {}", command, code),
+            None => format!("{:?} was terminated by signal", command),
+        };
+
+        return Err(io::Error::new(io::ErrorKind::Other, err));
+    }
+
+    Ok(())
+}
+
+fn run_apply_patch_script(
+    script_path: impl AsRef<Path>,
+    from_dir: impl AsRef<Path>,
+) -> io::Result<()> {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+
+    let src_path = manifest_dir
+        .join(BORING_SSL_PATH)
+        .join(from_dir)
+        .canonicalize()?;
+
+    let cmd_path = manifest_dir.join(script_path).canonicalize()?;
+
+    let mut cmd = Command::new(cmd_path);
+    cmd.current_dir(src_path);
+    run_command(&mut cmd)?;
+
+    Ok(())
+}
+
 fn main() {
-    use std::env;
-
     println!("cargo:rerun-if-env-changed=BORING_BSSL_PATH");
-    let bssl_dir = std::env::var("BORING_BSSL_PATH").unwrap_or_else(|_| {
-        if !Path::new(BORING_SSL_PATH).join("CMakeLists.txt").exists() {
-            println!("cargo:warning=fetching boringssl git submodule");
-            // fetch the boringssl submodule
-            let status = Command::new("git")
-                .args([
-                    "submodule",
-                    "update",
-                    "--init",
-                    "--recursive",
-                    BORING_SSL_PATH,
-                ])
-                .status();
-            if !status.map_or(false, |status| status.success()) {
-                panic!("failed to fetch submodule - consider running `git submodule update --init --recursive deps/boringssl` yourself");
-            }
-        }
 
+    #[cfg(all(feature = "fips", feature = "rpk"))]
+    compile_error!("`fips` and `rpk` features are mutually exclusive");
+
+    if !Path::new(BORING_SSL_PATH).join("CMakeLists.txt").exists() {
+        println!("cargo:warning=fetching boringssl git submodule");
+        // fetch the boringssl submodule
+        let status = Command::new("git")
+            .args([
+                "submodule",
+                "update",
+                "--init",
+                "--recursive",
+                BORING_SSL_PATH,
+            ])
+            .status();
+
+        if !status.map_or(false, |status| status.success()) {
+            panic!("failed to fetch submodule - consider running `git submodule update --init --recursive deps/boringssl` yourself");
+        }
+    }
+
+    ensure_patches_applied().unwrap();
+
+    let bssl_dir = std::env::var("BORING_BSSL_PATH").unwrap_or_else(|_| {
         let mut cfg = get_boringssl_cmake_config();
 
         if cfg!(feature = "fuzzing") {
@@ -384,12 +452,6 @@ fn main() {
 
     println!("cargo:rustc-link-lib=static=crypto");
     println!("cargo:rustc-link-lib=static=ssl");
-
-    // MacOS: Allow cdylib to link with undefined symbols
-    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
-    if target_os == "macos" {
-        println!("cargo:rustc-cdylib-link-arg=-Wl,-undefined,dynamic_lookup");
-    }
 
     println!("cargo:rerun-if-env-changed=BORING_BSSL_INCLUDE_PATH");
     let include_path = std::env::var("BORING_BSSL_INCLUDE_PATH").unwrap_or_else(|_| {
