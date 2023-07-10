@@ -197,3 +197,20 @@ jobs:
       run: ln -s clang clang++-12
     - run: cargo test --features fips
       name: Run tests
+
+  test-features:
+    name: Test features
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: Install Rust (rustup)
+      run: rustup update stable --no-self-update && rustup default stable
+      shell: bash
+    - run: cargo test --features rpk
+      name: Run `rpk` tests
+    - run: cargo test --features pq-experimental
+      name: Run `pq-experimental` tests
+    - run: cargo test --features pq-experimental,rpk
+      name: Run `pq-experimental,rpk` tests

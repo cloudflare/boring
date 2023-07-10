@@ -1,33 +1,46 @@
 [package]
 name = "hyper-boring"
-version = "2.1.2"
+version = { workspace = true }
 authors = ["Steven Fackler <sfackler@gmail.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
-edition = "2018"
+edition = { workspace = true }
 description = "Hyper TLS support via BoringSSL"
 license = "MIT/Apache-2.0"
-repository = "https://github.com/cloudflare/boring"
+repository = { workspace = true }
 documentation = "https://docs.rs/hyper-boring"
 readme = "README.md"
 exclude = ["test/*"]
+
+[package.metadata.docs.rs]
+features = ["rpk", "pq-experimental"]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["runtime"]
 
 runtime = ["hyper/runtime"]
+
+# Use a FIPS-validated version of boringssl.
 fips = ["tokio-boring/fips"]
 
+# Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
+rpk = ["tokio-boring/rpk"]
+
+# Enables experimental post-quantum crypto (https://blog.cloudflare.com/post-quantum-for-all/)
+pq-experimental = ["tokio-boring/pq-experimental"]
+
+
 [dependencies]
-antidote = "1.0.0"
-http = "0.2"
-hyper = { version = "0.14", default-features = false, features = ["client"] }
-linked_hash_set = "0.1"
-once_cell = "1.0"
-boring = { version = ">=1.1.0,<3.0.0", path = "../boring" }
-tokio = "1"
-tokio-boring = { version = "2", path = "../tokio-boring" }
-tower-layer = "0.3"
+antidote = { workspace = true }
+http = { workspace = true }
+hyper = { workspace = true, features = ["client"] }
+linked_hash_set = { workspace = true }
+once_cell = { workspace = true }
+boring = { workspace = true }
+tokio = { workspace = true }
+tokio-boring = { workspace = true }
+tower-layer = { workspace = true }
 
 [dev-dependencies]
-hyper = { version = "0.14", features = ["full"] }
-tokio = { version = "1", features = ["full"] }
-futures = "0.3"
+hyper = { workspace = true }
+tokio = { workspace = true }
+futures = { workspace = true }

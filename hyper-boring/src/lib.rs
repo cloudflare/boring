@@ -1,5 +1,6 @@
 //! Hyper SSL support via OpenSSL.
 #![warn(missing_docs)]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 use crate::cache::{SessionCache, SessionKey};
 use antidote::Mutex;
