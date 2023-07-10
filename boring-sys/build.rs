@@ -354,7 +354,7 @@ fn ensure_patches_applied() -> io::Result<()> {
 
     if cfg!(feature = "rpk") {
         println!("cargo:warning=applying RPK patch to boringssl");
-        run_apply_patch_script("scripts/apply_rpk_patch.sh", "src")?;
+        run_apply_patch_script("scripts/apply_rpk_patch.sh", "")?;
     }
 
     Ok(())
