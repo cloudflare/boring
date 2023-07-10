@@ -333,10 +333,17 @@ fn ensure_patches_applied() -> io::Result<()> {
 
     lock_file.lock()?;
 
+    let boring_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(BORING_SSL_PATH);
+
     let mut cmd = Command::new("git");
 
-    cmd.args(["reset", "--hard"])
-        .current_dir(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(BORING_SSL_PATH));
+    cmd.args(["reset", "--hard"]).current_dir(&boring_dir);
+
+    run_command(&mut cmd)?;
+
+    let mut cmd = Command::new("git");
+
+    cmd.args(["clean", "-fdx"]).current_dir(&boring_dir);
 
     run_command(&mut cmd)?;
 

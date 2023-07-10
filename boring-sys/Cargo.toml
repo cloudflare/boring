@@ -1,17 +1,17 @@
 [package]
 name = "boring-sys"
-version = "2.1.0"
+version = { workspace = true }
 authors = ["Alex Crichton <alex@alexcrichton.com>",
            "Steven Fackler <sfackler@gmail.com>",
            "Ivan Nikulin <ifaaan@gmail.com>"]
 license = "MIT"
 description = "FFI bindings to BoringSSL"
-repository = "https://github.com/cloudflare/boring"
+repository = { workspace = true }
 documentation = "https://docs.rs/boring-sys"
 links = "boringssl"
 readme = "README.md"
 categories = ["cryptography", "external-ffi-bindings"]
-edition = "2021"
+edition = { workspace = true }
 include = [
     "/*.md",
     "/*.toml",
@@ -28,10 +28,9 @@ include = [
     "/scripts"
 ]
 
-[build-dependencies]
-bindgen = { version = "0.65.1", default-features = false, features = ["runtime"] }
-cmake = "0.1"
-fslock = "0.2.1"
+[package.metadata.docs.rs]
+features = ["rpk", "post-quantum"]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 # Use a FIPS-validated version of boringssl.
@@ -42,3 +41,10 @@ rpk = []
 
 # Enables post-quantum crypto (https://blog.cloudflare.com/post-quantum-for-all/)
 post-quantum = []
+
+[build-dependencies]
+bindgen = { workspace = true }
+cmake = { workspace = true }
+fslock = { workspace = true }
+
+

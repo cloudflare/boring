@@ -2,6 +2,8 @@
 //!
 //! This crate provides a safe interface to the BoringSSL cryptography library.
 
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+
 #[macro_use]
 extern crate bitflags;
 #[macro_use]

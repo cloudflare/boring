@@ -198,8 +198,8 @@ jobs:
     - run: cargo test --features fips
       name: Run tests
 
-  test-rpk:
-    name: Test RPK
+  test-features:
+    name: Test features
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
@@ -209,4 +209,8 @@ jobs:
       run: rustup update stable --no-self-update && rustup default stable
       shell: bash
     - run: cargo test --features rpk
-      name: Run tests
+      name: Run `rpk` tests
+    - run: cargo test --features post-quantum
+      name: Run `post-quantum` tests
+    - run: cargo test --features post-quantum,rpk
+      name: Run `post-quantum,rpk` tests

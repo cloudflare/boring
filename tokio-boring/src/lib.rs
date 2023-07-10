@@ -11,6 +11,7 @@
 //! [`boring`] crate, on which this crate is built. Configuration of TLS parameters is still
 //! primarily done through the [`boring`] crate.
 #![warn(missing_docs)]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 use boring::ssl::{
     self, ConnectConfiguration, ErrorCode, MidHandshakeSslStream, ShutdownResult, SslAcceptor,

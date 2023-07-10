@@ -11,6 +11,8 @@
     unused_imports
 )]
 
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+
 use std::convert::TryInto;
 use std::ffi::c_void;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong};
@@ -20,16 +22,6 @@ mod generated {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
 pub use generated::*;
-
-#[cfg(feature = "post-quantum")]
-mod ensure_post_quantum_crypto_patch_applied {
-    use super::KYBER512_encap;
-}
-
-#[cfg(feature = "rpk")]
-mod ensure_raw_public_key_patch_applied {
-    use super::SSL_CTX_set_server_raw_public_key_certificate;
-}
 
 #[cfg(target_pointer_width = "64")]
 pub type BN_ULONG = u64;
