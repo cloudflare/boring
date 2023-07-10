@@ -633,14 +633,17 @@ impl SslCurve {
 
     pub const X25519: SslCurve = SslCurve(ffi::NID_X25519);
 
-    #[cfg(feature = "post-quantum")]
+    #[cfg(not(feature = "fips"))]
+    pub const X25519_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::NID_X25519Kyber768Draft00);
+
+    #[cfg(feature = "pq-experimental")]
+    pub const X25519_KYBER768_DRAFT00_OLD: SslCurve = SslCurve(ffi::NID_X25519Kyber768Draft00Old);
+
+    #[cfg(feature = "pq-experimental")]
     pub const X25519_KYBER512_DRAFT00: SslCurve = SslCurve(ffi::NID_X25519Kyber512Draft00);
 
-    #[cfg(feature = "post-quantum")]
+    #[cfg(feature = "pq-experimental")]
     pub const P256_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::NID_P256Kyber768Draft00);
-
-    #[cfg(feature = "post-quantum")]
-    pub const X25519_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::NID_X25519Kyber768Draft00);
 }
 
 /// A standard implementation of protocol selection for Application Layer Protocol Negotiation

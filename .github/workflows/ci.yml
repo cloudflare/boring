@@ -210,7 +210,7 @@ jobs:
       shell: bash
     - run: cargo test --features rpk
       name: Run `rpk` tests
-    - run: cargo test --features post-quantum
-      name: Run `post-quantum` tests
-    - run: cargo test --features post-quantum,rpk
-      name: Run `post-quantum,rpk` tests
+    - run: cargo test --features pq-experimental
+      name: Run `pq-experimental` tests
+    - run: cargo test --features pq-experimental,rpk
+      name: Run `pq-experimental,rpk` tests

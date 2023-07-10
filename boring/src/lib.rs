@@ -48,10 +48,24 @@
 //! The crate can be compiled with [RawPublicKey](https://datatracker.ietf.org/doc/html/rfc7250)
 //! support by turning on `rpk` compilation feature.
 //!
-//! ## Post-quantum cryptography
+//! ## Experimental post-quantum cryptography
 //!
 //! The crate can be compiled with [post-quantum cryptography](https://blog.cloudflare.com/post-quantum-for-all/)
 //! support by turning on `post-quantum` compilation feature.
+//!
+//! Upstream BoringSSL support the post-quantum hybrid key agreement `X25519Kyber768Draft00`. Most
+//! users should stick to that one. Enabling this feature, adds a few other post-quantum key
+//! agreements:
+//!
+//! - `X25519Kyber768Draft00Old` is the same as `X25519Kyber768Draft00`, but under its old codepoint.
+//! -`X25519Kyber512Draft00`. Similar to `X25519Kyber768Draft00`, but uses level 1 parameter set for
+//! Kyber. Not recommended. It's useful to test whether the shorter ClientHello upsets fewer middle
+//! boxes.
+//! - `P256Kyber768Draft00`. Similar again to `X25519Kyber768Draft00`, but uses P256 as classical
+//! part. It uses a non-standard codepoint. Not recommended.
+//!
+//! Presently all these key agreements are deployed by Cloudflare, but we do not guarantee continued
+//! support for them.
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 

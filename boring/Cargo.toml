@@ -12,7 +12,7 @@ categories = ["cryptography", "api-bindings"]
 edition = { workspace = true }
 
 [package.metadata.docs.rs]
-features = ["rpk", "post-quantum"]
+features = ["rpk", "pq-experimental"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -22,8 +22,8 @@ fips = ["boring-sys/fips"]
 # Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
 rpk = ["boring-sys/rpk"]
 
-# Enables post-quantum crypto (https://blog.cloudflare.com/post-quantum-for-all/)
-post-quantum = ["boring-sys/post-quantum"]
+# Enables experimental post-quantum crypto (https://blog.cloudflare.com/post-quantum-for-all/)
+pq-experimental = ["boring-sys/pq-experimental"]
 
 [dependencies]
 bitflags = { workspace = true }

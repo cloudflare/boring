@@ -1,4 +1,4 @@
-From 968000d0f6c94f49fa9b1dc4d0acadca9fd78f58 Mon Sep 17 00:00:00 2001
+From 4cba2164726c8d2647e38548a266a70c4942d567 Mon Sep 17 00:00:00 2001
 From: Bas Westerbaan <bas@cloudflare.com>
 Date: Fri, 22 Jul 2022 16:43:48 +0200
 Subject: [PATCH] Add temporary post-quantum key agreements
@@ -39,11 +39,11 @@ Cf RTG-2076 RTG-2051 RTG-2508 RTG-2707 RTG-2607
  src/crypto/kyber/kyber768.c       |    4 +
  src/crypto/kyber/kyber_test.cc    |  229 ---
  src/crypto/kyber/kyber_tests.txt  |  905 ---------
- src/crypto/obj/obj_dat.h          |   10 +-
- src/crypto/obj/obj_mac.num        |    2 +
- src/crypto/obj/objects.txt        |    4 +-
+ src/crypto/obj/obj_dat.h          |   14 +-
+ src/crypto/obj/obj_mac.num        |    3 +
+ src/crypto/obj/objects.txt        |    5 +-
  src/include/openssl/kyber.h       |  199 +-
- src/include/openssl/nid.h         |    6 +
+ src/include/openssl/nid.h         |    9 +
  src/include/openssl/ssl.h         |    3 +
  src/sources.cmake                 |    2 -
  src/ssl/extensions.cc             |    3 +
@@ -51,7 +51,7 @@ Cf RTG-2076 RTG-2051 RTG-2508 RTG-2707 RTG-2607
  src/ssl/ssl_lib.cc                |    2 +-
  src/ssl/ssl_test.cc               |   25 +-
  src/tool/speed.cc                 |  162 +-
- 26 files changed, 2788 insertions(+), 5447 deletions(-)
+ 26 files changed, 2797 insertions(+), 5447 deletions(-)
  delete mode 100644 src/crypto/kyber/internal.h
  delete mode 100644 src/crypto/kyber/keccak.c
  delete mode 100644 src/crypto/kyber/keccak_tests.txt
@@ -7743,7 +7743,7 @@ index 486b163ea..000000000
 -ct = 7F60D2E6EE01AE6FBB198364141AF9A1AC4BA1B161CBDB16B86224FA77129864F00B71AA221DD1F300BA3EAFB2694610CA8F27C24CDFCD240961C27CF42D01561CCAF742379B19085C462270636676D6DCC5786E23D3881C83CD5FFD667C017FCA1F404A15A5BD368CD95A8FBDEBCCB9771B95958BDE3F65533190C0A758586094EBB86101582DC69FCCD7C2C1900D30648F360B4C805F143C8FE201D2DE242C66378439CBD304A30C67213F364F8FCBB202FFDCC290E85E8F0F718677FF8CB81D4AB3CF0DA5640C5F61B11A240099201D0BFAABECBBBB27A4623D77860BF52DC53A3AFB65ED2FCD4E9C9B1D1A996A643140CCE0D8B801728ED51BC3A47C9003375D8B19401E1C6841379A45BD2BE02A41222C4FE63E19C978D480E2D4E353AB957A1B81B74BBC7655A3D0261C8B2B06F6642BA4A5F8DD87B98B9AE355F57F8A5F978C6372BF594DF54DD8BF7650803EE13D9094B3EE86A1C3E2C21E4FD1F143D8A95CCE869DD365C29FA004070B0BDB899138FBF1D83EB9F76CBC112016C8CE1118FBDF76C3C907D1D3CAE2BA0BA5E419814DADEF0887CDC5817CA9C7B050574CF84009A6731136B39807687D3C3D6863C5D780BD6303F10A7D311D1C2A1C87039C17C6668501D572FC9D56B249ED0E95E17851AEBB45E288A32A1206C4FA475455309CD3D759CA19C47C0128A95DBD07E67937C0324B4B53BAB7402363FB32606387E2C419C0350943C8CB4760C2AA7D2FF9B1392E528B98493A61D2DC6D85CBF9E5759106D6BD1DAD276FB3AA45AAF75EB80BDB5D83AFFD7880371562100226B4E373B421B9EB3032938205012C6C083DD9E44BDFA842E280F03373F6E7E4DB5A50B4AA0B34789AF9AD051709B1E9ABDD71AD733DCC021DFA3A63609994F0FAFC5C1D88A39D46F81FA70E6164575321C2EBBB71F32893348AF887BAD2B1720CD5A86EA3774C1EBD53B15B9F01A4B5542A5F54053107E38ACE2594170B81DCD98D1CC47FEE808BE78DEBA05491F913ADE44B8914D65865EB0EB0F7E02DCBA1DE0D4B34E70485F83F96A5E41BBC064E3458473F43A70D51593F442EE2BD5B39E2C77C53BE83B9188101E3455C513BF4B8F744286BD529DA2804F804CE48E864A15F391A6793E4609279EAD144CDA084F3087678CA971EB22ED3B4B7FB740BE0407571F58DDE930D895140AD8EA096F06A3E255CD95AD48C4A46B99FF777B16452123A28D73B4A0CC0899C0CDAA1286FBE1C5FE95FA9418B5A473CC6ADBA14AFB06F080A544E49E148E492A8CE4BA9F4B5F781436F8FE30058A46F4D49A44E1FDE1B6F07E2A247CD3973AD76D3F473CAE88A2BAB3BEB78BD1875B240B23A901A9AD3F4421E5E355EAB0D3E1E197B246EB4F0861AEFB55BFD3BB54BF2CD6FFDCDFA0B78BAA674130CA2512B7069E7C33903A0A5EEEE7AF46FAFA52DD3F2E952CF909806B9CD2AA6826E823959A4BF03847BA50A4026FA0A72B78CBF6AA7FCD4908BA3BBCBDDE68708EC0AEC44B1E35C4E9E1EB7F01AFF0D9CE48F99BA01D78CEE
 -ss = 4793F705AED572ACE61DB13BEDE3900F2538EADDB904988C1F015BAC605A1093
 diff --git a/src/crypto/obj/obj_dat.h b/src/crypto/obj/obj_dat.h
-index 654b3c08e..851e27ec3 100644
+index 654b3c08e..06f80f971 100644
 --- a/src/crypto/obj/obj_dat.h
 +++ b/src/crypto/obj/obj_dat.h
 @@ -57,7 +57,7 @@
@@ -7751,11 +7751,11 @@ index 654b3c08e..851e27ec3 100644
  
  
 -#define NUM_NID 965
-+#define NUM_NID 967
++#define NUM_NID 968
  
  static const uint8_t kObjectData[] = {
      /* NID_rsadsi */
-@@ -8784,6 +8784,10 @@ static const ASN1_OBJECT kObjects[NUM_NID] = {
+@@ -8784,6 +8784,12 @@ static const ASN1_OBJECT kObjects[NUM_NID] = {
      {"HKDF", "hkdf", NID_hkdf, 0, NULL, 0},
      {"X25519Kyber768Draft00", "X25519Kyber768Draft00",
       NID_X25519Kyber768Draft00, 0, NULL, 0},
@@ -7763,10 +7763,12 @@ index 654b3c08e..851e27ec3 100644
 +     NID_X25519Kyber512Draft00, 0, NULL, 0},
 +    {"P256Kyber768Draft00", "P256Kyber768Draft00", NID_P256Kyber768Draft00, 0,
 +     NULL, 0},
++    {"X25519Kyber768Draft00Old", "X25519Kyber768Draft00Old",
++     NID_X25519Kyber768Draft00Old, 0, NULL, 0},
  };
  
  static const uint16_t kNIDsInShortNameOrder[] = {
-@@ -8916,6 +8920,7 @@ static const uint16_t kNIDsInShortNameOrder[] = {
+@@ -8916,6 +8922,7 @@ static const uint16_t kNIDsInShortNameOrder[] = {
      18 /* OU */,
      749 /* Oakley-EC2N-3 */,
      750 /* Oakley-EC2N-4 */,
@@ -7774,15 +7776,17 @@ index 654b3c08e..851e27ec3 100644
      9 /* PBE-MD2-DES */,
      168 /* PBE-MD2-RC2-64 */,
      10 /* PBE-MD5-DES */,
-@@ -8982,6 +8987,7 @@ static const uint16_t kNIDsInShortNameOrder[] = {
+@@ -8982,7 +8989,9 @@ static const uint16_t kNIDsInShortNameOrder[] = {
      458 /* UID */,
      0 /* UNDEF */,
      948 /* X25519 */,
 +    965 /* X25519Kyber512Draft00 */,
      964 /* X25519Kyber768Draft00 */,
++    967 /* X25519Kyber768Draft00Old */,
      961 /* X448 */,
      11 /* X500 */,
-@@ -9829,6 +9835,7 @@ static const uint16_t kNIDsInLongNameOrder[] = {
+     378 /* X500algorithms */,
+@@ -9829,6 +9838,7 @@ static const uint16_t kNIDsInLongNameOrder[] = {
      366 /* OCSP Nonce */,
      371 /* OCSP Service Locator */,
      180 /* OCSP Signing */,
@@ -7790,29 +7794,32 @@ index 654b3c08e..851e27ec3 100644
      161 /* PBES2 */,
      69 /* PBKDF2 */,
      162 /* PBMAC1 */,
-@@ -9853,6 +9860,7 @@ static const uint16_t kNIDsInLongNameOrder[] = {
+@@ -9853,7 +9863,9 @@ static const uint16_t kNIDsInLongNameOrder[] = {
      133 /* Time Stamping */,
      375 /* Trust Root */,
      948 /* X25519 */,
 +    965 /* X25519Kyber512Draft00 */,
      964 /* X25519Kyber768Draft00 */,
++    967 /* X25519Kyber768Draft00Old */,
      961 /* X448 */,
      12 /* X509 */,
+     402 /* X509v3 AC Targeting */,
 diff --git a/src/crypto/obj/obj_mac.num b/src/crypto/obj/obj_mac.num
-index a0519acee..239780c9f 100644
+index a0519acee..caeb5eaed 100644
 --- a/src/crypto/obj/obj_mac.num
 +++ b/src/crypto/obj/obj_mac.num
-@@ -952,3 +952,5 @@ X448		961
+@@ -952,3 +952,6 @@ X448		961
  sha512_256		962
  hkdf		963
  X25519Kyber768Draft00		964
 +X25519Kyber512Draft00		965
 +P256Kyber768Draft00		966
++X25519Kyber768Draft00Old		967
 diff --git a/src/crypto/obj/objects.txt b/src/crypto/obj/objects.txt
-index 3ad32ea3d..a5d786a8e 100644
+index 3ad32ea3d..aa1404d83 100644
 --- a/src/crypto/obj/objects.txt
 +++ b/src/crypto/obj/objects.txt
-@@ -1332,8 +1332,10 @@ secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
+@@ -1332,8 +1332,11 @@ secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
                   : dh-std-kdf
                   : dh-cofactor-kdf
  
@@ -7821,6 +7828,7 @@ index 3ad32ea3d..a5d786a8e 100644
 + : X25519Kyber512Draft00
   : X25519Kyber768Draft00
 + : P256Kyber768Draft00
++ : X25519Kyber768Draft00Old
  
  # See RFC 8410.
  1 3 101 110 : X25519
@@ -8043,10 +8051,10 @@ index cafae9d17..074ac5906 100644
  #if defined(__cplusplus)
  }  // extern C
 diff --git a/src/include/openssl/nid.h b/src/include/openssl/nid.h
-index 4dd8841b1..78747f437 100644
+index 4dd8841b1..8237efb74 100644
 --- a/src/include/openssl/nid.h
 +++ b/src/include/openssl/nid.h
-@@ -4255,6 +4255,12 @@ extern "C" {
+@@ -4255,6 +4255,15 @@ extern "C" {
  #define SN_X25519Kyber768Draft00 "X25519Kyber768Draft00"
  #define NID_X25519Kyber768Draft00 964
  
@@ -8055,6 +8063,9 @@ index 4dd8841b1..78747f437 100644
 +
 +#define SN_P256Kyber768Draft00 "P256Kyber768Draft00"
 +#define NID_P256Kyber768Draft00 966
++
++#define SN_X25519Kyber768Draft00Old "X25519Kyber768Draft00Old"
++#define NID_X25519Kyber768Draft00Old 967
 +
  
  #if defined(__cplusplus)
@@ -8101,7 +8112,7 @@ index 5ee280221..0a706c411 100644
      default:
        return false;
 diff --git a/src/ssl/ssl_key_share.cc b/src/ssl/ssl_key_share.cc
-index 09a9ad380..4e28112f4 100644
+index 09a9ad380..f7d2226e3 100644
 --- a/src/ssl/ssl_key_share.cc
 +++ b/src/ssl/ssl_key_share.cc
 @@ -26,6 +26,7 @@
@@ -8574,7 +8585,7 @@ index 09a9ad380..4e28112f4 100644
      {NID_X25519Kyber768Draft00, SSL_CURVE_X25519_KYBER768_DRAFT00,
 -     "X25519Kyber768Draft00", ""},
 +        "X25519Kyber768Draft00", "Xyber768D00"},
-+    {NID_X25519Kyber768Draft00, SSL_CURVE_X25519_KYBER768_DRAFT00_OLD,
++    {NID_X25519Kyber768Draft00Old, SSL_CURVE_X25519_KYBER768_DRAFT00_OLD,
 +        "X25519Kyber768Draft00Old", "Xyber768D00Old"},
 +    {NID_P256Kyber768Draft00, SSL_CURVE_P256_KYBER768_DRAFT00,
 +        "P256Kyber768Draft00", "P256Kyber768D00"}

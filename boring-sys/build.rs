@@ -347,14 +347,14 @@ fn ensure_patches_applied() -> io::Result<()> {
 
     run_command(&mut cmd)?;
 
-    if cfg!(feature = "post-quantum") {
-        println!("cargo:warning=applying post quantum crypto patch to boringssl");
-        run_apply_patch_script("scripts/apply_pq_patch.sh", "")?;
+    if cfg!(feature = "pq-experimental") {
+        println!("cargo:warning=applying experimental post quantum crypto patch to boringssl");
+        run_apply_patch_script("scripts/apply_pq_patch.sh")?;
     }
 
     if cfg!(feature = "rpk") {
         println!("cargo:warning=applying RPK patch to boringssl");
-        run_apply_patch_script("scripts/apply_rpk_patch.sh", "")?;
+        run_apply_patch_script("scripts/apply_rpk_patch.sh")?;
     }
 
     Ok(())
@@ -375,17 +375,9 @@ fn run_command(command: &mut Command) -> io::Result<()> {
     Ok(())
 }
 
-fn run_apply_patch_script(
-    script_path: impl AsRef<Path>,
-    from_dir: impl AsRef<Path>,
-) -> io::Result<()> {
+fn run_apply_patch_script(script_path: impl AsRef<Path>) -> io::Result<()> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-
-    let src_path = manifest_dir
-        .join(BORING_SSL_PATH)
-        .join(from_dir)
-        .canonicalize()?;
-
+    let src_path = manifest_dir.join(BORING_SSL_PATH).canonicalize()?;
     let cmd_path = manifest_dir.join(script_path).canonicalize()?;
 
     let mut cmd = Command::new(cmd_path);
@@ -395,12 +387,7 @@ fn run_apply_patch_script(
     Ok(())
 }
 
-fn main() {
-    println!("cargo:rerun-if-env-changed=BORING_BSSL_PATH");
-
-    #[cfg(all(feature = "fips", feature = "rpk"))]
-    compile_error!("`fips` and `rpk` features are mutually exclusive");
-
+fn build_boring_from_sources() -> String {
     if !Path::new(BORING_SSL_PATH).join("CMakeLists.txt").exists() {
         println!("cargo:warning=fetching boringssl git submodule");
         // fetch the boringssl submodule
@@ -421,26 +408,40 @@ fn main() {
 
     ensure_patches_applied().unwrap();
 
-    let bssl_dir = std::env::var("BORING_BSSL_PATH").unwrap_or_else(|_| {
-        let mut cfg = get_boringssl_cmake_config();
+    let mut cfg = get_boringssl_cmake_config();
 
-        if cfg!(feature = "fuzzing") {
-            cfg.cxxflag("-DBORINGSSL_UNSAFE_DETERMINISTIC_MODE")
-                .cxxflag("-DBORINGSSL_UNSAFE_FUZZER_MODE");
-        }
-        if cfg!(feature = "fips") {
-            let (clang, clangxx) = verify_fips_clang_version();
-            cfg.define("CMAKE_C_COMPILER", clang);
-            cfg.define("CMAKE_CXX_COMPILER", clangxx);
-            cfg.define("CMAKE_ASM_COMPILER", clang);
-            cfg.define("FIPS", "1");
-        }
+    if cfg!(feature = "fuzzing") {
+        cfg.cxxflag("-DBORINGSSL_UNSAFE_DETERMINISTIC_MODE")
+            .cxxflag("-DBORINGSSL_UNSAFE_FUZZER_MODE");
+    }
+    if cfg!(feature = "fips") {
+        let (clang, clangxx) = verify_fips_clang_version();
+        cfg.define("CMAKE_C_COMPILER", clang);
+        cfg.define("CMAKE_CXX_COMPILER", clangxx);
+        cfg.define("CMAKE_ASM_COMPILER", clang);
+        cfg.define("FIPS", "1");
+    }
 
-        cfg.build_target("ssl").build();
-        cfg.build_target("crypto").build().display().to_string()
-    });
+    cfg.build_target("ssl").build();
+    cfg.build_target("crypto").build().display().to_string()
+}
+
+fn main() {
+    println!("cargo:rerun-if-env-changed=BORING_BSSL_PATH");
+
+    #[cfg(all(feature = "fips", feature = "rpk"))]
+    compile_error!("`fips` and `rpk` features are mutually exclusive");
+
+    let bssl_dir = std::env::var("BORING_BSSL_PATH");
+
+    if bssl_dir.is_ok() && cfg!(any(feature = "rpk", feature = "pq-experimental")) {
+        panic!("precompiled BoringSSL was provided, optional patches can't be applied to it");
+    }
+
+    let bssl_dir = bssl_dir.unwrap_or_else(|_| build_boring_from_sources());
 
     let build_path = get_boringssl_platform_output_path();
+
     if cfg!(feature = "fips") {
         println!(
             "cargo:rustc-link-search=native={}/build/crypto/{}",

@@ -29,7 +29,7 @@ include = [
 ]
 
 [package.metadata.docs.rs]
-features = ["rpk", "post-quantum"]
+features = ["rpk", "pq-experimental"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -39,8 +39,8 @@ fips = []
 # Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
 rpk = []
 
-# Enables post-quantum crypto (https://blog.cloudflare.com/post-quantum-for-all/)
-post-quantum = []
+# Enables experimental post-quantum crypto (https://blog.cloudflare.com/post-quantum-for-all/)
+pq-experimental = []
 
 [build-dependencies]
 bindgen = { workspace = true }
