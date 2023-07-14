@@ -18,7 +18,7 @@
 //!
 //! # Compilation and linking options
 //!
-//! ## Support for pre-built binaries
+//! ## Support for pre-built binaries or custom source
 //!
 //! While this crate can build BoringSSL on its own, you may want to provide pre-built binaries instead.
 //! To do so, specify the environment variable `BORING_BSSL_PATH` with the path to the binaries.
@@ -26,6 +26,8 @@
 //! You can also provide specific headers by setting `BORING_BSSL_INCLUDE_PATH`.
 //!
 //! _Notes_: The crate will look for headers in the `$BORING_BSSL_INCLUDE_PATH/openssl/` folder, make sure to place your headers there.
+//!
+//! In alternative a different path for the BoringSSL source code directory can be specified by setting `BORING_BSSL_SOURCE_PATH` which will automatically be compiled during the build process.
 //!
 //! _Warning_: When providing a different version of BoringSSL make sure to use a compatible one, the crate relies on the presence of certain functions.
 //!

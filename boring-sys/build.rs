@@ -96,6 +96,17 @@ fn get_ios_sdk_name() -> &'static str {
     panic!("cannot find iOS SDK for {} in CMAKE_PARAMS_IOS", target);
 }
 
+/// Returns an absolute path to the BoringSSL source.
+fn get_boringssl_source_path() -> String {
+    #[cfg(feature = "fips")]
+    const BORING_SSL_SOURCE_PATH: &str = "deps/boringssl-fips";
+    #[cfg(not(feature = "fips"))]
+    const BORING_SSL_SOURCE_PATH: &str = "deps/boringssl";
+
+    std::env::var("BORING_BSSL_SOURCE_PATH")
+        .unwrap_or(env!("CARGO_MANIFEST_DIR").to_owned() + "/" + BORING_SSL_SOURCE_PATH)
+}
+
 /// Returns the platform-specific output path for lib.
 ///
 /// MSVC generator on Windows place static libs in a target sub-folder,
@@ -134,11 +145,6 @@ fn get_boringssl_platform_output_path() -> String {
     }
 }
 
-#[cfg(feature = "fips")]
-const BORING_SSL_PATH: &str = "deps/boringssl-fips";
-#[cfg(not(feature = "fips"))]
-const BORING_SSL_PATH: &str = "deps/boringssl";
-
 /// Returns a new cmake::Config for building BoringSSL.
 ///
 /// It will add platform-specific parameters if needed.
@@ -148,8 +154,9 @@ fn get_boringssl_cmake_config() -> cmake::Config {
     let host = std::env::var("HOST").unwrap();
     let target = std::env::var("TARGET").unwrap();
     let pwd = std::env::current_dir().unwrap();
+    let src_path = get_boringssl_source_path();
 
-    let mut boringssl_cmake = cmake::Config::new(BORING_SSL_PATH);
+    let mut boringssl_cmake = cmake::Config::new(&src_path);
     if host != target {
         // Add platform-specific parameters for cross-compilation.
         match os.as_ref() {
@@ -206,7 +213,7 @@ fn get_boringssl_cmake_config() -> cmake::Config {
                 "x86" => {
                     boringssl_cmake.define(
                         "CMAKE_TOOLCHAIN_FILE",
-                        pwd.join(BORING_SSL_PATH)
+                        pwd.join(&src_path)
                             .join("src/util/32-bit-toolchain.cmake")
                             .as_os_str(),
                     );
@@ -329,21 +336,21 @@ fn get_extra_clang_args_for_bindgen() -> Vec<String> {
 }
 
 fn ensure_patches_applied() -> io::Result<()> {
-    let mut lock_file = LockFile::open(&PathBuf::from(BORING_SSL_PATH).join(".patch_lock"))?;
+    let src_path = get_boringssl_source_path();
+
+    let mut lock_file = LockFile::open(&PathBuf::from(&src_path).join(".patch_lock"))?;
 
     lock_file.lock()?;
 
-    let boring_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(BORING_SSL_PATH);
-
     let mut cmd = Command::new("git");
 
-    cmd.args(["reset", "--hard"]).current_dir(&boring_dir);
+    cmd.args(["reset", "--hard"]).current_dir(&src_path);
 
     run_command(&mut cmd)?;
 
     let mut cmd = Command::new("git");
 
-    cmd.args(["clean", "-fdx"]).current_dir(&boring_dir);
+    cmd.args(["clean", "-fdx"]).current_dir(&src_path);
 
     run_command(&mut cmd)?;
 
@@ -377,7 +384,7 @@ fn run_command(command: &mut Command) -> io::Result<()> {
 
 fn run_apply_patch_script(script_path: impl AsRef<Path>) -> io::Result<()> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let src_path = manifest_dir.join(BORING_SSL_PATH).canonicalize()?;
+    let src_path = get_boringssl_source_path();
     let cmd_path = manifest_dir.join(script_path).canonicalize()?;
 
     let mut cmd = Command::new(cmd_path);
@@ -388,17 +395,13 @@ fn run_apply_patch_script(script_path: impl AsRef<Path>) -> io::Result<()> {
 }
 
 fn build_boring_from_sources() -> String {
-    if !Path::new(BORING_SSL_PATH).join("CMakeLists.txt").exists() {
+    let src_path = get_boringssl_source_path();
+
+    if !Path::new(&src_path).join("CMakeLists.txt").exists() {
         println!("cargo:warning=fetching boringssl git submodule");
         // fetch the boringssl submodule
         let status = Command::new("git")
-            .args([
-                "submodule",
-                "update",
-                "--init",
-                "--recursive",
-                BORING_SSL_PATH,
-            ])
+            .args(["submodule", "update", "--init", "--recursive", &src_path])
             .status();
 
         if !status.map_or(false, |status| status.success()) {
@@ -463,10 +466,11 @@ fn main() {
 
     println!("cargo:rerun-if-env-changed=BORING_BSSL_INCLUDE_PATH");
     let include_path = std::env::var("BORING_BSSL_INCLUDE_PATH").unwrap_or_else(|_| {
+        let src_path = get_boringssl_source_path();
         if cfg!(feature = "fips") {
-            format!("{}/include", BORING_SSL_PATH)
+            format!("{}/include", &src_path)
         } else {
-            format!("{}/src/include", BORING_SSL_PATH)
+            format!("{}/src/include", &src_path)
         }
     });
 
