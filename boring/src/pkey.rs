@@ -279,6 +279,24 @@ where
         private_key_to_der,
         ffi::i2d_PrivateKey
     }
+
+    // This isn't actually PEM output, but `i2d_PKCS8PrivateKey_bio` is documented to be
+    // "identical to the corresponding PEM function", and it's declared in pem.h.
+    private_key_to_pem! {
+        /// Serializes the private key to a DER-encoded PKCS#8 PrivateKeyInfo structure.
+        ///
+        /// This corresponds to [`i2d_PKCS8PrivateKey_bio`].
+        ///
+        /// [`i2d_PKCS8PrivateKey_bio`]: https://www.openssl.org/docs/man1.1.1/man3/i2d_PKCS8PrivateKey_bio.html
+        private_key_to_der_pkcs8,
+        /// Serializes the private key to a DER-encoded PKCS#8 EncryptedPrivateKeyInfo structure.
+        ///
+        /// This corresponds to [`i2d_PKCS8PrivateKey_bio`].
+        ///
+        /// [`i2d_PKCS8PrivateKey_bio`]: https://www.openssl.org/docs/man1.1.1/man3/i2d_PKCS8PrivateKey_bio.html
+        private_key_to_der_pkcs8_passphrase,
+        ffi::i2d_PKCS8PrivateKey_bio
+    }
 }
 
 impl<T> fmt::Debug for PKey<T> {
@@ -566,6 +584,18 @@ mod tests {
         // the `PRIVATE KEY` or `PUBLIC KEY` strings.
         assert!(priv_key.windows(11).any(|s| s == b"PRIVATE KEY"));
         assert!(pub_key.windows(10).any(|s| s == b"PUBLIC KEY"));
+    }
+
+    #[test]
+    fn test_der_pkcs8() {
+        let key = include_bytes!("../test/key.der");
+        let key = PKey::private_key_from_der(key).unwrap();
+
+        let priv_key = key.private_key_to_der_pkcs8().unwrap();
+
+        // Check that this has the correct PKCS#8 version number and algorithm.
+        assert_eq!(hex::encode(&priv_key[4..=6]), "020100"); // Version 0
+        assert_eq!(hex::encode(&priv_key[9..=19]), "06092a864886f70d010101"); // Algorithm RSA/PKCS#1
     }
 
     #[test]
