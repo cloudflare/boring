@@ -1,9 +1,10 @@
 use fslock::LockFile;
 use std::env;
+use std::fs;
 use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Output};
 
 // NOTE: this build script is adopted from quiche (https://github.com/cloudflare/quiche)
 
@@ -38,7 +39,7 @@ const CMAKE_PARAMS_ANDROID_NDK: &[(&str, &[(&str, &str)])] = &[
 ];
 
 fn cmake_params_android() -> &'static [(&'static str, &'static str)] {
-    let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+    let arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
     let cmake_params_android = if cfg!(feature = "ndk-old-gcc") {
         CMAKE_PARAMS_ANDROID_NDK_OLD_GCC
     } else {
@@ -77,7 +78,7 @@ const CMAKE_PARAMS_IOS: &[(&str, &[(&str, &str)])] = &[
 ];
 
 fn cmake_params_ios() -> &'static [(&'static str, &'static str)] {
-    let target = std::env::var("TARGET").unwrap();
+    let target = env::var("TARGET").unwrap();
     for (ios_target, params) in CMAKE_PARAMS_IOS {
         if *ios_target == target {
             return params;
@@ -92,18 +93,18 @@ fn get_ios_sdk_name() -> &'static str {
             return value;
         }
     }
-    let target = std::env::var("TARGET").unwrap();
+    let target = env::var("TARGET").unwrap();
     panic!("cannot find iOS SDK for {} in CMAKE_PARAMS_IOS", target);
 }
 
 /// Returns an absolute path to the BoringSSL source.
 fn get_boringssl_source_path() -> String {
-    #[cfg(feature = "fips")]
+    #[cfg(all(feature = "fips", not(feature = "fips-link-precompiled")))]
     const BORING_SSL_SOURCE_PATH: &str = "deps/boringssl-fips";
-    #[cfg(not(feature = "fips"))]
+    #[cfg(any(not(feature = "fips"), feature = "fips-link-precompiled"))]
     const BORING_SSL_SOURCE_PATH: &str = "deps/boringssl";
 
-    std::env::var("BORING_BSSL_SOURCE_PATH")
+    env::var("BORING_BSSL_SOURCE_PATH")
         .unwrap_or(env!("CARGO_MANIFEST_DIR").to_owned() + "/" + BORING_SSL_SOURCE_PATH)
 }
 
@@ -115,7 +116,7 @@ fn get_boringssl_source_path() -> String {
 fn get_boringssl_platform_output_path() -> String {
     if cfg!(target_env = "msvc") {
         // Code under this branch should match the logic in cmake-rs
-        let debug_env_var = std::env::var("DEBUG").expect("DEBUG variable not defined in env");
+        let debug_env_var = env::var("DEBUG").expect("DEBUG variable not defined in env");
 
         let deb_info = match &debug_env_var[..] {
             "false" => false,
@@ -123,8 +124,7 @@ fn get_boringssl_platform_output_path() -> String {
             unknown => panic!("Unknown DEBUG={} env var.", unknown),
         };
 
-        let opt_env_var =
-            std::env::var("OPT_LEVEL").expect("OPT_LEVEL variable not defined in env");
+        let opt_env_var = env::var("OPT_LEVEL").expect("OPT_LEVEL variable not defined in env");
 
         let subdir = match &opt_env_var[..] {
             "0" => "Debug",
@@ -149,10 +149,10 @@ fn get_boringssl_platform_output_path() -> String {
 ///
 /// It will add platform-specific parameters if needed.
 fn get_boringssl_cmake_config() -> cmake::Config {
-    let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
-    let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
-    let host = std::env::var("HOST").unwrap();
-    let target = std::env::var("TARGET").unwrap();
+    let arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+    let os = env::var("CARGO_CFG_TARGET_OS").unwrap();
+    let host = env::var("HOST").unwrap();
+    let target = env::var("TARGET").unwrap();
     let pwd = std::env::current_dir().unwrap();
     let src_path = get_boringssl_source_path();
 
@@ -163,7 +163,7 @@ fn get_boringssl_cmake_config() -> cmake::Config {
             "android" => {
                 // We need ANDROID_NDK_HOME to be set properly.
                 println!("cargo:rerun-if-env-changed=ANDROID_NDK_HOME");
-                let android_ndk_home = std::env::var("ANDROID_NDK_HOME")
+                let android_ndk_home = env::var("ANDROID_NDK_HOME")
                     .expect("Please set ANDROID_NDK_HOME for Android build");
                 let android_ndk_home = std::path::Path::new(&android_ndk_home);
                 for (name, value) in cmake_params_android() {
@@ -288,7 +288,7 @@ fn verify_fips_clang_version() -> (&'static str, &'static str) {
 }
 
 fn get_extra_clang_args_for_bindgen() -> Vec<String> {
-    let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+    let os = env::var("CARGO_CFG_TARGET_OS").unwrap();
 
     let mut params = Vec::new();
 
@@ -320,13 +320,13 @@ fn get_extra_clang_args_for_bindgen() -> Vec<String> {
             params.push(sysroot);
         }
         "android" => {
-            let android_ndk_home = std::env::var("ANDROID_NDK_HOME")
+            let android_ndk_home = env::var("ANDROID_NDK_HOME")
                 .expect("Please set ANDROID_NDK_HOME for Android build");
             let mut android_sysroot = std::path::PathBuf::from(android_ndk_home);
             android_sysroot.push("sysroot");
             params.push("--sysroot".to_string());
             // If ANDROID_NDK_HOME weren't a valid UTF-8 string,
-            // we'd already know from std::env::var.
+            // we'd already know from env::var.
             params.push(android_sysroot.into_os_string().into_string().unwrap());
         }
         _ => {}
@@ -367,11 +367,11 @@ fn ensure_patches_applied() -> io::Result<()> {
     Ok(())
 }
 
-fn run_command(command: &mut Command) -> io::Result<()> {
-    let exit_status = command.spawn()?.wait()?;
+fn run_command(command: &mut Command) -> io::Result<Output> {
+    let out = command.output()?;
 
-    if !exit_status.success() {
-        let err = match exit_status.code() {
+    if !out.status.success() {
+        let err = match out.status.code() {
             Some(code) => format!("{:?} exited with status: {}", command, code),
             None => format!("{:?} was terminated by signal", command),
         };
@@ -379,7 +379,7 @@ fn run_command(command: &mut Command) -> io::Result<()> {
         return Err(io::Error::new(io::ErrorKind::Other, err));
     }
 
-    Ok(())
+    Ok(out)
 }
 
 fn run_apply_patch_script(script_path: impl AsRef<Path>) -> io::Result<()> {
@@ -417,7 +417,11 @@ fn build_boring_from_sources() -> String {
         cfg.cxxflag("-DBORINGSSL_UNSAFE_DETERMINISTIC_MODE")
             .cxxflag("-DBORINGSSL_UNSAFE_FUZZER_MODE");
     }
-    if cfg!(feature = "fips") {
+
+    if cfg!(all(
+        feature = "fips",
+        not(feature = "fips-link-precompiled")
+    )) {
         let (clang, clangxx) = verify_fips_clang_version();
         cfg.define("CMAKE_C_COMPILER", clang);
         cfg.define("CMAKE_CXX_COMPILER", clangxx);
@@ -425,8 +429,52 @@ fn build_boring_from_sources() -> String {
         cfg.define("FIPS", "1");
     }
 
+    if cfg!(feature = "fips-link-precompiled") {
+        cfg.define("FIPS", "1");
+    }
+
     cfg.build_target("ssl").build();
     cfg.build_target("crypto").build().display().to_string()
+}
+
+fn link_in_precompiled_bcm_o(bssl_dir: &str) {
+    println!("cargo:warning=linking in precompiled `bcm.o` module");
+
+    let bcm_o_src_path = env::var("BORING_SSL_PRECOMPILED_BCM_O")
+        .expect("`fips-link-precompiled` requires `BORING_SSL_PRECOMPILED_BCM_O` env variable to be specified");
+
+    let libcrypto_path = PathBuf::from(bssl_dir)
+        .join("build/crypto/libcrypto.a")
+        .canonicalize()
+        .unwrap()
+        .display()
+        .to_string();
+
+    let bcm_o_dst_path = PathBuf::from(bssl_dir).join("build/bcm-fips.o");
+
+    fs::copy(bcm_o_src_path, &bcm_o_dst_path).unwrap();
+
+    // check that fips module is named as expected
+    let out = run_command(Command::new("ar").args(["t", &libcrypto_path, "bcm.o"])).unwrap();
+
+    assert_eq!(
+        String::from_utf8(out.stdout).unwrap(),
+        "bcm.o",
+        "failed to verify FIPS module name"
+    );
+
+    // insert fips bcm.o before bcm.o into libcrypto.a,
+    // so for all duplicate symbols the older fips bcm.o is used
+    // (this causes the need for extra linker flags to deal with duplicate symbols)
+    // (as long as the newer module does not define new symbols, one may also remove it,
+    // but once there are new symbols it would cause missing symbols at linking stage)
+    run_command(Command::new("ar").args([
+        "rb",
+        "bcm.o",
+        &libcrypto_path,
+        bcm_o_dst_path.display().to_string().as_str(),
+    ]))
+    .unwrap();
 }
 
 fn main() {
@@ -435,10 +483,14 @@ fn main() {
     #[cfg(all(feature = "fips", feature = "rpk"))]
     compile_error!("`fips` and `rpk` features are mutually exclusive");
 
-    let bssl_dir = std::env::var("BORING_BSSL_PATH");
+    let bssl_dir = env::var("BORING_BSSL_PATH");
 
     if bssl_dir.is_ok() && cfg!(any(feature = "rpk", feature = "pq-experimental")) {
         panic!("precompiled BoringSSL was provided, optional patches can't be applied to it");
+    }
+
+    if bssl_dir.is_ok() && cfg!(feature = "fips") {
+        panic!("precompiled BoringSSL was provided, so FIPS configuration can't be applied");
     }
 
     let bssl_dir = bssl_dir.unwrap_or_else(|_| build_boring_from_sources());
@@ -461,11 +513,15 @@ fn main() {
         );
     }
 
+    if cfg!(feature = "fips-link-precompiled") {
+        link_in_precompiled_bcm_o(&bssl_dir);
+    }
+
     println!("cargo:rustc-link-lib=static=crypto");
     println!("cargo:rustc-link-lib=static=ssl");
 
     println!("cargo:rerun-if-env-changed=BORING_BSSL_INCLUDE_PATH");
-    let include_path = std::env::var("BORING_BSSL_INCLUDE_PATH").unwrap_or_else(|_| {
+    let include_path = env::var("BORING_BSSL_INCLUDE_PATH").unwrap_or_else(|_| {
         let src_path = get_boringssl_source_path();
         if cfg!(feature = "fips") {
             format!("{}/include", &src_path)
@@ -492,7 +548,7 @@ fn main() {
         .clang_args(get_extra_clang_args_for_bindgen())
         .clang_args(&["-I", &include_path]);
 
-    let target = std::env::var("TARGET").unwrap();
+    let target = env::var("TARGET").unwrap();
     match target.as_ref() {
         // bindgen produces alignment tests that cause undefined behavior [1]
         // when applied to explicitly unaligned types like OSUnalignedU64.

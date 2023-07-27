@@ -19,6 +19,9 @@ rustdoc-args = ["--cfg", "docsrs"]
 # Use a FIPS-validated version of boringssl.
 fips = ["boring-sys/fips"]
 
+# Link with precompiled FIPS-validated `bcm.o` module.
+fips-link-precompiled = ["fips"]
+
 # Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
 rpk = ["boring-sys/rpk"]
 

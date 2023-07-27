@@ -22,6 +22,9 @@ runtime = ["hyper/runtime"]
 # Use a FIPS-validated version of boringssl.
 fips = ["tokio-boring/fips"]
 
+# Link with precompiled FIPS-validated `bcm.o` module.
+fips-link-precompiled = ["fips"]
+
 # Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
 rpk = ["tokio-boring/rpk"]
 
