@@ -223,14 +223,13 @@ pub(super) unsafe extern "C" fn raw_select_cert<F>(
     client_hello: *const ffi::SSL_CLIENT_HELLO,
 ) -> ffi::ssl_select_cert_result_t
 where
-    F: Fn(&ClientHello) -> Result<(), SelectCertError> + Sync + Send + 'static,
+    F: Fn(ClientHello<'_>) -> Result<(), SelectCertError> + Sync + Send + 'static,
 {
     // SAFETY: boring provides valid inputs.
-    let client_hello = unsafe { &*(client_hello as *const ClientHello) };
+    let client_hello = ClientHello(unsafe { &*client_hello });
 
-    let callback = client_hello
-        .ssl()
-        .ssl_context()
+    let ssl_context = client_hello.ssl().ssl_context().to_owned();
+    let callback = ssl_context
         .ex_data(SslContext::cached_ex_index::<F>())
         .expect("BUG: select cert callback missing");
 
