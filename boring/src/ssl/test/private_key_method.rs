@@ -189,7 +189,8 @@ fn test_sign_retry_complete_failure() {
             ErrorCode::WANT_PRIVATE_KEY_OPERATION
         );
 
-        let HandshakeError::WouldBlock(mid_handshake) = mid_handshake.handshake().unwrap_err() else {
+        let HandshakeError::WouldBlock(mid_handshake) = mid_handshake.handshake().unwrap_err()
+        else {
             panic!("should be WouldBlock");
         };
 

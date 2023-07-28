@@ -27,8 +27,15 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
+mod async_callbacks;
 mod bridge;
 
+use self::async_callbacks::TASK_WAKER_INDEX;
+pub use self::async_callbacks::{
+    AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError,
+    BoxPrivateKeyMethodFinish, BoxPrivateKeyMethodFuture, BoxSelectCertFinish, BoxSelectCertFuture,
+    ExDataFuture, SslContextBuilderExt,
+};
 use self::bridge::AsyncStreamBridge;
 
 /// Asynchronously performs a client-side TLS handshake over the provided stream.
@@ -88,6 +95,11 @@ impl<S> SslStream<S> {
     /// Returns a shared reference to the `Ssl` object associated with this stream.
     pub fn ssl(&self) -> &SslRef {
         self.0.ssl()
+    }
+
+    /// Returns a mutable reference to the `Ssl` object associated with this stream.
+    pub fn ssl_mut(&mut self) -> &mut SslRef {
+        self.0.ssl_mut()
     }
 
     /// Returns a shared reference to the underlying stream.
@@ -285,15 +297,20 @@ where
         let mut mid_handshake = self.0.take().expect("future polled after completion");
 
         mid_handshake.get_mut().set_waker(Some(ctx));
+        mid_handshake
+            .ssl_mut()
+            .set_ex_data(*TASK_WAKER_INDEX, Some(ctx.waker().clone()));
 
         match mid_handshake.handshake() {
             Ok(mut stream) => {
                 stream.get_mut().set_waker(None);
+                stream.ssl_mut().set_ex_data(*TASK_WAKER_INDEX, None);
 
                 Poll::Ready(Ok(SslStream(stream)))
             }
             Err(ssl::HandshakeError::WouldBlock(mut mid_handshake)) => {
                 mid_handshake.get_mut().set_waker(None);
+                mid_handshake.ssl_mut().set_ex_data(*TASK_WAKER_INDEX, None);
 
                 self.0 = Some(mid_handshake);
 

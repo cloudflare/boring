@@ -482,6 +482,9 @@ pub struct SelectCertError(ffi::ssl_select_cert_result_t);
 impl SelectCertError {
     /// A fatal error occured and the handshake should be terminated.
     pub const ERROR: Self = Self(ffi::ssl_select_cert_result_t::ssl_select_cert_error);
+
+    /// The operation could not be completed and should be retried later.
+    pub const RETRY: Self = Self(ffi::ssl_select_cert_result_t::ssl_select_cert_retry);
 }
 
 /// Extension types, to be used with `ClientHello::get_extension`.
@@ -3280,6 +3283,11 @@ impl<S> MidHandshakeSslStream<S> {
         self.stream.ssl()
     }
 
+    /// Returns a mutable reference to the `Ssl` of the stream.
+    pub fn ssl_mut(&mut self) -> &mut SslRef {
+        self.stream.ssl_mut()
+    }
+
     /// Returns the underlying error which interrupted this handshake.
     pub fn error(&self) -> &Error {
         &self.error
@@ -3584,6 +3592,11 @@ impl<S> SslStream<S> {
     /// Returns a shared reference to the `Ssl` object associated with this stream.
     pub fn ssl(&self) -> &SslRef {
         &self.ssl
+    }
+
+    /// Returns a mutable reference to the `Ssl` object associated with this stream.
+    pub fn ssl_mut(&mut self) -> &mut SslRef {
+        &mut self.ssl
     }
 }
 
