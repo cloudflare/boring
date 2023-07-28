@@ -680,6 +680,7 @@ fn main() {
         "des.h",
         "dtls1.h",
         "hkdf.h",
+        "hmac.h",
         "hrss.h",
         "md4.h",
         "md5.h",
