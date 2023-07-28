@@ -39,6 +39,7 @@ no-patches = ["boring/no-patches"]
 [dependencies]
 boring = { workspace = true }
 boring-sys = { workspace = true }
+once_cell = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]

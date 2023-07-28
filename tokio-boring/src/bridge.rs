@@ -1,5 +1,4 @@
 //! Bridge between sync IO traits and async tokio IO traits.
-
 use std::fmt;
 use std::io;
 use std::pin::Pin;
@@ -35,7 +34,7 @@ impl<S> AsyncStreamBridge<S> {
         F: FnOnce(&mut Context<'_>, Pin<&mut S>) -> R,
     {
         let mut ctx =
-            Context::from_waker(self.waker.as_ref().expect("missing task context pointer"));
+            Context::from_waker(self.waker.as_ref().expect("BUG: missing waker in bridge"));
 
         f(&mut ctx, Pin::new(&mut self.stream))
     }
