@@ -66,10 +66,10 @@ where
 
     let ssl = unsafe { SslRef::from_ptr_mut(ssl_ptr) };
 
-    let hint = if !hint.is_null() {
-        Some(unsafe { CStr::from_ptr(hint) }.to_bytes())
-    } else {
+    let hint = if hint.is_null() {
         None
+    } else {
+        Some(unsafe { CStr::from_ptr(hint) }.to_bytes())
     };
 
     // Give the callback mutable slices into which it can write the identity and psk.
@@ -107,10 +107,10 @@ where
 
     let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
 
-    let identity = if !identity.is_null() {
-        Some(unsafe { CStr::from_ptr(identity) }.to_bytes())
-    } else {
+    let identity = if identity.is_null() {
         None
+    } else {
+        Some(unsafe { CStr::from_ptr(identity) }.to_bytes())
     };
 
     // Give the callback mutable slices into which it can write the psk.

@@ -60,6 +60,7 @@
 use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef, Opaque};
 use libc::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
+use once_cell::sync::Lazy;
 use std::any::TypeId;
 use std::cmp;
 use std::collections::HashMap;
@@ -413,16 +414,12 @@ impl NameType {
     }
 }
 
-lazy_static! {
-    static ref INDEXES: Mutex<HashMap<TypeId, c_int>> = Mutex::new(HashMap::new());
-    static ref SSL_INDEXES: Mutex<HashMap<TypeId, c_int>> = Mutex::new(HashMap::new());
-    static ref SESSION_CTX_INDEX: Index<Ssl, SslContext> = Ssl::new_ex_index().unwrap();
-}
-
+static INDEXES: Lazy<Mutex<HashMap<TypeId, c_int>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+static SSL_INDEXES: Lazy<Mutex<HashMap<TypeId, c_int>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+static SESSION_CTX_INDEX: Lazy<Index<Ssl, SslContext>> = Lazy::new(|| Ssl::new_ex_index().unwrap());
 #[cfg(feature = "rpk")]
-lazy_static! {
-    static ref RPK_FLAG_INDEX: Index<SslContext, bool> = SslContext::new_ex_index().unwrap();
-}
+static RPK_FLAG_INDEX: Lazy<Index<SslContext, bool>> =
+    Lazy::new(|| SslContext::new_ex_index().unwrap());
 
 unsafe extern "C" fn free_data_box<T>(
     _parent: *mut c_void,

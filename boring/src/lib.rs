@@ -81,8 +81,6 @@
 extern crate bitflags;
 #[macro_use]
 extern crate foreign_types;
-#[macro_use]
-extern crate lazy_static;
 extern crate boring_sys as ffi;
 extern crate libc;
 
