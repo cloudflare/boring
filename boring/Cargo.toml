@@ -31,7 +31,7 @@ pq-experimental = ["boring-sys/pq-experimental"]
 [dependencies]
 bitflags = { workspace = true }
 foreign-types = { workspace = true }
-lazy_static = { workspace = true }
+once_cell = { workspace = true }
 libc = { workspace = true }
 boring-sys = { workspace = true }
 
