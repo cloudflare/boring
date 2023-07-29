@@ -17,7 +17,7 @@ boring-sys = { version = "3.0", path = "./boring-sys" }
 boring = { version = "3.0", path = "./boring" }
 tokio-boring = { version = "3.0", path = "./tokio-boring" }
 
-bindgen = { version = "0.65.1", default-features = false, features = ["runtime"] }
+bindgen = { version = "0.66.1", default-features = false, features = ["runtime"] }
 cmake = "0.1"
 fslock = "0.2"
 bitflags = "1.0"

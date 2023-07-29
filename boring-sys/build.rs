@@ -406,23 +406,30 @@ fn get_extra_clang_args_for_bindgen() -> Vec<String> {
 }
 
 fn ensure_patches_applied() -> io::Result<()> {
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let mut lock_file = LockFile::open(&PathBuf::from(&out_dir).join(".patch_lock"))?;
     let src_path = get_boringssl_source_path();
-
-    let mut lock_file = LockFile::open(&PathBuf::from(&src_path).join(".patch_lock"))?;
+    let is_in_submodule = Path::new(&src_path).join(".git").exists();
 
     lock_file.lock()?;
 
-    let mut cmd = Command::new("git");
+    // NOTE: check that we are not in files copied for publishing, otherwise we will reset
+    // the upper level git repo which is the workspace itself.
+    if is_in_submodule {
+        println!("cargo:warning=cleaning up boringssl git submodule dir");
 
-    cmd.args(["reset", "--hard"]).current_dir(&src_path);
+        let mut cmd = Command::new("git");
 
-    run_command(&mut cmd)?;
+        cmd.args(["reset", "--hard"]).current_dir(&src_path);
 
-    let mut cmd = Command::new("git");
+        run_command(&mut cmd)?;
 
-    cmd.args(["clean", "-fdx"]).current_dir(&src_path);
+        let mut cmd = Command::new("git");
 
-    run_command(&mut cmd)?;
+        cmd.args(["clean", "-fdx"]).current_dir(&src_path);
+
+        run_command(&mut cmd)?;
+    }
 
     if cfg!(feature = "pq-experimental") {
         println!("cargo:warning=applying experimental post quantum crypto patch to boringssl");
