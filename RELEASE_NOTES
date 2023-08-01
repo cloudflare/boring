@@ -1,5 +1,7 @@
 3.0.1
 - 2023-08-01 Reduce release bundle size by excluding PQ test data
+- 2023-07-28 Adding hmac.h to included headers
+- 2023-08-01 Reduce release bundle size by excluding PQ test data
 - 2023-08-01 Fix builds for features that require git patches
 
 3.0.0
