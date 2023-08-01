@@ -854,10 +854,9 @@ impl SslContextBuilder {
             // context's ex data. Instead, pass the pointer directly as the servername arg. It's
             // still stored in ex data to manage the lifetime.
             let arg = self.set_ex_data_inner(SslContext::cached_ex_index::<F>(), callback);
-            ffi::SSL_CTX_set_tlsext_servername_arg(self.as_ptr(), arg);
 
-            let f: extern "C" fn(_, _, _) -> _ = raw_sni::<F>;
-            ffi::SSL_CTX_set_tlsext_servername_callback(self.as_ptr(), Some(f));
+            ffi::SSL_CTX_set_tlsext_servername_arg(self.as_ptr(), arg);
+            ffi::SSL_CTX_set_tlsext_servername_callback(self.as_ptr(), Some(raw_sni::<F>));
         }
     }
 
@@ -1457,7 +1456,6 @@ impl SslContextBuilder {
     /// This corresponds to [`SSL_CTX_set_psk_client_callback`].
     ///
     /// [`SSL_CTX_set_psk_client_callback`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_psk_client_callback.html
-    #[cfg(not(osslconf = "OPENSSL_NO_PSK"))]
     pub fn set_psk_client_callback<F>(&mut self, callback: F)
     where
         F: Fn(&mut SslRef, Option<&[u8]>, &mut [u8], &mut [u8]) -> Result<usize, ErrorStack>
@@ -1472,7 +1470,6 @@ impl SslContextBuilder {
     }
 
     #[deprecated(since = "0.10.10", note = "renamed to `set_psk_client_callback`")]
-    #[cfg(not(osslconf = "OPENSSL_NO_PSK"))]
     pub fn set_psk_callback<F>(&mut self, callback: F)
     where
         F: Fn(&mut SslRef, Option<&[u8]>, &mut [u8], &mut [u8]) -> Result<usize, ErrorStack>
@@ -1492,7 +1489,6 @@ impl SslContextBuilder {
     /// This corresponds to [`SSL_CTX_set_psk_server_callback`].
     ///
     /// [`SSL_CTX_set_psk_server_callback`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_psk_server_callback.html
-    #[cfg(not(osslconf = "OPENSSL_NO_PSK"))]
     pub fn set_psk_server_callback<F>(&mut self, callback: F)
     where
         F: Fn(&mut SslRef, Option<&[u8]>, &mut [u8]) -> Result<usize, ErrorStack>
@@ -1733,6 +1729,14 @@ foreign_type_and_impl_send_sync! {
 
 impl Clone for SslContext {
     fn clone(&self) -> Self {
+        (**self).to_owned()
+    }
+}
+
+impl ToOwned for SslContextRef {
+    type Owned = SslContext;
+
+    fn to_owned(&self) -> Self::Owned {
         unsafe {
             SSL_CTX_up_ref(self.as_ptr());
             SslContext::from_ptr(self.as_ptr())

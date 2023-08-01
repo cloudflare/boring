@@ -1048,7 +1048,6 @@ fn _check_kinds() {
     is_sync::<SslStream<TcpStream>>();
 }
 
-#[cfg(not(osslconf = "OPENSSL_NO_PSK"))]
 #[test]
 fn psk_ciphers() {
     const CIPHER: &str = "PSK-AES128-CBC-SHA";
