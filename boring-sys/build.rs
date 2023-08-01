@@ -6,6 +6,7 @@ use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
+use std::sync::Once;
 
 // NOTE: this build script is adopted from quiche (https://github.com/cloudflare/quiche)
 
@@ -117,12 +118,48 @@ fn get_apple_sdk_name() -> &'static str {
 /// Returns an absolute path to the BoringSSL source.
 fn get_boringssl_source_path() -> String {
     #[cfg(all(feature = "fips", not(feature = "fips-link-precompiled")))]
-    const BORING_SSL_SOURCE_PATH: &str = "deps/boringssl-fips";
+    const SUBMODULE_DIR: &str = "boringssl-fips";
     #[cfg(any(not(feature = "fips"), feature = "fips-link-precompiled"))]
-    const BORING_SSL_SOURCE_PATH: &str = "deps/boringssl";
+    const SUBMODULE_DIR: &str = "boringssl";
 
-    env::var("BORING_BSSL_SOURCE_PATH")
-        .unwrap_or(env!("CARGO_MANIFEST_DIR").to_owned() + "/" + BORING_SSL_SOURCE_PATH)
+    static COPY_SOURCES: Once = Once::new();
+
+    if let Ok(src_path) = env::var("BORING_BSSL_SOURCE_PATH") {
+        return src_path;
+    }
+
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let src_path = Path::new(&out_dir).join(SUBMODULE_DIR);
+
+    COPY_SOURCES.call_once(|| {
+        let submodule_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("deps")
+            .join(SUBMODULE_DIR);
+
+        if !submodule_path.join("CMakeLists.txt").exists() {
+            println!("cargo:warning=fetching boringssl git submodule");
+
+            run_command(Command::new("git").args([
+                "submodule",
+                "update",
+                "--init",
+                "--recursive",
+                &submodule_path.display().to_string(),
+            ]))
+            .unwrap();
+        }
+
+        let _ = fs::remove_dir_all(&src_path);
+        fs_extra::dir::copy(submodule_path, &out_dir, &Default::default()).unwrap();
+
+        // NOTE: .git can be both file and dir, depening on whether it was copied from a submodule
+        // or created by the patches code.
+        let src_git_path = src_path.join(".git");
+        let _ = fs::remove_file(&src_git_path);
+        let _ = fs::remove_dir_all(&src_git_path);
+    });
+
+    src_path.display().to_string()
 }
 
 /// Returns the platform-specific output path for lib.
@@ -409,43 +446,57 @@ fn ensure_patches_applied() -> io::Result<()> {
     let out_dir = env::var("OUT_DIR").unwrap();
     let mut lock_file = LockFile::open(&PathBuf::from(&out_dir).join(".patch_lock"))?;
     let src_path = get_boringssl_source_path();
-    let is_in_submodule = Path::new(&src_path).join(".git").exists();
+    let has_git = Path::new(&src_path).join(".git").exists();
 
     lock_file.lock()?;
 
-    // NOTE: check that we are not in files copied for publishing, otherwise we will reset
-    // the upper level git repo which is the workspace itself.
-    if is_in_submodule {
-        println!("cargo:warning=cleaning up boringssl git submodule dir");
+    // NOTE: init git in the copied files, so we can apply patches
+    if !has_git {
+        println!("cargo:warning=initing git in boringssl sources to apply patches");
 
-        let mut cmd = Command::new("git");
-
-        cmd.args(["reset", "--hard"]).current_dir(&src_path);
-
-        run_command(&mut cmd)?;
-
-        let mut cmd = Command::new("git");
-
-        cmd.args(["clean", "-fdx"]).current_dir(&src_path);
-
-        run_command(&mut cmd)?;
+        run_command(Command::new("git").args(["init"]).current_dir(&src_path))?;
     }
 
     if cfg!(feature = "pq-experimental") {
         println!("cargo:warning=applying experimental post quantum crypto patch to boringssl");
-        run_apply_patch_script("scripts/apply_pq_patch.sh")?;
+        apply_patch("boring-pq.patch")?;
     }
 
     if cfg!(feature = "rpk") {
         println!("cargo:warning=applying RPK patch to boringssl");
-        run_apply_patch_script("scripts/apply_rpk_patch.sh")?;
+        apply_patch("rpk.patch")?;
     }
+
+    Ok(())
+}
+
+fn apply_patch(patch_name: &str) -> io::Result<()> {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let src_path = get_boringssl_source_path();
+    let cmd_path = manifest_dir
+        .join("patches")
+        .join(patch_name)
+        .canonicalize()?;
+
+    run_command(
+        Command::new("git")
+            .args([
+                "apply",
+                "-v",
+                "--whitespace=fix",
+                &cmd_path.display().to_string(),
+            ])
+            .current_dir(src_path),
+    )?;
 
     Ok(())
 }
 
 fn run_command(command: &mut Command) -> io::Result<Output> {
     let out = command.output()?;
+
+    println!("{}", std::str::from_utf8(&out.stdout).unwrap());
+    eprintln!("{}", std::str::from_utf8(&out.stderr).unwrap());
 
     if !out.status.success() {
         let err = match out.status.code() {
@@ -459,33 +510,7 @@ fn run_command(command: &mut Command) -> io::Result<Output> {
     Ok(out)
 }
 
-fn run_apply_patch_script(script_path: impl AsRef<Path>) -> io::Result<()> {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let src_path = get_boringssl_source_path();
-    let cmd_path = manifest_dir.join(script_path).canonicalize()?;
-
-    let mut cmd = Command::new(cmd_path);
-    cmd.current_dir(src_path);
-    run_command(&mut cmd)?;
-
-    Ok(())
-}
-
 fn build_boring_from_sources() -> String {
-    let src_path = get_boringssl_source_path();
-
-    if !Path::new(&src_path).join("CMakeLists.txt").exists() {
-        println!("cargo:warning=fetching boringssl git submodule");
-        // fetch the boringssl submodule
-        let status = Command::new("git")
-            .args(["submodule", "update", "--init", "--recursive", &src_path])
-            .status();
-
-        if !status.map_or(false, |status| status.success()) {
-            panic!("failed to fetch submodule - consider running `git submodule update --init --recursive deps/boringssl` yourself");
-        }
-    }
-
     ensure_patches_applied().unwrap();
 
     let mut cfg = get_boringssl_cmake_config();
