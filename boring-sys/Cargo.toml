@@ -18,20 +18,27 @@ include = [
     "/LICENSE-MIT",
     "/deps/boringssl/**/*.[chS]",
     "/deps/boringssl/**/*.asm",
-    "/deps/boringssl/src/**/*.cc",
+    "/deps/boringssl/**/*.json",
+    "/deps/boringssl/**/*.num",
+    "/deps/boringssl/**/*.txt",
+    "/deps/boringssl/**/*.bzl",
+    "/deps/boringssl/**/*.cc",
     "/deps/boringssl/**/CMakeLists.txt",
     "/deps/boringssl/**/sources.cmake",
     "/deps/boringssl/LICENSE",
     "/deps/boringssl-fips/**/*.[chS]",
     "/deps/boringssl-fips/**/*.asm",
-    "/deps/boringssl-fips/src/**/*.cc",
+    "/deps/boringssl/**/*.json",
+    "/deps/boringssl/**/*.num",
+    "/deps/boringssl/**/*.txt",
+    "/deps/boringssl-fips/**/*.bzl",
+    "/deps/boringssl-fips/**/*.cc",
     "/deps/boringssl-fips/**/CMakeLists.txt",
     "/deps/boringssl-fips/**/sources.cmake",
     "/deps/boringssl/LICENSE",
     "/build.rs",
     "/src",
     "/patches",
-    "/scripts"
 ]
 
 [package.metadata.docs.rs]
@@ -54,4 +61,5 @@ pq-experimental = []
 [build-dependencies]
 bindgen = { workspace = true }
 cmake = { workspace = true }
+fs_extra = { workspace = true }
 fslock = { workspace = true }
