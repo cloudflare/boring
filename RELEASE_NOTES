@@ -1,4 +1,13 @@
+3.0.1
+- 2023-08-01 Reduce release bundle size by excluding PQ test data
+- 2023-08-01 Fix builds for features that require git patches
+
 3.0.0
+- 2023-07-29 Fix publishing
+- 2023-07-28 Merge pull request #131 from inikulin/rel-3.0.0
+
+.3.0.0
+- 2023-07-28 Release 3.0.0
 - 2023-07-28 Add git-cliff configuration
 - 2023-07-28 Merge pull request #84 from signalapp/macos-cross-compile
 - 2023-07-28 Merge pull request #95 from signalapp/libsignal-arm
