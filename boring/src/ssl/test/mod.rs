@@ -34,6 +34,7 @@ use crate::x509::store::X509StoreBuilder;
 use crate::x509::verify::X509CheckFlags;
 use crate::x509::{X509Name, X509StoreContext, X509VerifyResult, X509};
 
+mod private_key_method;
 mod server;
 
 static ROOT_CERT: &[u8] = include_bytes!("../../../test/root-ca.pem");
@@ -55,9 +56,7 @@ fn verify_untrusted() {
 #[test]
 fn verify_trusted() {
     let server = Server::builder().build();
-
-    let mut client = server.client();
-    client.ctx().set_ca_file("test/root-ca.pem").unwrap();
+    let client = server.client_with_root_ca();
 
     client.connect();
 }
@@ -109,9 +108,8 @@ fn verify_untrusted_callback_override_bad() {
 #[test]
 fn verify_trusted_callback_override_ok() {
     let server = Server::builder().build();
+    let mut client = server.client_with_root_ca();
 
-    let mut client = server.client();
-    client.ctx().set_ca_file("test/root-ca.pem").unwrap();
     client
         .ctx()
         .set_verify_callback(SslVerifyMode::PEER, |_, x509| {
@@ -125,11 +123,12 @@ fn verify_trusted_callback_override_ok() {
 #[test]
 fn verify_trusted_callback_override_bad() {
     let mut server = Server::builder();
-    server.should_error();
-    let server = server.build();
 
-    let mut client = server.client();
-    client.ctx().set_ca_file("test/root-ca.pem").unwrap();
+    server.should_error();
+
+    let server = server.build();
+    let mut client = server.client_with_root_ca();
+
     client
         .ctx()
         .set_verify_callback(SslVerifyMode::PEER, |_, _| false);
@@ -155,9 +154,8 @@ fn verify_callback_load_certs() {
 #[test]
 fn verify_trusted_get_error_ok() {
     let server = Server::builder().build();
+    let mut client = server.client_with_root_ca();
 
-    let mut client = server.client();
-    client.ctx().set_ca_file("test/root-ca.pem").unwrap();
     client
         .ctx()
         .set_verify_callback(SslVerifyMode::PEER, |_, x509| {
@@ -697,9 +695,8 @@ fn add_extra_chain_cert() {
 #[test]
 fn verify_valid_hostname() {
     let server = Server::builder().build();
+    let mut client = server.client_with_root_ca();
 
-    let mut client = server.client();
-    client.ctx().set_ca_file("test/root-ca.pem").unwrap();
     client.ctx().set_verify(SslVerifyMode::PEER);
 
     let mut client = client.build().builder();
@@ -714,11 +711,12 @@ fn verify_valid_hostname() {
 #[test]
 fn verify_invalid_hostname() {
     let mut server = Server::builder();
-    server.should_error();
-    let server = server.build();
 
-    let mut client = server.client();
-    client.ctx().set_ca_file("test/root-ca.pem").unwrap();
+    server.should_error();
+
+    let server = server.build();
+    let mut client = server.client_with_root_ca();
+
     client.ctx().set_verify(SslVerifyMode::PEER);
 
     let mut client = client.build().builder();

@@ -1,6 +1,13 @@
 #![forbid(unsafe_op_in_unsafe_fn)]
 
+use super::{
+    AlpnError, ClientHello, PrivateKeyMethod, PrivateKeyMethodError, SelectCertError, SniError,
+    Ssl, SslAlert, SslContext, SslContextRef, SslRef, SslSession, SslSessionRef,
+    SslSignatureAlgorithm, SESSION_CTX_INDEX,
+};
+use crate::error::ErrorStack;
 use crate::ffi;
+use crate::x509::{X509StoreContext, X509StoreContextRef};
 use foreign_types::ForeignType;
 use foreign_types::ForeignTypeRef;
 use libc::c_char;
@@ -12,19 +19,7 @@ use std::slice;
 use std::str;
 use std::sync::Arc;
 
-use crate::error::ErrorStack;
-use crate::ssl::AlpnError;
-use crate::ssl::{ClientHello, SelectCertError};
-use crate::ssl::{
-    SniError, Ssl, SslAlert, SslContext, SslContextRef, SslRef, SslSession, SslSessionRef,
-    SESSION_CTX_INDEX,
-};
-use crate::x509::{X509StoreContext, X509StoreContextRef};
-
-pub(super) unsafe extern "C" fn raw_verify<F>(
-    preverify_ok: c_int,
-    x509_ctx: *mut ffi::X509_STORE_CTX,
-) -> c_int
+pub extern "C" fn raw_verify<F>(preverify_ok: c_int, x509_ctx: *mut ffi::X509_STORE_CTX) -> c_int
 where
     F: Fn(bool, &mut X509StoreContextRef) -> bool + 'static + Sync + Send,
 {
@@ -371,4 +366,94 @@ where
         .expect("BUG: get session callback missing");
 
     callback(ssl, line);
+}
+
+pub(super) unsafe extern "C" fn raw_sign<M>(
+    ssl: *mut ffi::SSL,
+    out: *mut u8,
+    out_len: *mut usize,
+    max_out: usize,
+    signature_algorithm: u16,
+    in_: *const u8,
+    in_len: usize,
+) -> ffi::ssl_private_key_result_t
+where
+    M: PrivateKeyMethod,
+{
+    // SAFETY: boring provides valid inputs.
+    let input = unsafe { slice::from_raw_parts(in_, in_len) };
+
+    let signature_algorithm = SslSignatureAlgorithm(signature_algorithm);
+
+    let callback = |method: &M, ssl: &mut _, output: &mut _| {
+        method.sign(ssl, input, signature_algorithm, output)
+    };
+
+    // SAFETY: boring provides valid inputs.
+    unsafe { raw_private_key_callback(ssl, out, out_len, max_out, callback) }
+}
+
+pub(super) unsafe extern "C" fn raw_decrypt<M>(
+    ssl: *mut ffi::SSL,
+    out: *mut u8,
+    out_len: *mut usize,
+    max_out: usize,
+    in_: *const u8,
+    in_len: usize,
+) -> ffi::ssl_private_key_result_t
+where
+    M: PrivateKeyMethod,
+{
+    // SAFETY: boring provides valid inputs.
+    let input = unsafe { slice::from_raw_parts(in_, in_len) };
+
+    let callback = |method: &M, ssl: &mut _, output: &mut _| method.decrypt(ssl, input, output);
+
+    // SAFETY: boring provides valid inputs.
+    unsafe { raw_private_key_callback(ssl, out, out_len, max_out, callback) }
+}
+
+pub(super) unsafe extern "C" fn raw_complete<M>(
+    ssl: *mut ffi::SSL,
+    out: *mut u8,
+    out_len: *mut usize,
+    max_out: usize,
+) -> ffi::ssl_private_key_result_t
+where
+    M: PrivateKeyMethod,
+{
+    // SAFETY: boring provides valid inputs.
+    unsafe { raw_private_key_callback::<M>(ssl, out, out_len, max_out, M::complete) }
+}
+
+unsafe fn raw_private_key_callback<M>(
+    ssl: *mut ffi::SSL,
+    out: *mut u8,
+    out_len: *mut usize,
+    max_out: usize,
+    callback: impl FnOnce(&M, &mut SslRef, &mut [u8]) -> Result<usize, PrivateKeyMethodError>,
+) -> ffi::ssl_private_key_result_t
+where
+    M: PrivateKeyMethod,
+{
+    // SAFETY: boring provides valid inputs.
+    let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
+    let output = unsafe { slice::from_raw_parts_mut(out, max_out) };
+    let out_len = unsafe { &mut *out_len };
+
+    let ssl_context = ssl.ssl_context().to_owned();
+    let method = ssl_context
+        .ex_data(SslContext::cached_ex_index::<M>())
+        .expect("BUG: private key method missing");
+
+    match callback(method, ssl, output) {
+        Ok(written) => {
+            assert!(written <= max_out);
+
+            *out_len = written;
+
+            ffi::ssl_private_key_result_t::ssl_private_key_success
+        }
+        Err(err) => err.0,
+    }
 }
