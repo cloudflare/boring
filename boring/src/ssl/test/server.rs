@@ -2,7 +2,10 @@ use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::thread::{self, JoinHandle};
 
-use crate::ssl::{Ssl, SslContext, SslContextBuilder, SslFiletype, SslMethod, SslRef, SslStream};
+use crate::ssl::{
+    HandshakeError, MidHandshakeSslStream, Ssl, SslContext, SslContextBuilder, SslFiletype,
+    SslMethod, SslRef, SslStream,
+};
 
 pub struct Server {
     handle: Option<JoinHandle<()>>,
@@ -28,6 +31,7 @@ impl Server {
             ctx,
             ssl_cb: Box::new(|_| {}),
             io_cb: Box::new(|_| {}),
+            err_cb: Box::new(|_| {}),
             should_error: false,
         }
     }
@@ -39,6 +43,14 @@ impl Server {
         }
     }
 
+    pub fn client_with_root_ca(&self) -> ClientBuilder {
+        let mut client = self.client();
+
+        client.ctx().set_ca_file("test/root-ca.pem").unwrap();
+
+        client
+    }
+
     pub fn connect_tcp(&self) -> TcpStream {
         TcpStream::connect(self.addr).unwrap()
     }
@@ -48,6 +60,7 @@ pub struct Builder {
     ctx: SslContextBuilder,
     ssl_cb: Box<dyn FnMut(&mut SslRef) + Send>,
     io_cb: Box<dyn FnMut(SslStream<TcpStream>) + Send>,
+    err_cb: Box<dyn FnMut(HandshakeError<TcpStream>) + Send>,
     should_error: bool,
 }
 
@@ -70,6 +83,12 @@ impl Builder {
         self.io_cb = Box::new(cb);
     }
 
+    pub fn err_cb(&mut self, cb: impl FnMut(HandshakeError<TcpStream>) + Send + 'static) {
+        self.should_error();
+
+        self.err_cb = Box::new(cb);
+    }
+
     pub fn should_error(&mut self) {
         self.should_error = true;
     }
@@ -80,6 +99,7 @@ impl Builder {
         let addr = socket.local_addr().unwrap();
         let mut ssl_cb = self.ssl_cb;
         let mut io_cb = self.io_cb;
+        let mut err_cb = self.err_cb;
         let should_error = self.should_error;
 
         let handle = thread::spawn(move || {
@@ -88,7 +108,7 @@ impl Builder {
             ssl_cb(&mut ssl);
             let r = ssl.accept(socket);
             if should_error {
-                r.unwrap_err();
+                err_cb(r.unwrap_err());
             } else {
                 let mut socket = r.unwrap();
                 socket.write_all(&[0]).unwrap();
@@ -124,8 +144,8 @@ impl ClientBuilder {
         self.build().builder().connect()
     }
 
-    pub fn connect_err(self) {
-        self.build().builder().connect_err();
+    pub fn connect_err(self) -> HandshakeError<TcpStream> {
+        self.build().builder().connect_err()
     }
 }
 
@@ -160,8 +180,9 @@ impl ClientSslBuilder {
         s
     }
 
-    pub fn connect_err(self) {
+    pub fn connect_err(self) -> HandshakeError<TcpStream> {
         let socket = TcpStream::connect(self.addr).unwrap();
-        self.ssl.connect(socket).unwrap_err();
+
+        self.ssl.setup_connect(socket).handshake().unwrap_err()
     }
 }
