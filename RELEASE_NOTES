@@ -1,3 +1,8 @@
+3.0.2
+- 2023-08-03 Fix feature gates for fips-link-precompiled
+- 2023-07-28 Switch boring from lazy_static to once_cell
+- 2023-08-01 Clean up and remove some unsafe code from ffi callbacks
+
 3.0.1
 - 2023-08-01 Reduce release bundle size by excluding PQ test data
 - 2023-07-28 Adding hmac.h to included headers
