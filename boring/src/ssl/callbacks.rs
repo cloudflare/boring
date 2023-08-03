@@ -48,6 +48,29 @@ where
     verify(preverify_ok != 0, ctx) as c_int
 }
 
+pub(super) unsafe extern "C" fn raw_custom_verify<F>(
+    ssl: *mut ffi::SSL,
+    al: *mut u8,
+) -> ffi::ssl_verify_result_t
+where
+    F: Fn(&mut SslRef, &mut u8) -> bool + 'static + Sync + Send,
+{
+    let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
+    let callback_idx = SslContext::cached_ex_index::<F>();
+    let callback = ssl
+        .ssl_context()
+        .ex_data(callback_idx)
+        .expect("BUG: custom verify callback missing") as *const F;
+
+    unsafe {
+        if (*callback)(ssl, &mut *al) {
+            ffi::ssl_verify_result_t::ssl_verify_ok
+        } else {
+            ffi::ssl_verify_result_t::ssl_verify_invalid
+        }
+    }
+}
+
 pub(super) unsafe extern "C" fn raw_client_psk<F>(
     ssl_ptr: *mut ffi::SSL,
     hint: *const c_char,
