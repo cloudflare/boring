@@ -2320,10 +2320,11 @@ impl Ssl {
         }
     }
 
-    /// Creates a new `Ssl`.
+    /// Creates a new [`Ssl`].
     ///
-    /// This corresponds to [`SSL_new`].
-    /// This function does the same as [`Self:new()`] except that it takes &[SslContextRef].
+    /// This corresponds to [`SSL_new`](`ffi::SSL_new`).
+    ///
+    /// This function does the same as [`Self:new`] except that it takes &[SslContextRef].
     // Both functions exist for backward compatibility (no breaking API).
     pub fn new_from_ref(ctx: &SslContextRef) -> Result<Ssl, ErrorStack> {
         unsafe {
@@ -2337,34 +2338,52 @@ impl Ssl {
         }
     }
 
-    /// Initiates a client-side TLS handshake.
+    /// Initiates a client-side TLS handshake, returning a [`MidHandshakeSslStream`].
     ///
-    /// This corresponds to [`SSL_connect`].
+    /// This method is guaranteed to return without calling any callback defined
+    /// in the internal [`Ssl`] or [`SslContext`].
+    ///
+    /// See [`SslStreamBuilder::setup_connect`] for more details.
+    ///
+    /// # Warning
+    ///
+    /// BoringSSL's default configuration is insecure. It is highly recommended to use
+    /// [`SslConnector`] rather than [`Ssl`] directly, as it manages that configuration.
+    pub fn setup_connect<S>(self, stream: S) -> MidHandshakeSslStream<S>
+    where
+        S: Read + Write,
+    {
+        SslStreamBuilder::new(self, stream).setup_connect()
+    }
+
+    /// Attempts a client-side TLS handshake.
+    ///
+    /// This is a convenience method which combines [`Self::setup_connect`] and
+    /// [`MidHandshakeSslStream::handshake`].
     ///
     /// # Warning
     ///
     /// OpenSSL's default configuration is insecure. It is highly recommended to use
-    /// `SslConnector` rather than `Ssl` directly, as it manages that configuration.
-    ///
-    /// [`SSL_connect`]: https://www.openssl.org/docs/manmaster/man3/SSL_connect.html
+    /// [`SslConnector`] rather than `Ssl` directly, as it manages that configuration.
     pub fn connect<S>(self, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
     where
         S: Read + Write,
     {
-        SslStreamBuilder::new(self, stream).connect()
+        self.setup_connect(stream).handshake()
     }
 
     /// Initiates a server-side TLS handshake.
     ///
-    /// This corresponds to [`SSL_accept`].
+    /// This method is guaranteed to return without calling any callback defined
+    /// in the internal [`Ssl`] or [`SslContext`].
+    ///
+    /// See [`SslStreamBuilder::setup_accept`] for more details.
     ///
     /// # Warning
     ///
-    /// OpenSSL's default configuration is insecure. It is highly recommended to use
-    /// `SslAcceptor` rather than `Ssl` directly, as it manages that configuration.
-    ///
-    /// [`SSL_accept`]: https://www.openssl.org/docs/manmaster/man3/SSL_accept.html
-    pub fn accept<S>(self, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
+    /// BoringSSL's default configuration is insecure. It is highly recommended to use
+    /// [`SslAcceptor`] rather than [`Ssl`] directly, as it manages that configuration.
+    pub fn setup_accept<S>(self, stream: S) -> MidHandshakeSslStream<S>
     where
         S: Read + Write,
     {
@@ -2383,7 +2402,25 @@ impl Ssl {
             }
         }
 
-        SslStreamBuilder::new(self, stream).accept()
+        SslStreamBuilder::new(self, stream).setup_accept()
+    }
+
+    /// Attempts a server-side TLS handshake.
+    ///
+    /// This is a convenience method which combines [`Self::setup_accept`] and
+    /// [`MidHandshakeSslStream::handshake`].
+    ///
+    /// # Warning
+    ///
+    /// OpenSSL's default configuration is insecure. It is highly recommended to use
+    /// `SslAcceptor` rather than `Ssl` directly, as it manages that configuration.
+    ///
+    /// [`SSL_accept`]: https://www.openssl.org/docs/manmaster/man3/SSL_accept.html
+    pub fn accept<S>(self, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
+    where
+        S: Read + Write,
+    {
+        self.setup_accept(stream).handshake()
     }
 }
 
@@ -3594,54 +3631,66 @@ where
         unsafe { ffi::SSL_set_accept_state(self.inner.ssl.as_ptr()) }
     }
 
-    /// See `Ssl::connect`
-    pub fn connect(self) -> Result<SslStream<S>, HandshakeError<S>> {
-        let mut stream = self.inner;
+    /// Initiates a client-side TLS handshake, returning a [`MidHandshakeSslStream`].
+    ///
+    /// This method calls [`Self::set_connect_state`] and returns without actually
+    /// initiating the handshake. The caller is then free to call
+    /// [`MidHandshakeSslStream`] and loop on [`HandshakeError::WouldBlock`].
+    pub fn setup_connect(mut self) -> MidHandshakeSslStream<S> {
+        self.set_connect_state();
 
         #[cfg(feature = "kx-safe-default")]
-        stream.ssl.client_set_default_curves_list();
+        self.inner.ssl.client_set_default_curves_list();
 
-        let ret = unsafe { ffi::SSL_connect(stream.ssl.as_ptr()) };
-        if ret > 0 {
-            Ok(stream)
-        } else {
-            let error = stream.make_error(ret);
-            match error.would_block() {
-                true => Err(HandshakeError::WouldBlock(MidHandshakeSslStream {
-                    stream,
-                    error,
-                })),
-                false => Err(HandshakeError::Failure(MidHandshakeSslStream {
-                    stream,
-                    error,
-                })),
-            }
+        MidHandshakeSslStream {
+            stream: self.inner,
+            error: Error {
+                code: ErrorCode::WANT_WRITE,
+                cause: Some(InnerError::Io(io::Error::new(
+                    io::ErrorKind::WouldBlock,
+                    "connect handshake has not started yet",
+                ))),
+            },
         }
     }
 
-    /// See `Ssl::accept`
-    pub fn accept(self) -> Result<SslStream<S>, HandshakeError<S>> {
-        let mut stream = self.inner;
+    /// Attempts a client-side TLS handshake.
+    ///
+    /// This is a convenience method which combines [`Self::setup_connect`] and
+    /// [`MidHandshakeSslStream::handshake`].
+    pub fn connect(self) -> Result<SslStream<S>, HandshakeError<S>> {
+        self.setup_connect().handshake()
+    }
+
+    /// Initiates a server-side TLS handshake, returning a [`MidHandshakeSslStream`].
+    ///
+    /// This method calls [`Self::set_accept_state`] and returns without actually
+    /// initiating the handshake. The caller is then free to call
+    /// [`MidHandshakeSslStream`] and loop on [`HandshakeError::WouldBlock`].
+    pub fn setup_accept(mut self) -> MidHandshakeSslStream<S> {
+        self.set_accept_state();
 
         #[cfg(feature = "kx-safe-default")]
-        stream.ssl.server_set_default_curves_list();
+        self.inner.ssl.server_set_default_curves_list();
 
-        let ret = unsafe { ffi::SSL_accept(stream.ssl.as_ptr()) };
-        if ret > 0 {
-            Ok(stream)
-        } else {
-            let error = stream.make_error(ret);
-            match error.would_block() {
-                true => Err(HandshakeError::WouldBlock(MidHandshakeSslStream {
-                    stream,
-                    error,
-                })),
-                false => Err(HandshakeError::Failure(MidHandshakeSslStream {
-                    stream,
-                    error,
-                })),
-            }
+        MidHandshakeSslStream {
+            stream: self.inner,
+            error: Error {
+                code: ErrorCode::WANT_READ,
+                cause: Some(InnerError::Io(io::Error::new(
+                    io::ErrorKind::WouldBlock,
+                    "accept handshake has not started yet",
+                ))),
+            },
         }
+    }
+
+    /// Attempts a server-side TLS handshake.
+    ///
+    /// This is a convenience method which combines [`Self::setup_accept`] and
+    /// [`MidHandshakeSslStream::handshake`].
+    pub fn accept(self) -> Result<SslStream<S>, HandshakeError<S>> {
+        self.setup_accept().handshake()
     }
 
     /// Initiates the handshake.
