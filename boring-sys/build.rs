@@ -452,8 +452,6 @@ fn ensure_patches_applied() -> io::Result<()> {
 
     // NOTE: init git in the copied files, so we can apply patches
     if !has_git {
-        println!("cargo:warning=initing git in boringssl sources to apply patches");
-
         run_command(Command::new("git").args(["init"]).current_dir(&src_path))?;
     }
 
@@ -581,6 +579,10 @@ fn link_in_precompiled_bcm_o(bssl_dir: &str) {
 
 fn main() {
     println!("cargo:rerun-if-env-changed=BORING_BSSL_PATH");
+    println!("cargo:rerun-if-env-changed=BORING_BSSL_INCLUDE_PATH");
+    println!("cargo:rerun-if-env-changed=BORING_BSSL_SOURCE_PATH");
+    println!("cargo:rerun-if-env-changed=BORING_SSL_PRECOMPILED_BCM_O");
+    println!("cargo:rerun-if-env-changed=BORINGSSL_BUILD_DIR");
 
     #[cfg(all(feature = "fips", feature = "rpk"))]
     compile_error!("`fips` and `rpk` features are mutually exclusive");
@@ -622,10 +624,14 @@ fn main() {
     println!("cargo:rustc-link-lib=static=crypto");
     println!("cargo:rustc-link-lib=static=ssl");
 
-    println!("cargo:rerun-if-env-changed=BORING_BSSL_INCLUDE_PATH");
     let include_path = env::var("BORING_BSSL_INCLUDE_PATH").unwrap_or_else(|_| {
         let src_path = get_boringssl_source_path();
-        if cfg!(feature = "fips") {
+
+        if Path::new(&src_path)
+            .join("include")
+            .join("x509v3.h")
+            .exists()
+        {
             format!("{}/include", &src_path)
         } else {
             format!("{}/src/include", &src_path)
