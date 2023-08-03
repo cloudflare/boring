@@ -25,10 +25,8 @@ mod test_rpk {
             let mut acceptor = SslAcceptor::rpk().unwrap();
             let pkey = std::fs::read("tests/key.pem").unwrap();
             let pkey = PKey::private_key_from_pem(&pkey).unwrap();
-            let cert = std::fs::read("tests/pubkey.der").unwrap();
 
-            acceptor.set_rpk_certificate(&cert).unwrap();
-            acceptor.set_null_chain_private_key(&pkey).unwrap();
+            acceptor.set_raw_public_key_and_key(&pkey).unwrap();
 
             let acceptor = acceptor.build();
 
@@ -61,7 +59,8 @@ mod test_rpk {
             let mut connector = SslConnector::rpk_builder().unwrap();
             let cert = std::fs::read("tests/pubkey.der").unwrap();
 
-            connector.set_rpk_certificate(&cert).unwrap();
+            let _ = connector.configure_default_rpk_custom_verify(&cert);
+
             let config = connector.build().configure().unwrap();
 
             let stream = TcpStream::connect(&addr).await.unwrap();
@@ -91,7 +90,8 @@ mod test_rpk {
             let mut connector = SslConnector::rpk_builder().unwrap();
             let cert = std::fs::read("tests/pubkey2.der").unwrap();
 
-            connector.set_rpk_certificate(&cert).unwrap();
+            let _ = connector.configure_default_rpk_custom_verify(&cert);
+
             let config = connector.build().configure().unwrap();
 
             let stream = TcpStream::connect(&addr).await.unwrap();
