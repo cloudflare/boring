@@ -169,6 +169,12 @@ fn fmt_mid_handshake_error(
     f: &mut fmt::Formatter,
     prefix: &str,
 ) -> fmt::Result {
+    #[cfg(feature = "rpk")]
+    if s.ssl().ssl_context().is_rpk() {
+        write!(f, "{}", prefix)?;
+        return write!(f, " {}", s.error());
+    }
+
     match s.ssl().verify_result() {
         X509VerifyResult::OK => write!(f, "{}", prefix)?,
         verify => write!(f, "{}: cert verification failed - {}", prefix, verify)?,
