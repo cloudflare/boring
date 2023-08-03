@@ -558,7 +558,7 @@ fn link_in_precompiled_bcm_o(bssl_dir: &str) {
     let out = run_command(Command::new("ar").args(["t", &libcrypto_path, "bcm.o"])).unwrap();
 
     assert_eq!(
-        String::from_utf8(out.stdout).unwrap(),
+        String::from_utf8(out.stdout).unwrap().trim(),
         "bcm.o",
         "failed to verify FIPS module name"
     );
