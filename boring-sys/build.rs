@@ -627,11 +627,7 @@ fn main() {
     let include_path = env::var("BORING_BSSL_INCLUDE_PATH").unwrap_or_else(|_| {
         let src_path = get_boringssl_source_path();
 
-        if Path::new(&src_path)
-            .join("include")
-            .join("x509v3.h")
-            .exists()
-        {
+        if Path::new(&src_path).join("include").exists() {
             format!("{}/include", &src_path)
         } else {
             format!("{}/src/include", &src_path)
