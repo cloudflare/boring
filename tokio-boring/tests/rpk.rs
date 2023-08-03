@@ -96,9 +96,12 @@ mod test_rpk {
 
             let stream = TcpStream::connect(&addr).await.unwrap();
 
-            assert!(tokio_boring::connect(config, "localhost", stream)
+            let err = tokio_boring::connect(config, "localhost", stream)
                 .await
-                .is_err());
+                .unwrap_err();
+
+            // NOTE: smoke test for https://github.com/cloudflare/boring/issues/140
+            let _ = err.to_string();
         };
 
         future::join(server, client).await;
