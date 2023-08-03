@@ -41,7 +41,7 @@ pub(crate) fn create_server(
 
         let stream = listener.accept().await.unwrap().0;
 
-        tokio_boring::accept(&acceptor, stream).await
+        tokio_boring::accept(&acceptor, stream).unwrap().await
     };
 
     (server, addr)
@@ -59,7 +59,9 @@ pub(crate) async fn connect(
 
     let stream = TcpStream::connect(&addr).await.unwrap();
 
-    tokio_boring::connect(config, "localhost", stream).await
+    tokio_boring::connect(config, "localhost", stream)
+        .unwrap()
+        .await
 }
 
 pub(crate) async fn with_trivial_client_server_exchange(

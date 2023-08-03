@@ -11,6 +11,6 @@ async fn main() -> anyhow::Result<()> {
     ssl_builder.set_default_verify_paths()?;
     ssl_builder.set_verify(ssl::SslVerifyMode::PEER);
     let acceptor = ssl_builder.build();
-    let _ssl_stream = tokio_boring::accept(&acceptor, tcp_stream).await?;
+    let _ssl_stream = tokio_boring::accept(&acceptor, tcp_stream)?.await?;
     Ok(())
 }

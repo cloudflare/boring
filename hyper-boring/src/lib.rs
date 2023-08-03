@@ -245,7 +245,7 @@ where
             }
 
             let config = inner.setup_ssl(&uri, host)?;
-            let stream = tokio_boring::connect(config, host, conn).await?;
+            let stream = tokio_boring::connect(config, host, conn)?.await?;
 
             Ok(MaybeHttpsStream::Https(stream))
         };
