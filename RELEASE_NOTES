@@ -1,4 +1,8 @@
+3.0.4
+- 2023-08-05 Add missing cmake files to the package
+
 3.0.3
+- 2023-08-05 Release 3.0.3
 - 2023-08-03 Fix missing .trim() when verifying FIPS module name
 - 2023-08-03 Fix Diplay panics for HandshakeError with `rpk` (fixes #140)
 
