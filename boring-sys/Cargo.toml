@@ -63,7 +63,11 @@ fips-link-precompiled = []
 # Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
 rpk = []
 
-# Enables experimental post-quantum crypto (https://blog.cloudflare.com/post-quantum-for-all/)
+# Applies a patch (`patches/boring-pq.patch`) to the boringSSL source code that
+# enables support for PQ key exchange. This feature is necessary in order to
+# compile the bindings for the default branch of boringSSL (`deps/boringssl`).
+# Alternatively, a version of boringSSL that implements the same feature set
+# can be provided by setting `BORING_BSSL_SOURCE_PATH`.
 pq-experimental = []
 
 # Disables git patching of the BoringSSL sources for features like `rpk` and `pq-experimental`, but
