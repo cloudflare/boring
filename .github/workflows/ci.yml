@@ -238,3 +238,5 @@ jobs:
       name: Run `pq-experimental` tests
     - run: cargo test --features pq-experimental,rpk
       name: Run `pq-experimental,rpk` tests
+    - run: cargo test --features kx-safe-default,pq-experimental
+      name: Run `kx-safe-default` tests

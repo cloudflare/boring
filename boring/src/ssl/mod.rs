@@ -619,10 +619,12 @@ impl SslSignatureAlgorithm {
 }
 
 /// A TLS Curve.
+#[cfg(not(feature = "kx-safe-default"))]
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SslCurve(c_int);
 
+#[cfg(not(feature = "kx-safe-default"))]
 impl SslCurve {
     pub const SECP224R1: SslCurve = SslCurve(ffi::NID_secp224r1);
 
@@ -1703,6 +1705,11 @@ impl SslContextBuilder {
     /// This corresponds to [`SSL_CTX_set1_curves`]
     ///
     /// [`SSL_CTX_set1_curves`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set1_curves
+    //
+    // If the "kx-*" flags are used to set key exchange preference, then don't allow the user to
+    // set them here. This ensures we don't override the user's preference without telling them:
+    // when the flags are used, the preferences are set just before connecting or accepting.
+    #[cfg(not(feature = "kx-safe-default"))]
     pub fn set_curves(&mut self, curves: &[SslCurve]) -> Result<(), ErrorStack> {
         unsafe {
             cvt_0i(ffi::SSL_CTX_set1_curves(
@@ -2398,6 +2405,48 @@ impl SslRef {
 
     fn get_error(&self, ret: c_int) -> ErrorCode {
         unsafe { ErrorCode::from_raw(ffi::SSL_get_error(self.as_ptr(), ret)) }
+    }
+
+    #[cfg(feature = "kx-safe-default")]
+    fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
+        let curves = CString::new(curves).unwrap();
+        unsafe {
+            cvt(ffi::SSL_set1_curves_list(
+                self.as_ptr(),
+                curves.as_ptr() as *const _,
+            ))
+            .map(|_| ())
+        }
+    }
+
+    #[cfg(feature = "kx-safe-default")]
+    fn client_set_default_curves_list(&mut self) -> Result<(), ErrorStack> {
+        let curves = if cfg!(feature = "kx-client-pq-preferred") {
+            if cfg!(feature = "kx-client-nist-required") {
+                "P256Kyber768Draft00:P-256:P-384"
+            } else {
+                "X25519Kyber768Draft00:X25519:P256Kyber768Draft00:P-256:P-384"
+            }
+        } else if cfg!(feature = "kx-client-pq-supported") {
+            if cfg!(feature = "kx-client-nist-required") {
+                "P-256:P-384:P256Kyber768Draft00"
+            } else {
+                "X25519:P-256:P-384:X25519Kyber768Draft00:P256Kyber768Draft00"
+            }
+        } else {
+            if cfg!(feature = "kx-client-nist-required") {
+                "P-256:P-384"
+            } else {
+                "X25519:P-256:P-384"
+            }
+        };
+
+        self.set_curves_list(curves)
+    }
+
+    #[cfg(feature = "kx-safe-default")]
+    fn server_set_default_curves_list(&mut self) -> Result<(), ErrorStack> {
+        self.set_curves_list("X25519Kyber768Draft00:P256Kyber768Draft00:X25519:P-256:P-384")
     }
 
     /// Like [`SslContextBuilder::set_verify`].
@@ -3480,6 +3529,10 @@ where
     /// See `Ssl::connect`
     pub fn connect(self) -> Result<SslStream<S>, HandshakeError<S>> {
         let mut stream = self.inner;
+
+        #[cfg(feature = "kx-safe-default")]
+        stream.ssl.client_set_default_curves_list()?;
+
         let ret = unsafe { ffi::SSL_connect(stream.ssl.as_ptr()) };
         if ret > 0 {
             Ok(stream)
@@ -3503,6 +3556,10 @@ where
     /// See `Ssl::accept`
     pub fn accept(self) -> Result<SslStream<S>, HandshakeError<S>> {
         let mut stream = self.inner;
+
+        #[cfg(feature = "kx-safe-default")]
+        stream.ssl.server_set_default_curves_list()?;
+
         let ret = unsafe { ffi::SSL_accept(stream.ssl.as_ptr()) };
         if ret > 0 {
             Ok(stream)
