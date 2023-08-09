@@ -43,7 +43,10 @@ async fn localhost() {
 
         for _ in 0..3 {
             let stream = listener.accept().await.unwrap().0;
-            let stream = tokio_boring::accept(&acceptor, stream).await.unwrap();
+            let stream = tokio_boring::accept(&acceptor, stream)
+                .unwrap()
+                .await
+                .unwrap();
 
             let service =
                 service::service_fn(|_| async { Ok::<_, io::Error>(Response::new(Body::empty())) });
@@ -105,7 +108,10 @@ async fn alpn_h2() {
         let acceptor = acceptor.build();
 
         let stream = listener.accept().await.unwrap().0;
-        let stream = tokio_boring::accept(&acceptor, stream).await.unwrap();
+        let stream = tokio_boring::accept(&acceptor, stream)
+            .unwrap()
+            .await
+            .unwrap();
         assert_eq!(stream.ssl().selected_alpn_protocol().unwrap(), b"h2");
 
         let service =

@@ -4,10 +4,12 @@ use std::ops::{Deref, DerefMut};
 use crate::dh::Dh;
 use crate::error::ErrorStack;
 use crate::ssl::{
-    HandshakeError, Ssl, SslContext, SslContextBuilder, SslContextRef, SslMethod, SslMode,
-    SslOptions, SslRef, SslStream, SslVerifyMode,
+    Ssl, SslContext, SslContextBuilder, SslContextRef, SslMethod, SslMode, SslOptions, SslRef,
+    SslVerifyMode,
 };
 use crate::version;
+
+use super::MidHandshakeSslStream;
 
 const FFDHE_2048: &str = "
 -----BEGIN DH PARAMETERS-----
@@ -98,11 +100,15 @@ impl SslConnector {
     /// Initiates a client-side TLS session on a stream.
     ///
     /// The domain is used for SNI and hostname verification.
-    pub fn connect<S>(&self, domain: &str, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
+    pub fn setup_connect<S>(
+        &self,
+        domain: &str,
+        stream: S,
+    ) -> Result<MidHandshakeSslStream<S>, ErrorStack>
     where
         S: Read + Write,
     {
-        self.configure()?.connect(domain, stream)
+        self.configure()?.setup_connect(domain, stream)
     }
 
     /// Returns a structure allowing for configuration of a single TLS session before connection.
@@ -192,7 +198,13 @@ impl ConnectConfiguration {
     /// Initiates a client-side TLS session on a stream.
     ///
     /// The domain is used for SNI and hostname verification if enabled.
-    pub fn connect<S>(mut self, domain: &str, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
+    ///
+    /// See [`Ssl::setup_connect`] for more details.
+    pub fn setup_connect<S>(
+        mut self,
+        domain: &str,
+        stream: S,
+    ) -> Result<MidHandshakeSslStream<S>, ErrorStack>
     where
         S: Read + Write,
     {
@@ -210,7 +222,7 @@ impl ConnectConfiguration {
             setup_verify_hostname(&mut self.ssl, domain)?;
         }
 
-        self.ssl.connect(stream)
+        Ok(self.ssl.setup_connect(stream))
     }
 }
 
@@ -319,13 +331,16 @@ impl SslAcceptor {
         Ok(SslAcceptorBuilder(ctx))
     }
 
-    /// Initiates a server-side TLS session on a stream.
-    pub fn accept<S>(&self, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
+    /// Initiates a server-side TLS handshake on a stream.
+    ///
+    /// See [`Ssl::setup_accept`] for more details.
+    pub fn setup_accept<S>(&self, stream: S) -> Result<MidHandshakeSslStream<S>, ErrorStack>
     where
         S: Read + Write,
     {
         let ssl = Ssl::new(&self.0)?;
-        ssl.accept(stream)
+
+        Ok(ssl.setup_accept(stream))
     }
 
     /// Consumes the `SslAcceptor`, returning the inner raw `SslContext`.

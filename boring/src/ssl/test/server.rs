@@ -86,7 +86,7 @@ impl Builder {
             let socket = socket.accept().unwrap().0;
             let mut ssl = Ssl::new(&ctx).unwrap();
             ssl_cb(&mut ssl);
-            let r = ssl.accept(socket);
+            let r = ssl.setup_accept(socket).handshake();
             if should_error {
                 r.unwrap_err();
             } else {
@@ -155,13 +155,13 @@ impl ClientSslBuilder {
 
     pub fn connect(self) -> SslStream<TcpStream> {
         let socket = TcpStream::connect(self.addr).unwrap();
-        let mut s = self.ssl.connect(socket).unwrap();
+        let mut s = self.ssl.setup_connect(socket).handshake().unwrap();
         s.read_exact(&mut [0]).unwrap();
         s
     }
 
     pub fn connect_err(self) {
         let socket = TcpStream::connect(self.addr).unwrap();
-        self.ssl.connect(socket).unwrap_err();
+        self.ssl.setup_connect(socket).handshake().unwrap_err();
     }
 }
