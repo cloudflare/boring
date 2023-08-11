@@ -16,11 +16,13 @@ features = ["rpk", "pq-experimental"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-# Use a FIPS-validated version of boringssl.
+# Use a FIPS-validated version of boringSSL in `deps/boringssl-fips`.
 fips = ["boring-sys/fips"]
 
-# Link with precompiled FIPS-validated `bcm.o` module.
-fips-link-precompiled = ["fips", "boring-sys/fips-link-precompiled"]
+# Use `deps/boringssl`, but replace the `bcm.o` module with a version provided
+# by the user. This allows the `bcm.o` module from the FIPS-validated build of
+# `libcrypto.a` to be used with a more recent version of boringSSL.
+fips-link-precompiled = ["boring-sys/fips-link-precompiled"]
 
 # Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
 rpk = ["boring-sys/rpk"]

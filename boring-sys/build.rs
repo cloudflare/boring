@@ -538,41 +538,46 @@ fn build_boring_from_sources() -> String {
 }
 
 fn link_in_precompiled_bcm_o(bssl_dir: &str) {
-    println!("cargo:warning=linking in precompiled `bcm.o` module");
+    const BCM_O_NAME: &str = "bcm.c.o";
+    println!("cargo:warning=linking in precompiled {BCM_O_NAME}` module");
 
-    let bcm_o_src_path = env::var("BORING_SSL_PRECOMPILED_BCM_O")
+    let precompiled_bcm_o_src_path = env::var("BORING_SSL_PRECOMPILED_BCM_O")
         .expect("`fips-link-precompiled` requires `BORING_SSL_PRECOMPILED_BCM_O` env variable to be specified");
 
     let libcrypto_path = PathBuf::from(bssl_dir)
-        .join("build/crypto/libcrypto.a")
+        .join("build/libcrypto.a")
         .canonicalize()
         .unwrap()
         .display()
         .to_string();
 
-    let bcm_o_dst_path = PathBuf::from(bssl_dir).join("build/bcm-fips.o");
+    let precompiled_bcm_o_dst_path = PathBuf::from(bssl_dir).join(&format!("build/{BCM_O_NAME}"));
 
-    fs::copy(bcm_o_src_path, &bcm_o_dst_path).unwrap();
+    fs::copy(precompiled_bcm_o_src_path, &precompiled_bcm_o_dst_path).unwrap();
 
-    // check that fips module is named as expected
-    let out = run_command(Command::new("ar").args(["t", &libcrypto_path, "bcm.o"])).unwrap();
+    // Check that the `bcm.o` module in `libcrypto.a` has the name we expect it to have.
+    let out = run_command(Command::new("ar").args(["t", &libcrypto_path, BCM_O_NAME])).unwrap();
+    if String::from_utf8(out.stdout).unwrap().trim() != BCM_O_NAME {
+        let mut objects = Vec::new();
+        let out = String::from_utf8(
+            run_command(Command::new("ar").args(["t", &libcrypto_path]))
+                .unwrap()
+                .stdout,
+        )
+        .unwrap();
+        for object in out.split('\n') {
+            objects.push(object);
+        }
+        panic!("{BCM_O_NAME} not found: {objects:?}");
+    }
 
-    assert_eq!(
-        String::from_utf8(out.stdout).unwrap().trim(),
-        "bcm.o",
-        "failed to verify FIPS module name"
-    );
-
-    // insert fips bcm.o before bcm.o into libcrypto.a,
-    // so for all duplicate symbols the older fips bcm.o is used
-    // (this causes the need for extra linker flags to deal with duplicate symbols)
-    // (as long as the newer module does not define new symbols, one may also remove it,
-    // but once there are new symbols it would cause missing symbols at linking stage)
+    // Modify `libcrypto.a` by replacing the `bcm.o` module with the precompiled module provided by
+    // the user.
     run_command(Command::new("ar").args([
         "rb",
-        "bcm.o",
+        BCM_O_NAME,
         &libcrypto_path,
-        bcm_o_dst_path.display().to_string().as_str(),
+        precompiled_bcm_o_dst_path.display().to_string().as_str(),
     ]))
     .unwrap();
 }
@@ -584,8 +589,15 @@ fn main() {
     println!("cargo:rerun-if-env-changed=BORING_SSL_PRECOMPILED_BCM_O");
     println!("cargo:rerun-if-env-changed=BORINGSSL_BUILD_DIR");
 
-    #[cfg(all(feature = "fips", feature = "rpk"))]
-    compile_error!("`fips` and `rpk` features are mutually exclusive");
+    #[cfg(all(
+        feature = "fips",
+        any(
+            feature = "fips-link-precompiled",
+            feature = "rpk",
+            feature = "pq-experimental"
+        )
+    ))]
+    compile_error!("The `fips` feature is incompatible with newer versions of boringSSL");
 
     let bssl_dir = env::var("BORING_BSSL_PATH");
 
