@@ -34,6 +34,8 @@ use crate::x509::store::X509StoreBuilder;
 use crate::x509::verify::X509CheckFlags;
 use crate::x509::{X509Name, X509StoreContext, X509VerifyResult, X509};
 
+use super::cert_compression::CertCompressionAlgorithm;
+
 mod server;
 
 static ROOT_CERT: &[u8] = include_bytes!("../../../test/root-ca.pem");
@@ -1114,4 +1116,23 @@ fn session_cache_size() {
     ctx.set_session_cache_size(1234);
     let ctx = ctx.build();
     assert_eq!(ctx.session_cache_size(), 1234);
+}
+
+#[test]
+fn cert_compression() {
+    let mut server = Server::builder();
+    server
+        .ctx()
+        .add_cert_compression_alg(CertCompressionAlgorithm::Brotli)
+        .unwrap();
+
+    let server = server.build();
+
+    let mut client = server.client();
+    client
+        .ctx()
+        .add_cert_compression_alg(CertCompressionAlgorithm::Brotli)
+        .unwrap();
+
+    client.connect();
 }
