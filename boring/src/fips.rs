@@ -23,8 +23,8 @@ pub fn enabled() -> bool {
 
 #[test]
 fn is_enabled() {
-    #[cfg(feature = "fips")]
+    #[cfg(any(feature = "fips", feature = "fips-link-precompiled"))]
     assert!(enabled());
-    #[cfg(not(feature = "fips"))]
+    #[cfg(not(any(feature = "fips", feature = "fips-link-precompiled")))]
     assert!(!enabled());
 }
