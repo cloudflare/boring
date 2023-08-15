@@ -8,6 +8,7 @@ use crate::ssl::{
     SslOptions, SslRef, SslStream, SslVerifyMode,
 };
 use crate::version;
+use std::net::IpAddr;
 
 const FFDHE_2048: &str = "
 -----BEGIN DH PARAMETERS-----
@@ -189,14 +190,11 @@ impl ConnectConfiguration {
         self.verify_hostname = verify_hostname;
     }
 
-    /// Initiates a client-side TLS session on a stream.
+    /// Returns an `Ssl` configured to connect to the provided domain.
     ///
-    /// The domain is used for SNI and hostname verification if enabled.
-    pub fn connect<S>(mut self, domain: &str, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
-    where
-        S: Read + Write,
-    {
-        if self.sni {
+    /// The domain is used for SNI (if it is not an IP address) and hostname verification if enabled.
+    pub fn into_ssl(mut self, domain: &str) -> Result<Ssl, ErrorStack> {
+        if self.sni && domain.parse::<IpAddr>().is_err() {
             self.ssl.set_hostname(domain)?;
         }
 
@@ -210,7 +208,17 @@ impl ConnectConfiguration {
             setup_verify_hostname(&mut self.ssl, domain)?;
         }
 
-        self.ssl.connect(stream)
+        Ok(self.ssl)
+    }
+
+    /// Initiates a client-side TLS session on a stream.
+    ///
+    /// The domain is used for SNI (if it is not an IP address) and hostname verification if enabled.
+    pub fn connect<S>(self, domain: &str, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
+    where
+        S: Read + Write,
+    {
+        self.into_ssl(domain)?.connect(stream)
     }
 }
 
