@@ -574,8 +574,7 @@ fn link_in_precompiled_bcm_o(bssl_dir: &str) {
     // Modify `libcrypto.a` by replacing the `bcm.o` module with the precompiled module provided by
     // the user.
     run_command(Command::new("ar").args([
-        "rb",
-        BCM_O_NAME,
+        "r",
         &libcrypto_path,
         precompiled_bcm_o_dst_path.display().to_string().as_str(),
     ]))
