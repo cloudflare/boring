@@ -2306,6 +2306,23 @@ impl Ssl {
         }
     }
 
+    /// Creates a new `Ssl`.
+    ///
+    /// This corresponds to [`SSL_new`].
+    /// This function does the same as [`Self:new()`] except that it takes &[SslContextRef].
+    // Both functions exist for backward compatibility (no breaking API).
+    pub fn new_from_ref(ctx: &SslContextRef) -> Result<Ssl, ErrorStack> {
+        unsafe {
+            let ptr = cvt_p(ffi::SSL_new(ctx.as_ptr()))?;
+            let mut ssl = Ssl::from_ptr(ptr);
+            SSL_CTX_up_ref(ctx.as_ptr());
+            let ctx_owned = SslContext::from_ptr(ctx.as_ptr());
+            ssl.set_ex_data(*SESSION_CTX_INDEX, ctx_owned);
+
+            Ok(ssl)
+        }
+    }
+
     /// Initiates a client-side TLS handshake.
     ///
     /// This corresponds to [`SSL_connect`].
@@ -3215,6 +3232,15 @@ impl<S: Read + Write> SslStream<S> {
         }
     }
 
+    /// Creates a new `SslStream`.
+    ///
+    /// This function performs no IO; the stream will not have performed any part of the handshake
+    /// with the peer. The `connect` and `accept` methods can be used to
+    /// explicitly perform the handshake.
+    pub fn new(ssl: Ssl, stream: S) -> Result<Self, ErrorStack> {
+        Ok(Self::new_base(ssl, stream))
+    }
+
     /// Constructs an `SslStream` from a pointer to the underlying OpenSSL `SSL` struct.
     ///
     /// This is useful if the handshake has already been completed elsewhere.
@@ -3318,6 +3344,48 @@ impl<S: Read + Write> SslStream<S> {
     /// [`SSL_set_shutdown`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_set_shutdown.html
     pub fn set_shutdown(&mut self, state: ShutdownState) {
         unsafe { ffi::SSL_set_shutdown(self.ssl.as_ptr(), state.bits()) }
+    }
+
+    /// Initiates a client-side TLS handshake.
+    ///
+    /// This corresponds to [`SSL_connect`].
+    ///
+    /// [`SSL_connect`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_connect.html
+    pub fn connect(&mut self) -> Result<(), Error> {
+        let ret = unsafe { ffi::SSL_connect(self.ssl.as_ptr()) };
+        if ret > 0 {
+            Ok(())
+        } else {
+            Err(self.make_error(ret))
+        }
+    }
+
+    /// Initiates a server-side TLS handshake.
+    ///
+    /// This corresponds to [`SSL_accept`].
+    ///
+    /// [`SSL_accept`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_accept.html
+    pub fn accept(&mut self) -> Result<(), Error> {
+        let ret = unsafe { ffi::SSL_accept(self.ssl.as_ptr()) };
+        if ret > 0 {
+            Ok(())
+        } else {
+            Err(self.make_error(ret))
+        }
+    }
+
+    /// Initiates the handshake.
+    ///
+    /// This corresponds to [`SSL_do_handshake`].
+    ///
+    /// [`SSL_do_handshake`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_do_handshake.html
+    pub fn do_handshake(&mut self) -> Result<(), Error> {
+        let ret = unsafe { ffi::SSL_do_handshake(self.ssl.as_ptr()) };
+        if ret > 0 {
+            Ok(())
+        } else {
+            Err(self.make_error(ret))
+        }
     }
 }
 
