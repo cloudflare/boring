@@ -602,7 +602,7 @@ fn check_feature_compatibility() {
     let is_precompiled_native_lib = env::var("BORING_BSSL_PATH").is_ok();
 
     if is_precompiled_native_lib && build_from_sources_required {
-        panic!("precompiled BoringSSL was provided, so FIPS configuration or optional patches can't be applied");
+        println!("cargo:warning=precompiled BoringSSL was provided, so FIPS configuration or optional patches can't be applied");
     }
 }
 
