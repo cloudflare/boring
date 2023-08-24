@@ -23,6 +23,22 @@ include = [
     "/src",
     "/patches",
 ]
+exclude = [
+    # Don't publish the entire Git repository to crates.io
+    "/deps/boringssl/.git",
+    "/deps/boringssl-fips/.git",
+    "/deps/boringssl/.github",
+    "/deps/boringssl-fips/.github",
+    # These test data files are quite large and doesn't need to be publisehd to
+    # crates.io, since BoringSSL still builds without them.
+    "/deps/boringssl/crypto_test_data.cc",
+    "/deps/boringssl/src/crypto/cipher_extra/test",
+    "/deps/boringssl-fips/crypto/cipher_extra/test",
+    "/deps/boringssl/**/*_test.txt",
+    "/deps/boringssl-fips/**/*_test.txt",
+    "/deps/boringssl/**/*_tests.txt",
+    "/deps/boringssl-fips/**/*_tests.txt",
+]
 
 [package.metadata.docs.rs]
 features = ["rpk", "pq-experimental"]
