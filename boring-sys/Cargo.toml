@@ -27,6 +27,11 @@ exclude = [
     "/deps/boringssl-fips/**/*_test.txt",
     "/deps/boringssl/**/*_tests.txt",
     "/deps/boringssl-fips/**/*_tests.txt",
+    "/deps/boringssl/src/third_party/wycheproof_testvectors",
+    "/deps/boringssl-fips/third_party/wycheproof_testvectors",
+    # fuzzing corpus
+    "/deps/boringssl/src/fuzz",
+    "/deps/boringssl-fips/fuzz",
 ]
 
 [package.metadata.docs.rs]
