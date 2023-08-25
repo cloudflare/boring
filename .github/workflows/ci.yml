@@ -176,16 +176,8 @@ jobs:
       # but for now, make sure that BoringSSL only builds.
       run: cargo check --target ${{ matrix.target }} --all-targets
       name: Check tests (iOS)
-
-  package:
-    name: Test boring-sys package
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Rust
-        run: rustup update stable && rustup default stable
-      - name: Test boring-sys cargo package
-        run: cargo package -p boring-sys
+    - name: Test boring-sys cargo package
+      run: cargo package -p boring-sys
 
   test-fips:
     name: Test FIPS integration
@@ -207,8 +199,9 @@ jobs:
       run: ln -s clang clang++-12
     - run: cargo test --features fips
       name: Run tests
-    - run: cargo package --features fips
-      name: Test boring-sys cargo package (FIPS)
+    - name: Test boring-sys cargo package (FIPS)
+      run: cargo package -p boring-sys--features fips
+  
 
   test-features:
     name: Test features
