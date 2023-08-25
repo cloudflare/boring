@@ -18,8 +18,9 @@ exclude = [
     "/deps/boringssl-fips/.git",
     "/deps/boringssl/.github",
     "/deps/boringssl-fips/.github",
-    # These test data files are quite large and doesn't need to be publisehd to
+    # These test data files are quite large and doesn't need to be published to
     # crates.io, since BoringSSL still builds without them.
+    "/deps/**/test-vectors.json",
     "/deps/boringssl/crypto_test_data.cc",
     "/deps/boringssl/src/crypto/cipher_extra/test",
     "/deps/boringssl-fips/crypto/cipher_extra/test",
@@ -29,6 +30,8 @@ exclude = [
     "/deps/boringssl-fips/**/*_tests.txt",
     "/deps/boringssl/src/third_party/wycheproof_testvectors",
     "/deps/boringssl-fips/third_party/wycheproof_testvectors",
+    "/deps/boringssl/src/crypto/x509/test",
+    "/deps/boringssl-fips/crypto/x509/test",
     # fuzzing corpus
     "/deps/boringssl/src/fuzz",
     "/deps/boringssl-fips/fuzz",
