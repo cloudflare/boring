@@ -12,17 +12,6 @@ links = "boringssl"
 readme = "README.md"
 categories = ["cryptography", "external-ffi-bindings"]
 edition = { workspace = true }
-include = [
-    "/*.md",
-    "/*.toml",
-    "/LICENSE-MIT",
-    "/cmake/*.cmake",
-    "/deps/boringssl",
-    "/deps/boringssl-fips",
-    "/build.rs",
-    "/src",
-    "/patches",
-]
 exclude = [
     # Don't publish the entire Git repository to crates.io
     "/deps/boringssl/.git",
