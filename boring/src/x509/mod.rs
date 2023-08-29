@@ -1494,6 +1494,12 @@ impl GeneralNameRef {
             let ptr = ASN1_STRING_get0_data((*self.as_ptr()).d.ia5 as *mut _);
             let len = ffi::ASN1_STRING_length((*self.as_ptr()).d.ia5 as *mut _);
 
+            // we cast `psk` from `*mut c_uchar` to `*mut u8` here. on most platforms,
+            // this is an unnecessary cast, because `c_uchar` is a type alias for `u8`.
+            // however, this may not always be the case --- the cast makes this code
+            // resilient in the face of the possibility that the `c_uchar` type alias
+            // may not always be `u8`.
+            #[allow(clippy::unnecessary_cast)]
             let slice = slice::from_raw_parts(ptr as *const u8, len as usize);
             // IA5Strings are stated to be ASCII (specifically IA5). Hopefully
             // OpenSSL checks that when loading a certificate but if not we'll
@@ -1526,7 +1532,13 @@ impl GeneralNameRef {
 
             let ptr = ASN1_STRING_get0_data((*self.as_ptr()).d.ip as *mut _);
             let len = ffi::ASN1_STRING_length((*self.as_ptr()).d.ip as *mut _);
-
+            // we cast `ptr` from `*const c_uchar` to `*const u8` here. on most
+            // platforms, this is an unnecessary cast, because `c_uchar` is a
+            // type alias for `u8`. however, this may not always be the case
+            // --- the cast makes this code   resilient in the face of the
+            // possibility that the `c_uchar` type alias may not always be
+            // `u8`.
+            #[allow(clippy::unnecessary_cast)]
             Some(slice::from_raw_parts(ptr as *const u8, len as usize))
         }
     }

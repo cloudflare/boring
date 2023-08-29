@@ -75,6 +75,13 @@ where
     // Give the callback mutable slices into which it can write the identity and psk.
     let identity_sl =
         unsafe { slice::from_raw_parts_mut(identity as *mut u8, max_identity_len as usize) };
+
+    // we cast `psk` from `*mut c_uchar` to `*mut u8` here. on most platforms,
+    // this is an unnecessary cast, because `c_uchar` is a type alias for `u8`.
+    // however, this may not always be the case --- the cast makes this code
+    // resilient in the face of the possibility that the `c_uchar` type alias
+    // may not always be `u8`.
+    #[allow(clippy::unnecessary_cast)]
     let psk_sl = unsafe { slice::from_raw_parts_mut(psk as *mut u8, max_psk_len as usize) };
 
     let ssl_context = ssl.ssl_context().to_owned();
@@ -114,6 +121,13 @@ where
     };
 
     // Give the callback mutable slices into which it can write the psk.
+
+    // we cast `psk` from `*mut c_uchar` to `*mut u8` here. on most platforms,
+    // this is an unnecessary cast, because `c_uchar` is a type alias for `u8`.
+    // however, this may not always be the case --- the cast makes this code
+    // resilient in the face of the possibility that the `c_uchar` type alias
+    // may not always be `u8`.
+    #[allow(clippy::unnecessary_cast)]
     let psk_sl = unsafe { slice::from_raw_parts_mut(psk as *mut u8, max_psk_len as usize) };
 
     let ssl_context = ssl.ssl_context().to_owned();
@@ -199,6 +213,13 @@ where
 {
     // SAFETY: boring provides valid inputs.
     let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
+
+    // we cast `inbuf` from `*const c_uchar` to `*const u8` here. on most
+    // platforms, this is an unnecessary cast, because `c_uchar` is a type alias
+    // for `u8`. however, this may not always be the case --- the cast makes
+    // this code resilient in the face of the possibility that the `c_uchar`
+    // type alias may not always be `u8`.
+    #[allow(clippy::unnecessary_cast)]
     let protos = unsafe { slice::from_raw_parts(inbuf as *const u8, inlen as usize) };
     let out = unsafe { &mut *out };
     let outlen = unsafe { &mut *outlen };
@@ -333,6 +354,13 @@ where
 {
     // SAFETY: boring provides valid inputs.
     let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
+
+    // we cast `data` from `*const c_uchar` to `*const u8` here. on most platforms,
+    // this is an unnecessary cast, because `c_uchar` is a type alias for `u8`.
+    // however, this may not always be the case --- the cast makes this code
+    // resilient in the face of the possibility that the `c_uchar` type alias
+    // may not always be `u8`.
+    #[allow(clippy::unnecessary_cast)]
     let data = unsafe { slice::from_raw_parts(data as *const u8, len as usize) };
     let copy = unsafe { &mut *copy };
 
