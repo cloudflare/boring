@@ -176,8 +176,18 @@ jobs:
       # but for now, make sure that BoringSSL only builds.
       run: cargo check --target ${{ matrix.target }} --all-targets
       name: Check tests (iOS)
-    - name: Test boring-sys cargo package
-      run: cargo package -p boring-sys
+    - name: Test boring-sys cargo publish
+      # Running `cargo publish --dry-run` tests two things:
+      #
+      # 1. That `boring-sys` can build BoringSSL with just the files included
+      #    in the crates.io package (as determined by the `include` field in
+      #    the `Cargo.toml`).
+      # 2. That the final `boring-sys` package size, including the BoringSSL
+      #    submodules, is not too large to be published to `crates.io`.
+      #
+      # Both of these may no longer be the case after updating the BoringSSL
+      # submodules to a new revision, so it's important to test this on CI.
+      run: cargo publish --dry-run -p boring-sys
 
   test-fips:
     name: Test FIPS integration
@@ -199,9 +209,18 @@ jobs:
       run: ln -s clang clang++-12
     - run: cargo test --features fips
       name: Run tests
-    - name: Test boring-sys cargo package (FIPS)
-      run: cargo package -p boring-sys --features fips
-  
+    - name: Test boring-sys cargo publish (FIPS)
+      # Running `cargo publish --dry-run` tests two things:
+      #
+      # 1. That `boring-sys` can build BoringSSL with just the files included
+      #    in the crates.io package (as determined by the `include` field in
+      #    the `Cargo.toml`).
+      # 2. That the final `boring-sys` package size, including the BoringSSL
+      #    submodules, is not too large to be published to `crates.io`.
+      #
+      # Both of these may no longer be the case after updating the BoringSSL
+      # submodules to a new revision, so it's important to test this on CI.
+      run: cargo publish --dry-run -p boring-sys --features fips
 
   test-features:
     name: Test features
