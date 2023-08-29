@@ -117,9 +117,9 @@ fn get_apple_sdk_name() -> &'static str {
 
 /// Returns an absolute path to the BoringSSL source.
 fn get_boringssl_source_path() -> String {
-    #[cfg(all(feature = "fips", not(feature = "fips-link-precompiled")))]
+    #[cfg(feature = "fips")]
     const SUBMODULE_DIR: &str = "boringssl-fips";
-    #[cfg(any(not(feature = "fips"), feature = "fips-link-precompiled"))]
+    #[cfg(not(feature = "fips"))]
     const SUBMODULE_DIR: &str = "boringssl";
 
     static COPY_SOURCES: Once = Once::new();
@@ -518,10 +518,7 @@ fn build_boring_from_sources() -> String {
             .cxxflag("-DBORINGSSL_UNSAFE_FUZZER_MODE");
     }
 
-    if cfg!(all(
-        feature = "fips",
-        not(feature = "fips-link-precompiled")
-    )) {
+    if cfg!(feature = "fips") {
         let (clang, clangxx) = verify_fips_clang_version();
         cfg.define("CMAKE_C_COMPILER", clang);
         cfg.define("CMAKE_CXX_COMPILER", clangxx);
@@ -589,19 +586,21 @@ fn main() {
 
     let bssl_dir = env::var("BORING_BSSL_PATH");
 
-    if bssl_dir.is_ok() && cfg!(any(feature = "rpk", feature = "pq-experimental")) {
-        panic!("precompiled BoringSSL was provided, optional patches can't be applied to it");
-    }
-
-    if bssl_dir.is_ok() && cfg!(feature = "fips") {
-        panic!("precompiled BoringSSL was provided, so FIPS configuration can't be applied");
+    if bssl_dir.is_ok()
+        && cfg!(any(
+            feature = "fips",
+            feature = "fips-link-precompiled",
+            feature = "rpk",
+            feature = "pq-experimental"
+        ))
+    {
+        panic!("precompiled BoringSSL was provided, so FIPS configuration or optional patches can't be applied");
     }
 
     let bssl_dir = bssl_dir.unwrap_or_else(|_| build_boring_from_sources());
-
     let build_path = get_boringssl_platform_output_path();
 
-    if cfg!(feature = "fips") {
+    if cfg!(any(feature = "fips", feature = "fips-link-precompiled")) {
         println!(
             "cargo:rustc-link-search=native={}/build/crypto/{}",
             bssl_dir, build_path

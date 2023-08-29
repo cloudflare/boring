@@ -8,6 +8,7 @@ use crate::error::ErrorStack;
 
 bitflags! {
     /// Flags used to check an `X509` certificate.
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
     pub struct X509CheckFlags: c_uint {
         const ALWAYS_CHECK_SUBJECT = ffi::X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT as _;
         const NO_WILDCARDS = ffi::X509_CHECK_FLAG_NO_WILDCARDS as _;
@@ -37,7 +38,7 @@ impl X509VerifyParamRef {
     /// [`X509_VERIFY_PARAM_set_hostflags`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_VERIFY_PARAM_set_hostflags.html
     pub fn set_hostflags(&mut self, hostflags: X509CheckFlags) {
         unsafe {
-            ffi::X509_VERIFY_PARAM_set_hostflags(self.as_ptr(), hostflags.bits);
+            ffi::X509_VERIFY_PARAM_set_hostflags(self.as_ptr(), hostflags.bits());
         }
     }
 

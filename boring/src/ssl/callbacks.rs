@@ -75,7 +75,7 @@ where
     // Give the callback mutable slices into which it can write the identity and psk.
     let identity_sl =
         unsafe { slice::from_raw_parts_mut(identity as *mut u8, max_identity_len as usize) };
-    let psk_sl = unsafe { slice::from_raw_parts_mut(psk as *mut u8, max_psk_len as usize) };
+    let psk_sl = unsafe { slice::from_raw_parts_mut(psk, max_psk_len as usize) };
 
     let ssl_context = ssl.ssl_context().to_owned();
     let callback = ssl_context
@@ -114,7 +114,7 @@ where
     };
 
     // Give the callback mutable slices into which it can write the psk.
-    let psk_sl = unsafe { slice::from_raw_parts_mut(psk as *mut u8, max_psk_len as usize) };
+    let psk_sl = unsafe { slice::from_raw_parts_mut(psk, max_psk_len as usize) };
 
     let ssl_context = ssl.ssl_context().to_owned();
     let callback = ssl_context
@@ -199,7 +199,7 @@ where
 {
     // SAFETY: boring provides valid inputs.
     let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
-    let protos = unsafe { slice::from_raw_parts(inbuf as *const u8, inlen as usize) };
+    let protos = unsafe { slice::from_raw_parts(inbuf, inlen as usize) };
     let out = unsafe { &mut *out };
     let outlen = unsafe { &mut *outlen };
 
@@ -333,7 +333,7 @@ where
 {
     // SAFETY: boring provides valid inputs.
     let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
-    let data = unsafe { slice::from_raw_parts(data as *const u8, len as usize) };
+    let data = unsafe { slice::from_raw_parts(data, len as usize) };
     let copy = unsafe { &mut *copy };
 
     let callback = ssl

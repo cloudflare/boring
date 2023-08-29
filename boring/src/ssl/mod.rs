@@ -109,6 +109,7 @@ mod test;
 
 bitflags! {
     /// Options controlling the behavior of an `SslContext`.
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
     pub struct SslOptions: c_uint {
         /// Disables a countermeasure against an SSLv3/TLSv1.0 vulnerability affecting CBC ciphers.
         const DONT_INSERT_EMPTY_FRAGMENTS = ffi::SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS as _;
@@ -181,6 +182,7 @@ bitflags! {
 
 bitflags! {
     /// Options controlling the behavior of an `SslContext`.
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
     pub struct SslMode: c_uint {
         /// Enables "short writes".
         ///
@@ -291,6 +293,7 @@ unsafe impl Send for SslMethod {}
 
 bitflags! {
     /// Options controling the behavior of certificate verification.
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
     pub struct SslVerifyMode: i32 {
         /// Verifies that the peer's certificate is trusted.
         ///
@@ -313,6 +316,7 @@ bitflags! {
 
 bitflags! {
     /// Options controlling the behavior of session caching.
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
     pub struct SslSessionCacheMode: c_int {
         /// No session caching for the client or server takes place.
         const OFF = ffi::SSL_SESS_CACHE_OFF;
@@ -630,7 +634,7 @@ impl SslCurve {
 
     pub const X25519: SslCurve = SslCurve(ffi::NID_X25519);
 
-    #[cfg(not(feature = "fips"))]
+    #[cfg(not(any(feature = "fips", feature = "fips-link-precompiled")))]
     pub const X25519_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::NID_X25519Kyber768Draft00);
 
     #[cfg(feature = "pq-experimental")]
@@ -801,7 +805,7 @@ impl SslContextBuilder {
         assert!(!self.is_rpk, "This API is not supported for RPK");
 
         unsafe {
-            ffi::SSL_CTX_set_verify(self.as_ptr(), mode.bits as c_int, None);
+            ffi::SSL_CTX_set_verify(self.as_ptr(), mode.bits() as c_int, None);
         }
     }
 
@@ -824,7 +828,7 @@ impl SslContextBuilder {
 
         unsafe {
             self.set_ex_data(SslContext::cached_ex_index::<F>(), verify);
-            ffi::SSL_CTX_set_verify(self.as_ptr(), mode.bits as c_int, Some(raw_verify::<F>));
+            ffi::SSL_CTX_set_verify(self.as_ptr(), mode.bits() as c_int, Some(raw_verify::<F>));
         }
     }
 
@@ -930,7 +934,7 @@ impl SslContextBuilder {
     pub fn set_mode(&mut self, mode: SslMode) -> SslMode {
         unsafe {
             let bits = ffi::SSL_CTX_set_mode(self.as_ptr(), mode.bits());
-            SslMode { bits }
+            SslMode::from_bits_retain(bits)
         }
     }
 
@@ -1189,7 +1193,7 @@ impl SslContextBuilder {
     /// [`SSL_CTX_set_options`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_set_options.html
     pub fn set_options(&mut self, option: SslOptions) -> SslOptions {
         let bits = unsafe { ffi::SSL_CTX_set_options(self.as_ptr(), option.bits()) };
-        SslOptions { bits }
+        SslOptions::from_bits_retain(bits)
     }
 
     /// Returns the options used by the context.
@@ -1199,7 +1203,7 @@ impl SslContextBuilder {
     /// [`SSL_CTX_get_options`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_set_options.html
     pub fn options(&self) -> SslOptions {
         let bits = unsafe { ffi::SSL_CTX_get_options(self.as_ptr()) };
-        SslOptions { bits }
+        SslOptions::from_bits_retain(bits)
     }
 
     /// Clears the options used by the context, returning the old set.
@@ -1209,7 +1213,7 @@ impl SslContextBuilder {
     /// [`SSL_CTX_clear_options`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_set_options.html
     pub fn clear_options(&mut self, option: SslOptions) -> SslOptions {
         let bits = unsafe { ffi::SSL_CTX_clear_options(self.as_ptr(), option.bits()) };
-        SslOptions { bits }
+        SslOptions::from_bits_retain(bits)
     }
 
     /// Sets the minimum supported protocol version.
@@ -1298,7 +1302,10 @@ impl SslContextBuilder {
     /// [`SSL_CTX_set_alpn_protos`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_alpn_protos.html
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            #[cfg_attr(not(feature = "fips"), allow(clippy::unnecessary_cast))]
+            #[cfg_attr(
+                not(any(feature = "fips", feature = "fips-link-precompiled")),
+                allow(clippy::unnecessary_cast)
+            )]
             {
                 assert!(protocols.len() <= ProtosLen::max_value() as usize);
             }
@@ -1596,7 +1603,7 @@ impl SslContextBuilder {
     pub fn set_session_cache_mode(&mut self, mode: SslSessionCacheMode) -> SslSessionCacheMode {
         unsafe {
             let bits = ffi::SSL_CTX_set_session_cache_mode(self.as_ptr(), mode.bits());
-            SslSessionCacheMode { bits }
+            SslSessionCacheMode::from_bits_retain(bits)
         }
     }
 
@@ -1930,9 +1937,9 @@ impl SslContextRef {
     }
 }
 
-#[cfg(not(feature = "fips"))]
+#[cfg(not(any(feature = "fips", feature = "fips-link-precompiled")))]
 type ProtosLen = usize;
-#[cfg(feature = "fips")]
+#[cfg(any(feature = "fips", feature = "fips-link-precompiled"))]
 type ProtosLen = libc::c_uint;
 
 /// Information about the state of a cipher.
@@ -2167,7 +2174,7 @@ impl SslSessionRef {
         unsafe {
             let mut len = 0;
             let p = ffi::SSL_SESSION_get_id(self.as_ptr(), &mut len);
-            slice::from_raw_parts(p as *const u8, len as usize)
+            slice::from_raw_parts(p, len as usize)
         }
     }
 
@@ -2406,7 +2413,7 @@ impl SslRef {
             "This API is not supported for RPK"
         );
 
-        unsafe { ffi::SSL_set_verify(self.as_ptr(), mode.bits as c_int, None) }
+        unsafe { ffi::SSL_set_verify(self.as_ptr(), mode.bits() as c_int, None) }
     }
 
     /// Returns the verify mode that was set using `set_verify`.
@@ -2444,7 +2451,11 @@ impl SslRef {
         unsafe {
             // this needs to be in an Arc since the callback can register a new callback!
             self.set_ex_data(Ssl::cached_ex_index(), Arc::new(verify));
-            ffi::SSL_set_verify(self.as_ptr(), mode.bits as c_int, Some(ssl_raw_verify::<F>));
+            ffi::SSL_set_verify(
+                self.as_ptr(),
+                mode.bits() as c_int,
+                Some(ssl_raw_verify::<F>),
+            );
         }
     }
 
@@ -2475,7 +2486,10 @@ impl SslRef {
     /// [`SSL_set_alpn_protos`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_alpn_protos.html
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            #[cfg_attr(not(feature = "fips"), allow(clippy::unnecessary_cast))]
+            #[cfg_attr(
+                not(any(feature = "fips", feature = "fips-link-precompiled")),
+                allow(clippy::unnecessary_cast)
+            )]
             {
                 assert!(protocols.len() <= ProtosLen::max_value() as usize);
             }
@@ -2984,7 +2998,7 @@ impl SslRef {
             if len == 0 {
                 None
             } else {
-                Some(slice::from_raw_parts(p as *const u8, len))
+                Some(slice::from_raw_parts(p, len))
             }
         }
     }
@@ -3304,7 +3318,7 @@ impl<S: Read + Write> SslStream<S> {
     pub fn get_shutdown(&mut self) -> ShutdownState {
         unsafe {
             let bits = ffi::SSL_get_shutdown(self.ssl.as_ptr());
-            ShutdownState { bits }
+            ShutdownState::from_bits_retain(bits)
         }
     }
 
@@ -3594,6 +3608,7 @@ pub enum ShutdownResult {
 
 bitflags! {
     /// The shutdown state of a session.
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
     pub struct ShutdownState: c_int {
         /// A close notify message has been sent to the peer.
         const SENT = ffi::SSL_SENT_SHUTDOWN;
