@@ -20,7 +20,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 fips = ["boring/fips", "boring-sys/fips"]
 
 # Link with precompiled FIPS-validated `bcm.o` module.
-fips-link-precompiled = ["fips", "boring/fips-link-precompiled", "boring-sys/fips-link-precompiled"]
+fips-link-precompiled = ["boring/fips-link-precompiled", "boring-sys/fips-link-precompiled"]
 
 # Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
 rpk = ["boring/rpk"]

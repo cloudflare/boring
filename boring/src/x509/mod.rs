@@ -966,9 +966,9 @@ impl X509NameBuilder {
     }
 }
 
-#[cfg(not(feature = "fips"))]
+#[cfg(not(any(feature = "fips", feature = "fips-link-precompiled")))]
 type ValueLen = isize;
-#[cfg(feature = "fips")]
+#[cfg(any(feature = "fips", feature = "fips-link-precompiled"))]
 type ValueLen = i32;
 
 foreign_type_and_impl_send_sync! {
@@ -1494,7 +1494,7 @@ impl GeneralNameRef {
             let ptr = ASN1_STRING_get0_data((*self.as_ptr()).d.ia5 as *mut _);
             let len = ffi::ASN1_STRING_length((*self.as_ptr()).d.ia5 as *mut _);
 
-            let slice = slice::from_raw_parts(ptr as *const u8, len as usize);
+            let slice = slice::from_raw_parts(ptr, len as usize);
             // IA5Strings are stated to be ASCII (specifically IA5). Hopefully
             // OpenSSL checks that when loading a certificate but if not we'll
             // use this instead of from_utf8_unchecked just in case.
@@ -1527,7 +1527,7 @@ impl GeneralNameRef {
             let ptr = ASN1_STRING_get0_data((*self.as_ptr()).d.ip as *mut _);
             let len = ffi::ASN1_STRING_length((*self.as_ptr()).d.ip as *mut _);
 
-            Some(slice::from_raw_parts(ptr as *const u8, len as usize))
+            Some(slice::from_raw_parts(ptr, len as usize))
         }
     }
 }

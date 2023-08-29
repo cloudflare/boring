@@ -51,7 +51,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 fips = []
 
 # Link with precompiled FIPS-validated `bcm.o` module.
-fips-link-precompiled = ["fips"]
+fips-link-precompiled = []
 
 # Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
 rpk = []
