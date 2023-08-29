@@ -200,7 +200,7 @@ jobs:
     - run: cargo test --features fips
       name: Run tests
     - name: Test boring-sys cargo package (FIPS)
-      run: cargo package -p boring-sys--features fips
+      run: cargo package -p boring-sys --features fips
   
 
   test-features:
