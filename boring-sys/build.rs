@@ -509,7 +509,14 @@ fn run_command(command: &mut Command) -> io::Result<Output> {
 }
 
 fn build_boring_from_sources() -> String {
-    ensure_patches_applied().unwrap();
+    if cfg!(feature = "no-patches") {
+        println!(
+            "cargo:warning=skipping git patches application, provided\
+             native BoringSSL is expected to have the patches included"
+        );
+    } else {
+        ensure_patches_applied().unwrap();
+    }
 
     let mut cfg = get_boringssl_cmake_config();
 
@@ -574,6 +581,31 @@ fn link_in_precompiled_bcm_o(bssl_dir: &str) {
     .unwrap();
 }
 
+fn check_feature_compatibility() {
+    #[cfg(all(feature = "fips", feature = "rpk"))]
+    compile_error!("`fips` and `rpk` features are mutually exclusive");
+
+    let no_patches_enabled = cfg!(feature = "no-patches");
+    let is_external_native_lib_source =
+        env::var("BORING_BSSL_PATH").is_err() && env::var("BORING_BSSL_SOURCE_PATH").is_err();
+
+    if no_patches_enabled && is_external_native_lib_source {
+        panic!(
+            "`no-patches` feature is supposed to be used with `BORING_BSSL_PATH`\
+            or `BORING_BSSL_SOURCE_PATH` env variables"
+        )
+    }
+
+    let features_with_patches_enabled = cfg!(any(feature = "rpk", feature = "pq-experimental"));
+    let patches_required = features_with_patches_enabled && !no_patches_enabled;
+    let build_from_sources_required = cfg!(feature = "fips-link-precompiled") || patches_required;
+    let is_precompiled_native_lib = env::var("BORING_BSSL_PATH").is_ok();
+
+    if is_precompiled_native_lib && build_from_sources_required {
+        panic!("precompiled BoringSSL was provided, so FIPS configuration or optional patches can't be applied");
+    }
+}
+
 fn main() {
     println!("cargo:rerun-if-env-changed=BORING_BSSL_PATH");
     println!("cargo:rerun-if-env-changed=BORING_BSSL_INCLUDE_PATH");
@@ -581,23 +613,9 @@ fn main() {
     println!("cargo:rerun-if-env-changed=BORING_SSL_PRECOMPILED_BCM_O");
     println!("cargo:rerun-if-env-changed=BORINGSSL_BUILD_DIR");
 
-    #[cfg(all(feature = "fips", feature = "rpk"))]
-    compile_error!("`fips` and `rpk` features are mutually exclusive");
+    check_feature_compatibility();
 
-    let bssl_dir = env::var("BORING_BSSL_PATH");
-
-    if bssl_dir.is_ok()
-        && cfg!(any(
-            feature = "fips",
-            feature = "fips-link-precompiled",
-            feature = "rpk",
-            feature = "pq-experimental"
-        ))
-    {
-        panic!("precompiled BoringSSL was provided, so FIPS configuration or optional patches can't be applied");
-    }
-
-    let bssl_dir = bssl_dir.unwrap_or_else(|_| build_boring_from_sources());
+    let bssl_dir = env::var("BORING_BSSL_PATH").unwrap_or_else(|_| build_boring_from_sources());
     let build_path = get_boringssl_platform_output_path();
 
     if cfg!(any(feature = "fips", feature = "fips-link-precompiled")) {
