@@ -1,4 +1,19 @@
+3.0.5
+- 2023-09-12 Release 3.0.5
+- 2023-09-12 tweaks for ergonomic linking
+- 2023-08-08 Use features to set key exchange preferences
+- 2023-08-30 Introduce `no-patches` feature
+- 2023-08-29 run `publish --dry-run` instead of `pacakge` on CI
+- 2023-08-29 fix missing space in cargo package CI command
+- 2023-08-25 ci: run the cargo package check for all targets
+- 2023-08-25 boring-sys: include all files needed to build FIPS
+- 2023-08-25 add CI jobs to run `cargo package`
+- 2023-08-15 Fix -Z minimal-versions
+- 2023-08-29 Separate `fips` and `fips-link-precompiled` features.
+- 2023-08-05 Bump version in Cargo.toml
+
 3.0.4
+- 2023-08-05 Release 3.0.4
 - 2023-08-05 Add missing cmake files to the package
 
 3.0.3
@@ -21,8 +36,6 @@
 3.0.0
 - 2023-07-29 Fix publishing
 - 2023-07-28 Merge pull request #131 from inikulin/rel-3.0.0
-
-.3.0.0
 - 2023-07-28 Release 3.0.0
 - 2023-07-28 Add git-cliff configuration
 - 2023-07-28 Merge pull request #84 from signalapp/macos-cross-compile
