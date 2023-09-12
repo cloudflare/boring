@@ -627,6 +627,10 @@ fn main() {
             "cargo:rustc-link-search=native={}/build/ssl/{}",
             bssl_dir, build_path
         );
+        println!(
+            "cargo:rustc-link-search=native={}/lib/{}",
+            bssl_dir, build_path
+        );
     } else {
         println!(
             "cargo:rustc-link-search=native={}/build/{}",
@@ -642,6 +646,10 @@ fn main() {
     println!("cargo:rustc-link-lib=static=ssl");
 
     let include_path = env::var("BORING_BSSL_INCLUDE_PATH").unwrap_or_else(|_| {
+        if let Ok(bssl_path) = env::var("BORING_BSSL_PATH") {
+            return format!("{}/include", bssl_path);
+        }
+
         let src_path = get_boringssl_source_path();
 
         if Path::new(&src_path).join("include").exists() {
