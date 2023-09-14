@@ -1122,8 +1122,8 @@ fn client_set_default_curves_list() {
     let ssl_ctx = SslContextBuilder::new(SslMethod::tls()).unwrap().build();
     let mut ssl = Ssl::new(&ssl_ctx).unwrap();
 
-    ssl.client_set_default_curves_list()
-        .expect("Failed to set curves list. Is Kyber768 missing in boringSSL?")
+    // Panics if Kyber768 missing in boringSSL.
+    ssl.client_set_default_curves_list();
 }
 
 #[cfg(feature = "kx-safe-default")]
@@ -1132,6 +1132,6 @@ fn server_set_default_curves_list() {
     let ssl_ctx = SslContextBuilder::new(SslMethod::tls()).unwrap().build();
     let mut ssl = Ssl::new(&ssl_ctx).unwrap();
 
-    ssl.server_set_default_curves_list()
-        .expect("Failed to set curves list. Is Kyber768 missing in boringSSL?")
+    // Panics if Kyber768 missing in boringSSL.
+    ssl.server_set_default_curves_list();
 }
