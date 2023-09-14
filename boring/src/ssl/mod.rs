@@ -2437,7 +2437,7 @@ impl SslRef {
     }
 
     #[cfg(feature = "kx-safe-default")]
-    fn client_set_default_curves_list(&mut self) -> Result<(), ErrorStack> {
+    fn client_set_default_curves_list(&mut self) {
         let curves = if cfg!(feature = "kx-client-pq-preferred") {
             if cfg!(feature = "kx-client-nist-required") {
                 "P256Kyber768Draft00:P-256:P-384:P-521"
@@ -2459,11 +2459,13 @@ impl SslRef {
         };
 
         self.set_curves_list(curves)
+            .expect("invalid default client curves list");
     }
 
     #[cfg(feature = "kx-safe-default")]
-    fn server_set_default_curves_list(&mut self) -> Result<(), ErrorStack> {
+    fn server_set_default_curves_list(&mut self) {
         self.set_curves_list("X25519Kyber768Draft00:P256Kyber768Draft00:X25519:P-256:P-384")
+            .expect("invalid default server curves list");
     }
 
     /// Like [`SslContextBuilder::set_verify`].
@@ -3597,7 +3599,7 @@ where
         let mut stream = self.inner;
 
         #[cfg(feature = "kx-safe-default")]
-        stream.ssl.client_set_default_curves_list()?;
+        stream.ssl.client_set_default_curves_list();
 
         let ret = unsafe { ffi::SSL_connect(stream.ssl.as_ptr()) };
         if ret > 0 {
@@ -3622,7 +3624,7 @@ where
         let mut stream = self.inner;
 
         #[cfg(feature = "kx-safe-default")]
-        stream.ssl.server_set_default_curves_list()?;
+        stream.ssl.server_set_default_curves_list();
 
         let ret = unsafe { ffi::SSL_accept(stream.ssl.as_ptr()) };
         if ret > 0 {
