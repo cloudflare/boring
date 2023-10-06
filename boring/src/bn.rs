@@ -1082,7 +1082,7 @@ impl Ord for BigNumRef {
 
 impl PartialOrd for BigNum {
     fn partial_cmp(&self, oth: &BigNum) -> Option<Ordering> {
-        self.deref().partial_cmp(oth.deref())
+        Some(self.cmp(oth))
     }
 }
 
