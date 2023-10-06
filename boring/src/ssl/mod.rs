@@ -3258,6 +3258,19 @@ impl SslRef {
     pub fn set_mtu(&mut self, mtu: u32) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_set_mtu(self.as_ptr(), mtu as c_uint) as c_int).map(|_| ()) }
     }
+
+    /// Sets the certificate.
+    ///
+    /// This corresponds to [`SSL_use_certificate`].
+    ///
+    /// [`SSL_use_certificate`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_use_certificate.html
+    pub fn set_certificate(&mut self, cert: &X509Ref) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt(ffi::SSL_use_certificate(self.as_ptr(), cert.as_ptr()))?;
+        }
+
+        Ok(())
+    }
 }
 
 /// An SSL stream midway through the handshake process.
