@@ -55,8 +55,9 @@ impl SessionCache {
 
         self.sessions
             .entry(key.clone())
-            .or_insert_with(LinkedHashSet::new)
+            .or_default()
             .insert(session.clone());
+
         self.reverse.insert(session, key);
     }
 
