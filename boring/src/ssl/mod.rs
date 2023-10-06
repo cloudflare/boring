@@ -597,6 +597,9 @@ impl SslSignatureAlgorithm {
     pub const RSA_PKCS1_SHA512: SslSignatureAlgorithm =
         SslSignatureAlgorithm(ffi::SSL_SIGN_RSA_PKCS1_SHA512 as _);
 
+    pub const RSA_PKCS1_MD5_SHA1: SslSignatureAlgorithm =
+        SslSignatureAlgorithm(ffi::SSL_SIGN_RSA_PKCS1_MD5_SHA1 as _);
+
     pub const ECDSA_SHA1: SslSignatureAlgorithm =
         SslSignatureAlgorithm(ffi::SSL_SIGN_ECDSA_SHA1 as _);
 
