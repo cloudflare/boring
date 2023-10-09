@@ -85,6 +85,8 @@ use crate::error::ErrorStack;
 use crate::ex_data::Index;
 use crate::nid::Nid;
 use crate::pkey::{HasPrivate, PKeyRef, Params, Private};
+#[cfg(feature = "rpk")]
+use crate::pkey::{PKey, Public};
 use crate::srtp::{SrtpProtectionProfile, SrtpProtectionProfileRef};
 use crate::ssl::bio::BioMethod;
 use crate::ssl::callbacks::*;
@@ -682,15 +684,6 @@ pub fn select_next_proto<'a>(server: &[u8], client: &'a [u8]) -> Option<&'a [u8]
     }
 }
 
-#[cfg(feature = "rpk")]
-extern "C" fn rpk_verify_failure_callback(
-    _ssl: *mut ffi::SSL,
-    _out_alert: *mut u8,
-) -> ffi::ssl_verify_result_t {
-    // Always verify the peer.
-    ffi::ssl_verify_result_t::ssl_verify_invalid
-}
-
 /// A builder for `SslContext`s.
 pub struct SslContextBuilder {
     ctx: SslContext,
@@ -709,36 +702,40 @@ impl SslContextBuilder {
         unsafe {
             init();
             let ctx = cvt_p(ffi::SSL_CTX_new(SslMethod::tls_with_buffer().as_ptr()))?;
+            ffi::SSL_CTX_set_raw_public_key_mode(ctx);
 
             Ok(SslContextBuilder::from_ptr(ctx, true))
         }
     }
 
-    /// Sets raw public key certificate in DER format.
-    pub fn set_rpk_certificate(&mut self, cert: &[u8]) -> Result<(), ErrorStack> {
-        unsafe {
-            cvt(ffi::SSL_CTX_set_server_raw_public_key_certificate(
-                self.as_ptr(),
-                cert.as_ptr(),
-                cert.len() as u32,
-            ))
-            .map(|_| ())
-        }
-    }
-
-    /// Sets RPK null chain private key.
-    pub fn set_null_chain_private_key<T>(&mut self, key: &PKeyRef<T>) -> Result<(), ErrorStack>
+    /// Sets a raw public key and its corresponding private key for TLS server.
+    ///
+    /// This corresponds to [`SSL_CTX_set_raw_public_key_and_key`].
+    pub fn set_raw_public_key_and_key<T>(&mut self, key: &PKeyRef<T>) -> Result<(), ErrorStack>
     where
         T: HasPrivate,
     {
         unsafe {
-            cvt(ffi::SSL_CTX_set_nullchain_and_key(
+            cvt(ffi::SSL_CTX_set_raw_public_key_and_key(
                 self.as_ptr(),
+                ptr::null_mut(),
                 key.as_ptr(),
                 ptr::null_mut(),
             ))
             .map(|_| ())
         }
+    }
+
+    pub fn configure_default_rpk_custom_verify(&mut self, cert: &[u8]) -> Result<(), ErrorStack> {
+        let expected = PKey::public_key_from_der(&cert)?;
+
+        let callback = move |ssl: &mut SslRef, _out_alert: &mut u8| {
+            ssl.get_peer_pubkey()
+                .map_or(false, |actual| expected.public_eq(actual))
+        };
+
+        self.set_custom_verify(SslVerifyMode::PEER, callback);
+        Ok(())
     }
 }
 
@@ -808,6 +805,25 @@ impl SslContextBuilder {
 
         unsafe {
             ffi::SSL_CTX_set_verify(self.as_ptr(), mode.bits() as c_int, None);
+        }
+    }
+
+    /// Configures the certificate verification method for new connections.
+    ///
+    /// This corresponds to [`SSL_CTX_set_custom_verify`].
+    ///
+    /// [`SSL_CTX_set_custom_verify`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set_custom_verify
+    pub fn set_custom_verify<F>(&mut self, mode: SslVerifyMode, verify: F)
+    where
+        F: Fn(&mut SslRef, &mut u8) -> bool + 'static + Sync + Send,
+    {
+        unsafe {
+            self.set_ex_data(SslContext::cached_ex_index::<F>(), verify);
+            ffi::SSL_CTX_set_custom_verify(
+                self.as_ptr(),
+                mode.bits() as c_int,
+                Some(raw_custom_verify::<F>),
+            );
         }
     }
 
@@ -2368,21 +2384,6 @@ impl Ssl {
     where
         S: Read + Write,
     {
-        #[cfg(feature = "rpk")]
-        {
-            let ctx = self.ssl_context();
-
-            if ctx.is_rpk() {
-                unsafe {
-                    ffi::SSL_CTX_set_custom_verify(
-                        ctx.as_ptr(),
-                        SslVerifyMode::PEER.bits(),
-                        Some(rpk_verify_failure_callback),
-                    );
-                }
-            }
-        }
-
         SslStreamBuilder::new(self, stream).accept()
     }
 }
@@ -2522,6 +2523,19 @@ impl SslRef {
                 mode.bits() as c_int,
                 Some(ssl_raw_verify::<F>),
             );
+        }
+    }
+
+    #[cfg(feature = "rpk")]
+    /// This corresponds to [`SSL_get0_peer_pubkey`].
+    pub fn get_peer_pubkey(&mut self) -> Option<&PKeyRef<Public>> {
+        unsafe {
+            let ptr = ffi::SSL_get0_peer_pubkey(self.as_ptr());
+            if ptr.is_null() {
+                None
+            } else {
+                Some(PKeyRef::from_ptr(ptr as *mut ffi::EVP_PKEY))
+            }
         }
     }
 
