@@ -249,8 +249,10 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                 "x86" => {
                     boringssl_cmake.define(
                         "CMAKE_TOOLCHAIN_FILE",
+                        // `src_path` can be a path relative to the manifest dir, but
+                        // cmake hates that.
                         config
-                            .pwd
+                            .manifest_dir
                             .join(src_path)
                             .join("src/util/32-bit-toolchain.cmake")
                             .as_os_str(),
@@ -259,13 +261,19 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                 "aarch64" => {
                     boringssl_cmake.define(
                         "CMAKE_TOOLCHAIN_FILE",
-                        config.pwd.join("cmake/aarch64-linux.cmake").as_os_str(),
+                        config
+                            .manifest_dir
+                            .join("cmake/aarch64-linux.cmake")
+                            .as_os_str(),
                     );
                 }
                 "arm" => {
                     boringssl_cmake.define(
                         "CMAKE_TOOLCHAIN_FILE",
-                        config.pwd.join("cmake/armv7-linux.cmake").as_os_str(),
+                        config
+                            .manifest_dir
+                            .join("cmake/armv7-linux.cmake")
+                            .as_os_str(),
                     );
                 }
                 _ => {
