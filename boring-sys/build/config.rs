@@ -27,8 +27,6 @@ pub(crate) struct Env {
     pub(crate) include_path: Option<PathBuf>,
     pub(crate) source_path: Option<PathBuf>,
     pub(crate) precompiled_bcm_o: Option<PathBuf>,
-    #[allow(dead_code)]
-    pub(crate) build_dir: Option<PathBuf>,
     pub(crate) debug: Option<OsString>,
     pub(crate) opt_level: Option<OsString>,
     pub(crate) android_ndk_home: Option<PathBuf>,
@@ -115,7 +113,6 @@ impl Env {
             include_path: var("BORING_BSSL_INCLUDE_PATH").map(Into::into),
             source_path: var("BORING_BSSL_SOURCE_PATH").map(Into::into),
             precompiled_bcm_o: var("BORING_SSL_PRECOMPILED_BCM_O").map(Into::into),
-            build_dir: var("BORINGSSL_BUILD_DIR").map(Into::into),
             debug: var("DEBUG"),
             opt_level: var("OPT_LEVEL"),
             android_ndk_home: var("ANDROID_NDK_HOME").map(Into::into),
