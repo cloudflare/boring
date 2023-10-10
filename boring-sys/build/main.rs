@@ -1,36 +1,15 @@
 use fslock::LockFile;
-use std::env;
 use std::ffi::OsString;
 use std::fs;
 use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
-use std::sync::Once;
+use std::sync::OnceLock;
 
-// NOTE: this build script is adopted from quiche (https://github.com/cloudflare/quiche)
+use crate::config::Config;
 
-// Additional parameters for Android build of BoringSSL.
-//
-// Android NDK < 18 with GCC.
-const CMAKE_PARAMS_ANDROID_NDK_OLD_GCC: &[(&str, &[(&str, &str)])] = &[
-    (
-        "aarch64",
-        &[("ANDROID_TOOLCHAIN_NAME", "aarch64-linux-android-4.9")],
-    ),
-    (
-        "arm",
-        &[("ANDROID_TOOLCHAIN_NAME", "arm-linux-androideabi-4.9")],
-    ),
-    (
-        "x86",
-        &[("ANDROID_TOOLCHAIN_NAME", "x86-linux-android-4.9")],
-    ),
-    (
-        "x86_64",
-        &[("ANDROID_TOOLCHAIN_NAME", "x86_64-linux-android-4.9")],
-    ),
-];
+mod config;
 
 // Android NDK >= 19.
 const CMAKE_PARAMS_ANDROID_NDK: &[(&str, &[(&str, &str)])] = &[
@@ -40,15 +19,9 @@ const CMAKE_PARAMS_ANDROID_NDK: &[(&str, &[(&str, &str)])] = &[
     ("x86_64", &[("ANDROID_ABI", "x86_64")]),
 ];
 
-fn cmake_params_android() -> &'static [(&'static str, &'static str)] {
-    let arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
-    let cmake_params_android = if cfg!(feature = "ndk-old-gcc") {
-        CMAKE_PARAMS_ANDROID_NDK_OLD_GCC
-    } else {
-        CMAKE_PARAMS_ANDROID_NDK
-    };
-    for (android_arch, params) in cmake_params_android {
-        if *android_arch == arch {
+fn cmake_params_android(config: &Config) -> &'static [(&'static str, &'static str)] {
+    for (android_arch, params) in CMAKE_PARAMS_ANDROID_NDK {
+        if *android_arch == config.target_arch {
             return params;
         }
     }
@@ -95,71 +68,69 @@ const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
     ),
 ];
 
-fn cmake_params_apple() -> &'static [(&'static str, &'static str)] {
-    let target = env::var("TARGET").unwrap();
+fn cmake_params_apple(config: &Config) -> &'static [(&'static str, &'static str)] {
     for (next_target, params) in CMAKE_PARAMS_APPLE {
-        if *next_target == target {
+        if *next_target == config.target {
             return params;
         }
     }
     &[]
 }
 
-fn get_apple_sdk_name() -> &'static str {
-    for (name, value) in cmake_params_apple() {
+fn get_apple_sdk_name(config: &Config) -> &'static str {
+    for (name, value) in cmake_params_apple(config) {
         if *name == "CMAKE_OSX_SYSROOT" {
             return value;
         }
     }
-    let target = env::var("TARGET").unwrap();
-    panic!("cannot find SDK for {} in CMAKE_PARAMS_APPLE", target);
+
+    panic!(
+        "cannot find SDK for {} in CMAKE_PARAMS_APPLE",
+        config.target
+    );
 }
 
 /// Returns an absolute path to the BoringSSL source.
-fn get_boringssl_source_path() -> String {
-    #[cfg(feature = "fips")]
-    const SUBMODULE_DIR: &str = "boringssl-fips";
-    #[cfg(not(feature = "fips"))]
-    const SUBMODULE_DIR: &str = "boringssl";
-
-    static COPY_SOURCES: Once = Once::new();
-
-    if let Ok(src_path) = env::var("BORING_BSSL_SOURCE_PATH") {
+fn get_boringssl_source_path(config: &Config) -> &PathBuf {
+    if let Some(src_path) = &config.env.source_path {
         return src_path;
     }
 
-    let out_dir = env::var("OUT_DIR").unwrap();
-    let src_path = Path::new(&out_dir).join(SUBMODULE_DIR);
+    static SOURCE_PATH: OnceLock<PathBuf> = OnceLock::new();
 
-    COPY_SOURCES.call_once(|| {
-        let submodule_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("deps")
-            .join(SUBMODULE_DIR);
+    SOURCE_PATH.get_or_init(|| {
+        let submodule_dir = if config.features.fips {
+            "boringssl-fips"
+        } else {
+            "boringssl"
+        };
+
+        let src_path = config.out_dir.join(submodule_dir);
+
+        let submodule_path = config.manifest_dir.join("deps").join(submodule_dir);
 
         if !submodule_path.join("CMakeLists.txt").exists() {
             println!("cargo:warning=fetching boringssl git submodule");
 
-            run_command(Command::new("git").args([
-                "submodule",
-                "update",
-                "--init",
-                "--recursive",
-                &submodule_path.display().to_string(),
-            ]))
+            run_command(
+                Command::new("git")
+                    .args(["submodule", "update", "--init", "--recursive"])
+                    .arg(&submodule_path),
+            )
             .unwrap();
         }
 
         let _ = fs::remove_dir_all(&src_path);
-        fs_extra::dir::copy(submodule_path, &out_dir, &Default::default()).unwrap();
+        fs_extra::dir::copy(submodule_path, &config.out_dir, &Default::default()).unwrap();
 
         // NOTE: .git can be both file and dir, depening on whether it was copied from a submodule
         // or created by the patches code.
         let src_git_path = src_path.join(".git");
         let _ = fs::remove_file(&src_git_path);
         let _ = fs::remove_dir_all(&src_git_path);
-    });
 
-    src_path.display().to_string()
+        src_path
+    })
 }
 
 /// Returns the platform-specific output path for lib.
@@ -167,30 +138,38 @@ fn get_boringssl_source_path() -> String {
 /// MSVC generator on Windows place static libs in a target sub-folder,
 /// so adjust library location based on platform and build target.
 /// See issue: https://github.com/alexcrichton/cmake-rs/issues/18
-fn get_boringssl_platform_output_path() -> String {
-    if cfg!(target_env = "msvc") {
+fn get_boringssl_platform_output_path(config: &Config) -> String {
+    if config.target_env == "msvc" {
         // Code under this branch should match the logic in cmake-rs
-        let debug_env_var = env::var("DEBUG").expect("DEBUG variable not defined in env");
+        let debug_env_var = config
+            .env
+            .debug
+            .as_ref()
+            .expect("DEBUG variable not defined in env");
 
-        let deb_info = match &debug_env_var[..] {
-            "false" => false,
-            "true" => true,
-            unknown => panic!("Unknown DEBUG={} env var.", unknown),
+        let deb_info = match debug_env_var.to_str() {
+            Some("false") => false,
+            Some("true") => true,
+            _ => panic!("Unknown DEBUG={:?} env var.", debug_env_var),
         };
 
-        let opt_env_var = env::var("OPT_LEVEL").expect("OPT_LEVEL variable not defined in env");
+        let opt_env_var = config
+            .env
+            .opt_level
+            .as_ref()
+            .expect("OPT_LEVEL variable not defined in env");
 
-        let subdir = match &opt_env_var[..] {
-            "0" => "Debug",
-            "1" | "2" | "3" => {
+        let subdir = match opt_env_var.to_str() {
+            Some("0") => "Debug",
+            Some("1" | "2" | "3") => {
                 if deb_info {
                     "RelWithDebInfo"
                 } else {
                     "Release"
                 }
             }
-            "s" | "z" => "MinSizeRel",
-            unknown => panic!("Unknown OPT_LEVEL={} env var.", unknown),
+            Some("s" | "z") => "MinSizeRel",
+            _ => panic!("Unknown OPT_LEVEL={:?} env var.", opt_env_var),
         };
 
         subdir.to_string()
@@ -202,26 +181,22 @@ fn get_boringssl_platform_output_path() -> String {
 /// Returns a new cmake::Config for building BoringSSL.
 ///
 /// It will add platform-specific parameters if needed.
-fn get_boringssl_cmake_config() -> cmake::Config {
-    let arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
-    let os = env::var("CARGO_CFG_TARGET_OS").unwrap();
-    let host = env::var("HOST").unwrap();
-    let target = env::var("TARGET").unwrap();
-    let pwd = std::env::current_dir().unwrap();
-    let src_path = get_boringssl_source_path();
+fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
+    let src_path = get_boringssl_source_path(config);
+    let mut boringssl_cmake = cmake::Config::new(src_path);
 
-    let mut boringssl_cmake = cmake::Config::new(&src_path);
-    if host != target {
+    if config.host != config.target {
         // Add platform-specific parameters for cross-compilation.
-        match os.as_ref() {
+        match &*config.target_os {
             "android" => {
                 // We need ANDROID_NDK_HOME to be set properly.
-                println!("cargo:rerun-if-env-changed=ANDROID_NDK_HOME");
-                let android_ndk_home = env::var("ANDROID_NDK_HOME")
+                let android_ndk_home = config
+                    .env
+                    .android_ndk_home
+                    .as_ref()
                     .expect("Please set ANDROID_NDK_HOME for Android build");
-                let android_ndk_home = std::path::Path::new(&android_ndk_home);
-                for (name, value) in cmake_params_android() {
-                    eprintln!("android arch={} add {}={}", arch, name, value);
+                for (name, value) in cmake_params_android(config) {
+                    eprintln!("android arch={} add {}={}", config.target_arch, name, value);
                     boringssl_cmake.define(name, value);
                 }
                 let toolchain_file = android_ndk_home.join("build/cmake/android.toolchain.cmake");
@@ -235,15 +210,15 @@ fn get_boringssl_cmake_config() -> cmake::Config {
             }
 
             "macos" => {
-                for (name, value) in cmake_params_apple() {
-                    eprintln!("macos arch={} add {}={}", arch, name, value);
+                for (name, value) in cmake_params_apple(config) {
+                    eprintln!("macos arch={} add {}={}", config.target_arch, name, value);
                     boringssl_cmake.define(name, value);
                 }
             }
 
             "ios" => {
-                for (name, value) in cmake_params_apple() {
-                    eprintln!("ios arch={} add {}={}", arch, name, value);
+                for (name, value) in cmake_params_apple(config) {
+                    eprintln!("ios arch={} add {}={}", config.target_arch, name, value);
                     boringssl_cmake.define(name, value);
                 }
 
@@ -251,7 +226,7 @@ fn get_boringssl_cmake_config() -> cmake::Config {
                 let bitcode_cflag = "-fembed-bitcode";
 
                 // Hack for Xcode 10.1.
-                let target_cflag = if arch == "x86_64" {
+                let target_cflag = if config.target_arch == "x86_64" {
                     "-target x86_64-apple-ios-simulator"
                 } else {
                     ""
@@ -263,18 +238,20 @@ fn get_boringssl_cmake_config() -> cmake::Config {
             }
 
             "windows" => {
-                if host.contains("windows") {
+                if config.host.contains("windows") {
                     // BoringSSL's CMakeLists.txt isn't set up for cross-compiling using Visual Studio.
                     // Disable assembly support so that it at least builds.
                     boringssl_cmake.define("OPENSSL_NO_ASM", "YES");
                 }
             }
 
-            "linux" => match arch.as_str() {
+            "linux" => match &*config.target_arch {
                 "x86" => {
                     boringssl_cmake.define(
                         "CMAKE_TOOLCHAIN_FILE",
-                        pwd.join(&src_path)
+                        config
+                            .pwd
+                            .join(src_path)
                             .join("src/util/32-bit-toolchain.cmake")
                             .as_os_str(),
                     );
@@ -282,19 +259,19 @@ fn get_boringssl_cmake_config() -> cmake::Config {
                 "aarch64" => {
                     boringssl_cmake.define(
                         "CMAKE_TOOLCHAIN_FILE",
-                        pwd.join("cmake/aarch64-linux.cmake").as_os_str(),
+                        config.pwd.join("cmake/aarch64-linux.cmake").as_os_str(),
                     );
                 }
                 "arm" => {
                     boringssl_cmake.define(
                         "CMAKE_TOOLCHAIN_FILE",
-                        pwd.join("cmake/armv7-linux.cmake").as_os_str(),
+                        config.pwd.join("cmake/armv7-linux.cmake").as_os_str(),
                     );
                 }
                 _ => {
                     eprintln!(
                         "warning: no toolchain file configured by boring-sys for {}",
-                        target
+                        config.target
                     );
                 }
             },
@@ -381,18 +358,16 @@ fn pick_best_android_ndk_toolchain(toolchains_dir: &Path) -> std::io::Result<OsS
     ))
 }
 
-fn get_extra_clang_args_for_bindgen() -> Vec<String> {
-    let os = env::var("CARGO_CFG_TARGET_OS").unwrap();
-
+fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
     let mut params = Vec::new();
 
     // Add platform-specific parameters.
     #[allow(clippy::single_match)]
-    match os.as_ref() {
+    match &*config.target_os {
         "ios" | "macos" => {
             // When cross-compiling for Apple targets, tell bindgen to use SDK sysroot,
             // and *don't* use system headers of the host macOS.
-            let sdk = get_apple_sdk_name();
+            let sdk = get_apple_sdk_name(config);
             let output = std::process::Command::new("xcrun")
                 .args(["--show-sdk-path", "--sdk", sdk])
                 .output()
@@ -414,10 +389,14 @@ fn get_extra_clang_args_for_bindgen() -> Vec<String> {
             params.push(sysroot);
         }
         "android" => {
-            let android_ndk_home = env::var("ANDROID_NDK_HOME")
+            let mut android_sysroot = config
+                .env
+                .android_ndk_home
+                .clone()
                 .expect("Please set ANDROID_NDK_HOME for Android build");
-            let mut android_sysroot = std::path::PathBuf::from(android_ndk_home);
+
             android_sysroot.extend(["toolchains", "llvm", "prebuilt"]);
+
             let toolchain = match pick_best_android_ndk_toolchain(&android_sysroot) {
                 Ok(toolchain) => toolchain,
                 Err(e) => {
@@ -432,8 +411,6 @@ fn get_extra_clang_args_for_bindgen() -> Vec<String> {
             android_sysroot.push(toolchain);
             android_sysroot.push("sysroot");
             params.push("--sysroot".to_string());
-            // If ANDROID_NDK_HOME weren't a valid UTF-8 string,
-            // we'd already know from env::var.
             params.push(android_sysroot.into_os_string().into_string().unwrap());
         }
         _ => {}
@@ -442,48 +419,43 @@ fn get_extra_clang_args_for_bindgen() -> Vec<String> {
     params
 }
 
-fn ensure_patches_applied() -> io::Result<()> {
-    let out_dir = env::var("OUT_DIR").unwrap();
-    let mut lock_file = LockFile::open(&PathBuf::from(&out_dir).join(".patch_lock"))?;
-    let src_path = get_boringssl_source_path();
-    let has_git = Path::new(&src_path).join(".git").exists();
+fn ensure_patches_applied(config: &Config) -> io::Result<()> {
+    let mut lock_file = LockFile::open(&config.out_dir.join(".patch_lock"))?;
+    let src_path = get_boringssl_source_path(config);
+    let has_git = src_path.join(".git").exists();
 
     lock_file.lock()?;
 
     // NOTE: init git in the copied files, so we can apply patches
     if !has_git {
-        run_command(Command::new("git").args(["init"]).current_dir(&src_path))?;
+        run_command(Command::new("git").arg("init").current_dir(src_path))?;
     }
 
-    if cfg!(feature = "pq-experimental") {
+    if config.features.pq_experimental {
         println!("cargo:warning=applying experimental post quantum crypto patch to boringssl");
-        apply_patch("boring-pq.patch")?;
+        apply_patch(config, "boring-pq.patch")?;
     }
 
-    if cfg!(feature = "rpk") {
+    if config.features.rpk {
         println!("cargo:warning=applying RPK patch to boringssl");
-        apply_patch("rpk.patch")?;
+        apply_patch(config, "rpk.patch")?;
     }
 
     Ok(())
 }
 
-fn apply_patch(patch_name: &str) -> io::Result<()> {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let src_path = get_boringssl_source_path();
-    let cmd_path = manifest_dir
+fn apply_patch(config: &Config, patch_name: &str) -> io::Result<()> {
+    let src_path = get_boringssl_source_path(config);
+    let cmd_path = config
+        .manifest_dir
         .join("patches")
         .join(patch_name)
         .canonicalize()?;
 
     run_command(
         Command::new("git")
-            .args([
-                "apply",
-                "-v",
-                "--whitespace=fix",
-                &cmd_path.display().to_string(),
-            ])
+            .args(["apply", "-v", "--whitespace=fix"])
+            .arg(cmd_path)
             .current_dir(src_path),
     )?;
 
@@ -508,58 +480,66 @@ fn run_command(command: &mut Command) -> io::Result<Output> {
     Ok(out)
 }
 
-fn build_boring_from_sources() -> String {
-    if cfg!(feature = "no-patches") {
-        println!(
-            "cargo:warning=skipping git patches application, provided\
-             native BoringSSL is expected to have the patches included"
-        );
-    } else {
-        ensure_patches_applied().unwrap();
+fn built_boring_source_path(config: &Config) -> &PathBuf {
+    if let Some(path) = &config.env.path {
+        return path;
     }
 
-    let mut cfg = get_boringssl_cmake_config();
+    static BUILD_SOURCE_PATH: OnceLock<PathBuf> = OnceLock::new();
 
-    if cfg!(feature = "fuzzing") {
-        cfg.cxxflag("-DBORINGSSL_UNSAFE_DETERMINISTIC_MODE")
-            .cxxflag("-DBORINGSSL_UNSAFE_FUZZER_MODE");
-    }
+    BUILD_SOURCE_PATH.get_or_init(|| {
+        if config.features.no_patches {
+            println!(
+                "cargo:warning=skipping git patches application, provided\
+                native BoringSSL is expected to have the patches included"
+            );
+        } else {
+            ensure_patches_applied(config).unwrap();
+        }
 
-    if cfg!(feature = "fips") {
-        let (clang, clangxx) = verify_fips_clang_version();
-        cfg.define("CMAKE_C_COMPILER", clang);
-        cfg.define("CMAKE_CXX_COMPILER", clangxx);
-        cfg.define("CMAKE_ASM_COMPILER", clang);
-        cfg.define("FIPS", "1");
-    }
+        let mut cfg = get_boringssl_cmake_config(config);
 
-    if cfg!(feature = "fips-link-precompiled") {
-        cfg.define("FIPS", "1");
-    }
+        if config.features.fips {
+            let (clang, clangxx) = verify_fips_clang_version();
+            cfg.define("CMAKE_C_COMPILER", clang)
+                .define("CMAKE_CXX_COMPILER", clangxx)
+                .define("CMAKE_ASM_COMPILER", clang)
+                .define("FIPS", "1");
+        }
 
-    cfg.build_target("ssl").build();
-    cfg.build_target("crypto").build().display().to_string()
+        if config.features.fips_link_precompiled {
+            cfg.define("FIPS", "1");
+        }
+
+        cfg.build_target("ssl").build();
+        cfg.build_target("crypto").build()
+    })
 }
 
-fn link_in_precompiled_bcm_o(bssl_dir: &str) {
+fn link_in_precompiled_bcm_o(config: &Config) {
     println!("cargo:warning=linking in precompiled `bcm.o` module");
 
-    let bcm_o_src_path = env::var("BORING_SSL_PRECOMPILED_BCM_O")
+    let bssl_dir = built_boring_source_path(config);
+    let bcm_o_src_path = config.env.precompiled_bcm_o.as_ref()
         .expect("`fips-link-precompiled` requires `BORING_SSL_PRECOMPILED_BCM_O` env variable to be specified");
 
-    let libcrypto_path = PathBuf::from(bssl_dir)
+    let libcrypto_path = bssl_dir
         .join("build/crypto/libcrypto.a")
         .canonicalize()
-        .unwrap()
-        .display()
-        .to_string();
+        .unwrap();
 
-    let bcm_o_dst_path = PathBuf::from(bssl_dir).join("build/bcm-fips.o");
+    let bcm_o_dst_path = bssl_dir.join("build/bcm-fips.o");
 
     fs::copy(bcm_o_src_path, &bcm_o_dst_path).unwrap();
 
     // check that fips module is named as expected
-    let out = run_command(Command::new("ar").args(["t", &libcrypto_path, "bcm.o"])).unwrap();
+    let out = run_command(
+        Command::new("ar")
+            .arg("t")
+            .arg(&libcrypto_path)
+            .arg("bcm.o"),
+    )
+    .unwrap();
 
     assert_eq!(
         String::from_utf8(out.stdout).unwrap().trim(),
@@ -572,90 +552,62 @@ fn link_in_precompiled_bcm_o(bssl_dir: &str) {
     // (this causes the need for extra linker flags to deal with duplicate symbols)
     // (as long as the newer module does not define new symbols, one may also remove it,
     // but once there are new symbols it would cause missing symbols at linking stage)
-    run_command(Command::new("ar").args([
-        "rb",
-        "bcm.o",
-        &libcrypto_path,
-        bcm_o_dst_path.display().to_string().as_str(),
-    ]))
+    run_command(
+        Command::new("ar")
+            .args(["rb", "bcm.o"])
+            .args([&libcrypto_path, &bcm_o_dst_path]),
+    )
     .unwrap();
 }
 
-fn check_feature_compatibility() {
-    #[cfg(all(feature = "fips", feature = "rpk"))]
-    compile_error!("`fips` and `rpk` features are mutually exclusive");
-
-    let no_patches_enabled = cfg!(feature = "no-patches");
-    let is_external_native_lib_source =
-        env::var("BORING_BSSL_PATH").is_err() && env::var("BORING_BSSL_SOURCE_PATH").is_err();
-
-    if no_patches_enabled && is_external_native_lib_source {
-        panic!(
-            "`no-patches` feature is supposed to be used with `BORING_BSSL_PATH`\
-            or `BORING_BSSL_SOURCE_PATH` env variables"
-        )
-    }
-
-    let features_with_patches_enabled = cfg!(any(feature = "rpk", feature = "pq-experimental"));
-    let patches_required = features_with_patches_enabled && !no_patches_enabled;
-    let build_from_sources_required = cfg!(feature = "fips-link-precompiled") || patches_required;
-    let is_precompiled_native_lib = env::var("BORING_BSSL_PATH").is_ok();
-
-    if is_precompiled_native_lib && build_from_sources_required {
-        panic!("precompiled BoringSSL was provided, so FIPS configuration or optional patches can't be applied");
-    }
-}
-
 fn main() {
-    println!("cargo:rerun-if-env-changed=BORING_BSSL_PATH");
-    println!("cargo:rerun-if-env-changed=BORING_BSSL_INCLUDE_PATH");
-    println!("cargo:rerun-if-env-changed=BORING_BSSL_SOURCE_PATH");
-    println!("cargo:rerun-if-env-changed=BORING_SSL_PRECOMPILED_BCM_O");
-    println!("cargo:rerun-if-env-changed=BORINGSSL_BUILD_DIR");
+    let config = Config::from_env();
+    let bssl_dir = built_boring_source_path(&config);
+    let build_path = get_boringssl_platform_output_path(&config);
 
-    check_feature_compatibility();
-
-    let bssl_dir = env::var("BORING_BSSL_PATH").unwrap_or_else(|_| build_boring_from_sources());
-    let build_path = get_boringssl_platform_output_path();
-
-    if cfg!(any(feature = "fips", feature = "fips-link-precompiled")) {
+    if config.features.fips || config.features.fips_link_precompiled {
         println!(
             "cargo:rustc-link-search=native={}/build/crypto/{}",
-            bssl_dir, build_path
+            bssl_dir.display(),
+            build_path
         );
         println!(
             "cargo:rustc-link-search=native={}/build/ssl/{}",
-            bssl_dir, build_path
+            bssl_dir.display(),
+            build_path
         );
         println!(
             "cargo:rustc-link-search=native={}/lib/{}",
-            bssl_dir, build_path
+            bssl_dir.display(),
+            build_path
         );
     } else {
         println!(
             "cargo:rustc-link-search=native={}/build/{}",
-            bssl_dir, build_path
+            bssl_dir.display(),
+            build_path
         );
     }
 
-    if cfg!(feature = "fips-link-precompiled") {
-        link_in_precompiled_bcm_o(&bssl_dir);
+    if config.features.fips_link_precompiled {
+        link_in_precompiled_bcm_o(&config);
     }
 
     println!("cargo:rustc-link-lib=static=crypto");
     println!("cargo:rustc-link-lib=static=ssl");
 
-    let include_path = env::var("BORING_BSSL_INCLUDE_PATH").unwrap_or_else(|_| {
-        if let Ok(bssl_path) = env::var("BORING_BSSL_PATH") {
-            return format!("{}/include", bssl_path);
+    let include_path = config.env.include_path.clone().unwrap_or_else(|| {
+        if let Some(bssl_path) = &config.env.path {
+            return bssl_path.join("include");
         }
 
-        let src_path = get_boringssl_source_path();
+        let src_path = get_boringssl_source_path(&config);
+        let candidate = src_path.join("include");
 
-        if Path::new(&src_path).join("include").exists() {
-            format!("{}/include", &src_path)
+        if candidate.exists() {
+            candidate
         } else {
-            format!("{}/src/include", &src_path)
+            src_path.join("src").join("include")
         }
     });
 
@@ -674,11 +626,11 @@ fn main() {
         .size_t_is_usize(true)
         .layout_tests(true)
         .prepend_enum_name(true)
-        .clang_args(get_extra_clang_args_for_bindgen())
-        .clang_args(&["-I", &include_path]);
+        .clang_args(get_extra_clang_args_for_bindgen(&config))
+        .clang_arg("-I")
+        .clang_arg(include_path.display().to_string());
 
-    let target = env::var("TARGET").unwrap();
-    match target.as_ref() {
+    match &*config.target {
         // bindgen produces alignment tests that cause undefined behavior [1]
         // when applied to explicitly unaligned types like OSUnalignedU64.
         //
@@ -726,18 +678,11 @@ fn main() {
         "x509v3.h",
     ];
     for header in &headers {
-        builder = builder.header(
-            Path::new(&include_path)
-                .join("openssl")
-                .join(header)
-                .to_str()
-                .unwrap(),
-        );
+        builder = builder.header(include_path.join("openssl").join(header).to_str().unwrap());
     }
 
     let bindings = builder.generate().expect("Unable to generate bindings");
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     bindings
-        .write_to_file(out_path.join("bindings.rs"))
+        .write_to_file(config.out_dir.join("bindings.rs"))
         .expect("Couldn't write bindings!");
 }
