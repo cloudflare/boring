@@ -43,7 +43,7 @@ impl Config {
         let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
 
         let features = Features::from_env();
-        let env = Env::from_env();
+        let env = Env::from_env(features.fips || features.fips_link_precompiled);
 
         let config = Self {
             manifest_dir,
@@ -73,8 +73,8 @@ impl Config {
 
         if self.features.no_patches && is_external_native_lib_source {
             panic!(
-                "`no-patches` feature is supposed to be used with `BORING_BSSL_PATH`\
-                or `BORING_BSSL_SOURCE_PATH` env variables"
+                "`no-patches` feature is supposed to be used with `BORING_BSSL{{,_FIPS}}_PATH`\
+                or `BORING_BSSL{{,_FIPS}}_SOURCE_PATH` env variables"
             );
         }
 
@@ -107,12 +107,28 @@ impl Features {
 }
 
 impl Env {
-    fn from_env() -> Self {
+    fn from_env(is_fips_like: bool) -> Self {
+        const NORMAL_PREFIX: &str = "BORING_BSSL";
+        const FIPS_PREFIX: &str = "BORING_BSSL_FIPS";
+
+        let boringssl_var = |name: &str| {
+            // The passed name is the non-fips version of the environment variable,
+            // to help look for them in the repository.
+            assert!(name.starts_with(NORMAL_PREFIX));
+
+            if is_fips_like {
+                var(&name.replace(NORMAL_PREFIX, FIPS_PREFIX))
+            } else {
+                var(name)
+            }
+            .map(PathBuf::from)
+        };
+
         Self {
-            path: var("BORING_BSSL_PATH").map(Into::into),
-            include_path: var("BORING_BSSL_INCLUDE_PATH").map(Into::into),
-            source_path: var("BORING_BSSL_SOURCE_PATH").map(Into::into),
-            precompiled_bcm_o: var("BORING_BSSL_PRECOMPILED_BCM_O").map(Into::into),
+            path: boringssl_var("BORING_BSSL_PATH"),
+            include_path: boringssl_var("BORING_BSSL_INCLUDE_PATH"),
+            source_path: boringssl_var("BORING_BSSL_SOURCE_PATH"),
+            precompiled_bcm_o: boringssl_var("BORING_BSSL_PRECOMPILED_BCM_O"),
             debug: var("DEBUG"),
             opt_level: var("OPT_LEVEL"),
             android_ndk_home: var("ANDROID_NDK_HOME").map(Into::into),
