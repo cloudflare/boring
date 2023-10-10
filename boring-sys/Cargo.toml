@@ -9,6 +9,7 @@ description = "FFI bindings to BoringSSL"
 repository = { workspace = true }
 documentation = "https://docs.rs/boring-sys"
 links = "boringssl"
+build = "build/main.rs"
 readme = "README.md"
 categories = ["cryptography", "external-ffi-bindings"]
 edition = { workspace = true }
@@ -44,7 +45,7 @@ include = [
     "/deps/boringssl-fips/**/CMakeLists.txt",
     "/deps/boringssl-fips/**/sources.cmake",
     "/deps/boringssl-fips/LICENSE",
-    "/build.rs",
+    "/build/*",
     "/src",
     "/patches",
 ]
