@@ -3,8 +3,6 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 
 pub(crate) struct Config {
-    // TODO(nox): Use manifest dir instead.
-    pub(crate) pwd: PathBuf,
     pub(crate) manifest_dir: PathBuf,
     pub(crate) out_dir: PathBuf,
     pub(crate) host: String,
@@ -38,8 +36,6 @@ pub(crate) struct Env {
 
 impl Config {
     pub(crate) fn from_env() -> Self {
-        let pwd = env::current_dir().unwrap();
-
         let manifest_dir = env::var_os("CARGO_MANIFEST_DIR").unwrap().into();
         let out_dir = env::var_os("OUT_DIR").unwrap().into();
         let host = env::var("HOST").unwrap();
@@ -52,7 +48,6 @@ impl Config {
         let env = Env::from_env();
 
         let config = Self {
-            pwd,
             manifest_dir,
             out_dir,
             host,
