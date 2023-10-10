@@ -529,7 +529,7 @@ fn link_in_precompiled_bcm_o(config: &Config) {
 
     let bssl_dir = built_boring_source_path(config);
     let bcm_o_src_path = config.env.precompiled_bcm_o.as_ref()
-        .expect("`fips-link-precompiled` requires `BORING_SSL_PRECOMPILED_BCM_O` env variable to be specified");
+        .expect("`fips-link-precompiled` requires `BORING_BSSL_PRECOMPILED_BCM_O` env variable to be specified");
 
     let libcrypto_path = bssl_dir
         .join("build/crypto/libcrypto.a")
