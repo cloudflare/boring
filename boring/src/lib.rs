@@ -46,7 +46,7 @@
 //! ## Linking current BoringSSL version with precompiled FIPS-validated module (`bcm.o`)
 //! It's possible to link latest supported version of BoringSSL with FIPS-validated crypto module
 //! (`bcm.o`). To enable this compilation option one should enable `fips-link-precompiled`
-//! compilation feature and provide a `BORING_SSL_PRECOMPILED_BCM_O` env variable with a path to the
+//! compilation feature and provide a `BORING_BSSL_PRECOMPILED_BCM_O` env variable with a path to the
 //! precompiled FIPS-validated `bcm.o` module.
 //!
 //! # Optional patches

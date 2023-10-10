@@ -112,7 +112,7 @@ impl Env {
             path: var("BORING_BSSL_PATH").map(Into::into),
             include_path: var("BORING_BSSL_INCLUDE_PATH").map(Into::into),
             source_path: var("BORING_BSSL_SOURCE_PATH").map(Into::into),
-            precompiled_bcm_o: var("BORING_SSL_PRECOMPILED_BCM_O").map(Into::into),
+            precompiled_bcm_o: var("BORING_BSSL_PRECOMPILED_BCM_O").map(Into::into),
             debug: var("DEBUG"),
             opt_level: var("OPT_LEVEL"),
             android_ndk_home: var("ANDROID_NDK_HOME").map(Into::into),
