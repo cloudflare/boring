@@ -12,7 +12,7 @@ use crate::x509::extension::{
     SubjectKeyIdentifier,
 };
 use crate::x509::store::X509StoreBuilder;
-use crate::x509::{X509Extension, X509Name, X509Req, X509StoreContext, X509VerifyResult, X509};
+use crate::x509::{X509Extension, X509Name, X509Req, X509StoreContext, X509};
 
 fn pkey() -> PKey<Private> {
     let rsa = Rsa::generate(2048).unwrap();
@@ -363,8 +363,8 @@ fn issued() {
     let ca = include_bytes!("../../test/root-ca.pem");
     let ca = X509::from_pem(ca).unwrap();
 
-    assert_eq!(ca.issued(&cert), X509VerifyResult::OK);
-    assert_ne!(cert.issued(&cert), X509VerifyResult::OK);
+    assert_eq!(ca.issued(&cert), Ok(()));
+    assert!(cert.issued(&cert).is_err());
 }
 
 #[test]

@@ -13,7 +13,7 @@ use boring::x509::extension::{
     AuthorityKeyIdentifier, BasicConstraints, KeyUsage, SubjectAlternativeName,
     SubjectKeyIdentifier,
 };
-use boring::x509::{X509NameBuilder, X509Ref, X509Req, X509ReqBuilder, X509VerifyResult, X509};
+use boring::x509::{X509NameBuilder, X509Ref, X509Req, X509ReqBuilder, X509};
 
 /// Make a CA certificate and private key
 fn mk_ca_cert() -> Result<(X509, PKey<Private>), ErrorStack> {
@@ -145,8 +145,8 @@ fn real_main() -> Result<(), ErrorStack> {
 
     // Verify that this cert was issued by this ca
     match ca_cert.issued(&cert) {
-        X509VerifyResult::OK => println!("Certificate verified!"),
-        ver_err => println!("Failed to verify certificate: {}", ver_err),
+        Ok(()) => println!("Certificate verified!"),
+        Err(ver_err) => println!("Failed to verify certificate: {}", ver_err),
     };
 
     Ok(())

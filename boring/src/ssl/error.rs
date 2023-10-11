@@ -7,7 +7,6 @@ use std::io;
 
 use crate::error::ErrorStack;
 use crate::ssl::MidHandshakeSslStream;
-use crate::x509::X509VerifyResult;
 
 /// An error code returned from SSL functions.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -200,8 +199,8 @@ fn fmt_mid_handshake_error(
     }
 
     match s.ssl().verify_result() {
-        X509VerifyResult::OK => write!(f, "{}", prefix)?,
-        verify => write!(f, "{}: cert verification failed - {}", prefix, verify)?,
+        Ok(()) => write!(f, "{}", prefix)?,
+        Err(verify) => write!(f, "{}: cert verification failed - {}", prefix, verify)?,
     }
 
     write!(f, " {}", s.error())
