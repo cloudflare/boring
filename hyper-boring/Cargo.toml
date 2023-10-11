@@ -25,9 +25,6 @@ fips = ["tokio-boring/fips"]
 # Link with precompiled FIPS-validated `bcm.o` module.
 fips-link-precompiled = ["tokio-boring/fips-link-precompiled"]
 
-# Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
-rpk = ["tokio-boring/rpk"]
-
 # Enables experimental post-quantum crypto (https://blog.cloudflare.com/post-quantum-for-all/)
 pq-experimental = ["tokio-boring/pq-experimental"]
 
@@ -38,7 +35,6 @@ pq-experimental = ["tokio-boring/pq-experimental"]
 # variable) or with custom BoringSSL sources (via `BORING_BSSL{,_FIPS}_SOURCE_PATH` env variable)
 # already containing required patches.
 no-patches = ["tokio-boring/no-patches"]
-
 
 [dependencies]
 antidote = { workspace = true }
