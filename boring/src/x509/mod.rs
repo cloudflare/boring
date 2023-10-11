@@ -1414,12 +1414,87 @@ impl X509VerifyResult {
             str::from_utf8(CStr::from_ptr(s).to_bytes()).unwrap()
         }
     }
+}
 
-    /// Successful peer certifiate verification.
-    pub const OK: X509VerifyResult = X509VerifyResult(ffi::X509_V_OK);
-    /// Application verification failure.
-    pub const APPLICATION_VERIFICATION: X509VerifyResult =
-        X509VerifyResult(ffi::X509_V_ERR_APPLICATION_VERIFICATION);
+#[allow(missing_docs)] // no need to document the constants
+impl X509VerifyResult {
+    pub const OK: Self = Self(ffi::X509_V_OK);
+    pub const UNSPECIFIED: Self = Self(ffi::X509_V_ERR_UNSPECIFIED);
+    pub const UNABLE_TO_GET_ISSUER_CERT: Self = Self(ffi::X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT);
+    pub const UNABLE_TO_GET_CRL: Self = Self(ffi::X509_V_ERR_UNABLE_TO_GET_CRL);
+    pub const UNABLE_TO_DECRYPT_CERT_SIGNATURE: Self =
+        Self(ffi::X509_V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE);
+    pub const UNABLE_TO_DECRYPT_CRL_SIGNATURE: Self =
+        Self(ffi::X509_V_ERR_UNABLE_TO_DECRYPT_CRL_SIGNATURE);
+    pub const UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY: Self =
+        Self(ffi::X509_V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY);
+    pub const CERT_SIGNATURE_FAILURE: Self = Self(ffi::X509_V_ERR_CERT_SIGNATURE_FAILURE);
+    pub const CRL_SIGNATURE_FAILURE: Self = Self(ffi::X509_V_ERR_CRL_SIGNATURE_FAILURE);
+    pub const CERT_NOT_YET_VALID: Self = Self(ffi::X509_V_ERR_CERT_NOT_YET_VALID);
+    pub const CERT_HAS_EXPIRED: Self = Self(ffi::X509_V_ERR_CERT_HAS_EXPIRED);
+    pub const CRL_NOT_YET_VALID: Self = Self(ffi::X509_V_ERR_CRL_NOT_YET_VALID);
+    pub const CRL_HAS_EXPIRED: Self = Self(ffi::X509_V_ERR_CRL_HAS_EXPIRED);
+    pub const ERROR_IN_CERT_NOT_BEFORE_FIELD: Self =
+        Self(ffi::X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD);
+    pub const ERROR_IN_CERT_NOT_AFTER_FIELD: Self =
+        Self(ffi::X509_V_ERR_ERROR_IN_CERT_NOT_AFTER_FIELD);
+    pub const ERROR_IN_CRL_LAST_UPDATE_FIELD: Self =
+        Self(ffi::X509_V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD);
+    pub const ERROR_IN_CRL_NEXT_UPDATE_FIELD: Self =
+        Self(ffi::X509_V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD);
+    pub const OUT_OF_MEM: Self = Self(ffi::X509_V_ERR_OUT_OF_MEM);
+    pub const DEPTH_ZERO_SELF_SIGNED_CERT: Self = Self(ffi::X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT);
+    pub const SELF_SIGNED_CERT_IN_CHAIN: Self = Self(ffi::X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN);
+    pub const UNABLE_TO_GET_ISSUER_CERT_LOCALLY: Self =
+        Self(ffi::X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY);
+    pub const UNABLE_TO_VERIFY_LEAF_SIGNATURE: Self =
+        Self(ffi::X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE);
+    pub const CERT_CHAIN_TOO_LONG: Self = Self(ffi::X509_V_ERR_CERT_CHAIN_TOO_LONG);
+    pub const CERT_REVOKED: Self = Self(ffi::X509_V_ERR_CERT_REVOKED);
+    pub const INVALID_CA: Self = Self(ffi::X509_V_ERR_INVALID_CA);
+    pub const PATH_LENGTH_EXCEEDED: Self = Self(ffi::X509_V_ERR_PATH_LENGTH_EXCEEDED);
+    pub const INVALID_PURPOSE: Self = Self(ffi::X509_V_ERR_INVALID_PURPOSE);
+    pub const CERT_UNTRUSTED: Self = Self(ffi::X509_V_ERR_CERT_UNTRUSTED);
+    pub const CERT_REJECTED: Self = Self(ffi::X509_V_ERR_CERT_REJECTED);
+    pub const SUBJECT_ISSUER_MISMATCH: Self = Self(ffi::X509_V_ERR_SUBJECT_ISSUER_MISMATCH);
+    pub const AKID_SKID_MISMATCH: Self = Self(ffi::X509_V_ERR_AKID_SKID_MISMATCH);
+    pub const AKID_ISSUER_SERIAL_MISMATCH: Self = Self(ffi::X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH);
+    pub const KEYUSAGE_NO_CERTSIGN: Self = Self(ffi::X509_V_ERR_KEYUSAGE_NO_CERTSIGN);
+    pub const UNABLE_TO_GET_CRL_ISSUER: Self = Self(ffi::X509_V_ERR_UNABLE_TO_GET_CRL_ISSUER);
+    pub const UNHANDLED_CRITICAL_EXTENSION: Self =
+        Self(ffi::X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION);
+    pub const KEYUSAGE_NO_CRL_SIGN: Self = Self(ffi::X509_V_ERR_KEYUSAGE_NO_CRL_SIGN);
+    pub const UNHANDLED_CRITICAL_CRL_EXTENSION: Self =
+        Self(ffi::X509_V_ERR_UNHANDLED_CRITICAL_CRL_EXTENSION);
+    pub const INVALID_NON_CA: Self = Self(ffi::X509_V_ERR_INVALID_NON_CA);
+    pub const PROXY_PATH_LENGTH_EXCEEDED: Self = Self(ffi::X509_V_ERR_PROXY_PATH_LENGTH_EXCEEDED);
+    pub const KEYUSAGE_NO_DIGITAL_SIGNATURE: Self =
+        Self(ffi::X509_V_ERR_KEYUSAGE_NO_DIGITAL_SIGNATURE);
+    pub const PROXY_CERTIFICATES_NOT_ALLOWED: Self =
+        Self(ffi::X509_V_ERR_PROXY_CERTIFICATES_NOT_ALLOWED);
+    pub const INVALID_EXTENSION: Self = Self(ffi::X509_V_ERR_INVALID_EXTENSION);
+    pub const INVALID_POLICY_EXTENSION: Self = Self(ffi::X509_V_ERR_INVALID_POLICY_EXTENSION);
+    pub const NO_EXPLICIT_POLICY: Self = Self(ffi::X509_V_ERR_NO_EXPLICIT_POLICY);
+    pub const DIFFERENT_CRL_SCOPE: Self = Self(ffi::X509_V_ERR_DIFFERENT_CRL_SCOPE);
+    pub const UNSUPPORTED_EXTENSION_FEATURE: Self =
+        Self(ffi::X509_V_ERR_UNSUPPORTED_EXTENSION_FEATURE);
+    pub const UNNESTED_RESOURCE: Self = Self(ffi::X509_V_ERR_UNNESTED_RESOURCE);
+    pub const PERMITTED_VIOLATION: Self = Self(ffi::X509_V_ERR_PERMITTED_VIOLATION);
+    pub const EXCLUDED_VIOLATION: Self = Self(ffi::X509_V_ERR_EXCLUDED_VIOLATION);
+    pub const SUBTREE_MINMAX: Self = Self(ffi::X509_V_ERR_SUBTREE_MINMAX);
+    pub const APPLICATION_VERIFICATION: Self = Self(ffi::X509_V_ERR_APPLICATION_VERIFICATION);
+    pub const UNSUPPORTED_CONSTRAINT_TYPE: Self = Self(ffi::X509_V_ERR_UNSUPPORTED_CONSTRAINT_TYPE);
+    pub const UNSUPPORTED_CONSTRAINT_SYNTAX: Self =
+        Self(ffi::X509_V_ERR_UNSUPPORTED_CONSTRAINT_SYNTAX);
+    pub const UNSUPPORTED_NAME_SYNTAX: Self = Self(ffi::X509_V_ERR_UNSUPPORTED_NAME_SYNTAX);
+    pub const CRL_PATH_VALIDATION_ERROR: Self = Self(ffi::X509_V_ERR_CRL_PATH_VALIDATION_ERROR);
+    pub const HOSTNAME_MISMATCH: Self = Self(ffi::X509_V_ERR_HOSTNAME_MISMATCH);
+    pub const EMAIL_MISMATCH: Self = Self(ffi::X509_V_ERR_EMAIL_MISMATCH);
+    pub const IP_ADDRESS_MISMATCH: Self = Self(ffi::X509_V_ERR_IP_ADDRESS_MISMATCH);
+    pub const INVALID_CALL: Self = Self(ffi::X509_V_ERR_INVALID_CALL);
+    pub const STORE_LOOKUP: Self = Self(ffi::X509_V_ERR_STORE_LOOKUP);
+    pub const NAME_CONSTRAINTS_WITHOUT_SANS: Self =
+        Self(ffi::X509_V_ERR_NAME_CONSTRAINTS_WITHOUT_SANS);
 }
 
 foreign_type_and_impl_send_sync! {
