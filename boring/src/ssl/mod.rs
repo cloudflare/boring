@@ -92,7 +92,9 @@ use crate::ssl::error::InnerError;
 use crate::stack::{Stack, StackRef};
 use crate::x509::store::{X509Store, X509StoreBuilderRef, X509StoreRef};
 use crate::x509::verify::X509VerifyParamRef;
-use crate::x509::{X509Name, X509Ref, X509StoreContextRef, X509VerifyResult, X509};
+use crate::x509::{
+    X509Name, X509Ref, X509StoreContextRef, X509VerifyError, X509VerifyResult, X509,
+};
 use crate::{cvt, cvt_0i, cvt_n, cvt_p, init};
 
 pub use crate::ssl::connector::{
@@ -3011,7 +3013,7 @@ impl SslRef {
             "This API is not supported for RPK"
         );
 
-        unsafe { X509VerifyResult::from_raw(ffi::SSL_get_verify_result(self.as_ptr()) as c_int) }
+        unsafe { X509VerifyError::from_raw(ffi::SSL_get_verify_result(self.as_ptr()) as c_int) }
     }
 
     /// Returns a shared reference to the SSL session.

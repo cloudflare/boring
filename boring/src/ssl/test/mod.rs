@@ -32,7 +32,7 @@ use crate::ssl::{
 };
 use crate::x509::store::X509StoreBuilder;
 use crate::x509::verify::X509CheckFlags;
-use crate::x509::{X509Name, X509StoreContext, X509VerifyResult, X509};
+use crate::x509::{X509Name, X509StoreContext, X509};
 
 mod private_key_method;
 mod server;
@@ -159,7 +159,7 @@ fn verify_trusted_get_error_ok() {
     client
         .ctx()
         .set_verify_callback(SslVerifyMode::PEER, |_, x509| {
-            assert_eq!(x509.error(), X509VerifyResult::OK);
+            assert_eq!(x509.verify_result(), Ok(()));
             true
         });
 
@@ -176,7 +176,7 @@ fn verify_trusted_get_error_err() {
     client
         .ctx()
         .set_verify_callback(SslVerifyMode::PEER, |_, x509| {
-            assert_ne!(x509.error(), X509VerifyResult::OK);
+            assert!(x509.verify_result().is_err());
             false
         });
 

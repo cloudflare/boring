@@ -90,13 +90,13 @@ impl X509StoreContextRef {
         }
     }
 
-    /// Returns the error code of the context.
+    /// Returns the verify result of the context.
     ///
     /// This corresponds to [`X509_STORE_CTX_get_error`].
     ///
     /// [`X509_STORE_CTX_get_error`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_STORE_CTX_get_error.html
-    pub fn error(&self) -> X509VerifyResult {
-        unsafe { X509VerifyResult::from_raw(ffi::X509_STORE_CTX_get_error(self.as_ptr())) }
+    pub fn verify_result(&self) -> X509VerifyResult {
+        unsafe { X509VerifyError::from_raw(ffi::X509_STORE_CTX_get_error(self.as_ptr())) }
     }
 
     /// Initializes this context with the given certificate, certificates chain and certificate
@@ -161,14 +161,20 @@ impl X509StoreContextRef {
         unsafe { cvt_n(ffi::X509_verify_cert(self.as_ptr())).map(|n| n != 0) }
     }
 
-    /// Set the error code of the context.
+    /// Set the verify result of the context.
     ///
     /// This corresponds to [`X509_STORE_CTX_set_error`].
     ///
     /// [`X509_STORE_CTX_set_error`]:  https://www.openssl.org/docs/man1.1.0/crypto/X509_STORE_CTX_set_error.html
     pub fn set_error(&mut self, result: X509VerifyResult) {
         unsafe {
-            ffi::X509_STORE_CTX_set_error(self.as_ptr(), result.as_raw());
+            ffi::X509_STORE_CTX_set_error(
+                self.as_ptr(),
+                result
+                    .err()
+                    .as_ref()
+                    .map_or(ffi::X509_V_OK, X509VerifyError::as_raw),
+            );
         }
     }
 
@@ -542,7 +548,7 @@ impl X509Ref {
     pub fn issued(&self, subject: &X509Ref) -> X509VerifyResult {
         unsafe {
             let r = ffi::X509_check_issued(self.as_ptr(), subject.as_ptr());
-            X509VerifyResult::from_raw(r)
+            X509VerifyError::from_raw(r)
         }
     }
 
@@ -1363,38 +1369,44 @@ impl X509ReqRef {
 }
 
 /// The result of peer certificate verification.
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub struct X509VerifyResult(c_int);
+pub type X509VerifyResult = Result<(), X509VerifyError>;
 
-impl fmt::Debug for X509VerifyResult {
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct X509VerifyError(c_int);
+
+impl fmt::Debug for X509VerifyError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.debug_struct("X509VerifyResult")
+        fmt.debug_struct("X509VerifyError")
             .field("code", &self.0)
             .field("error", &self.error_string())
             .finish()
     }
 }
 
-impl fmt::Display for X509VerifyResult {
+impl fmt::Display for X509VerifyError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.write_str(self.error_string())
     }
 }
 
-impl Error for X509VerifyResult {}
+impl Error for X509VerifyError {}
 
-impl X509VerifyResult {
-    /// Creates an `X509VerifyResult` from a raw error number.
+impl X509VerifyError {
+    /// Creates an [`X509VerifyResult`] from a raw error number.
     ///
     /// # Safety
     ///
-    /// Some methods on `X509VerifyResult` are not thread safe if the error
+    /// Some methods on [`X509VerifyError`] are not thread safe if the error
     /// number is invalid.
     pub unsafe fn from_raw(err: c_int) -> X509VerifyResult {
-        X509VerifyResult(err)
+        if err == ffi::X509_V_OK {
+            Ok(())
+        } else {
+            Err(X509VerifyError(err))
+        }
     }
 
-    /// Return the integer representation of an `X509VerifyResult`.
+    /// Return the integer representation of an [`X509VerifyError`].
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn as_raw(&self) -> c_int {
         self.0
@@ -1417,8 +1429,7 @@ impl X509VerifyResult {
 }
 
 #[allow(missing_docs)] // no need to document the constants
-impl X509VerifyResult {
-    pub const OK: Self = Self(ffi::X509_V_OK);
+impl X509VerifyError {
     pub const UNSPECIFIED: Self = Self(ffi::X509_V_ERR_UNSPECIFIED);
     pub const UNABLE_TO_GET_ISSUER_CERT: Self = Self(ffi::X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT);
     pub const UNABLE_TO_GET_CRL: Self = Self(ffi::X509_V_ERR_UNABLE_TO_GET_CRL);
