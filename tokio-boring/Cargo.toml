@@ -25,14 +25,6 @@ fips-link-precompiled = ["boring/fips-link-precompiled", "boring-sys/fips-link-p
 # Enables experimental post-quantum crypto (https://blog.cloudflare.com/post-quantum-for-all/)
 pq-experimental = ["boring/pq-experimental"]
 
-# Disables git patching of the BoringSSL sources for features like `rpk` and `pq-experimental`,
-# but keeps the related Rust API.
-# 
-# Supposed to be used with either pre-compiled BoringSSL (via `BORING_BSSL{,_FIPS}_PATH` env
-# variable) or  with custom BoringSSL sources (via `BORING_BSSL{,_FIPS}_SOURCE_PATH` env variable)
-# already containing required patches.
-no-patches = ["boring/no-patches"]
-
 [dependencies]
 boring = { workspace = true }
 boring-sys = { workspace = true }

@@ -496,7 +496,7 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
     static BUILD_SOURCE_PATH: OnceLock<PathBuf> = OnceLock::new();
 
     BUILD_SOURCE_PATH.get_or_init(|| {
-        if config.features.no_patches {
+        if config.env.assume_patched {
             println!(
                 "cargo:warning=skipping git patches application, provided\
                 native BoringSSL is expected to have the patches included"
