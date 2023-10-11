@@ -22,9 +22,6 @@ fips = ["boring/fips", "boring-sys/fips"]
 # Link with precompiled FIPS-validated `bcm.o` module.
 fips-link-precompiled = ["boring/fips-link-precompiled", "boring-sys/fips-link-precompiled"]
 
-# Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
-rpk = ["boring/rpk"]
-
 # Enables experimental post-quantum crypto (https://blog.cloudflare.com/post-quantum-for-all/)
 pq-experimental = ["boring/pq-experimental"]
 
