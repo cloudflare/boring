@@ -1,10 +1,11 @@
+use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 
 use crate::ssl::test::server::Server;
 use crate::ssl::{
-    Ssl, SslContext, SslContextBuilder, SslMethod, SslOptions, SslSession, SslSessionCacheMode,
-    SslVersion,
+    ErrorCode, GetSessionPendingError, HandshakeError, Ssl, SslContext, SslContextBuilder,
+    SslMethod, SslOptions, SslSession, SslSessionCacheMode, SslVersion,
 };
 
 #[test]
@@ -53,7 +54,7 @@ fn new_get_session_callback() {
     unsafe {
         server.ctx().set_get_session_callback(|_, id| {
             let Some(der) = SERVER_SESSION_DER.get() else {
-                return None;
+                return Ok(None);
             };
 
             let session = SslSession::from_der(der).unwrap();
@@ -62,7 +63,7 @@ fn new_get_session_callback() {
 
             assert_eq!(id, session.id());
 
-            Some(session)
+            Ok(Some(session))
         });
     }
     server.ctx().set_session_id_context(b"foo").unwrap();
@@ -98,6 +99,54 @@ fn new_get_session_callback() {
     ssl_builder.connect();
 
     assert!(FOUND_SESSION.load(Ordering::SeqCst));
+}
+
+#[test]
+fn new_get_session_callback_pending() {
+    static CALLED_SERVER_CALLBACK: AtomicBool = AtomicBool::new(false);
+
+    let mut server = Server::builder();
+
+    server
+        .ctx()
+        .set_max_proto_version(Some(SslVersion::TLS1_2))
+        .unwrap();
+    server.ctx().set_options(SslOptions::NO_TICKET);
+    server
+        .ctx()
+        .set_session_cache_mode(SslSessionCacheMode::SERVER | SslSessionCacheMode::NO_INTERNAL);
+    unsafe {
+        server.ctx().set_get_session_callback(|_, _| {
+            if !CALLED_SERVER_CALLBACK.swap(true, Ordering::SeqCst) {
+                return Err(GetSessionPendingError);
+            }
+
+            Ok(None)
+        });
+    }
+    server.ctx().set_session_id_context(b"foo").unwrap();
+    server.err_cb(|error| {
+        let HandshakeError::WouldBlock(mid_handshake) = error else {
+            panic!("should be WouldBlock");
+        };
+
+        assert!(mid_handshake.error().would_block());
+        assert_eq!(mid_handshake.error().code(), ErrorCode::PENDING_SESSION);
+
+        let mut socket = mid_handshake.handshake().unwrap();
+
+        socket.write_all(&[0]).unwrap();
+    });
+
+    let server = server.build();
+
+    let mut client = server.client();
+
+    client
+        .ctx()
+        .set_session_cache_mode(SslSessionCacheMode::CLIENT);
+
+    client.connect();
 }
 
 #[test]

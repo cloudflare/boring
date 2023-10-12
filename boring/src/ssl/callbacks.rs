@@ -1,9 +1,9 @@
 #![forbid(unsafe_op_in_unsafe_fn)]
 
 use super::{
-    AlpnError, ClientHello, PrivateKeyMethod, PrivateKeyMethodError, SelectCertError, SniError,
-    Ssl, SslAlert, SslContext, SslContextRef, SslRef, SslSession, SslSessionRef,
-    SslSignatureAlgorithm, SESSION_CTX_INDEX,
+    AlpnError, ClientHello, GetSessionPendingError, PrivateKeyMethod, PrivateKeyMethodError,
+    SelectCertError, SniError, Ssl, SslAlert, SslContext, SslContextRef, SslRef, SslSession,
+    SslSessionRef, SslSignatureAlgorithm, SESSION_CTX_INDEX,
 };
 use crate::error::ErrorStack;
 use crate::ffi;
@@ -13,7 +13,6 @@ use foreign_types::ForeignTypeRef;
 use libc::c_char;
 use libc::{c_int, c_uchar, c_uint, c_void};
 use std::ffi::CStr;
-use std::mem;
 use std::ptr;
 use std::slice;
 use std::str;
@@ -323,7 +322,10 @@ pub(super) unsafe extern "C" fn raw_get_session<F>(
     copy: *mut c_int,
 ) -> *mut ffi::SSL_SESSION
 where
-    F: Fn(&mut SslRef, &[u8]) -> Option<SslSession> + 'static + Sync + Send,
+    F: Fn(&mut SslRef, &[u8]) -> Result<Option<SslSession>, GetSessionPendingError>
+        + 'static
+        + Sync
+        + Send,
 {
     // SAFETY: boring provides valid inputs.
     let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
@@ -342,13 +344,15 @@ where
     let callback = unsafe { &*(callback as *const F) };
 
     match callback(ssl, data) {
-        Some(session) => {
-            let p = session.as_ptr();
-            mem::forget(session);
+        Ok(Some(session)) => {
+            let p = session.into_ptr();
+
             *copy = 0;
+
             p
         }
-        None => ptr::null_mut(),
+        Ok(None) => ptr::null_mut(),
+        Err(GetSessionPendingError) => unsafe { ffi::SSL_magic_pending_session_ptr() },
     }
 }
 

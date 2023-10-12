@@ -1599,12 +1599,15 @@ impl SslContextBuilder {
     ///
     /// # Safety
     ///
-    /// The returned `SslSession` must not be associated with a different `SslContext`.
+    /// The returned [`SslSession`] must not be associated with a different [`SslContext`].
     ///
     /// [`SSL_CTX_sess_set_get_cb`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_sess_set_new_cb.html
     pub unsafe fn set_get_session_callback<F>(&mut self, callback: F)
     where
-        F: Fn(&mut SslRef, &[u8]) -> Option<SslSession> + 'static + Sync + Send,
+        F: Fn(&mut SslRef, &[u8]) -> Result<Option<SslSession>, GetSessionPendingError>
+            + 'static
+            + Sync
+            + Send,
     {
         self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
         ffi::SSL_CTX_sess_set_get_cb(self.as_ptr(), Some(callbacks::raw_get_session::<F>));
@@ -1977,6 +1980,13 @@ impl SslContextRef {
         self.ex_data(*RPK_FLAG_INDEX).copied().unwrap_or_default()
     }
 }
+
+/// Error returned by the callback to get a session when operation
+/// could not complete and should be retried later.
+///
+/// See [`SslContextBuilder::set_get_session_callback`].
+#[derive(Debug)]
+pub struct GetSessionPendingError;
 
 #[cfg(not(any(feature = "fips", feature = "fips-link-precompiled")))]
 type ProtosLen = usize;
