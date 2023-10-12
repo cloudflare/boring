@@ -32,9 +32,9 @@ mod bridge;
 
 use self::async_callbacks::TASK_WAKER_INDEX;
 pub use self::async_callbacks::{
-    AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError,
-    BoxPrivateKeyMethodFinish, BoxPrivateKeyMethodFuture, BoxSelectCertFinish, BoxSelectCertFuture,
-    ExDataFuture, SslContextBuilderExt,
+    AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError, BoxGetSessionFinish,
+    BoxGetSessionFuture, BoxPrivateKeyMethodFinish, BoxPrivateKeyMethodFuture, BoxSelectCertFinish,
+    BoxSelectCertFuture, ExDataFuture, SslContextBuilderExt,
 };
 use self::bridge::AsyncStreamBridge;
 
