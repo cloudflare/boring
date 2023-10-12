@@ -17,27 +17,10 @@ pub(crate) fn create_server(
     impl Future<Output = Result<SslStream<TcpStream>, HandshakeError<TcpStream>>>,
     SocketAddr,
 ) {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-
-    listener.set_nonblocking(true).unwrap();
-
-    let listener = TcpListener::from_std(listener).unwrap();
-    let addr = listener.local_addr().unwrap();
+    let (listener, addr) = create_listener();
 
     let server = async move {
-        let mut acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
-
-        acceptor
-            .set_private_key_file("tests/key.pem", SslFiletype::PEM)
-            .unwrap();
-
-        acceptor
-            .set_certificate_chain_file("tests/cert.pem")
-            .unwrap();
-
-        setup(&mut acceptor);
-
-        let acceptor = acceptor.build();
+        let acceptor = create_acceptor(setup);
 
         let stream = listener.accept().await.unwrap().0;
 
@@ -47,19 +30,52 @@ pub(crate) fn create_server(
     (server, addr)
 }
 
+pub(crate) fn create_listener() -> (TcpListener, SocketAddr) {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+
+    listener.set_nonblocking(true).unwrap();
+
+    let listener = TcpListener::from_std(listener).unwrap();
+    let addr = listener.local_addr().unwrap();
+
+    (listener, addr)
+}
+
+pub(crate) fn create_acceptor(setup: impl FnOnce(&mut SslAcceptorBuilder)) -> SslAcceptor {
+    let mut acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
+
+    acceptor
+        .set_private_key_file("tests/key.pem", SslFiletype::PEM)
+        .unwrap();
+
+    acceptor
+        .set_certificate_chain_file("tests/cert.pem")
+        .unwrap();
+
+    setup(&mut acceptor);
+
+    acceptor.build()
+}
+
 pub(crate) async fn connect(
     addr: SocketAddr,
     setup: impl FnOnce(&mut SslConnectorBuilder) -> Result<(), ErrorStack>,
 ) -> Result<SslStream<TcpStream>, HandshakeError<TcpStream>> {
-    let mut connector = SslConnector::builder(SslMethod::tls()).unwrap();
-
-    setup(&mut connector).unwrap();
-
-    let config = connector.build().configure().unwrap();
+    let config = create_connector(setup).configure().unwrap();
 
     let stream = TcpStream::connect(&addr).await.unwrap();
 
     tokio_boring::connect(config, "localhost", stream).await
+}
+
+pub(crate) fn create_connector(
+    setup: impl FnOnce(&mut SslConnectorBuilder) -> Result<(), ErrorStack>,
+) -> SslConnector {
+    let mut connector = SslConnector::builder(SslMethod::tls()).unwrap();
+
+    setup(&mut connector).unwrap();
+
+    connector.build()
 }
 
 pub(crate) async fn with_trivial_client_server_exchange(
