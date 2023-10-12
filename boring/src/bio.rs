@@ -1,6 +1,5 @@
 use crate::ffi;
 use crate::ffi::BIO_new_mem_buf;
-use libc::c_int;
 use std::marker::PhantomData;
 use std::ptr;
 use std::slice;
@@ -20,10 +19,20 @@ impl<'a> Drop for MemBioSlice<'a> {
 
 impl<'a> MemBioSlice<'a> {
     pub fn new(buf: &'a [u8]) -> Result<MemBioSlice<'a>, ErrorStack> {
+        #[cfg(not(any(feature = "fips", feature = "fips-link-precompiled")))]
+        type BufLen = isize;
+        #[cfg(any(feature = "fips", feature = "fips-link-precompiled"))]
+        type BufLen = libc::c_int;
+
         ffi::init();
 
-        assert!(buf.len() <= c_int::max_value() as usize);
-        let bio = unsafe { cvt_p(BIO_new_mem_buf(buf.as_ptr() as *const _, buf.len() as _))? };
+        assert!(buf.len() <= BufLen::max_value() as usize);
+        let bio = unsafe {
+            cvt_p(BIO_new_mem_buf(
+                buf.as_ptr() as *const _,
+                buf.len() as BufLen,
+            ))?
+        };
 
         Ok(MemBioSlice(bio, PhantomData))
     }

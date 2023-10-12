@@ -214,14 +214,6 @@ impl X509CRLRef {
     /// [`X509_CRL_get_issuer`]: https://www.openssl.org/docs/man1.1.1/man3/X509_CRL_get_issuer
     pub fn issuer(&self) -> &X509NameRef {
         unsafe {
-            #[cfg(feature = "fips")]
-            let name = {
-                let crl_info = (*self.as_ptr()).crl;
-                assert!(!crl_info.is_null());
-                (*crl_info).issuer
-            };
-
-            #[cfg(not(feature = "fips"))]
             let name = ffi::X509_CRL_get_issuer(self.as_ptr());
 
             assert!(!name.is_null());
@@ -236,14 +228,7 @@ impl X509CRLRef {
     /// [`X509_CRL_get0_extensions`]: https://www.openssl.org/docs/man1.1.1/man3/X509_CRL_get0_extensions
     pub fn extensions(&self) -> Option<&StackRef<X509Extension>> {
         unsafe {
-            #[cfg(not(feature = "fips"))]
             let extensions = ffi::X509_CRL_get0_extensions(self.as_ptr());
-            #[cfg(feature = "fips")]
-            let extensions = {
-                let crl_info = (*self.as_ptr()).crl;
-                assert!(!crl_info.is_null());
-                (*crl_info).extensions
-            };
             if extensions.is_null() {
                 None
             } else {
@@ -259,14 +244,7 @@ impl X509CRLRef {
     /// [`X509_CRL_get_REVOKED`]: https://www.openssl.org/docs/man1.1.1/man3/X509_CRL_get_REVOKED
     pub fn revoked(&self) -> Option<&StackRef<X509Revoked>> {
         unsafe {
-            #[cfg(not(feature = "fips"))]
             let revoked = ffi::X509_CRL_get_REVOKED(self.as_ptr());
-            #[cfg(feature = "fips")]
-            let revoked = {
-                let crl_info = (*self.as_ptr()).crl;
-                assert!(!crl_info.is_null());
-                (*crl_info).revoked
-            };
             if revoked.is_null() {
                 None
             } else {
@@ -501,11 +479,11 @@ impl X509CRLBuilder {
     /// [`X509_CRL_set1_lastUpdate`]: https://www.openssl.org/docs/man1.1.1/man3/X509_CRL_set1_lastUpdate
     pub fn set_last_update(&mut self, last_update: &Asn1TimeRef) -> Result<(), ErrorStack> {
         unsafe {
-            #[cfg(not(feature = "fips"))]
-            let ret = ffi::X509_CRL_set1_lastUpdate(self.0.as_ptr(), last_update.as_ptr());
-            #[cfg(feature = "fips")]
-            let ret = ffi::X509_CRL_set_lastUpdate(self.0.as_ptr(), last_update.as_ptr());
-            cvt(ret).map(|_| ())
+            cvt(ffi::X509_CRL_set1_lastUpdate(
+                self.0.as_ptr(),
+                last_update.as_ptr(),
+            ))
+            .map(|_| ())
         }
     }
 
@@ -516,11 +494,11 @@ impl X509CRLBuilder {
     /// [`X509_CRL_set1_nextUpdate`]: https://www.openssl.org/docs/man1.1.1/man3/X509_CRL_set1_nextUpdate
     pub fn set_next_update(&mut self, next_update: &Asn1TimeRef) -> Result<(), ErrorStack> {
         unsafe {
-            #[cfg(not(feature = "fips"))]
-            let ret = ffi::X509_CRL_set1_nextUpdate(self.0.as_ptr(), next_update.as_ptr());
-            #[cfg(feature = "fips")]
-            let ret = ffi::X509_CRL_set_nextUpdate(self.0.as_ptr(), next_update.as_ptr());
-            cvt(ret).map(|_| ())
+            cvt(ffi::X509_CRL_set1_nextUpdate(
+                self.0.as_ptr(),
+                next_update.as_ptr(),
+            ))
+            .map(|_| ())
         }
     }
 

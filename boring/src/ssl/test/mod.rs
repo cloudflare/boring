@@ -448,19 +448,12 @@ fn test_alpn_server_select_none_fatal() {
         ssl::select_next_proto(b"\x08http/1.1\x08spdy/3.1", client)
             .ok_or(ssl::AlpnError::ALERT_FATAL)
     });
-    #[cfg(not(feature = "fips"))]
     server.should_error();
     let server = server.build();
 
     let mut client = server.client();
     client.ctx().set_alpn_protos(b"\x06http/2").unwrap();
-
-    if cfg!(feature = "fips") {
-        let s = client.connect();
-        assert_eq!(None, s.ssl().selected_alpn_protocol());
-    } else {
-        client.connect_err();
-    }
+    client.connect_err();
 }
 
 #[test]
@@ -1055,7 +1048,6 @@ fn _check_kinds() {
     is_sync::<SslStream<TcpStream>>();
 }
 
-#[cfg(not(osslconf = "OPENSSL_NO_PSK"))]
 #[test]
 fn psk_ciphers() {
     const CIPHER: &str = "PSK-AES128-CBC-SHA";
@@ -1122,4 +1114,24 @@ fn session_cache_size() {
     ctx.set_session_cache_size(1234);
     let ctx = ctx.build();
     assert_eq!(ctx.session_cache_size(), 1234);
+}
+
+#[cfg(feature = "kx-safe-default")]
+#[test]
+fn client_set_default_curves_list() {
+    let ssl_ctx = SslContextBuilder::new(SslMethod::tls()).unwrap().build();
+    let mut ssl = Ssl::new(&ssl_ctx).unwrap();
+
+    ssl.client_set_default_curves_list()
+        .expect("Failed to set curves list. Is Kyber768 missing in boringSSL?")
+}
+
+#[cfg(feature = "kx-safe-default")]
+#[test]
+fn server_set_default_curves_list() {
+    let ssl_ctx = SslContextBuilder::new(SslMethod::tls()).unwrap().build();
+    let mut ssl = Ssl::new(&ssl_ctx).unwrap();
+
+    ssl.server_set_default_curves_list()
+        .expect("Failed to set curves list. Is Kyber768 missing in boringSSL?")
 }

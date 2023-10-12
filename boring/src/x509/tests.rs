@@ -14,7 +14,7 @@ use crate::x509::extension::{
 };
 use crate::x509::store::X509StoreBuilder;
 use crate::x509::verify::X509VerifyFlags;
-use crate::x509::{X509Name, X509Req, X509StoreContext, X509VerifyResult, X509};
+use crate::x509::{X509Extension, X509Name, X509Req, X509StoreContext, X509VerifyResult, X509};
 
 fn pkey() -> PKey<Private> {
     let rsa = Rsa::generate(2048).unwrap();
@@ -305,6 +305,60 @@ fn x509_crl_builder() {
 }
 
 #[test]
+fn x509_extension_new() {
+    assert!(X509Extension::new(None, None, "crlDistributionPoints", "section").is_err());
+    assert!(X509Extension::new(None, None, "proxyCertInfo", "").is_err());
+    assert!(X509Extension::new(None, None, "certificatePolicies", "").is_err());
+    assert!(X509Extension::new(None, None, "subjectAltName", "dirName:section").is_err());
+}
+
+#[test]
+fn x509_extension_to_der() {
+    let builder = X509::builder().unwrap();
+
+    for (ext, expected) in [
+        (
+            BasicConstraints::new().critical().ca().build().unwrap(),
+            b"0\x0f\x06\x03U\x1d\x13\x01\x01\xff\x04\x050\x03\x01\x01\xff" as &[u8],
+        ),
+        (
+            SubjectAlternativeName::new()
+                .dns("example.com,DNS:example2.com")
+                .build(&builder.x509v3_context(None, None))
+                .unwrap(),
+            b"0'\x06\x03U\x1d\x11\x04 0\x1e\x82\x1cexample.com,DNS:example2.com",
+        ),
+        (
+            SubjectAlternativeName::new()
+                .rid("1.2.3.4")
+                .uri("https://example.com")
+                .build(&builder.x509v3_context(None, None))
+                .unwrap(),
+            b"0#\x06\x03U\x1d\x11\x04\x1c0\x1a\x88\x03*\x03\x04\x86\x13https://example.com",
+        ),
+        (
+            ExtendedKeyUsage::new()
+                .server_auth()
+                .other("2.999.1")
+                .other("clientAuth")
+                .build()
+                .unwrap(),
+            b"0\x22\x06\x03U\x1d%\x04\x1b0\x19\x06\x08+\x06\x01\x05\x05\x07\x03\x01\x06\x03\x887\x01\x06\x08+\x06\x01\x05\x05\x07\x03\x02",
+        ),
+    ] {
+        assert_eq!(&ext.to_der().unwrap(), expected);
+    }
+}
+
+#[test]
+fn eku_invalid_other() {
+    assert!(ExtendedKeyUsage::new()
+        .other("1.1.1.1.1,2.2.2.2.2")
+        .build()
+        .is_err());
+}
+
+#[test]
 fn x509_req_builder() {
     let pkey = pkey();
 
@@ -314,7 +368,6 @@ fn x509_req_builder() {
     let name = name.build();
 
     let mut builder = X509Req::builder().unwrap();
-    // This is the default, but only v1 (numeric value 0) is supported by BoringSSL.
     builder.set_version(0).unwrap();
     builder.set_subject_name(&name).unwrap();
     builder.set_pubkey(&pkey).unwrap();
@@ -488,6 +541,7 @@ fn test_untrusted_valid_crl() {
         .param_mut()
         .set_flags(X509VerifyFlags::CRL_CHECK | X509VerifyFlags::CRL_CHECK_ALL)
         .unwrap();
+    store_bldr.param_mut().set_time(1656633600); // 2022-07-01, everything is valid
     let store = store_bldr.build();
 
     // cert is not revoked
@@ -524,6 +578,7 @@ fn test_untrusted_invalid_crl() {
         .param_mut()
         .set_flags(X509VerifyFlags::CRL_CHECK | X509VerifyFlags::CRL_CHECK_ALL)
         .unwrap();
+    store_bldr.param_mut().set_time(1656633600); // 2022-07-01, everything is valid
     let store = store_bldr.build();
 
     // this CRL was issued by a different CA (not in the trusted store)
@@ -701,4 +756,27 @@ fn test_custom_time_crl() {
         .init(&store, &cert, &chain, |c| c
             .verify_cert_with_crls(stack_of(crl)))
         .unwrap());
+}
+
+#[test]
+fn test_save_subject_der() {
+    let cert = include_bytes!("../../test/cert.pem");
+    let cert = X509::from_pem(cert).unwrap();
+
+    let der = cert.subject_name().to_der().unwrap();
+    println!("der: {:?}", der);
+    assert!(!der.is_empty());
+}
+
+#[test]
+fn test_load_subject_der() {
+    // The subject from ../../test/cert.pem
+    const SUBJECT_DER: &[u8] = &[
+        48, 90, 49, 11, 48, 9, 6, 3, 85, 4, 6, 19, 2, 65, 85, 49, 19, 48, 17, 6, 3, 85, 4, 8, 12,
+        10, 83, 111, 109, 101, 45, 83, 116, 97, 116, 101, 49, 33, 48, 31, 6, 3, 85, 4, 10, 12, 24,
+        73, 110, 116, 101, 114, 110, 101, 116, 32, 87, 105, 100, 103, 105, 116, 115, 32, 80, 116,
+        121, 32, 76, 116, 100, 49, 19, 48, 17, 6, 3, 85, 4, 3, 12, 10, 102, 111, 111, 98, 97, 114,
+        46, 99, 111, 109,
+    ];
+    X509Name::from_der(SUBJECT_DER).unwrap();
 }

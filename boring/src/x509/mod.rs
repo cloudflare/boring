@@ -9,19 +9,23 @@
 
 use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::{c_int, c_long};
+use libc::{c_int, c_long, c_void};
 use std::convert::TryInto;
 use std::error::Error;
 use std::ffi::{CStr, CString};
 use std::fmt;
 use std::marker::PhantomData;
 use std::mem;
+use std::net::IpAddr;
 use std::path::Path;
 use std::ptr;
 use std::slice;
 use std::str;
 
-use crate::asn1::{Asn1BitStringRef, Asn1IntegerRef, Asn1ObjectRef, Asn1StringRef, Asn1TimeRef};
+use crate::asn1::{
+    Asn1BitStringRef, Asn1IntegerRef, Asn1Object, Asn1ObjectRef, Asn1StringRef, Asn1TimeRef,
+    Asn1Type,
+};
 use crate::bio::MemBioSlice;
 use crate::conf::ConfRef;
 use crate::error::ErrorStack;
@@ -227,7 +231,6 @@ impl X509StoreContextRef {
         unsafe { ffi::X509_STORE_CTX_get_error_depth(self.as_ptr()) as u32 }
     }
 
-    #[cfg(not(feature = "fips"))]
     /// Returns a reference to a complete valid `X509` certificate chain.
     ///
     /// This corresponds to [`X509_STORE_CTX_get0_chain`].
@@ -260,14 +263,12 @@ impl X509Builder {
 
     /// Sets the notAfter constraint on the certificate.
     pub fn set_not_after(&mut self, not_after: &Asn1TimeRef) -> Result<(), ErrorStack> {
-        // TODO: once FIPS supports `set1_notAfter`, use that instead
-        unsafe { cvt(X509_set_notAfter(self.0.as_ptr(), not_after.as_ptr())).map(|_| ()) }
+        unsafe { cvt(X509_set1_notAfter(self.0.as_ptr(), not_after.as_ptr())).map(|_| ()) }
     }
 
     /// Sets the notBefore constraint on the certificate.
     pub fn set_not_before(&mut self, not_before: &Asn1TimeRef) -> Result<(), ErrorStack> {
-        // TODO: once FIPS supports `set1_notBefore`, use that instead
-        unsafe { cvt(X509_set_notBefore(self.0.as_ptr(), not_before.as_ptr())).map(|_| ()) }
+        unsafe { cvt(X509_set1_notBefore(self.0.as_ptr(), not_before.as_ptr())).map(|_| ()) }
     }
 
     /// Sets the version of the certificate.
@@ -526,18 +527,18 @@ impl X509Ref {
     /// Returns the certificate's Not After validity period.
     pub fn not_after(&self) -> &Asn1TimeRef {
         unsafe {
-            let date = X509_get0_notAfter(self.as_ptr());
+            let date = X509_getm_notAfter(self.as_ptr());
             assert!(!date.is_null());
-            Asn1TimeRef::from_ptr(date as *mut _)
+            Asn1TimeRef::from_ptr(date)
         }
     }
 
     /// Returns the certificate's Not Before validity period.
     pub fn not_before(&self) -> &Asn1TimeRef {
         unsafe {
-            let date = X509_get0_notBefore(self.as_ptr());
+            let date = X509_getm_notBefore(self.as_ptr());
             assert!(!date.is_null());
-            Asn1TimeRef::from_ptr(date as *mut _)
+            Asn1TimeRef::from_ptr(date)
         }
     }
 
@@ -789,6 +790,9 @@ impl X509Extension {
     /// Some extension types, such as `subjectAlternativeName`, require an `X509v3Context` to be
     /// provided.
     ///
+    /// DO NOT CALL THIS WITH UNTRUSTED `value`: `value` is an OpenSSL
+    /// mini-language that can read arbitrary files.
+    ///
     /// See the extension module for builder types which will construct certain common extensions.
     pub fn new(
         conf: Option<&ConfRef>,
@@ -798,14 +802,30 @@ impl X509Extension {
     ) -> Result<X509Extension, ErrorStack> {
         let name = CString::new(name).unwrap();
         let value = CString::new(value).unwrap();
+        let mut ctx;
         unsafe {
             ffi::init();
             let conf = conf.map_or(ptr::null_mut(), ConfRef::as_ptr);
-            let context = context.map_or(ptr::null_mut(), X509v3Context::as_ptr);
+            let context_ptr = match context {
+                Some(c) => c.as_ptr(),
+                None => {
+                    ctx = mem::zeroed();
+
+                    ffi::X509V3_set_ctx(
+                        &mut ctx,
+                        ptr::null_mut(),
+                        ptr::null_mut(),
+                        ptr::null_mut(),
+                        ptr::null_mut(),
+                        0,
+                    );
+                    &mut ctx
+                }
+            };
             let name = name.as_ptr() as *mut _;
             let value = value.as_ptr() as *mut _;
 
-            cvt_p(ffi::X509V3_EXT_nconf(conf, context, name, value))
+            cvt_p(ffi::X509V3_EXT_nconf(conf, context_ptr, name, value))
                 .map(|p| X509Extension::from_ptr(p))
         }
     }
@@ -816,6 +836,9 @@ impl X509Extension {
     /// Some extension types, such as `nid::SUBJECT_ALTERNATIVE_NAME`, require an `X509v3Context` to
     /// be provided.
     ///
+    /// DO NOT CALL THIS WITH UNTRUSTED `value`: `value` is an OpenSSL
+    /// mini-language that can read arbitrary files.
+    ///
     /// See the extension module for builder types which will construct certain common extensions.
     pub fn new_nid(
         conf: Option<&ConfRef>,
@@ -824,16 +847,50 @@ impl X509Extension {
         value: &str,
     ) -> Result<X509Extension, ErrorStack> {
         let value = CString::new(value).unwrap();
+        let mut ctx;
         unsafe {
             ffi::init();
             let conf = conf.map_or(ptr::null_mut(), ConfRef::as_ptr);
-            let context = context.map_or(ptr::null_mut(), X509v3Context::as_ptr);
+            let context_ptr = match context {
+                Some(c) => c.as_ptr(),
+                None => {
+                    ctx = mem::zeroed();
+
+                    ffi::X509V3_set_ctx(
+                        &mut ctx,
+                        ptr::null_mut(),
+                        ptr::null_mut(),
+                        ptr::null_mut(),
+                        ptr::null_mut(),
+                        0,
+                    );
+                    &mut ctx
+                }
+            };
             let name = name.as_raw();
             let value = value.as_ptr() as *mut _;
 
-            cvt_p(ffi::X509V3_EXT_nconf_nid(conf, context, name, value))
+            cvt_p(ffi::X509V3_EXT_nconf_nid(conf, context_ptr, name, value))
                 .map(|p| X509Extension::from_ptr(p))
         }
+    }
+
+    pub(crate) unsafe fn new_internal(
+        nid: Nid,
+        critical: bool,
+        value: *mut c_void,
+    ) -> Result<X509Extension, ErrorStack> {
+        ffi::init();
+        cvt_p(ffi::X509V3_EXT_i2d(nid.as_raw(), critical as _, value))
+            .map(|p| X509Extension::from_ptr(p))
+    }
+}
+
+impl X509ExtensionRef {
+    to_der! {
+        /// Serializes the Extension to its standard DER encoding.
+        to_der,
+        ffi::i2d_X509_EXTENSION
     }
 }
 
@@ -898,13 +955,40 @@ impl X509NameBuilder {
     pub fn append_entry_by_text(&mut self, field: &str, value: &str) -> Result<(), ErrorStack> {
         unsafe {
             let field = CString::new(field).unwrap();
-            assert!(value.len() <= c_int::max_value() as usize);
+            assert!(value.len() <= ValueLen::max_value() as usize);
             cvt(ffi::X509_NAME_add_entry_by_txt(
                 self.0.as_ptr(),
                 field.as_ptr() as *mut _,
                 ffi::MBSTRING_UTF8,
                 value.as_ptr(),
-                value.len() as c_int,
+                value.len() as ValueLen,
+                -1,
+                0,
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Add a field entry by str with a specific type.
+    ///
+    /// This corresponds to [`X509_NAME_add_entry_by_txt`].
+    ///
+    /// [`X509_NAME_add_entry_by_txt`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_NAME_add_entry_by_txt.html
+    pub fn append_entry_by_text_with_type(
+        &mut self,
+        field: &str,
+        value: &str,
+        ty: Asn1Type,
+    ) -> Result<(), ErrorStack> {
+        unsafe {
+            let field = CString::new(field).unwrap();
+            assert!(value.len() <= ValueLen::max_value() as usize);
+            cvt(ffi::X509_NAME_add_entry_by_txt(
+                self.0.as_ptr(),
+                field.as_ptr() as *mut _,
+                ty.as_raw(),
+                value.as_ptr(),
+                value.len() as ValueLen,
                 -1,
                 0,
             ))
@@ -919,13 +1003,39 @@ impl X509NameBuilder {
     /// [`X509_NAME_add_entry_by_NID`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_NAME_add_entry_by_NID.html
     pub fn append_entry_by_nid(&mut self, field: Nid, value: &str) -> Result<(), ErrorStack> {
         unsafe {
-            assert!(value.len() <= c_int::max_value() as usize);
+            assert!(value.len() <= ValueLen::max_value() as usize);
             cvt(ffi::X509_NAME_add_entry_by_NID(
                 self.0.as_ptr(),
                 field.as_raw(),
                 ffi::MBSTRING_UTF8,
                 value.as_ptr() as *mut _,
-                value.len() as c_int,
+                value.len() as ValueLen,
+                -1,
+                0,
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Add a field entry by NID with a specific type.
+    ///
+    /// This corresponds to [`X509_NAME_add_entry_by_NID`].
+    ///
+    /// [`X509_NAME_add_entry_by_NID`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_NAME_add_entry_by_NID.html
+    pub fn append_entry_by_nid_with_type(
+        &mut self,
+        field: Nid,
+        value: &str,
+        ty: Asn1Type,
+    ) -> Result<(), ErrorStack> {
+        unsafe {
+            assert!(value.len() <= ValueLen::max_value() as usize);
+            cvt(ffi::X509_NAME_add_entry_by_NID(
+                self.0.as_ptr(),
+                field.as_raw(),
+                ty.as_raw(),
+                value.as_ptr() as *mut _,
+                value.len() as ValueLen,
                 -1,
                 0,
             ))
@@ -935,9 +1045,17 @@ impl X509NameBuilder {
 
     /// Return an `X509Name`.
     pub fn build(self) -> X509Name {
-        self.0
+        // Round-trip through bytes because OpenSSL is not const correct and
+        // names in a "modified" state compute various things lazily. This can
+        // lead to data-races because OpenSSL doesn't have locks or anything.
+        X509Name::from_der(&self.0.to_der().unwrap()).unwrap()
     }
 }
+
+#[cfg(not(any(feature = "fips", feature = "fips-link-precompiled")))]
+type ValueLen = isize;
+#[cfg(any(feature = "fips", feature = "fips-link-precompiled"))]
+type ValueLen = i32;
 
 foreign_type_and_impl_send_sync! {
     type CType = ffi::X509_NAME;
@@ -959,6 +1077,18 @@ impl X509Name {
     pub fn load_client_ca_file<P: AsRef<Path>>(file: P) -> Result<Stack<X509Name>, ErrorStack> {
         let file = CString::new(file.as_ref().as_os_str().to_str().unwrap()).unwrap();
         unsafe { cvt_p(ffi::SSL_load_client_CA_file(file.as_ptr())).map(|p| Stack::from_ptr(p)) }
+    }
+
+    from_der! {
+        /// Deserializes a DER-encoded X509 name structure.
+        ///
+        /// This corresponds to [`d2i_X509_NAME`].
+        ///
+        /// [`d2i_X509_NAME`]: https://www.openssl.org/docs/manmaster/man3/d2i_X509_NAME.html
+        from_der,
+        X509Name,
+        ffi::d2i_X509_NAME,
+        ::libc::c_long
     }
 }
 
@@ -983,6 +1113,16 @@ impl X509NameRef {
             nid: None,
             loc: -1,
         }
+    }
+
+    to_der! {
+        /// Serializes the certificate into a DER-encoded X509 name structure.
+        ///
+        /// This corresponds to [`i2d_X509_NAME`].
+        ///
+        /// [`i2d_X509_NAME`]: https://www.openssl.org/docs/man1.1.0/crypto/i2d_X509_NAME.html
+        to_der,
+        ffi::i2d_X509_NAME
     }
 }
 
@@ -1249,7 +1389,6 @@ impl X509ReqRef {
         ffi::i2d_X509_REQ
     }
 
-    #[cfg(not(feature = "fips"))]
     /// Returns the numerical value of the version field of the certificate request.
     ///
     /// This corresponds to [`X509_REQ_get_version`]
@@ -1259,7 +1398,6 @@ impl X509ReqRef {
         unsafe { X509_REQ_get_version(self.as_ptr()) as i32 }
     }
 
-    #[cfg(not(feature = "fips"))]
     /// Returns the subject name of the certificate request.
     ///
     /// This corresponds to [`X509_REQ_get_subject_name`]
@@ -1378,6 +1516,60 @@ foreign_type_and_impl_send_sync! {
     pub struct GeneralName;
 }
 
+impl GeneralName {
+    unsafe fn new(
+        type_: c_int,
+        asn1_type: Asn1Type,
+        value: &[u8],
+    ) -> Result<GeneralName, ErrorStack> {
+        ffi::init();
+        let gn = GeneralName::from_ptr(cvt_p(ffi::GENERAL_NAME_new())?);
+        (*gn.as_ptr()).type_ = type_;
+        let s = cvt_p(ffi::ASN1_STRING_type_new(asn1_type.as_raw()))?;
+        ffi::ASN1_STRING_set(s, value.as_ptr().cast(), value.len().try_into().unwrap());
+
+        (*gn.as_ptr()).d.ptr = s.cast();
+
+        Ok(gn)
+    }
+
+    pub(crate) fn new_email(email: &[u8]) -> Result<GeneralName, ErrorStack> {
+        unsafe { GeneralName::new(ffi::GEN_EMAIL, Asn1Type::IA5STRING, email) }
+    }
+
+    pub(crate) fn new_dns(dns: &[u8]) -> Result<GeneralName, ErrorStack> {
+        unsafe { GeneralName::new(ffi::GEN_DNS, Asn1Type::IA5STRING, dns) }
+    }
+
+    pub(crate) fn new_uri(uri: &[u8]) -> Result<GeneralName, ErrorStack> {
+        unsafe { GeneralName::new(ffi::GEN_URI, Asn1Type::IA5STRING, uri) }
+    }
+
+    pub(crate) fn new_ip(ip: IpAddr) -> Result<GeneralName, ErrorStack> {
+        match ip {
+            IpAddr::V4(addr) => unsafe {
+                GeneralName::new(ffi::GEN_IPADD, Asn1Type::OCTET_STRING, &addr.octets())
+            },
+            IpAddr::V6(addr) => unsafe {
+                GeneralName::new(ffi::GEN_IPADD, Asn1Type::OCTET_STRING, &addr.octets())
+            },
+        }
+    }
+
+    pub(crate) fn new_rid(oid: Asn1Object) -> Result<GeneralName, ErrorStack> {
+        unsafe {
+            ffi::init();
+            let gn = cvt_p(ffi::GENERAL_NAME_new())?;
+            (*gn).type_ = ffi::GEN_RID;
+            (*gn).d.registeredID = oid.as_ptr();
+
+            mem::forget(oid);
+
+            Ok(GeneralName::from_ptr(gn))
+        }
+    }
+}
+
 impl GeneralNameRef {
     fn ia5_string(&self, ffi_type: c_int) -> Option<&str> {
         unsafe {
@@ -1388,7 +1580,7 @@ impl GeneralNameRef {
             let ptr = ASN1_STRING_get0_data((*self.as_ptr()).d.ia5 as *mut _);
             let len = ffi::ASN1_STRING_length((*self.as_ptr()).d.ia5 as *mut _);
 
-            let slice = slice::from_raw_parts(ptr as *const u8, len as usize);
+            let slice = slice::from_raw_parts(ptr, len as usize);
             // IA5Strings are stated to be ASCII (specifically IA5). Hopefully
             // OpenSSL checks that when loading a certificate but if not we'll
             // use this instead of from_utf8_unchecked just in case.
@@ -1421,7 +1613,7 @@ impl GeneralNameRef {
             let ptr = ASN1_STRING_get0_data((*self.as_ptr()).d.ip as *mut _);
             let len = ffi::ASN1_STRING_length((*self.as_ptr()).d.ip as *mut _);
 
-            Some(slice::from_raw_parts(ptr as *const u8, len as usize))
+            Some(slice::from_raw_parts(ptr, len as usize))
         }
     }
 }
@@ -1492,12 +1684,14 @@ impl Stackable for X509Object {
     type StackType = ffi::stack_st_X509_OBJECT;
 }
 
-use crate::ffi::{X509_get0_notAfter, X509_get0_notBefore, X509_get0_signature, X509_up_ref};
+use crate::ffi::{X509_get0_signature, X509_getm_notAfter, X509_getm_notBefore, X509_up_ref};
+
+use crate::ffi::{
+    ASN1_STRING_get0_data, X509_ALGOR_get0, X509_REQ_get_subject_name, X509_REQ_get_version,
+    X509_STORE_CTX_get0_chain, X509_set1_notAfter, X509_set1_notBefore,
+};
 
 use crate::ffi::X509_OBJECT_get0_X509;
-use crate::ffi::{ASN1_STRING_get0_data, X509_ALGOR_get0, X509_set_notAfter, X509_set_notBefore};
-#[cfg(not(feature = "fips"))]
-use crate::ffi::{X509_REQ_get_subject_name, X509_REQ_get_version, X509_STORE_CTX_get0_chain};
 
 #[allow(bad_style)]
 unsafe fn X509_OBJECT_free(x: *mut ffi::X509_OBJECT) {

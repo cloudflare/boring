@@ -8,11 +8,11 @@
 //! ```rust
 //! use boring::x509::store::{X509StoreBuilder, X509Store};
 //! use boring::x509::{X509, X509Name};
+//! use boring::asn1::Asn1Time;
 //! use boring::pkey::PKey;
 //! use boring::hash::MessageDigest;
 //! use boring::rsa::Rsa;
 //! use boring::nid::Nid;
-//! use boring::asn1::Asn1Time;
 //!
 //! let rsa = Rsa::generate(2048).unwrap();
 //! let pkey = PKey::from_rsa(rsa).unwrap();
@@ -23,16 +23,15 @@
 //! let name = name.build();
 //! let mut builder = X509::builder().unwrap();
 //!
+//! // Sep 27th, 2016
+//! let sample_time = Asn1Time::from_unix(1474934400).unwrap();
+//!
 //! builder.set_version(2).unwrap();
 //! builder.set_subject_name(&name).unwrap();
 //! builder.set_issuer_name(&name).unwrap();
 //! builder.set_pubkey(&pkey).unwrap();
-//! builder
-//!   .set_not_before(&Asn1Time::days_from_now(0).unwrap())
-//!   .unwrap();
-//! builder
-//!   .set_not_after(&Asn1Time::days_from_now(365).unwrap())
-//!   .unwrap();
+//! builder.set_not_before(&sample_time);
+//! builder.set_not_after(&sample_time);
 //! builder.sign(&pkey, MessageDigest::sha256()).unwrap();
 //!
 //! let certificate: X509 = builder.build();

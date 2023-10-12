@@ -1,0 +1,3065 @@
+3.1.0
+- 2023-09-12 Release 3.1.0
+- 2023-09-12 tweaks for ergonomic linking
+- 2023-08-08 Use features to set key exchange preferences
+- 2023-08-30 Introduce `no-patches` feature
+- 2023-08-29 run `publish --dry-run` instead of `pacakge` on CI
+- 2023-08-29 fix missing space in cargo package CI command
+- 2023-08-25 ci: run the cargo package check for all targets
+- 2023-08-25 boring-sys: include all files needed to build FIPS
+- 2023-08-25 add CI jobs to run `cargo package`
+- 2023-08-15 Fix -Z minimal-versions
+- 2023-08-29 Separate `fips` and `fips-link-precompiled` features.
+- 2023-08-05 Bump version in Cargo.toml
+
+3.0.4
+- 2023-08-05 Release 3.0.4
+- 2023-08-05 Add missing cmake files to the package
+
+3.0.3
+- 2023-08-05 Release 3.0.3
+- 2023-08-03 Fix missing .trim() when verifying FIPS module name
+- 2023-08-03 Fix Diplay panics for HandshakeError with `rpk` (fixes #140)
+
+3.0.2
+- 2023-08-03 Release 3.0.2
+- 2023-08-03 Fix feature gates for fips-link-precompiled
+- 2023-07-28 Switch boring from lazy_static to once_cell
+- 2023-08-01 Clean up and remove some unsafe code from ffi callbacks
+
+3.0.1
+- 2023-08-01 Reduce release bundle size by excluding PQ test data
+- 2023-07-28 Adding hmac.h to included headers
+- 2023-08-01 Reduce release bundle size by excluding PQ test data
+- 2023-08-01 Fix builds for features that require git patches
+
+3.0.0
+- 2023-07-29 Fix publishing
+- 2023-07-28 Merge pull request #131 from inikulin/rel-3.0.0
+- 2023-07-28 Release 3.0.0
+- 2023-07-28 Add git-cliff configuration
+- 2023-07-28 Merge pull request #84 from signalapp/macos-cross-compile
+- 2023-07-28 Merge pull request #95 from signalapp/libsignal-arm
+- 2023-07-28 Merge pull request #96 from signalapp/android-sysroot
+- 2022-07-29 boring-sys: Handle cross-compiling macOS targets
+- 2022-11-08 boring-sys: Add support for Linux ARM(v7)
+- 2022-11-30 boring-sys: Update Android NDK sysroot path
+- 2023-07-27 Merge pull request #83 from signalapp/private_key_to_der_pkcs8
+- 2023-07-27 Merge pull request #130 from inikulin/frankenfips
+- 2023-07-26 Add fips-link-precompiled feature
+- 2023-07-14 Merge pull request #128 from ghedo/bssl_source_path
+- 2023-07-14 Allow specifying a custom BoringSSL source directory
+- 2023-07-10 Merge pull request #126 from inikulin/rpk-pqc
+- 2023-07-10 Address review comments
+- 2023-07-10 Update docs
+- 2023-07-10 Use workspace metadata for crates
+- 2023-07-07 Add RPK and PQ crypto features
+- 2023-07-03 Merge pull request #120 from nox/revert
+- 2023-05-15 Revert "Merge pull request #108 from nox/store-clone"
+- 2023-05-15 Fix build
+- 2023-05-11 Merge pull request #108 from nox/store-clone
+- 2023-05-11 Merge pull request #114 from nox/nox/openssl-fixes
+- 2023-05-11 Merge pull request #79 from signalapp/deriver-leak
+- 2023-05-11 Merge pull request #117 from nox/bump-boringssl
+- 2023-05-11 Merge pull request #97 from PiotrSikora/boringcrypto_4407
+- 2023-05-11 Merge pull request #104 from tbu-/pr_doc_typo
+- 2023-05-09 Merge pull request #115 from nox/bindgen
+- 2023-01-10 Update BoringCrypto to FIPS 140-2 certificate 4407.
+- 2023-05-05 Update boringssl to latest upstream commit
+- 2023-04-27 Bump bindgen to 0.65.1
+- 2023-03-27 Implement ToOwned for X509StoreRef and Clone for X509Store
+- 2023-03-22 Fix race condition with X509Name creation
+- 2023-03-22 Document the horror show
+- 2023-03-22 Always provide an X509V3Context in X509Extension::new because OpenSSL requires it for some extensions (and segfaults without)
+- 2023-03-22 Resolve an injection vulnerability in EKU creation
+- 2023-03-22 Resolve an injection vulnerability in SAN creation
+- 2021-10-04 Add X509Name to/from DER methods
+- 2020-11-12 Add additional function so that x509 name with specific type can be added
+- 2023-05-05 Merge pull request #116 from nox/clippy
+- 2023-03-27 Fix lints
+- 2023-03-27 Fix google test
+- 2023-03-27 Use ubuntu-20.04 image for FIPS build
+- 2023-02-28 Add link in docs
+- 2023-02-28 psuedo → pseudo
+- 2022-09-27 Merge pull request #78 from signalapp/aarch64-cross-compilation
+- 2022-09-16 bump version number for tokio-boring
+
+2.1.0
+- 2022-09-16 Update changelogs and bump version numbers
+- 2022-09-07 Fix clippy warnings
+- 2022-09-07 Remove uses of `mem::uninitialized`
+- 2022-08-08 Remove T: Debug bound
+- 2022-08-08 hyper-boring: Impl debug for MaybeHttpsStream
+- 2022-07-28 boring: Expose PKey::private_key_to_der_pkcs8(_passphrase)
+- 2022-07-25 boring-sys: Use the Android NDK sysroot when running bindgen
+- 2022-07-01 boring: Fix memory leak in `Deriver`
+- 2022-06-22 Add minimal cross-compilation support for Windows and AArch64 Linux
+- 2022-06-17 MSVC generator hack should be only applied to MSVC
+- 2022-06-07 chore: update to bindgen 1.60
+- 2021-12-30 ci: Test builds for iOS targets
+- 2021-12-30 ci: Don't run tests when targeting iOS
+- 2022-01-01 boring-sys: Disable alignment tests for iOS ARM64 targets
+- 2021-12-30 boring-sys: Configure "rustc-cdylib-link-arg" only for macOS targets
+- 2021-12-30 boring-sys: Pass "-isysroot" to bindgen for iOS builds
+- 2021-12-30 boring-sys: Support "aarch64-apple-ios-sim" targets
+- 2021-12-30 boring-sys: Use TARGET to determine iOS CMake params
+- 2021-12-30 boring-sys: Pull iOS CMake params into a function
+- 2021-12-30 boring-sys: Pull Android CMake params into a function
+- 2022-06-02 boring-sys: Save time by not building the bssl CLI utility
+- 2022-04-28 ssl/test: fix UT expectations accordingly with boringssl change
+- 2022-04-27 Update boringssl deps for quiche 0.12.0 compatibility
+- 2022-02-12 boring: BigNumRef::to_vec_padded()
+- 2022-01-31 Add fips-3678 feature (#52)
+- 2021-12-30 boring: Suppress Clippy warnings about missing safety docs
+- 2021-12-16 Add/update changelogs
+- 2021-12-16 Bump versions for release
+- 2021-10-06 Remove PasswordCallback
+- 2021-11-04 Relax constraints on `Display for tokio-boring::HandshakeError`
+- 2021-11-02 boring-sys: Disable unnecessary bindgen dependencies
+- 2021-08-10 Remove unused and deprecated `tempdir` dependency
+- 2021-08-09 Remove unused `*Ref` parameters to macro
+- 2021-08-09 Update dependencies
+- 2021-08-12 Switch to 2018 edition in boring
+- 2021-08-12 Run `cargo fix --edition
+- 2021-07-30 Remove unused attribute
+- 2021-06-14 Remove unused dependency on bytes
+- 2021-07-29 Update bindgen to 0.59 and bytes to 1
+- 2021-07-30 Merge pull request #46 from cloudflare/jnelson/rust-1.54
+- 2021-07-29 Fix clippy warnings for 1.54
+- 2021-07-28 Update documentation for tokio-boring
+- 2021-07-28 Merge pull request #43 from cloudflare/jnelson/submodule
+- 2021-07-28 Merge pull request #37 from Evrard-Nil/allow-pre-built-binaries
+- 2021-07-27 Fetch git submodule automatically
+- 2021-07-28 Merge pull request #42 from cloudflare/jnelson/warnings
+- 2021-07-27 Ignore bindgen warnings until they're fixed upstream
+- 2021-06-01 pre-built binaries: Update readme and fix clippy
+- 2021-05-18 Check for env var for pre-built binaries of bssl
+- 2021-04-16 Merge pull request #33 from nox/bump
+- 2021-04-16 Bump tokio-boring to 2.1.3
+- 2021-04-16 Merge pull request #32 from nox/bump
+- 2021-04-16 Bump boring to 1.1.6
+- 2021-04-16 Merge pull request #30 from nox/client-version
+- 2021-04-16 Merge pull request #31 from nox/unexpected-eof
+- 2021-04-16 Introduce HandshakeError::code
+- 2021-04-16 Introduce ClientHello::client_version
+- 2021-04-13 Merge pull request #29 from nox/bump
+- 2021-04-13 Bump boring to 1.1.5
+- 2021-04-13 Merge pull request #28 from nox/early-servername
+- 2021-04-13 Allow retrieving the version string from early callback
+- 2021-04-13 Allow returning the server name from the early callback
+- 2021-04-06 Merge pull request #26 from nox/bump
+- 2021-04-06 Bump boring-sys to 1.1.1, tokio-boring to 2.1.2
+- 2021-04-06 Merge pull request #25 from nox/expose-io-error
+- 2021-04-06 Allow uppercase acronyms
+- 2021-04-06 Provide access to inner I/O error during handshake
+- 2021-03-15 Bump boring to 1.1.4
+- 2021-03-15 Merge pull request #19 from nox/errors
+- 2021-03-15 Use Display for ssl::Error in Display for ssl::HandshakeError
+- 2021-03-15 Tweak yet again the boring error reporting
+- 2021-03-11 Bump boring to 1.1.3
+- 2021-03-11 Merge pull request #18 from nox/rm-error-file-line
+- 2021-03-11 Remove file/line from Display for HandshakeError
+- 2021-03-09 Bump boring to 1.1.2, tokio-boring 2.1.1
+- 2021-03-09 Merge pull request #17 from nox/handshake-error
+- 2021-03-09 Add tokio_boring::HandshakeError::as_source_stream
+- 2021-03-09 Introduce MidHandshakeSslStream::into_parts
+- 2021-03-04 Print handshake errors in a better way
+- 2021-03-04 Separate errors in an error stack better
+- 2021-03-01 Bump boring to 1.1.1
+- 2021-03-01 Merge pull request #16 from nox/OXY-262
+- 2021-03-01 Make Display for Error more readable
+- 2021-02-24 Bump feature version on all packages instead.
+- 2021-02-24 Bump boring-sys to 1.0.5. Bump boring to 1.0.4
+- 2021-02-24 Merge pull request #14 from except/bssl-specific-options
+- 2021-02-23 Merge pull request #13 from nox/oxy-221
+- 2021-02-22 Introduce ExtensionType for the arg of get_extension
+- 2021-02-19 Introduce ClientHello::get_extension
+- 2021-02-20 Add support for SSL_CTX_set1_curves
+- 2021-02-19 Enable various client features of bssl
+- 2021-02-19 Introduce set_select_certificate_callback
+- 2021-02-19 Merge pull request #11 from jedisct1/bindgen
+- 2021-02-18 Merge pull request #12 from cloudflare/tokio1
+- 2021-02-18 Sync upstream changes to support tokio 1.x
+- 2021-02-11 Use bindgen to automatically generate boring-sys
+- 2021-02-11 Make new clippy happy
+- 2021-02-11 Bump boring-sys to 1.0.4
+- 2021-02-11 Merge pull request #9 from ghedo/boring-next
+- 2021-02-09 Update boringssl submodule pointer
+- 2021-02-08 Bump boring-sys to 1.0.3
+- 2021-02-08 Merge pull request #7 from hayleyjames/master
+- 2021-01-28 Include .asm files required for Windows
+- 2021-01-20 Bump hyper-boring version
+- 2021-01-20 Merge pull request #6 from gabi-250/ipv6-hosts
+- 2021-01-08 Fix clippy warning.
+- 2021-01-08 Ensure the host can be parsed as an IPv6 address.
+- 2020-12-23 Bump version
+- 2020-12-23 Merge pull request #5 from cloudflare/err-src-stream
+- 2020-12-23 Implement conversion of HandshakeError to the source stream
+- 2020-12-03 Make clippy happy
+- 2020-12-03 Add support for wss: scheme in hyper-boring
+- 2020-11-14 Merge pull request #2 from gabi-250/fix-boring-links
+- 2020-11-13 Fix boring repository links.
+- 2020-11-12 Add publish script
+- 2020-11-12 Fix boring-sys linking. Bump version.
+- 2020-11-11 Fix doc comment
+- 2020-11-11 Fix docs
+- 2020-11-11 Add hyper-boring
+- 2020-11-11 Add tokio-boring
+- 2020-11-11 Revive CI
+- 2020-11-11 Fix doc comments
+- 2020-11-11 Rename stuff
+- 2020-11-11 Remove LibreSSL leftovers
+- 2020-11-11 Remove ossl110 gate
+- 2020-11-11 Remove ossl102 gate
+- 2020-11-11 Remove ossl101 gate
+- 2020-11-11 Remove ossl110f config gate
+- 2020-11-11 Remove ossl110g feature gate
+- 2020-11-11 Remove ossl111 feature gate
+- 2020-11-11 Remove unimplemented OSSL111 stuff
+- 2020-11-11 Remove LibreSSL-specific code
+- 2020-11-11 Revive tests
+- 2020-11-10 Fix compilation warnings
+- 2020-11-10 Remove decrepit and unavaliable API and fix signatures
+- 2020-11-08 BoringSSL
+- 2020-10-12 Merge pull request #1360 from mbrubeck/deps
+- 2020-10-12 Update to cfg-if 1.0
+- 2020-10-10 Merge pull request #1357 from stbuehler/clippy-matches-macro
+- 2020-10-10 Merge pull request #1358 from breard-r/fix_typo
+- 2020-10-10 Fix a typo
+- 2020-10-10 Silence clippy::match_like_matches_macro (would require rust 1.42)
+- 2020-09-30 Merge pull request #1347 from stbuehler/more-x509-ext-bindings
+- 2020-09-27 Update some X509_CRL bindings for libressl281
+- 2020-09-27 Add some X509_REVOKED bindings, make extensions field public
+- 2020-09-27 Add more extension bindings for STACK_OF(X509_EXTENSION)
+- 2020-09-28 Merge pull request #1346 from stbuehler/fix-asn1-octect-string-bindings
+- 2020-09-28 Fix ASN1_OCTET_STRING in bindings
+- 2020-09-26 Merge pull request #1344 from stbuehler/x509-bindings
+- 2020-08-09 Add AUTHORITY_KEYID struct
+- 2020-08-09 Add bindings and consts for x509 extensions flags and (extended) key usage
+- 2020-08-09 Add bindings to access x509 extensions in various types
+- 2020-09-26 Add a few bindings for X509_REVOKED
+- 2020-09-26 Add more bindings for X509_CRL
+- 2019-06-10 Expose the X509Revoked type directly
+- 2019-06-07 Add basic bindings to the API CRLs
+- 2020-09-24 bump to 1.1.1f in CI
+- 2020-09-13 Merge pull request #1342 from hidekatsu-izuno/support-ecx
+- 2020-09-13 Add ecx support
+- 2020-09-04 Merge pull request #1338 from krisztian-kovacs/asn1_object_from_string
+- 2020-09-03 Add constructor for creating Asn1Object from a textual OID representation
+- 2020-09-01 Merge pull request #1335 from m-seker/pkcs7_der
+- 2020-08-31 Add from_der and to_der to PKCS7
+- 2020-08-15 Test openssl-errors on windows
+- 2020-08-12 Merge pull request #1330 from mati865/windows-tests
+- 2020-08-12 Make openssl-errors tests work on Windows
+- 2020-08-11 Merge pull request #1329 from marcelbuesing/master
+- 2020-08-11 Update mod.rs
+- 2020-08-11 Cast to u32
+- 2020-03-06 Expose subject_name_hash
+- 2020-08-09 Merge pull request #1324 from orium/fix-1293-openssl-no-atexit
+- 2020-08-08 Stop testing 1024 bit DH keys
+- 2020-07-28 Work around upstream base64 bug
+- 2020-07-28 Fix EcdsaSig method flexibility
+- 2020-07-27 Make openssl not cleanup at exit, which can lead to race conditions on openssl >= 1.1.1b.
+- 2020-07-22 Fix clippy
+- 2020-07-03 Merge pull request #1311 from Solumin/patch-1
+- 2020-07-03 Fix documentation for unwrap_key
+- 2020-06-26 Fix changelog
+- 2020-06-26 Release openssl v0.10.30
+- 2020-06-24 Merge pull request #1306 from crdumoul/master
+- 2020-06-23 Add SslStream::from_raw_parts
+- 2020-06-14 Merge pull request #1299 from flokli/siganture
+- 2020-06-14 sign.rs: fix typo in comment
+- 2020-06-06 Fix CI branch
+- 2020-06-06 remove appveyor builds
+- 2020-06-06 Ignore default verify paths test on windows
+- 2020-06-06 test env lookup
+- 2020-06-06 set vcpkg root
+- 2020-06-06 run stuff
+- 2020-06-06 update vcpkg
+- 2020-06-06 Move vcpkg build to github actions
+- 2020-06-05 Merge pull request #1282 from jsha/debug-everything
+- 2020-06-05 Fix readme link
+- 2020-06-05 Release openssl-sys v0.9.58
+- 2020-06-05 Merge pull request #1287 from henrydcase/hdc/pke
+- 2020-06-05 Merge pull request #1288 from sgg/sgg/impl-Debug-SslConnector
+- 2020-06-05 Merge pull request #1290 from Leo1003/fix-dsa-private-pem
+- 2020-06-05 Merge pull request #1289 from Leo1003/add_write_ec_pubkey
+- 2020-06-05 fix clippy
+- 2020-06-05 Fix private key serializtion in HasPublic impl for DsaRef
+- 2020-06-05 Add PEM/DER serialization for EC public key
+- 2020-06-05 Adds Debug derive for SslConnector
+- 2020-06-04 Fix test.
+- 2020-06-04 Make tests narrower.
+- 2020-06-03 adding PKE interface
+- 2020-06-03 Fix cache name
+- 2020-06-02 Merge pull request #1284 from vishwin/master
+- 2020-06-02 Support LibreSSL 3.2.0
+- 2020-06-02 Write "error" when there is an error.
+- 2020-06-01 Fixes in response to review feedback.
+- 2020-05-30 Add Debug trait for X509 and other types.
+- 2020-05-27 Merge pull request #1281 from sfackler/github-actions
+- 2020-05-26 fix syntax
+- 2020-05-26 Move min-version to github actions
+- 2020-05-26 asdf
+- 2020-05-26 Merge pull request #1280 from sfackler/set-mtu
+- 2020-05-26 Add SslRef::set_mtu
+- 2020-05-25 Merge pull request #1277 from sfackler/github-actions
+- 2020-05-24 Run clippy
+- 2020-05-24 Run rustfmt on github actions
+- 2020-05-24 Release openssl-sys v0.9.57
+- 2020-05-09 Merge pull request #1270 from hargoniX/master
+- 2020-05-09 remove any from openssl110 cfgs
+- 2020-05-09 Merge pull request #1271 from vishwin/master
+- 2020-05-09 LibreSSL 3.1 branch marked as stable; add support
+- 2020-05-08 ocb is only available in openssl 1.1 and later
+- 2020-05-08 Add support for AES-OCB mode
+- 2020-05-07 Release openssl-sys v0.9.56
+- 2020-05-07 Merge pull request #1265 from omnioiot/windows-gnu-build-simpler
+- 2020-05-02 Fix static build on windows-gnu targets
+- 2020-04-28 Bump ci versions
+- 2020-04-19 Merge pull request #1260 from sfackler/libre-31
+- 2020-04-19 Support LibreSSL 3.1.0
+- 2020-04-12 Merge pull request #1258 from fanatid/ssl-peer-finished
+- 2020-04-12 Fix function name in peer_finished documentation
+- 2020-04-08 Release openssl v0.10.29
+- 2020-04-08 Release openssl-sys v0.9.55
+- 2020-04-08 Merge pull request #1257 from sfackler/set-cert-store
+- 2020-04-08 FIx build
+- 2020-04-08 Deal with upstream archive location change
+- 2020-04-08 Add SslContextBuilder::set_cert_store
+- 2020-04-05 Merge pull request #1253 from coolreader18/no-vendor-env-var
+- 2020-04-05 Bump CI version
+- 2020-04-05 Update openssl/src/lib.rs
+- 2020-04-05 Add documentation for OPENSSL_NO_VENDOR
+- 2020-04-05 Add OPENSSL_NO_VENDOR env var check
+- 2020-03-27 Merge pull request #1248 from coolreader18/ssl-functions
+- 2020-03-26 Merge pull request #1249 from coolreader18/more-ssl-method
+- 2020-03-24 Add SslMethod::tls_{client,server}
+- 2020-03-24 Update openssl/src/ssl/mod.rs
+- 2020-03-24 Merge pull request #1247 from coolreader18/x509-store-certs
+- 2020-03-24 Add man page links
+- 2020-03-24 Update openssl/src/x509/store.rs
+- 2020-03-24 Add functions for SSL{_CTX}_get_verify_mode and SSL_is_init_finished
+- 2020-03-24 Add a shim for X509_STORE_get0_objects and X509_OBJECT_free
+- 2020-03-23 Only have constants on < ossl110
+- 2020-03-23 Skip X509_OBJECT_data systests
+- 2020-03-23 Add x509_vfy.h header to systest
+- 2020-03-23 Check null ptr for non-x509 X509Object
+- 2020-03-23 Fix signedness issue
+- 2020-03-23 Add a way to get the certificates stored in an X509Store
+- 2020-03-21 Merge pull request #1246 from mneumann/fix-build-on-dragonflybsd
+- 2020-03-21 Fix build on DragonFly
+- 2020-03-19 Upgrade CI versions
+- 2020-02-26 Merge pull request #1241 from adrian-budau/master
+- 2020-02-26 Fix the memory leak in `X509Builder::append_extension`.
+- 2020-02-26 Merge pull request #1238 from mcgoo/master
+- 2020-02-26 use library names supplied by vcpkg
+- 2020-02-13 Tweak interface a bit
+- 2020-02-13 Merge pull request #1229 from axos88/master
+- 2020-02-05 adds ability access the internal &SslContext of an SslAcceptor and SslConnector
+- 2020-02-12 Merge pull request #1232 from rbtying/warn_non_snake
+- 2020-02-11 Allow bad style on pkey.rs
+- 2020-02-11 Merge pull request #1231 from rbtying/allow_deprecated
+- 2020-02-10 Attach cfg[allow_deprecated] to methods w/ uninitialized functionality
+- 2020-02-04 Release openssl v0.10.28
+- 2020-02-04 Fix mutability of oneshot sign/verify methods
+- 2020-02-03 Fix visibility of Signer::new_intern
+- 2020-01-29 Release openssl v0.10.27
+- 2020-01-29 Fix changelog
+- 2020-01-29 Release openssl-sys v0.9.54
+- 2020-01-27 Merge pull request #1225 from kubo39/no-renegotiation-option
+- 2020-01-27 Add NO RENEGOTIATION option
+- 2020-01-27 Merge pull request #1222 from kubo39/EVP-APIs-encrypt-and-decrypt
+- 2020-01-24 Add EVP_EncryptInit_ex/EVP_EncryptFinish_ex, and the equivalently named
+- 2020-01-13 Merge pull request #1160 from HyeonuPark/set-dtls-mtu
+- 2020-01-10 Merge pull request #1219 from alex/patch-1
+- 2020-01-10 Update to autocfg 1.0
+- 2019-10-03 add SslStreamBuilder::set_dtls_mtu_size(usize)
+- 2019-12-27 Merge pull request #1216 from kentfredric/bug-1215
+- 2019-12-27 Avoid false-failures if underlying network connection errors
+- 2019-12-24 Upgrade 1.0.2 in CI
+- 2019-12-24 Merge pull request #1205 from npmccallum/modernize
+- 2019-12-22 Merge pull request #1210 from AnderEnder/remove-deprecated-error-description
+- 2019-12-21 remove deprecated Error::description, replace deprecated cause with source
+- 2019-12-20 Merge pull request #1208 from Sach1nAgarwal/comment2
+- 2019-12-20 Merge pull request #1207 from Sach1nAgarwal/comment1
+- 2019-12-20 Merge pull request #1209 from Sach1nAgarwal/comment3
+- 2019-12-20 In the documentation of SslContextBuilder::set_cipher_list, we had given
+- 2019-12-20 In the documentation of SslContextBuilder::set_certificate, we had written
+- 2019-12-20 In the documentation of SslContextBuilder::set_session_id_context, we had written
+- 2019-12-17 Replace try!() with ?
+- 2019-12-13 Merge pull request #1202 from traviscross/fix-chain-typo
+- 2019-12-12 Fix documentation typo of "chain"
+- 2019-12-12 Fix link
+- 2019-12-09 Merge pull request #1200 from froydnj/patch-1
+- 2019-12-09 fix a typo in the description of `Asn1Time`
+- 2019-12-04 Merge pull request #1196 from oberien/private-key-from-pkcs8
+- 2019-12-04 Use d2i_PKCS8_PRIV_KEY_INFO instead of *_bio
+- 2019-12-03 Pkey::private_key_from_pkcs8 free p8inf
+- 2019-12-01 Fix pointer constness correctly
+- 2019-12-01 Change *const to *mut to try if it fixes tests
+- 2019-12-01 move EVP_PKCS82PKEY into evp module
+- 2019-12-01 Support for PKCS#8 unencrypted private key deserialization
+- 2019-11-23 Merge pull request #1192 from fengyc/master
+- 2019-11-23 Update openssl/src/hash.rs
+- 2019-11-22 Release openssl v0.10.26
+- 2019-11-22 Release openssl-sys v0.9.53
+- 2019-11-22 Fix up base64 docs
+- 2019-11-22 Add EVP_md_null() and MessageDigest::md_null()
+- 2019-11-22 Cleanup
+- 2019-11-22 Merge pull request #1191 from sfackler/fix-seal
+- 2019-11-22 Merge pull request #1183 from adamreichold/base64
+- 2019-11-22 Merge pull request #1184 from Atul9/cargo-fmt
+- 2019-11-22 Fix IV handling in envelope
+- 2019-11-16 Merge pull request #1187 from sfackler/sigalgs
+- 2019-11-16 Remove busted windows build
+- 2019-11-16 Allow configuration of EC groups and signature algorithms
+- 2019-11-13 Format code using 'cargo fmt'
+- 2019-11-13 Avoid initialization overhead for base64 coding
+- 2019-11-13 Expose EVP_{Encode,Decode}Block interfaces for base64 coding
+- 2019-11-12 Merge pull request #1180 from PrismaPhonic/master
+- 2019-11-12 Added unit test to test that new cloning feature works as intended
+- 2019-11-12 Changed all sha objects to be clonable per PR review suggestion.
+- 2019-11-12 Merge pull request #1179 from lukaslihotzki/master
+- 2019-11-11 Add #[cfg(ossl110)]
+- 2019-11-11 Add EC_GROUP_order_bits
+- 2019-11-11 Added clonability for sha hash state.  Useful for incremental hashing
+- 2019-10-22 Merge pull request #1173 from griff/rework-673
+- 2019-10-19 Release openssl-sys v0.9.52
+- 2019-10-19 Merge pull request #1176 from vishwin/master
+- 2019-10-19 Support LibreSSL 3.0.2
+- 2019-10-10 Add method to create Asn1Time from time_t value
+- 2019-10-10 Add diff method and comparisons to Asn1TimeRef
+- 2019-10-10 Fix changelog links
+- 2019-10-10 Release openssl-sys v0.9.51
+- 2019-10-10 Note openssl-sys support
+- 2019-10-08 Merge pull request #1171 from mvertescher/fix-warnings
+- 2019-10-08 Fix rustc warnings
+- 2019-10-03 Merge pull request #1166 from vishwin/master
+- 2019-10-03 Support LibreSSL 3.0.1
+- 2019-10-03 Release openssl v0.10.25
+- 2019-10-03 Release openssl-sys v0.9.50
+- 2019-10-02 Merge pull request #1163 from sfackler/pkey-clone
+- 2019-10-02 Implement Clone for PKey
+- 2019-10-01 Upgrade CI versions
+- 2019-09-09 Merge pull request #1153 from sturmsebastian/eddsa
+- 2019-09-08 Ensure Signer::len has documentation
+- 2019-09-07 Bump MSRV again
+- 2019-09-06 Bump MSRV
+- 2019-09-06 Merge pull request #1152 from thomaswhiteway/ecdsa_sig_set0_leak
+- 2019-09-06 Free r and s on ECDSA_SIG before overwriting them in ECDSA_SIG_set0
+- 2019-08-16 Added support for Ed25519 and Ed448 signatures
+- 2019-08-16 Release openssl-sys v0.9.49
+- 2019-08-07 Merge pull request #1149 from sfackler/libressl-3
+- 2019-08-07 Fix minimal version build
+- 2019-08-07 Support LibreSSL 3.0.0
+- 2019-07-19 Release openssl v0.10.24
+- 2019-07-19 Release openssl-sys v0.9.48
+- 2019-07-19 Merge pull request #1142 from sfackler/fix-ex-data-bs
+- 2019-07-19 Hack around an unpatched OpenSSL issue
+- 2019-07-07 Merge pull request #1140 from Leo1003/aes-192
+- 2019-07-06 Add AES-192 tests in CTR, CFB, and OFB modes
+- 2019-07-06 Add AES-192 and OFB mode
+- 2019-06-30 Merge pull request #1136 from Leo1003/dsa_priv_pem
+- 2019-06-30 Expose pem serialize function for DSA private key
+- 2019-06-29 Merge pull request #1135 from sfackler/mozilla-5
+- 2019-06-29 Don't depend on NO_SSL_MASK
+- 2019-06-29 Minimize test duplication
+- 2019-06-29 Add mozilla v5 configurations
+- 2019-06-20 Merge pull request #1131 from mbelop/ec_point_dup
+- 2019-06-19 Expose EC_POINT_dup as EcPoint::to_owned
+- 2019-06-15 Merge pull request #1130 from mbelop/cofactor
+- 2019-06-14 Expose EC_GROUP_get_cofactor as EcGroup::cofactor
+- 2019-06-13 Merge pull request #1128 from mbelop/mike/generator
+- 2019-06-13 Expose EC_GROUP_get0_generator as EcGroup::generator
+- 2019-06-12 Merge pull request #1127 from snapview/cms-pem
+- 2019-06-12 Conditionally compile PEM functions for CMS
+- 2019-06-12 Extend CMS unit tests (pem/der conversions)
+- 2019-06-12 Fix formatting in cms `to_der` implementation
+- 2019-06-12 Add `CmsContentInfo` <-> PEM bindings
+- 2019-06-10 Merge pull request #1124 from Leo1003/eckey_debug
+- 2019-06-10 Add Debug impl for EcKey
+- 2019-06-08 Merge pull request #1122 from russelltg/aes_wrap
+- 2019-06-08 Address comments
+- 2019-06-06 Add AES_wrap_key and AES_unwrap_key functionality
+- 2019-06-01 Report the vendored install location
+- 2019-05-31 Merge pull request #1119 from sfackler/openssl-111c
+- 2019-05-31 Fix constness for 1.1.1c
+- 2019-05-31 Bump CI versions
+- 2019-05-30 Merge pull request #1118 from animalsiknow/error-display-reason
+- 2019-05-30 Display for Error was incorrectly showing func instead of reason.
+- 2019-05-18 Release openssl v0.10.23
+- 2019-05-18 Release openssl-sys v0.9.47
+- 2019-05-18 Merge pull request #1116 from sfackler/fix-sess-cbs
+- 2019-05-18 Fix handling of session callbacks
+- 2019-05-13 Merge pull request #1113 from Metaswitch/add_client_ca
+- 2019-05-13 Const-correctness
+- 2019-05-13 Allow passing by non-owned reference
+- 2019-05-13 Add SSL_CTX_add_client_CA on OpenSSL
+- 2019-05-09 Release openssl v0.10.22
+- 2019-05-09 Release openssl-sys v0.9.46
+- 2019-05-09 Merge pull request #1097 from vishwin/master
+- 2019-05-09 Ignore SRTP tests on libressl 2.9.1
+- 2019-05-04 Release openssl-sys v0.9.45
+- 2019-05-04 Merge pull request #1107 from sfackler/revert-1100-patch-1
+- 2019-05-04 Revert "fix build err for taget `*-pc-windows-gnu`"
+- 2019-05-03 Fix doc link bugs
+- 2019-05-01 Merge pull request #1103 from alexcrichton/autocfg
+- 2019-05-01 Switch from `rustc_version` to `autocfg`
+- 2019-05-01 Release openssl v0.10.21
+- 2019-05-01 Release v0.9.44
+- 2019-04-30 Merge pull request #1100 from nanpuyue/patch-1
+- 2019-04-29 Merge pull request #1102 from npmccallum/master
+- 2019-04-29 Fix output size check for stream ciphers
+- 2019-04-26 Whitelist future LibreSSL 2.9.x versions, as 2.9.1 is the first stable release.
+- 2019-04-26 fix build err for taget `*-pc-windows-gnu`
+- 2019-04-25 Merge pull request #1099 from sfackler/atomic-deprecation
+- 2019-04-25 Fix deprecation warnings in tests
+- 2019-04-25 Reconcile exdata and version functions between libraries/versions.
+- 2019-04-24 Add missing any() in the {,D}TLS_method usage logic.
+- 2019-04-23 Support LibreSSL 2.9.1
+- 2019-04-24 Clean up seal/open a bit
+- 2019-04-24 Merge pull request #1094 from vojta7/EVP_Seal
+- 2019-04-23 Fix requiret ossl version for EVP_PKEY_size
+- 2019-04-22 Merge pull request #1096 from sfackler/sfackler-patch-1
+- 2019-04-22 Don't set OPENSSL_VERSION for mingw build
+- 2019-04-17 Remove unnecessary version req and clean up param names.
+- 2019-04-17 Address comments.
+- 2019-04-15 Remove nested groups in use.
+- 2019-04-15 Add minimum ossl version.
+- 2019-04-14 Add EVP_Seal and EVP_Open
+- 2019-04-04 Merge pull request #1092 from hvenev/build-export-vendored
+- 2019-04-03 Tell dependencies if vendored OpenSSL was used
+- 2019-03-21 Merge pull request #1087 from sfackler/test-cleanup
+- 2019-03-20 Cleanup ssl tests
+- 2019-03-20 Release openssl v0.10.20
+- 2019-03-20 Release openssl-sys v0.9.43
+- 2019-03-20 Merge pull request #1084 from npmccallum/nid
+- 2019-03-17 Expose EC_GROUP_get_curve_name()
+- 2019-03-17 Expose EVP_MD_type()
+- 2019-03-17 Merge pull request #1083 from sfackler/digest-eq
+- 2019-03-17 Implement Eq for MessageDigest
+- 2019-03-14 Release openssl-errors v0.1.0
+- 2019-03-14 Move CHANGELOG.md into openssl
+- 2019-03-14 Merge pull request #1082 from sfackler/error-lib
+- 2019-03-14 Metadata
+- 2019-03-13 Fix osx build
+- 2019-03-13 Document openssl-errors
+- 2019-03-13 Allow attributes on error items
+- 2019-03-11 Add a crate to define custom error libraries
+- 2019-03-12 Merge pull request #1079 from sfackler/new-rustc
+- 2019-03-12 Fix deprecation warning
+- 2019-03-12 Upgrade ctest
+- 2019-03-12 Fix synatx
+- 2019-03-12 Build against modern rust by default
+- 2019-03-12 Parameterize rust version in circle
+- 2019-03-12 Merge pull request #1077 from snapview/X509-verify
+- 2019-03-06 X.509: add verify methods
+- 2019-03-03 Merge pull request #1075 from tgbit/cms_extensions
+- 2019-03-01 CMS: add encrypt, from_der
+- 2019-03-01 Update changelog
+- 2019-03-01 Release openssl v0.10.19
+- 2019-03-01 Release openssl-sys v0.9.42
+- 2019-03-01 Use into for infallible conversions
+- 2019-03-01 Merge pull request #1073 from sfackler/session-stuff
+- 2019-03-01 Add session cache size accessors
+- 2019-03-01 Add session info accessors
+- 2019-03-01 Add SslCtx::{add,remove}_session
+- 2019-02-28 Merge pull request #1072 from eoger/dsa-clone
+- 2019-02-28 Implement Clone for Dsa
+- 2019-02-28 Merge pull request #1071 from sfackler/const-macros
+- 2019-02-28 Add ERR_PACK
+- 2019-02-28 Merge pull request #1070 from sfackler/build-script-cleanup
+- 2019-02-28 Don't dynamically generate expando.c
+- 2019-02-27 Add some debugability to build script env
+- 2019-02-27 typo
+- 2019-02-27 Fix const changes in 1.1.1b
+- 2019-02-27 Update test versions
+- 2019-02-22 Update changelog
+- 2019-02-22 Release openssl v0.10.18
+- 2019-02-22 Fix cipher_name return value
+- 2019-02-22 Update changelog
+- 2019-02-22 Release openssl v0.10.17
+- 2019-02-22 Release openssl-sys v0.9.41
+- 2019-02-22 Merge pull request #1068 from sfackler/standard-cipher-names
+- 2019-02-22 Add standard ciphername support
+- 2019-02-22 Rustfmt
+- 2019-02-18 Merge pull request #1060 from okuryu/des-ede3-cfb
+- 2019-02-18 Change from EVP_des_ede3_cfb to EVP_des_ede3_cfb64
+- 2019-02-17 Add des_ede3_cfb symm cipher
+- 2019-01-30 Make Rsa::generate delegate to Rsa::generate_with_e
+- 2019-01-30 Merge pull request #1054 from Zolmeister/generate-with-e
+- 2019-01-29 add Rsa::generate_with_e(bits: u32, e: BigNum)
+- 2019-01-27 Merge pull request #1052 from sfackler/asn1-time-str
+- 2019-01-27 ASN1_TIME_from_string_x509 was added in 1.1.1
+- 2019-01-27 Add Asn1Time::from_str and Asn1Time::from_str_x509
+- 2019-01-25 Merge pull request #1049 from sfackler/sfackler-patch-1
+- 2019-01-25 SRP_CTX doesn't exist when OPENSSL_NO_SRP is set
+- 2019-01-23 Merge pull request #1043 from sfackler/circle-21
+- 2019-01-23 Migrate circle config to 2.1 goodness
+- 2019-01-22 Remove x86 windows msys build
+- 2019-01-22 Merge pull request #1040 from Zolmeister/check-key
+- 2019-01-18 Add RsaRef::check_key
+- 2019-01-18 Merge pull request #1039 from 1aim/asn1num-from-bn
+- 2019-01-18 Forward to BigNumRef::to_asn1_integer
+- 2019-01-18 Add `Asn1Integer::from_bn`
+- 2019-01-17 Merge pull request #1038 from 1aim/string-asref
+- 2019-01-17 Implement AsRef<str/[u8]> for OpensslString{Ref}
+- 2019-01-05 Drop data_encoding dev dependency
+- 2019-01-04 Merge pull request #1032 from PSeitz/patch-1
+- 2019-01-04 Update bn.rs
+- 2018-12-16 Update changelog
+- 2018-12-16 Release openssl v0.10.16
+- 2018-12-16 Release v0.9.40
+- 2018-12-16 Merge pull request #1025 from ltratt/master
+- 2018-12-03 Only run 2.9.0 tests.
+- 2018-12-03 Explicitly support LibreSSL 2.9.0.
+- 2018-11-25 Merge pull request #1022 from infinityb/cargo-docs-fix
+- 2018-11-24 Fix cargo dependency documentation
+- 2018-11-22 Merge pull request #1020 from sfackler/keep-open
+- 2018-11-22 Add bindings to RAND_keep_random_devices_open
+- 2018-11-22 Merge pull request #1018 from sameer/master
+- 2018-11-21 Bump OpenSSL versions on AppVeyor to 1.1.0j, 1.0.2q
+- 2018-11-21 Bump minimum supported rustc to 1.24.1
+- 2018-11-21 Add new SHAKE128/256 EVP message digest functions in OpenSSL 1.1.1, fixes #1017.
+- 2018-11-21 Add new SHA3 EVP message digest functions in OpenSSL 1.1.1
+- 2018-10-22 Release openssl v0.10.15
+- 2018-10-22 Merge pull request #1012 from sfackler/stack-iter-rev
+- 2018-10-22 Implement DoubleEndedIterator for stack iters
+- 2018-10-19 Release openssl v0.10.14
+- 2018-10-19 Release openssl-sys v0.9.39
+- 2018-10-18 Fix some accidentally-public functions
+- 2018-10-18 Merge pull request #1010 from sfackler/libressl-28x
+- 2018-10-18 Support LibreSSL 2.8.x
+- 2018-10-16 Release openssl-sys v0.9.38
+- 2018-10-16 Merge pull request #1008 from alexcrichton/bump
+- 2018-10-16 Bump dependency on openssl-src-rs
+- 2018-10-14 Fix anchor link
+- 2018-10-14 Update changelog for 0.10.13
+- 2018-10-14 Release openssl v0.10.13
+- 2018-10-14 Release openssl-sys 0.9.37
+- 2018-10-14 Add a note about release support.
+- 2018-10-11 Merge pull request #1005 from samscott89/add-pkcs7-support
+- 2018-10-11 Cleanup
+- 2018-10-08 Merge pull request #1006 from sfackler/root-docs
+- 2018-10-08 Move README info into crate root docs
+- 2018-10-03 Address comments.
+- 2018-10-02 Refactor to match style and add documentation.
+- 2017-11-24 PKCS7 Support
+- 2018-10-01 Merge pull request #1002 from vishwin/master
+- 2018-10-01 Update the OCSP_cert_to_id() signature for LibreSSL 2.8.1
+- 2018-09-29 Bump LibreSSL 2.8 version in CircleCI
+- 2018-09-28 Merge pull request #1004 from mbelop/ecdsa-der
+- 2018-09-28 Add support for encoding and decoding ECDSA signatures
+- 2018-09-27 Only whitelist LibreSSL 2.8.0 and 2.8.1
+- 2018-09-27 Support the rest of LibreSSL 2.8.x
+- 2018-09-17 Merge pull request #999 from sfackler/fix-get-session
+- 2018-09-17 Fix get session callback
+- 2018-09-15 Merge pull request #995 from sfackler/client-hello
+- 2018-09-15 Support the client hello callback
+- 2018-09-14 Release openssl 0.10.12
+- 2018-09-14 Release openssl-sys 0.9.36
+- 2018-09-13 Merge pull request #993 from wsygog/master
+- 2018-09-13 Fix typo
+- 2018-09-13 Merge pull request #991 from sfackler/libressl-28
+- 2018-09-13 Fix missing symbol
+- 2018-09-13 Stop caching the registry on osx
+- 2018-09-13 Support libressl 2.8.0
+- 2018-09-13 Merge pull request #990 from sfackler/one-sys-mod
+- 2018-09-09 Refactor openssl-sys
+- 2018-09-11 Bump to 1.1.1 release
+- 2018-09-02 clean up example
+- 2018-09-02 Small cleanup
+- 2018-09-01 Merge pull request #982 from sfackler/fix-sni-callback
+- 2018-08-29 Fix lookup errors with SNI callback.
+- 2018-08-29 Bump Appveyor test versions
+- 2018-08-28 Bump versions
+- 2018-08-20 Fix doc reference
+- 2018-08-20 Merge pull request #978 from sfackler/srtp-cleanup
+- 2018-08-20 SRTP cleanup
+- 2018-08-20 Merge pull request #975 from eun-ice/master
+- 2018-08-09 Add methods for DTLS/SRTP key handshake
+- 2018-08-08 Merge pull request #974 from sfackler/shutdown
+- 2018-08-08 Add get_shutdown and set_shutdown
+- 2018-08-04 Merge pull request #972 from sfackler/err-unspecified-cfg
+- 2018-08-04 X509_V_ERR_UNSPECIFIED was added in 1.0.2f
+- 2018-08-04 Update changelog
+- 2018-08-04 Release openssl 0.10.11
+- 2018-08-04 Release openssl-sys 0.9.35
+- 2018-07-31 Merge pull request #967 from sfackler/vendored-docs
+- 2018-07-31 Add some docs to the README about the vendored feature.
+- 2018-07-30 Merge pull request #963 from alexcrichton/vendored
+- 2018-07-27 Support builds of OpenSSL from vendored source (take 2)
+- 2018-07-29 Merge pull request #965 from sfackler/fix-no-ec2m
+- 2018-07-29 Fix tests when built with no-ec2m
+- 2018-07-20 Merge pull request #962 from sfackler/static-str
+- 2018-07-20 SslSessionRef methods return static strings
+- 2018-07-14 Merge pull request #959 from jabedude/master
+- 2018-07-14 Fix spelling in symm docs
+- 2018-07-11 Merge pull request #958 from sfackler/custom-errors
+- 2018-07-11 Add bindings for custom error definition
+- 2018-07-08 Purge registry cache
+- 2018-07-08 Merge pull request #937 from marcoh00/iterable-x509names
+- 2018-07-05 Clean up IGE example
+- 2018-06-29 Merge pull request #954 from pinkisemils/output-all-msvc-linker-args
+- 2018-06-29 Link all needed system libraries on Windows, when building statically
+- 2018-06-28 Merge pull request #953 from sfackler/sfackler-patch-1
+- 2018-06-28 Bump to openssl 1.1.1-pre8
+- 2018-06-27 Only grab the name entry count when needed
+- 2018-06-24 Merge pull request #950 from WanzenBug/master
+- 2018-06-23 Simplify DSA from private components
+- 2018-06-21 Merge pull request #952 from rumpelsepp/patch-1
+- 2018-06-21 Fix build with openssl 1.1.1 and no-psk
+- 2018-06-18 Fix fallback implementation of DSA utility methods
+- 2018-06-18 Add tests for DSA key pairs
+- 2018-06-18 Add Dsa::from_(private|public)_components
+- 2018-06-18 Add methods to access private and public part of DSA keys
+- 2018-06-17 Merge pull request #943 from lolzballs/master
+- 2018-06-17 Disable TLSv1.3 for psk_ciphers test
+- 2018-06-10 Merge pull request #946 from sfackler/libressl-accessors
+- 2018-06-10 Switch to accessors in libressl where possible
+- 2018-06-09 Merge pull request #936 from sfackler/windows-static
+- 2018-06-09 Link to gdi32 on windows
+- 2018-06-06 Release openssl v0.10.10
+- 2018-06-06 Release openssl-sys 0.9.33
+- 2018-06-06 Update changelog
+- 2018-06-05 Merge pull request #945 from sfackler/ssl-alpn-protos
+- 2018-06-05 Add SslRef::set_alpn_protos
+- 2018-06-03 Rename X509NameRef::all_entries and refactor end-of-iterator checks
+- 2018-05-28 Provide an Asn1Object getter method for X509NameEntryRef
+- 2018-05-28 Make X509NameRef provide an iterator over all X509NameEntries
+- 2018-06-02 Merge pull request #944 from sfackler/1.1.1-pre7
+- 2018-06-02 Update to 1.1.1-pre7
+- 2018-06-02 Ensure psk test callbacks are called
+- 2018-06-02 push PSK callback errors onto ErrorStack
+- 2018-06-02 Change psk test cipher to PSK-AES128-CBC-SHA
+- 2018-06-02 Use is_null()
+- 2018-06-02 add test for psk; deprecated set_psk_callback
+- 2018-06-02 Merge remote-tracking branch 'origin/master'
+- 2018-06-02 Merge pull request #940 from CmdrMoozy/rsa_padding
+- 2018-06-02 Release openssl v0.10.9
+- 2018-06-02 Release openssl-sys v0.9.32
+- 2018-06-02 fix build on older rustc
+- 2018-06-02 changelog
+- 2018-06-02 Adjust Nid signature algorithm APIs
+- 2018-06-02 Fix types
+- 2018-06-02 Merge pull request #942 from sfackler/fix-cms-crash
+- 2018-06-02 Fix use-after-free in cms
+- 2018-05-31 Add an openssl-sys binding for RSA_padding_check_PKCS1_type_2.
+- 2018-05-30 Merge pull request #938 from sfackler/verified-chain
+- 2018-05-30 Add SslRef::verified_chain
+- 2018-05-28 Merge pull request #929 from marcoh00/nid-names
+- 2018-05-28 rewrite Nid::{long_name,short_name} to return Results instead of Options
+- 2018-05-24 Get Nid string representations
+- 2018-05-25 Merge pull request #934 from sfackler/digest-algo
+- 2018-05-25 Rename X509Ref::fingerprint to X509Ref::digest and avoid allocating
+- 2018-05-25 Add some digest support
+- 2018-05-25 Merge pull request #933 from sfackler/bogus-sni
+- 2018-05-25 Don't panic on bogus servernames
+- 2018-05-25 Merge pull request #932 from sfackler/get-final
+- 2018-05-25 Add bindings to SSL_get_finished and SSL_get_peer_finished
+- 2018-05-23 Merge pull request #920 from Ralith/max-early-data-accessors
+- 2018-05-17 Expose early I/O
+- 2018-05-21 Fix changelog
+- 2018-05-21 Release openssl v0.10.8
+- 2018-05-21 Release openssl-sys 0.9.31
+- 2018-05-21 Fix changelog
+- 2018-05-21 Merge pull request #928 from sfackler/revert-927-move-prot-accessors
+- 2018-05-21 Revert "Move proto version accessors to SslContextRef"
+- 2018-05-21 Merge pull request #927 from sfackler/move-prot-accessors
+- 2018-05-21 Move proto version accessors to SslContextRef
+- 2018-05-21 Changelog
+- 2018-05-21 Merge pull request #926 from sfackler/clean-errors
+- 2018-05-21 Improve error Display impls
+- 2018-05-20 Merge pull request #925 from sfackler/stack-sync-send
+- 2018-05-20 Make Stack Sync + Send
+- 2018-05-20 Merge pull request #924 from sfackler/libressl-alpn
+- 2018-05-20 Support ALPN on libressl
+- 2018-05-20 Merge pull request #923 from sfackler/libressl-hostname
+- 2018-05-20 Overhaul openssl cfgs
+- 2018-05-20 Expose X509_VERIFY_PARAM on libressl
+- 2018-05-20 Clean up openssl-sys cfgs
+- 2018-05-20 Merge pull request #922 from sfackler/libressl-min-max-version
+- 2018-05-20 Support min/max version in LibreSSL
+- 2018-05-18 Merge pull request #921 from eonil/master
+- 2018-05-18 Find path prefix to OpenSSL installed by Homebrew.
+- 2018-05-17 Expose early keying material export
+- 2018-05-17 Expose max TLS1.3 early data accessors
+- 2018-05-16 Add wrapper for SSL_CTX_set_psk_server_callback
+- 2018-05-13 Merge pull request #919 from sfackler/cleanup
+- 2018-05-13 Some sys cleanup
+- 2018-05-13 Merge pull request #902 from ur0/CMS_sign
+- 2018-05-13 Merge pull request #918 from sfackler/rsa-clone
+- 2018-05-12 Implement Clone for Rsa
+- 2018-05-12 Merge Ssl impl blocks
+- 2018-05-12 Merge pull request #916 from sfackler/ssl-callback-cleanup
+- 2018-05-12 Clean up SSL callbacks
+- 2018-05-12 Merge pull request #915 from sfackler/callback-cleanup
+- 2018-05-12 Disable tests that talk to Google on LibreSSL 2.5.0
+- 2018-05-12 Change SslContext callback handling
+- 2018-05-10 Gate away CMS_KEY_PARAM from OpenSSL 1.0.1
+- 2018-05-10 Properly version-gate CMS constants
+- 2018-05-10 Move CMS_* flags to the openssl-sys package
+- 2018-05-09 Merge pull request #913 from sfackler/fix-get-version
+- 2018-05-09 Fix base version for min/max proto accessors
+- 2018-05-01 Merge pull request #908 from sfackler/102g-fix
+- 2018-05-01 Fix changelog typo
+- 2018-05-01 Flag off constants added in 1.0.2h
+- 2018-05-01 Release openssl v0.10.7
+- 2018-05-01 Release openssl-sys v0.9.30
+- 2018-05-01 Changelog
+- 2018-04-29 Merge pull request #906 from Ralith/session-der
+- 2018-04-29 Expose SslSession <-> DER conversion
+- 2018-04-27 Merge pull request #905 from sfackler/cleanup
+- 2018-04-27 Some misc cleanup
+- 2018-04-27 Merge pull request #904 from sfackler/version-number
+- 2018-04-27 Reform version checking logic
+- 2018-04-26 Use bitflags for CMS options
+- 2018-04-26 Remove Rsa::build
+- 2018-04-25 Merge pull request #901 from eoger/rsa-from-builder
+- 2018-04-18 Add RsaPrivateKeyBuilder
+- 2018-04-22 Implement CR suggestions
+- 2018-04-21 Merge pull request #903 from Richterrettich/master
+- 2018-04-21 Add functions to X509Req to obtain public key and extensions
+- 2018-04-20 Fix mutability issues with CMS_sign
+- 2018-04-20 Add the CMS_sign and i2d_CMS_ContentInfo function bindings
+- 2018-04-16 Merge pull request #899 from rohit-lshift/master
+- 2018-04-16 Document that encrypt/decrypt use padding
+- 2018-04-11 Merge pull request #898 from thomaseizinger/patch-1
+- 2018-04-11 Include information about development packages
+- 2018-04-05 changelog
+- 2018-04-05 Release openssl v0.10.6
+- 2018-04-05 Release openssl-sys 0.9.28
+- 2018-04-05 Merge pull request #894 from skade/patch-1
+- 2018-04-05 Fix minor typo
+- 2018-04-04 Merge pull request #893 from bkchr/fix_private_key_from_der
+- 2018-04-04 Return `PKey<Private>` from `private_key_from_der`
+- 2018-04-03 Merge pull request #892 from oherrala/fix-libressl27
+- 2018-04-03 Add LibreSSL 2.7.3
+- 2018-04-03 Combine LibreSSL 2.7.x versions into one
+- 2018-04-02 Add LibreSSL 2.7.2
+- 2018-03-31 Add support for LibreSSL 2.7.1
+- 2018-03-31 Merge pull request #858 from Ralith/stateless-api
+- 2018-03-31 Merge pull request #891 from sfackler/fix-vcpkg
+- 2018-03-31 Fix systest against vcpkg-sourced OpenSSL
+- 2018-03-30 Remove unneeded build keys
+- 2018-03-29 Don't enable features for docs anymore
+- 2018-03-29 Merge pull request #890 from sfackler/no-feature-cleanup
+- 2018-03-29 Fix a flag name
+- 2018-03-29 Clean up a couple of holdovers from old features
+- 2018-03-29 Merge pull request #888 from sfackler/version-bumps
+- 2018-03-29 Upgrade 1.1.0 and 1.0.2 test versions
+- 2018-03-05 Add test for stateless connection
+- 2018-03-04 Introduce SslStreamBuilder
+- 2018-03-27 Update to OpenSSL 1.1.1-pre3
+- 2018-03-28 Merge pull request #887 from sfackler/get-serialnumber
+- 2018-03-28 Add Asn1IntegerRef::to_bn
+- 2018-03-28 Add X509Ref::serial_number
+- 2018-03-24 Merge pull request #884 from sfackler/libressl-27
+- 2018-03-22 Support LibreSSL 2.7.0
+- 2018-03-19 Merge pull request #881 from sfackler/no-features-2
+- 2018-03-19 Remove a last couple features
+- 2018-03-19 Merge pull request #856 from Flakebi/master
+- 2018-01-14 Make it possible to use cmac
+- 2018-03-19 Merge pull request #879 from sfackler/no-features
+- 2018-03-19 Remove version-specific features
+- 2018-03-17 Merge pull request #875 from Ralith/hash-extras
+- 2018-03-14 Expose additional cipher and digest accessors
+- 2018-03-14 Merge pull request #874 from rohit-lshift/priv-key-from-num
+- 2018-03-13 Change function name to be similar to RSA one
+- 2018-03-11 Merge pull request #864 from mlen/aes-ccm-bindings
+- 2018-03-11 Merge pull request #873 from sfackler/tweaks
+- 2018-03-11 Merge pull request #872 from sfackler/tweaks
+- 2018-03-11 Add a Sync + Send bound to the custom ext type
+- 2018-03-11 Merge pull request #860 from Ralith/custom-extensions
+- 2018-03-11 Merge branch 'master' into custom-extensions
+- 2018-03-11 Some ECDSA fixes/tweaks
+- 2018-03-11 Merge pull request #863 from rohit-lshift/master
+- 2018-03-11 Merge pull request #871 from sfackler/tweaks
+- 2018-03-11 Tweak verify_cert's signature
+- 2018-03-11 fixup! Implement AES-{128,256}-CCM bindings
+- 2018-03-11 Merge pull request #861 from bkchr/verify_certificate
+- 2018-03-11 Merge pull request #870 from sfackler/tweaks
+- 2018-03-11 Rename Oid to Id
+- 2018-03-11 Changes `init` to take a closure which is called with the initialized context
+- 2018-03-11 Revert previous commit
+- 2018-03-11 Generic custom extension add fn return type
+- 2018-03-11 Merge pull request #862 from bkchr/sign_verifier
+- 2018-03-11 Merge pull request #867 from sfackler/1.1.1-pre2
+- 2018-03-11 Bump 1.1.1 to pre2
+- 2018-03-10 Add one more set of impls
+- 2018-03-10 Merge pull request #866 from sfackler/more-sync
+- 2018-03-10 Arguments should be BigNumRef and not BigNum
+- 2018-03-10 Impl Sync and Send for various types
+- 2018-03-05 High-level API for OpenSSL 1.1.1 custom extension support
+- 2018-03-09 Switches to new type wrapper for RsaPssSaltlen
+- 2018-03-09 Moves store context init into its own function
+- 2018-03-09 Added a function to create a EC<Key> from its parts
+- 2018-03-09 Remove unneeded paramter
+- 2018-03-08 fixup! Implement AES-{128,256}-CCM bindings
+- 2018-03-08 Changes as per PR feedback
+- 2018-03-08 Get curves for OpenSSL tests itself
+- 2018-03-08 Try out another curve
+- 2018-03-08 Another try at using the correct curve
+- 2018-03-08 Implement AES-{128,256}-CCM bindings
+- 2018-03-08 Use examples listed in OpenSSL docs for testing
+- 2018-03-08 Adds `RsaPssSaltlen` enum to encode the special values
+- 2018-03-08 Add support LibreSSL and remove OpenSSL binding which we aren't using
+- 2018-03-08 Switches to newtype wrapper for Oid
+- 2018-03-08 Extends the test to verify the certificate two times
+- 2018-03-08 Moves `cleanup` into its own function
+- 2018-03-08 Exposed some of ECDSA functions
+- 2018-03-07 Adds more functions to `Verifier`/`Signer` for RSA keys
+- 2018-03-07 Adds RSA PKCS1 PSS padding
+- 2018-03-07 Adds `PKeyRef::get_id` to get the OID of a key
+- 2018-03-07 Fixes the implementation of `X509StoreContextRef::verify_cert`
+- 2017-03-26 delay return until after forgets
+- 2017-03-26 cleanup and add negative test
+- 2017-03-24 add cleanup ffi to store context
+- 2017-03-24 restructure to self contained function
+- 2017-03-21 Little tweaks
+- 2017-03-21 convert to raw pass-through methods
+- 2017-03-19 add comment about consuming self in verify_cert
+- 2017-03-19 fix error check
+- 2017-03-19 properly version library functions
+- 2017-03-19 Fix memory mgmt
+- 2017-03-19 add verify_cert and store_context_builder
+- 2018-03-06 Remove the x509 module-level example
+- 2018-03-05 FFI for OpenSSL 1.1.1 custom extension support
+- 2018-03-03 Merge pull request #857 from Ralith/middlebox-compat
+- 2018-03-03 Add SslOptions::ENABLE_MIDDLEBOX_COMPAT
+- 2018-02-28 Release openssl v0.10.5
+- 2018-02-28 Release openssl-sys 0.9.27
+- 2018-02-28 Update changelog
+- 2018-02-28 Merge pull request #854 from sfackler/error-description
+- 2018-02-27 Always include something in ErrorStack's Display
+- 2018-02-26 Merge pull request #853 from sfackler/min-max-version
+- 2018-02-26 Add min/max protocol version support
+- 2018-02-26 Restore error stack in cookie callback
+- 2018-02-26 Merge pull request #835 from Ralith/stateless
+- 2018-02-26 Expose cookie generate/verify callback setters
+- 2018-02-26 Expose FFI bindings needed for SSL_stateless
+- 2018-02-25 Merge pull request #850 from sfackler/put-error
+- 2018-02-25 Add the ability to push errors back onto the error stack.
+- 2018-02-24 Merge pull request #849 from sfackler/key-export
+- 2018-02-24 Add RFC 5705 support
+- 2018-02-22 Merge pull request #847 from sfackler/version2
+- 2018-02-22 Actually add version stuff
+- 2018-02-22 Merge pull request #840 from olehermanse/master
+- 2018-02-22 Merge pull request #846 from sfackler/client-cipher-update
+- 2018-02-22 Inline connector constants
+- 2018-02-22 Don't special case 1.0.1
+- 2018-02-15 Added example/test in symm.rs for encrypting a private key with a symmetric cipher
+- 2018-02-21 Update SslConnector cipher list
+- 2018-02-18 Release openssl v0.10.4
+- 2018-02-18 Release openssl-sys 0.9.26
+- 2018-02-18 Update changelog
+- 2018-02-18 Merge pull request #845 from sfackler/ssl-version
+- 2018-02-18 Add some debugging-related bindings
+- 2018-02-17 Add SSL_version binding
+- 2018-02-17 Merge pull request #844 from sfackler/fix-session-clone
+- 2018-02-17 Fix session cloning
+- 2018-02-17 Merge pull request #843 from sfackler/session-callback-2
+- 2018-02-17 Fix libressl
+- 2018-02-17 Bind remove and get session callbacks
+- 2018-02-17 SSL session callbacks have always been around
+- 2018-02-16 Merge pull request #842 from nyradr/Documentation_fix_openssl_symm
+- 2018-02-16 Fix symm decrypt documentation example
+- 2018-02-16 Merge pull request #841 from sfackler/session-callback
+- 2018-02-16 Doc tweak
+- 2018-02-16 Add more session cache support
+- 2018-02-16 Merge pull request #839 from sfackler/openssl111
+- 2018-02-14 Add des_ede3_cbc cipher
+- 2018-02-15 Tweak features
+- 2018-02-15 Set ossl110 when version is 1.1.1
+- 2018-02-15 Fix tests for TLS 1.3
+- 2018-02-15 More tests for pem_pkcs1 methods
+- 2018-02-14 OpenSSL 1.1.1 support
+- 2018-02-14 Merge pull request #838 from olehermanse/master
+- 2018-02-14 Added binding for PEM_read_bio_RSAPublicKey
+- 2018-02-12 Release openssl 0.10.3 and openssl-sys 0.9.25
+- 2018-02-12 Merge pull request #836 from sfackler/cert-store-leak
+- 2018-02-12 Don't leak X509s
+- 2018-02-12 Merge pull request #831 from apeduru/rsa-docs
+- 2018-02-11 Merge pull request #834 from sfackler/freebsd
+- 2018-02-11 Use Padding constant in RSA docs example
+- 2018-02-11 Detect FreeBSD OpenSSL automatically
+- 2018-02-05 Merge pull request #833 from CmdrMoozy/des_ede3
+- 2018-02-04 Support EVP_des_ede3.
+- 2018-01-25 Update version
+- 2018-01-25 Add RSA docs
+- 2018-01-25 Fix diff link
+- 2018-01-24 Merge pull request #824 from apeduru/pkey-docs
+- 2018-01-24 Merge pull request #830 from stepancheg/try-wait
+- 2018-01-24 Add HMAC to Pkey docs
+- 2018-01-24 tests: if server failed to start, print exit code instead of timing out
+- 2018-01-24 Evict registry cache
+- 2018-01-24 Debug OSX build failures
+- 2018-01-24 Print the public key in PKey example
+- 2018-01-15 Merge pull request #827 from ian-p-cooke/master
+- 2018-01-15 add support for rfc822Name (email) and uniformResourceIdentifier (uri) to GeneralName
+- 2018-01-12 Release openssl v0.10.2
+- 2018-01-12 Merge pull request #826 from sfackler/conf-setters
+- 2018-01-12 Add setters to ConnectConfiguration
+- 2018-01-11 Release openssl v0.10.1
+- 2018-01-11 Add from conversion
+- 2018-01-11 Bump release notes
+- 2018-01-11 Release openssl 0.10.0
+- 2018-01-11 Release openssl-sys v0.9.24
+- 2018-01-11 More changes
+- 2018-01-09 One more changelog entry
+- 2018-01-09 Add a couple more changes
+- 2018-01-09 Add a changelog
+- 2018-01-07 Fix import in pkey docs
+- 2018-01-07 Missing colon
+- 2018-01-07 Add Pkey docs
+- 2018-01-07 Merge pull request #823 from sfackler/sni-tweaks
+- 2018-01-07 Adjust the SNI callback
+- 2018-01-07 Merge pull request #822 from sfackler/doc-fixes
+- 2018-01-07 Fix docs
+- 2018-01-07 Merge pull request #821 from sfackler/rsa-accessors
+- 2018-01-07 Rename and document RSA accessors
+- 2018-01-07 Merge pull request #820 from sfackler/key-constructor-docs
+- 2018-01-06 Rename key serialization/deserialization methods
+- 2018-01-06 Merge pull request #819 from sfackler/fips
+- 2018-01-06 FIPS mode support
+- 2018-01-05 Merge pull request #811 from apeduru/x509-docs
+- 2018-01-02 Merge pull request #814 from sfackler/cleanup
+- 2018-01-01 Fix links in x509 module
+- 2018-01-01 Merge branch 'master' into x509-docs
+- 2018-01-01 Misc cleanup
+- 2018-01-01 Merge pull request #813 from sfackler/ssl-filetype
+- 2018-01-01 Move X509Filetype to SslFiletype
+- 2018-01-01 Merge pull request #812 from Eijebong/bump_hex
+- 2018-01-01 Fix x509 doc examples
+- 2018-01-01 Bump hex to 0.3
+- 2018-01-01 Add documentation for x509 module
+- 2017-12-31 Merge pull request #810 from sfackler/key-tag
+- 2017-12-31 Parameterize keys over what they contain
+- 2017-12-29 Merge pull request #809 from sfackler/issuer-name
+- 2017-12-29 Add issuer name access.
+- 2017-12-29 Merge pull request #807 from sfackler/no-compression
+- 2017-12-29 Remove `SslRef::compression`
+- 2017-12-28 Merge pull request #806 from sfackler/servername-param
+- 2017-12-28 Add a parameter to servername
+- 2017-12-27 Merge pull request #804 from sfackler/alpn-overhaul
+- 2017-12-27 Overhaul ALPN
+- 2017-12-27 Merge pull request #802 from sfackler/ssl-error
+- 2017-12-27 Overhaul ssl error
+- 2017-12-26 Merge pull request #801 from sfackler/verify-error
+- 2017-12-26 Flag off constant
+- 2017-12-26 Split X509StoreContextRef::ssl up
+- 2017-12-26 Overhaul verify error type
+- 2017-12-26 Merge pull request #800 from sfackler/connector-construction
+- 2017-12-26 Adjust SslConnector and SslAcceptor construction
+- 2017-12-26 Merge pull request #799 from sfackler/no-any
+- 2017-12-26 Drop Any bounds
+- 2017-12-26 Merge pull request #798 from sfackler/deprecation
+- 2017-12-26 Remove deprecated APIs
+- 2017-12-26 Merge pull request #797 from sfackler/fixmes
+- 2017-12-26 Fix a bunch of FIXMEs
+- 2017-12-26 Merge pull request #796 from sfackler/assoc-consts
+- 2017-12-26 Tweak default ssl options
+- 2017-12-26 Fix tests
+- 2017-12-26 Bump to 1.20.0
+- 2017-12-26 Rename X509FileType to X509Filetype
+- 2017-12-26 Move to associated consts
+- 2017-12-26 Upgrade bitflags to 1.0
+- 2017-12-26 Make Nid values associated constants
+- 2017-12-24 Merge pull request #795 from sfackler/host-overhaul
+- 2017-12-24 Fix script
+- 2017-12-23 Clean up 1.0.1 hostname verification
+- 2017-12-23 Tweak test scripts a bit
+- 2017-12-23 Allow SNI and hostname verification to be configured separately
+- 2017-12-16 Merge pull request #794 from sfackler/x509-send-sync
+- 2017-12-16 Bump CI versions
+- 2017-12-13 Impl Send + Sync for x509 stuff
+- 2017-12-12 Merge pull request #793 from bjgill/patch-1
+- 2017-12-12 Add crates.io badge
+- 2017-12-09 Fix link
+- 2017-12-06 Release v0.9.23
+- 2017-12-05 Merge pull request #789 from sfackler/ssl-docs-2
+- 2017-12-05 Finish documentation for the ssl module
+- 2017-12-05 Merge pull request #788 from sfackler/ssl-docs
+- 2017-12-04 Docs for the ssl module.
+- 2017-12-04 Impl deref for acceptor/connector builders
+- 2017-12-04 Merge pull request #786 from sfackler/sign-tweaks
+- 2017-12-04 Documentation for the `sign` module.
+- 2017-12-03 Rename Signer::finish to sign_to_vec
+- 2017-12-03 Clean up tests
+- 2017-12-03 Merge pull request #785 from P-E-Meunier/split-signer-finish
+- 2017-12-03 Simplifying finish_into
+- 2017-12-03 Splitting the sign::Signer::finish function, to avoid allocations
+- 2017-12-02 Merge pull request #784 from P-E-Meunier/master
+- 2017-12-02 Fixing the CI tests
+- 2017-12-02 Adding dp(), dq() and qi() methods to RSA, to get the CRT parameters back
+- 2017-11-30 Merge pull request #783 from ignatenkobrain/patch-1
+- 2017-11-30 bump lazy_static to 1
+- 2017-11-29 Release openssl 0.9.22
+- 2017-11-29 Release openssl-sys 0.9.22
+- 2017-11-27 Merge pull request #781 from sfackler/foreign-types-bump
+- 2017-11-27 Upgrade foreign-types
+- 2017-11-21 Merge pull request #779 from sfackler/revert-778-foreign-types
+- 2017-11-21 Revert "Update foreign-types to 0.3"
+- 2017-11-21 Merge pull request #778 from nox/foreign-types
+- 2017-11-21 Update foreign-types to 0.3
+- 2017-11-21 Remove travis badge
+- 2017-11-21 Remove unused travis file
+- 2017-11-21 Merge pull request #777 from sfackler/osx-circle
+- 2017-11-17 Use CircleCI for MacOS builds
+- 2017-11-17 Release v0.9.21
+- 2017-11-14 Merge pull request #775 from sfackler/libressl-stable
+- 2017-11-14 Adjust libressl version detection
+- 2017-11-14 Remove libressl 2.6.2 build
+- 2017-11-13 Merge pull request #759 from feeeeb/libressl-v2.6.3
+- 2017-10-23 Update CI to use LibreSSL 2.6.3
+- 2017-10-23 Add support for LibreSSL 2.6.3
+- 2017-11-11 Merge pull request #773 from gbip/master
+- 2017-11-10 Added a macro that wraps foreign type, and impl Send and Sync for both,
+- 2017-11-07 Merge pull request #757 from bvinc/master
+- 2017-11-07 Merge branch 'my-temp-work'
+- 2017-10-16 Add an example of making a CA and certs and verifying.
+- 2017-11-06 Merge pull request #771 from myfreeweb/libressl-cms-h-fix
+- 2017-11-06 Fix LibreSSL cms.h detection
+- 2017-11-05 Add a couple of FIXMEs
+- 2017-11-05 Merge pull request #764 from AndyGauge/doc-error
+- 2017-11-04 Merge pull request #769 from sfackler/want-read
+- 2017-11-04 Handle local retries
+- 2017-11-04 fixed broken example and syntax error in module level documentation
+- 2017-11-04 Merge pull request #747 from BrianOn99/symm
+- 2017-11-04 Merge pull request #761 from AndyGauge/doc-ec
+- 2017-11-04 Merge pull request #768 from ia0/update_data_encoding
+- 2017-11-04 Update data-encoding major version
+- 2017-11-04 Merge pull request #767 from sfackler/ci-bump
+- 2017-11-04 Bump CI openssl versions
+- 2017-10-27 Error documentation improvement
+- 2017-10-24 Merge branch 'master' into doc-ec
+- 2017-10-24 Merge branch 'master' of https://github.com/sfackler/rust-openssl
+- 2017-10-24 Update documentation for EC module
+- 2017-10-18 Merge pull request #758 from bvinc/want_read_typo
+- 2017-10-18 Fixed a typo in an error message, WANT_WRITE -> WANT_READ
+- 2017-10-16 Add an example of making a CA and certs and verifying.
+- 2017-10-14 Release v0.9.20
+- 2017-10-14 Merge pull request #755 from AndyGauge/doc-dsa
+- 2017-10-11 DSA size returns maximum size of signature
+- 2017-10-11 Began EC documenation
+- 2017-10-09 Merge branch 'master' of https://github.com/sfackler/rust-openssl
+- 2017-10-09 Documentation improvements for DSA module
+- 2017-10-09 Move doc details into another paragraph
+- 2017-10-08 Merge pull request #753 from zsck/issue719
+- 2017-10-08 Merge pull request #749 from johnthagen/conf
+- 2017-10-07 Move OpenSSL implementation details into a normal comment
+- 2017-10-07 Include the hex crate and ToHex import to the second example
+- 2017-10-07 Added module-level documentation for the `sha` module.
+- 2017-10-07 Merge pull request #744 from AndyGauge/doc-bn
+- 2017-10-07 Merge pull request #748 from AndyGauge/doc-cms
+- 2017-10-04 Module level documentaiton rewrite
+- 2017-10-04 Describe return values of groups.
+- 2017-10-04 Begun DSA documentation
+- 2017-10-04 Merge pull request #752 from chrisvittal/libressl262
+- 2017-10-04 Fix cfgs for libressl262
+- 2017-10-04 Update CI to use LibreSSL 2.6.2
+- 2017-10-04 Add support for LibreSSL 2.6.2
+- 2017-10-04 Merge pull request #750 from johnthagen/remove-try
+- 2017-10-03 Convert try! usage to ?
+- 2017-10-03 Document conf module
+- 2017-10-03 CMS module documentation
+- 2017-10-03 Finished BigNum documentation
+- 2017-10-03 Additional notes on Crypter
+- 2017-10-03 Copy example to module level
+- 2017-10-03 Add examples and more documentation to symm
+- 2017-10-01 Merge pull request #743 from AndyGauge/doc-asn1
+- 2017-10-01 Merge pull request #745 from johnthagen/patch-1
+- 2017-10-01 Deprecate crypto module
+- 2017-09-30 Hide deprecated crypto module from docs
+- 2017-09-29 removed deny missing docs
+- 2017-09-29 WIP BigNum function documentation
+- 2017-09-29 Merge branch 'master' into doc-bn
+- 2017-09-29 Changed Asn1Object documentation to include references to Nid
+- 2017-09-29 Began bn module documenation
+- 2017-09-29 Merge pull request #736 from johnthagen/hide-ec-key
+- 2017-09-29 Merge pull request #737 from johnthagen/rand
+- 2017-09-29 Merge pull request #738 from johnthagen/readme
+- 2017-09-29 Merge pull request #740 from johnthagen/memcmp
+- 2017-09-29 Merge pull request #741 from johnthagen/nid
+- 2017-09-28 documented and example for ASN1 module
+- 2017-09-28 Document nid module
+- 2017-09-28 Add instructions for adding OpenSSL DLLs to PATH if needed during install
+- 2017-09-28 Merge pull request #734 from AndyGauge/doc-aes
+- 2017-09-28 Moved details about function and reworded block requirements
+- 2017-09-28 WIP ASN.1 documentation
+- 2017-09-28 Add instructions for adding OpenSSL DLLs to PATH if needed during install
+- 2017-09-28 Fix doc test and move external documentation link to rand_bytes function
+- 2017-09-28 Fix typos
+- 2017-09-28 Document rand module
+- 2017-09-28 Hide ec_key module in docs because it is deprecated
+- 2017-09-27 Preface with links to conventional AES
+- 2017-09-26 AES (IGE) encryption documentation
+- 2017-09-26 AES Module level docs and example
+- 2017-09-26 WIP: document AES
+- 2017-09-20 Fix rerun logic
+- 2017-09-20 Unpin ctest
+- 2017-09-20 Release v0.9.18
+- 2017-09-20 Merge pull request #731 from sfackler/ip-host
+- 2017-09-20 Properly handle IPs in hostname verification
+- 2017-09-20 Update to cc 1.0
+- 2017-09-20 Pin ctest version to work around panic
+- 2017-09-20 Merge pull request #730 from atlaua/aranea/typo
+- 2017-09-18 openssl-sys: Fix typo in libressl_version definition
+- 2017-09-17 Merge pull request #695 from Keruspe/master
+- 2017-09-17 openssl: ecdh_tmp_callback doesn't work with libressl 2.6.1
+- 2017-09-17 openssl: libressl 2.6.1 dropped suuport for npn
+- 2017-09-17 opensslè-sys: adjust some constants to libressl 2.6.1
+- 2017-09-14 systest: don't include cms.h for libressl 2.6.1
+- 2017-09-17 openssl-sys: define libressl version
+- 2017-09-17 ci: use libressl 2.6.1
+- 2017-09-16 Update default client cipher list
+- 2017-09-16 Fix indentation
+- 2017-09-16 Mention target specific env vars
+- 2017-09-16 Merge pull request #692 from jessicah/haiku-support
+- 2017-09-15 Merge pull request #697 from alexcrichton/release-buffers
+- 2017-09-15 Set SSL_MODE_RELEASE_BUFFERS by default
+- 2017-09-14 openssl-sys: support libressl 2.6.1
+- 2017-09-14 Extract prefixed environment variables into helper function.
+- 2017-09-13 Use target name in variables when cross-compiling.
+- 2017-04-22 Allow overriding lib/include dirs when cross-compiling.
+- 2017-09-04 Fix build note for MinGW
+- 2017-08-30 Update version in README
+- 2017-08-27 Simplify circle config a bit
+- 2017-08-21 Symlink README in place
+- 2017-08-22 Merge pull request #683 from bradleybeddoes/add-ec-get_affine_coordinates
+- 2017-08-21 Rename function, removing `get_`
+- 2017-08-21 Add ability to get affine coordinates from EcPoint
+- 2017-08-17 Merge pull request #682 from sfackler/sha-struct
+- 2017-08-17 Add SHA384 and SHA512
+- 2017-08-17 Merge pull request #681 from sfackler/sha-struct
+- 2017-08-17 Add SHA1 an SHA224 hashers
+- 2017-08-15 Release v0.9.17
+- 2017-08-15 Merge pull request #680 from sfackler/sha256-state
+- 2017-08-15 Add a stateful SHA256 hasher
+- 2017-08-14 Merge pull request #679 from mcgoo/vcpkg
+- 2017-08-14 avoid interactive prompts when setting up vcpkg in appveyor
+- 2017-08-12 Update README.md
+- 2017-08-12 Merge pull request #622 from mcgoo/vcpkg
+- 2017-08-11 Release v0.9.16
+- 2017-08-11 Fully wrap feature checks
+- 2017-08-11 Merge pull request #677 from sfackler/circle-tweaks
+- 2017-08-11 Actually save the registry cache
+- 2017-08-11 Move circle config to new location
+- 2017-08-11 Switch to official circle image
+- 2017-08-09 Merge pull request #675 from sdemos/master
+- 2017-08-08 added cms decryption
+- 2017-08-09 Delete DTLS tests
+- 2017-08-09 Merge pull request #674 from bradleybeddoes/add-ec-functions
+- 2017-08-09 Refine sig for set_public_key_affine_coordinates
+- 2017-08-09 Fix EC_KEY_set_public_key_affine_coordinates
+- 2017-08-09 Set the private key within EcKeyBuilder
+- 2017-08-09 Support for EcKey creation from affine coordinates
+- 2017-07-30 Init in bn_ctx constructor
+- 2017-07-30 Init in Dh constructors
+- 2017-07-30 Delete old script
+- 2017-07-29 Add peer_cert_chain
+- 2017-07-29 Ignore dtls tests
+- 2017-07-29 Fix cache detection
+- 2017-07-28 Little circle cleanup
+- 2017-07-27 Tweak formatting on cipher list
+- 2017-07-26 Initialize OpenSSL in DSA constructor
+- 2017-07-26 Fix build
+- 2017-07-26 Fix build
+- 2017-07-26 Abort on bad unlock and safe core dumps
+- 2017-07-26 Always apt-get update
+- 2017-07-26 Only install curl when building openssl
+- 2017-07-25 Remove unused environment variable
+- 2017-07-25 Sync deps key with rust version
+- 2017-07-25 Merge pull request #669 from sfackler/arm-systest
+- 2017-07-25 Run systest for ARM targets
+- 2017-07-22 Drop to just -g
+- 2017-07-22 Build OpenSSL with debuginfo
+- 2017-07-22 Set RUST_BACKTRACE=1 on tests
+- 2017-07-22 Merge pull request #668 from mgeisler/patch-1
+- 2017-07-22 Mention Debian for apt-get instructions
+- 2017-07-20 Release v0.9.15
+- 2017-07-20 Forbid LibreSSL 2.5.6+
+- 2017-07-20 Fix X509::clone impl
+- 2017-07-17 Merge pull request #666 from ibabushkin/master
+- 2017-07-17 Support for LibreSSL 2.5.5
+- 2017-07-16 Merge pull request #664 from sfackler/libressl-260
+- 2017-07-16 Test against libressl 2.6.0
+- 2017-07-16 Remove unused import
+- 2017-07-16 Merge pull request #663 from sfackler/circle
+- 2017-07-16 Add badges to README
+- 2017-07-16 Switch over Linux tests to CircleCI
+- 2017-07-16 Tell docs.rs to build with all features
+- 2017-07-16 Use foreign-type's Opaque
+- 2017-07-16 Rustfmt
+- 2017-07-16 Init before creating ex indexes
+- 2017-07-16 Merge pull request #662 from sfackler/verify-cleanup
+- 2017-07-16 Fix build
+- 2017-07-15 Don't overwrite the configured verify mode
+- 2017-07-15 Add an API to install extra data
+- 2017-07-15 Move callbacks to a submodule
+- 2017-07-07 Merge pull request #657 from sfackler/rsa-pkcs1
+- 2017-07-05 Inform cargo about which env vars we care about
+- 2017-07-05 Merge pull request #641 from luser/psk
+- 2017-07-05 Support PKCS#1 RSA public keys
+- 2017-06-25 Merge pull request #655 from ltratt/master
+- 2017-06-25 Enable build on LibreSSL 5.6.0 development branch.
+- 2017-06-24 Merge pull request #654 from sfackler/pkey-private-key-from-der
+- 2017-06-24 Add PKey::private_key_from_der
+- 2017-06-16 msvc/vcpkg dynamic builds now require explicit opt-in
+- 2017-06-15 Release v0.9.14
+- 2017-06-15 Properly reexport ConnectConfiguration
+- 2017-06-11 Merge pull request #648 from JuanPotato/patch-1
+- 2017-06-10 Fix documentation typo
+- 2017-06-07 for msvc abi builds, allow use of openssl libs from vcpkg
+- 2017-06-07 Merge pull request #647 from mcgoo/remove_unused_deps
+- 2017-06-07 remove unused dependencies on windows
+- 2017-06-06 Merge pull request #645 from sfackler/110f
+- 2017-06-06 Fix for changes in OpenSSL 1.1.0f
+- 2017-06-04 Merge pull request #642 from oussama/patch-1
+- 2017-06-03 Add pkg-config
+- 2017-06-02 Make some changes for review comments
+- 2017-05-30 Little docs fix
+- 2017-05-30 Add a fixme
+- 2017-05-30 Release v0.9.13
+- 2017-05-27 Merge pull request #639 from golem131/dependency_update
+- 2017-05-26 Expose PSK via a SslContextBuilder::set_psk_callback method
+- 2017-05-22 Update bitflags 0.8 -> 0.9
+- 2017-05-20 Merge pull request #638 from sfackler/110-sync-fix
+- 2017-05-20 Explicitly initialize OpenSSL 1.1.0
+- 2017-05-20 Rustfmt
+- 2017-05-12 Release v0.9.12
+- 2017-05-12 Merge pull request #636 from sfackler/libressl-fix
+- 2017-05-12 Test LibreSSL 2.5.4
+- 2017-05-12 Fix support for LibreSSL versions other than 2.5.0
+- 2017-05-12 Merge pull request #635 from mcgoo/fix_cacert_pem_download
+- 2017-05-11 use appveyor DownloadFile to download cacert.pem
+- 2017-05-07 Drop x86 macOS build
+- 2017-05-07 Set LD_LIBRARY_PATH when using custom build
+- 2017-05-06 Support public key decode from DER
+- 2017-05-06 Add a note to rename variant
+- 2017-05-03 Merge pull request #627 from jethrogb/patch-1
+- 2017-05-03 Clarify use of ssl::HandshakeError::Interrupted
+- 2017-04-15 Merge pull request #618 from sfackler/sha
+- 2017-04-15 Expose the lower level SHA functions
+- 2017-04-14 Release v0.9.11
+- 2017-04-14 Merge pull request #616 from sfackler/no-alloc
+- 2017-04-12 Don't force allocation for message digests
+- 2017-04-13 Merge pull request #615 from ajroetker/issue-600/avoid_compiling_ec_code_against_no-ec2m_openssl
+- 2017-04-11 (issues-600) Avoid compiling ec2m code against no-ec2m openssl
+- 2017-04-11 Merge pull request #613 from aosmond/add_evp_pkey_derive
+- 2017-04-04 Add new EC/PKEY methods to permit deriving shared secrets.
+- 2017-04-04 Don't exclude test data from package
+- 2017-04-03 Merge pull request #611 from ignatenkobrain/patch-1
+- 2017-04-03 bump bitflags to 0.8
+- 2017-03-29 Merge pull request #608 from BusyJay/master
+- 2017-03-29 show help message when pkg-config is missing
+- 2017-03-26 Release v0.9.10
+- 2017-03-26 Merge pull request #606 from cjcole/master
+- 2017-03-26 Merge pull request #607 from sfackler/set-session
+- 2017-03-25 Logic to support client-side session reuse
+- 2017-03-25 Fix order of arguments to BN_rand_range and BN_pseudo_rand_range
+- 2017-03-17 Merge pull request #601 from pgerber/double_unlock
+- 2017-03-16 Panic if lock managed by `locking_function` is doubly unlocked
+- 2017-03-14 Release v0.9.9
+- 2017-03-14 Merge pull request #598 from ajroetker/maint/recreate_ability_to_pass_in_OPENSSL_LIBS
+- 2017-03-13 (maint) Recreate ability to pass in OPENSSL_LIBS variable
+- 2017-03-09 Release v0.9.8
+- 2017-03-09 Merge pull request #592 from Byron/master
+- 2017-03-07 Don't allow Stacks to be allocated with a null-ptr
+- 2017-03-07 Merge pull request #585 from bluejekyll/master
+- 2017-03-06 Fix for empty stacks
+- 2017-03-06 Add test to run into issue with stack.len()
+- 2017-03-01 Merge pull request #591 from cjcole/master
+- 2017-03-01 Fix Shr trait impl for BigNum: was using shl
+- 2017-02-26 Fix dangling reference
+- 2017-02-25 License all future contributions properly
+- 2017-02-23 mention the common fields
+- 2017-02-22 Merge pull request #587 from sfackler/scrypt
+- 2017-02-22 scrypt support
+- 2017-02-20 some helpful documentation and example.
+- 2017-02-20 Merge pull request #584 from sfackler/more-error-info
+- 2017-02-20 Expose more error information
+- 2017-02-19 Add a fixme to drop const prefixes
+- 2017-02-19 Merge pull request #583 from SilverWingedSeraph/patch-1
+- 2017-02-19 Add note about needing pkg-config
+- 2017-02-19 Tweaks
+- 2017-02-17 Merge pull request #582 from bluejekyll/master
+- 2017-02-17 add Ok to result
+- 2017-02-17 Merge branch 'master' of github.com:bluejekyll/rust-openssl
+- 2017-02-17 only forget in non-error condition
+- 2017-02-16 review fixes: reorder forget()
+- 2017-02-15 fix versions for sys as well
+- 2017-02-15 fix cfg options for v102 and v110
+- 2017-02-15 add set_verify_cert_store() to ssl ctx
+- 2017-02-16 Update 1.1.0 version
+- 2017-02-16 review fixes: reorder forget()
+- 2017-02-15 fix versions for sys as well
+- 2017-02-15 fix cfg options for v102 and v110
+- 2017-02-15 add set_verify_cert_store() to ssl ctx
+- 2017-02-15 De-quote README line
+- 2017-02-15 Support PKCS#8 private key deserialization
+- 2017-02-11 Release v0.9.7
+- 2017-02-11 Merge pull request #515 from sfackler/x509-builder
+- 2017-02-11 Fix for libressl
+- 2017-02-11 Update deprecation version
+- 2017-02-11 Use published foreign_types
+- 2017-02-11 Remove X509Req setters
+- 2017-02-11 Merge remote-tracking branch 'origin/master' into x509-builder
+- 2017-02-11 Merge pull request #568 from mredlek/x509_req_version_subject
+- 2017-02-11 Re-add reexport
+- 2017-02-11 Merge branch 'master' into x509_req_version_subject
+- 2017-02-11 Merge pull request #579 from sfackler/x509-signature
+- 2017-02-11 X509 signature algorithm access
+- 2017-02-11 X509 signature access
+- 2017-02-11 Add Asn1BitString
+- 2017-02-08 Merge pull request #574 from stephanbuys/macos_readme
+- 2017-02-08 complication -> compilation
+- 2017-02-08 Add MacOS and XCode hint
+- 2017-02-07 Make it compile again.
+- 2017-02-07 Merge branch 'master' into x509_req_version_subject
+- 2017-02-04 Merge pull request #572 from sfackler/foreign-types
+- 2017-02-03 Switch to foreign_types
+- 2017-02-04 Merge pull request #571 from sfackler/build-script-cleanup
+- 2017-02-03 Clean up pkg-config logic
+- 2017-01-31 Merge pull request #570 from brianchin/add_evp_pkey_ctx_ctrl
+- 2017-01-31 Fixed constant names from openssl/rsa.h
+- 2017-01-31 Adding suggestions from review.
+- 2017-01-30 Fixing typo
+- 2017-01-30 Small amount of docs.
+- 2017-01-30 Simplify protocol based on the semantics defined by openssl.
+- 2017-01-30 Simplify code, so that openssl-sys really doesn't contain anything aside
+- 2017-01-30 Testing first version that works with signer.
+- 2017-01-28 Add the necessary constants to access the pkey ctx stuff.
+- 2017-01-29 Merge pull request #569 from sfackler/expando
+- 2017-01-29 Bump test versions
+- 2017-01-29 Macro-expand OpenSSL headers for feature checks
+- 2017-01-27 Add setters to new getter-functions in X509ReqRef
+- 2017-01-27 Style changes according to review
+- 2017-01-26 Added X509ReqRef.subject_name and X509ReqRef.version
+- 2017-01-25 Merge pull request #566 from sfackler/pkcs12-tweaks
+- 2017-01-25 Pkcs12Builder tweaks
+- 2017-01-25 Merge pull request #565 from sfackler/no-usr-lib
+- 2017-01-24 Make sure to not add system dirs to linkage
+- 2017-01-24 Merge pull request #563 from bluejekyll/master
+- 2017-01-24 fix multi-version compat
+- 2017-01-23 fix ptr types
+- 2017-01-23 Merge branch 'master' of github.com:sfackler/rust-openssl
+- 2017-01-23 add some documentation
+- 2017-01-23 add pkcs12_create and to_der funcs
+- 2017-01-22 Merge pull request #550 from Keruspe/master
+- 2017-01-22 Merge pull request #562 from sfackler/named-curve
+- 2017-01-22 Support EC_GROUP_set_asn1_flag
+- 2017-01-21 Fix test warnings
+- 2017-01-21 Merge pull request #559 from sfackler/chacha20
+- 2017-01-21 Support chacha20 and chacha20_poly1305
+- 2017-01-21 Merge pull request #558 from sfackler/ige
+- 2017-01-20 Support AES IGE
+- 2017-01-20 Add categories
+- 2017-01-15 Merge pull request #555 from sfackler/ocsp
+- 2017-01-14 OCSP functionality
+- 2017-01-10 Release v0.9.6
+- 2017-01-08 Fix typo
+- 2017-01-08 Add methods to construct SslAcceptorBuilder without key and cert
+- 2017-01-07 Adjust minimum pkg-config version
+- 2017-01-05 Merge pull request #549 from sfackler/ssl-session
+- 2017-01-05 libressl: make set_ecdh_auto available
+- 2017-01-05 libressl: mark unavailable flags as such
+- 2017-01-05 Fix time type
+- 2017-01-05 Provide master key access
+- 2017-01-05 Add basic session tests
+- 2017-01-05 session is nullable
+- 2017-01-05 Provide access to the session ID
+- 2017-01-05 Types and accessor for SslSession
+- 2017-01-05 Add SSL_SESSION functions
+- 2017-01-05 Add SSL_SESSION
+- 2017-01-04 Release v0.9.5
+- 2017-01-03 Clean up EcKey example a bit
+- 2017-01-03 Merge pull request #547 from sfackler/x509-stack
+- 2017-01-03 Merge pull request #541 from bluejekyll/master
+- 2017-01-03 Add X509::stack_from_pem
+- 2017-01-03 Merge pull request #545 from Philipp91/patch-2
+- 2017-01-03 Merge pull request #544 from tomusdrw/master
+- 2017-01-03 Tweak layout a little bit
+- 2017-01-03 Pointer from PKey docs to sign module.
+- 2017-01-03 Improving missing OpenSSL message on Linux
+- 2017-01-02 Typo
+- 2017-01-01 Some readme tweaks
+- 2017-01-01 Little cleanup
+- 2017-01-01 Clean up bio
+- 2017-01-01 Stick tag description on the right function
+- 2017-01-01 Fix docs
+- 2017-01-01 Fix doc reference
+- 2016-12-31 add EcKey creation from EcPoint, public_key
+- 2016-12-31 Indicate that memcmp::eq should be used for HMACs
+- 2016-12-25 Merge pull request #540 from joshtriplett/metadeps
+- 2016-12-24 Use metadeps to specify pkg-config dependencies declaratively
+- 2016-12-23 Release v0.9.4
+- 2016-12-22 Merge pull request #538 from semarie/libressl
+- 2016-12-20 Add Travis build against LibreSSL
+- 2016-12-21 Add LibreSSL 2.5.0 support
+- 2016-12-21 duplicate ossl10x.rs to libressl.rs
+- 2016-12-21 Merge pull request #539 from alexcrichton/zero-write
+- 2016-12-20 Handle zero-length reads/writes
+- 2016-12-20 Merge branch 'master' of github.com:sfackler/rust-openssl
+- 2016-12-14 Merge pull request #535 from Philipp91/patch-1
+- 2016-12-14 Explain how to install trusted root certificates
+- 2016-12-12 Merge pull request #531 from aidanhs/aphs-lib-include-dirs
+- 2016-12-12 Allow OPENSSL_{LIB,INCLUDE}_DIR to override OPENSSL_DIR
+- 2016-12-10 Release v0.9.3
+- 2016-12-10 Switch to docs.rs for docs
+- 2016-12-10 Fix ErrorStack display
+- 2016-12-09 Merge pull request #530 from 0xa/blowfish
+- 2016-12-09 Add Blowfish tests
+- 2016-12-09 Use EVP_bf_cfb64 instead of EVP_bf_cfb
+- 2016-12-09 Add Blowfish support
+- 2016-12-02 Update README.md
+- 2016-11-28 Release v0.9.2
+- 2016-11-28 Implement Clone for SslConnector and SslAcceptor
+- 2016-11-19 Cleanup
+- 2016-11-16 Return Option from group
+- 2016-11-16 Remove EcGroup constructors
+- 2016-11-15 Test elliptic curve signatures
+- 2016-11-15 Add a test for mul_generator
+- 2016-11-15 Turns out yet another variant of EC_POINT_mul is allowed!
+- 2016-11-15 Merge pull request #524 from sfackler/ec
+- 2016-11-15 Add a note that the systest logic is kind of busted
+- 2016-11-14 Rename ec_key to ec
+- 2016-11-14 Split EcKey::mul
+- 2016-11-14 Add EcPoint::invert
+- 2016-11-14 Fix non-static EcGroup method locations
+- 2016-11-13 Remove EC_METHOD functions
+- 2016-11-13 Add EcKey::check_key
+- 2016-11-13 More functionality
+- 2016-11-13 More functionality
+- 2016-11-13 Public keys are not always present
+- 2016-11-13 Rename new_by_curve_name to from_curve_name
+- 2016-11-13 Add Some more elliptic curve functionality
+- 2016-11-13 Remove some stray manual impls
+- 2016-11-13 Macroise from_pem
+- 2016-11-13 Macroise to_pem
+- 2016-11-13 Macroise from_der
+- 2016-11-13 Macroise to_der
+- 2016-11-13 Make password callback return a Result
+- 2016-11-13 Support serialization of encrypted private keys
+- 2016-11-13 Add private_key_from_pem_passphrase
+- 2016-11-13 Macro-implement private_key_to_pem
+- 2016-11-13 Some serialization support for EcKey
+- 2016-11-13 No need to use a raw string anymore
+- 2016-11-12 Use ffdhe2048 in mozilla_intermediate
+- 2016-11-12 Be a bit more emphatic about the danger
+- 2016-11-12 Add a connect method that does not perform hostname verification
+- 2016-11-12 Simplify test logic a bit
+- 2016-11-12 Add a missing init
+- 2016-11-12 Add constructors for various standard primes
+- 2016-11-12 Add SslRef::set_{tmp_dh,tmp_ecdh,ecdh_auto}
+- 2016-11-12 Pick different cipher lists on 1.0.1 and 1.0.2
+- 2016-11-12 Adjust cipher lists to work on older versions
+- 2016-11-12 Add SslRef::set_tmp_{ec,}dh_calback
+- 2016-11-12 Add SslContextBuilder::set_tmp_{ec,}dh_callback
+- 2016-11-12 Drop bits to u32
+- 2016-11-12 Add PKey::bits
+- 2016-11-12 Fix function signature
+- 2016-11-12 Add basic X509_STORE access
+- 2016-11-11 Consistently support both PEM and DER encodings
+- 2016-11-11 Add EcKey <-> PKey conversions
+- 2016-11-11 PKey <-> DH conversions
+- 2016-11-11 Add PKey::dsa
+- 2016-11-11 Release v0.9.1
+- 2016-11-11 Don't test 32 bit osx openssl install
+- 2016-11-11 Move osx builds to top of list
+- 2016-11-11 Fix EOF detection
+- 2016-11-11 Update to 1.1.0c for tests
+- 2016-11-09 Bump minimum version
+- 2016-11-09 Drop rustc-serialize dependency
+- 2016-11-09 Better docs for AEAD tag
+- 2016-11-08 Make sure to override SslContext verify callback always
+- 2016-11-08 Add convenience functions for AEAD encryption/decryption
+- 2016-11-08 Merge pull request #519 from sfackler/gcm-fixes
+- 2016-11-08 Actually support AES GCM
+- 2016-11-08 Docs
+- 2016-11-08 Don't recommend light version on Windows
+- 2016-11-07 Deprecate X509Generator
+- 2016-11-07 Use X509Builder in X509Generator
+- 2016-11-07 Add init calls to new constructors
+- 2016-11-07 Add an X509ReqBuilder
+- 2016-11-07 Add stack creation and push
+- 2016-11-07 Add SubjectAlternativeName
+- 2016-11-07 More extension progress
+- 2016-11-07 Start of extension support
+- 2016-11-06 Add conf module
+- 2016-11-06 Start on an X509Builder
+- 2016-11-06 Support client CA advertisement
+- 2016-11-06 Fix build on 1.0.1
+- 2016-11-06 Add accessors for cert and private key
+- 2016-11-06 Merge pull request #513 from alexcrichton/pkg-config-error
+- 2016-11-06 Provide a tailored error message on Linux
+- 2016-11-06 Merge branch 'release'
+- 2016-11-06 Merge branch 'release-v0.9.0' into release
+- 2016-11-06 Release v0.9.0
+- 2016-11-06 Fixes
+- 2016-11-06 Remove set_rsa
+- 2016-11-06 Implement Pkcs12 via type_!
+- 2016-11-06 Re-adjust BigNum API
+- 2016-11-05 Return a Stack in Pkcs12
+- 2016-11-05 Add Stack::pop
+- 2016-11-05 More cleanup
+- 2016-11-05 Simplify destructor a bit
+- 2016-11-05 Add a consuming iterator for Stacks
+- 2016-11-05 Rustfmt
+- 2016-11-05 Remove unused dependency
+- 2016-11-05 Rename accessors
+- 2016-11-05 Fix systest
+- 2016-11-05 Always dump openssl confs
+- 2016-11-05 More buildscript tweaks
+- 2016-11-05 Improve buildscript logic
+- 2016-11-05 Merge pull request #512 from sfackler/no-ref
+- 2016-11-04 Get rid of Ref
+- 2016-11-04 Make utility functions private
+- 2016-11-04 Remove an enum
+- 2016-11-04 Clean up some bignum APIs
+- 2016-11-04 Rename BnCtx
+- 2016-11-04 Avoid lhash weirdness
+- 2016-11-02 Fix signature
+- 2016-11-02 Use built in DH parameters when available
+- 2016-11-02 Don't clear BigNums in destructor
+- 2016-11-02 Fix docs
+- 2016-11-02 Fix stack signatures
+- 2016-11-02 Cleanup X509StoreContext::chain
+- 2016-11-02 More minor cleanup
+- 2016-11-02 Clean up stack
+- 2016-11-02 Clean up stack destructor
+- 2016-11-02 Merge pull request #506 from simias/stack
+- 2016-10-31 Implement X509StoreContextRef::get_chain
+- 2016-10-31 Replace GeneralNames by the new Stack API
+- 2016-10-31 Implement a generic Stack API to deal with OpenSSL stacks
+- 2016-11-01 Merge pull request #508 from simias/pkey
+- 2016-11-01 Add method to encode a public key as a DER blob
+- 2016-11-01 Avoid extra allocations in Asn1Time Display impl
+- 2016-11-01 Fix 1.1.0 build
+- 2016-11-01 Little cfg cleanup
+- 2016-11-01 Clean up x509 name entries
+- 2016-11-01 Merge pull request #507 from sfackler/ref
+- 2016-11-01 Documentation
+- 2016-11-01 Remove Opaque
+- 2016-11-01 Update x509
+- 2016-11-01 Update ssl
+- 2016-11-01 Update verify
+- 2016-11-01 Update Rsa
+- 2016-11-01 Update PKey
+- 2016-11-01 Update EcKey
+- 2016-11-01 Update Dsa
+- 2016-11-01 Convert Dh
+- 2016-11-01 Convert Asn1Time
+- 2016-11-01 Update bignum
+- 2016-11-01 Add a generic Ref type
+- 2016-11-01 Mention 0.7 README
+- 2016-10-31 Return an SslRef
+- 2016-10-31 Expose SSL_MODEs
+- 2016-10-31 Rename set_CA_file
+- 2016-10-31 Impl Sync and Send for SslContextBuilder
+- 2016-10-31 Rename connectors
+- 2016-10-31 Merge ssl option setup
+- 2016-10-31 Move HandshakeError to submodule
+- 2016-10-31 Merge pull request #505 from sfackler/more-refs
+- 2016-10-31 Remove DsaParams
+- 2016-10-30 Add RsaRef
+- 2016-10-30 Add DsaRef
+- 2016-10-30 Rustfmt
+- 2016-10-30 Remove out of date comment
+- 2016-10-30 Use Python's cipher list on the client side.
+- 2016-10-30 Merge pull request #504 from sfackler/connector-tweaks
+- 2016-10-30 Update docs
+- 2016-10-30 Add a mozilla modern profile
+- 2016-10-30 Rename nwe to mozilla_intermediate
+- 2016-10-30 Pass SslMethod into constructors
+- 2016-10-30 Merge pull request #503 from sfackler/ecdhe
+- 2016-10-30 Enable single ECDH use
+- 2016-10-30 Configure ECDH parameters in connector
+- 2016-10-30 Implement EcKey
+- 2016-10-30 Clean up generics a bit
+- 2016-10-30 Merge pull request #496 from sfackler/connectors
+- 2016-10-30 Pull Curl's CA list for Windows tests
+- 2016-10-30 Add module level docs
+- 2016-10-29 Use PKeyRef in X509Generator
+- 2016-10-29 Move docs
+- 2016-10-29 Fix reexport
+- 2016-10-29 Docs for connectors
+- 2016-10-29 Add PKeyRef
+- 2016-10-29 Implement client and server connectors
+- 2016-10-29 Make verification unconditionally exposed internally
+- 2016-10-28 Remove private field in ParsedPkcs12
+- 2016-10-28 Camel case DH
+- 2016-10-28 Make padding types consts
+- 2016-10-28 Add a macro definition
+- 2016-10-27 Fix description
+- 2016-10-27 Stop returning an Option from cipher description
+- 2016-10-27 Merge pull request #494 from sfackler/crypto-string
+- 2016-10-27 Fix drop signature
+- 2016-10-27 Remove macros module
+- 2016-10-27 Don't double-allocate strings
+- 2016-10-27 Move SslString to a shared location
+- 2016-10-27 Add SslMethod::from_ptr
+- 2016-10-26 Merge pull request #493 from sfackler/ctx-builder
+- 2016-10-26 Don't allow mutation of SslContexts
+- 2016-10-26 Merge pull request #492 from sfackler/gcm
+- 2016-10-26 Support AES GCM
+- 2016-10-26 Merge pull request #490 from sfackler/shutdown
+- 2016-10-26 Add a shutdown method
+- 2016-10-26 Fix ordering
+- 2016-10-24 Add into_error
+- 2016-10-24 Merge pull request #488 from sfackler/sslstream-kinds
+- 2016-10-24 Fix Send + Sync-ness of SslStream
+- 2016-10-23 Merge pull request #487 from sfackler/update
+- 2016-10-23 Remove NIDs only defined in 1.0.2+
+- 2016-10-22 Fix tests
+- 2016-10-22 Use constants rather than constructors for Nid
+- 2016-10-22 Camel case Rsa
+- 2016-10-22 Camel case Dsa
+- 2016-10-22 De-enumify Nid
+- 2016-10-22 Fix hasher docs
+- 2016-10-22 Flatten crypto module
+- 2016-10-22 Properly propagate panics
+- 2016-10-22 Borrow compression string
+- 2016-10-22 Rename SslContextOptions
+- 2016-10-22 Fix X509StoreContext
+- 2016-10-22 Merge pull request #486 from sfackler/ref-overhaul
+- 2016-10-22 Update BigNumRef
+- 2016-10-22 Convert X509VerifyParamRef
+- 2016-10-22 Borrowed servername
+- 2016-10-22 Convert SslCipherRef
+- 2016-10-22 Convert SslRef
+- 2016-10-22 Convert SslContextRef
+- 2016-10-22 Update Asn1TimeRef
+- 2016-10-22 Convert X509Ref
+- 2016-10-21 Switch X509Name over to new borrow setup
+- 2016-10-21 Merge pull request #485 from sfackler/verify-error
+- 2016-10-21 Store a MidHandshakeSslStream in fatal errors
+- 2016-10-21 Merge pull request #484 from sfackler/ssl-overhaul
+- 2016-10-21 Redo SslStream construction
+- 2016-10-20 Merge pull request #483 from sfackler/x509-error
+- 2016-10-19 Allow the X509 verify error to be read from an SslRef
+- 2016-10-19 De-enumify X509ValidationError
+- 2016-10-19 Drop lifetime on GeneralNames
+- 2016-10-19 Merge pull request #481 from sfackler/pn-errors
+- 2016-10-19 Callback cleanup
+- 2016-10-19 Don't ignore errors in NPN/ALPN logic
+- 2016-10-18 Merge pull request #478 from sfackler/feature-overhaul
+- 2016-10-18 Implement new feature setup
+- 2016-10-17 Merge pull request #476 from sfackler/error-handling
+- 2016-10-17 Fix missing import
+- 2016-10-17 Fix algorithm field
+- 2016-10-17 Finish BN overhaul
+- 2016-10-17 Finish error overhaul
+- 2016-10-17 ssl error handling cleanup
+- 2016-10-17 Finish crypto error cleanup
+- 2016-10-17 More error cleanup
+- 2016-10-16 Continue error handling cleanup
+- 2016-10-16 Start on error + BN refactor
+- 2016-10-16 Merge pull request #475 from sfackler/no-enums
+- 2016-10-15 Fix set_read_ahead signature
+- 2016-10-15 Always build updated OpenSSL
+- 2016-10-15 De-enumify Padding
+- 2016-10-15 De-enumify SslMethod
+- 2016-10-15 De-enumify Cipher
+- 2016-10-15 De-enumify message digests
+- 2016-10-15 Migrate DSA sign/verify to EVP APIs
+- 2016-10-15 Correctly bind BIO_new_mem_buf
+- 2016-10-15 Merge pull request #474 from sfackler/digest
+- 2016-10-15 Fix EVP_DigestVerifyFinal version support
+- 2016-10-15 Add examples to crypto::sign
+- 2016-10-15 Fix typo
+- 2016-10-15 Distinguish between verification errors and "other" errors.
+- 2016-10-15 Fix signature of EVP_DigestVerifyFinal on 1.0.1
+- 2016-10-15 Support HMAC PKeys and remove hmac module
+- 2016-10-15 Remove old RSA sign and verify methods
+- 2016-10-15 Signature and verification support
+- 2016-10-15 Add digest signature methods
+- 2016-10-15 Merge pull request #471 from sfackler/no-comp
+- 2016-10-15 Check feature compatibility in build script
+- 2016-10-15 Prefer 1.1 when looking for Homebrew installs
+- 2016-10-15 Merge pull request #473 from sfackler/arm-build-only
+- 2016-10-15 Don't run test on ARM
+- 2016-10-15 Merge pull request #472 from sfackler/alpn-test
+- 2016-10-15 Fix test_alpn_server_select_none
+- 2016-10-15 Handle OPENSSL_NO_COMP
+- 2016-10-15 Merge pull request #470 from sfackler/confs
+- 2016-10-15 Respect osslconf in systest
+- 2016-10-15 Merge pull request #469 from sfackler/hostname
+- 2016-10-15 Enable hostname verification on 1.0.2
+- 2016-10-15 Support hostname verification
+- 2016-10-14 Merge pull request #468 from sfackler/no-link-name
+- 2016-10-14 Remove link_name usage
+- 2016-10-14 Merge pull request #464 from alexcrichton/systest
+- 2016-10-14 Ignore DTLS tests on Windows/ARM for now
+- 2016-10-14 Cleanup
+- 2016-10-14 Use stdlib logic for udp
+- 2016-10-14 Fix windows for real
+- 2016-10-14 Disable npn tests on < 1.0.2
+- 2016-10-14 Fix tests on windows
+- 2016-10-14 Reenable dtls tests
+- 2016-10-14 Clean up features
+- 2016-10-14 Correct feature selection in tests
+- 2016-10-14 Flag off dtls and mask ssl_ops
+- 2016-10-13 Tweak some comments in Cargo.toml
+- 2016-10-13 Ignore a test on OpenSSL 1.1.0
+- 2016-10-13 Add remaining SSL_OP constants
+- 2016-09-30 Add support for OpenSSL 1.1.0
+- 2016-10-07 Rename NoPadding to None
+- 2016-10-07 Rename EncryptionPadding to Padding
+- 2016-10-07 Merge pull request #461 from aoprisan/RSAEncDec
+- 2016-10-07 Removed max_size; removed all encrypt/decrypt methods except private/public encrypt/decrypt which take the padding
+- 2016-10-04 added try_ssl_size, which handles -1 as error and returns the value otherwise; added RSA private_decrypt and public encrypt
+- 2016-10-02 Merge pull request #458 from manuels/patch-1
+- 2016-10-01 Add RAND_status()
+- 2016-10-01 Add RSA_*_PADDING constants
+- 2016-09-28 Make sure private component exists when signing
+- 2016-09-09 Merge branch 'release'
+- 2016-09-09 Merge branch 'release-v0.8.3' into release
+- 2016-09-09 Release v0.8.3
+- 2016-09-09 Merge pull request #450 from sfackler/sfackler-patch-1
+- 2016-09-08 Fix password callback on ARM
+- 2016-09-01 Merge pull request #446 from xitep/master
+- 2016-09-01 Implement Clone for openssl::error::ErrorStack
+- 2016-08-30 Merge pull request #444 from adelarsq/patch-1
+- 2016-08-30 Add description about how to solve openssl issue
+- 2016-08-30 Add cargo clean in the list
+- 2016-08-20 Re-enable 64 bit MSVC
+- 2016-08-18 Merge branch 'release'
+- 2016-08-18 Merge branch 'release-sys-v0.7.17-v0.8.2' into release
+- 2016-08-18 Release openssl-sys v0.7.17, openssl v0.8.2
+- 2016-08-18 Fix SslContext::add_extra_chain_cert
+- 2016-08-17 Ignore flickering test on windows
+- 2016-08-17 Merge pull request #436 from dweinstein/asn1_expiration
+- 2016-08-17 Get rid of use Asn1TimeRef warning for some builds
+- 2016-08-17 Be explicit regarding Asn1TimeRef lifetimes
+- 2016-08-17 Fix docs
+- 2016-08-17 Add x509_validity feature to travis tests
+- 2016-08-17 Add test for `"x509_validity"` feature
+- 2016-08-17 Add `"x509_expiry"` feature flag
+- 2016-08-08 Introduce `Asn1TimeRef`
+- 2016-08-03 Progress on asn1 expiry
+- 2016-08-17 Merge pull request #440 from dweinstein/openssl-mirror
+- 2016-08-17 Fix finicky sha1 stdin format
+- 2016-08-17 Improve build script
+- 2016-08-16 Merge branch 'release'
+- 2016-08-16 Merge branch 'release-sys-v0.7.16-v0.8.1' into release
+- 2016-08-16 Release openssl-sys v0.7.16, openssl v0.8.1
+- 2016-08-16 Add a little comment to sketchy transmute
+- 2016-08-14 Initialize algorithms in init
+- 2016-08-14 Docs for pkcs12
+- 2016-08-14 Fix memory leak in general name stack
+- 2016-08-14 PKCS #12 support
+- 2016-08-14 More test fixes
+- 2016-08-14 Fix tests
+- 2016-08-14 Start on PKCS #12 support
+- 2016-08-13 Mangle c helper functions
+- 2016-08-12 Merge branch 'release'
+- 2016-08-12 Merge branch 'release-v0.7.15-sys-v0.8.0' into release
+- 2016-08-12 Release openssl-sys v0.7.15, openssl v0.8.0
+- 2016-08-12 Require bitflags 7
+- 2016-08-11 Undelete bogus extern declaration
+- 2016-08-11 Use new target syntax for windows stuff
+- 2016-08-11 Fix tests
+- 2016-08-11 Little tweaks
+- 2016-08-11 Fix build
+- 2016-08-11 Method renames
+- 2016-08-11 Tweaks
+- 2016-08-11 More API cleanup
+- 2016-08-11 Asn1 and Bignum renames
+- 2016-08-10 Fix workspace declaration
+- 2016-08-10 Fix build
+- 2016-08-10 Test hmac features
+- 2016-08-10 Make hmac support optional and remove openssl-sys-extras
+- 2016-08-10 Fix build
+- 2016-08-10 Move X509_get_extensions to openssl helpers
+- 2016-08-10 Make c_helpers optional
+- 2016-08-10 Remove rust_SSL_clone
+- 2016-08-09 Docs for Crypter::new
+- 2016-08-09 Fix size check
+- 2016-08-09 symm reform
+- 2016-08-09 Copy over getter macros
+- 2016-08-09 Remove symm_internal
+- 2016-08-09 Clean up RSA and DSA accessors
+- 2016-08-08 Fix build on 1.9
+- 2016-08-08 Add PKey::from_rsa
+- 2016-08-08 Remove X509Generator::bitlenth
+- 2016-08-08 Fix example
+- 2016-08-08 Restore disabled tests
+- 2016-08-08 Add RSA::generate
+- 2016-08-08 Move init to crate root
+- 2016-08-08 x509 cleanup
+- 2016-08-08 get_error -> error
+- 2016-08-08 DH cleanup
+- 2016-08-08 pkcs5 reform
+- 2016-08-08 PKey reform
+- 2016-08-08 Fix RSA::verify
+- 2016-08-08 Fix bn tests on 32 bit
+- 2016-08-08 Take a c_ulong directly in BN construction
+- 2016-08-07 Hash reform
+- 2016-08-07 Refactor BigNum
+- 2016-08-07 Clean up asn1time
+- 2016-08-06 get_handle -> handle
+- 2016-08-06 Fix pkey method safety
+- 2016-08-06 Clean up x509
+- 2016-08-06 Make x509 constructors unsafe
+- 2016-08-05 Move SSL_CTX_set_ecdh_auto to -sys
+- 2016-08-05 Mvoe SSL_CTX_add_extra_chain_cert to -sys
+- 2016-08-05 Move SSL_CTX_set_tmp_dh to -sys
+- 2016-08-05 Move SSL_CTX_set_read_ahead to -sys
+- 2016-08-05 Move SSL_CTX_set_tlsext_servername_callback to -sys
+- 2016-08-05 Move SSL_set_tlsext_host_name to -sys
+- 2016-08-05 Move BIO macros into -sys
+- 2016-08-05 Stop once-ing init wrapper
+- 2016-08-05 Support basic SSL options without C shims
+- 2016-08-03 Define SSL_CTX_set_mode in openssl-sys
+- 2016-08-03 Merge remote-tracking branch 'origin/breaks'
+- 2016-08-03 Restructure PEM input/output methods
+- 2016-08-01 Merge pull request #433 from tmiasko/binop-different-lifetimes
+- 2016-08-01 BigNum binary operators with different lifetimes.
+- 2016-07-31 Drop unused feature gate
+- 2016-07-31 Merge pull request #432 from alexcrichton/mid-handshake
+- 2016-07-31 Fix appveyor
+- 2016-07-31 Fix weird inference issue on 1.9
+- 2016-07-27 Add MidHandshakeSslStream
+- 2016-07-31 Build against 1.9
+- 2016-07-31 Fix catch_unwind feature and drop feature gate
+- 2016-07-31 Fix build with dtls
+- 2016-07-31 Merge remote-tracking branch 'origin/master' into breaks
+- 2016-07-31 Revert "Add a new trait based Nid setup"
+- 2016-07-30 Merge pull request #402 from bbatha/feat/dsa-ffi
+- 2016-07-30 Merge pull request #429 from bbatha/fix/crypto-errors
+- 2016-07-30 improve error handling in rsa
+- 2016-05-17 add low level dsa primitives
+- 2016-07-29 Merge pull request #425 from bbatha/chore/cargo-workspace
+- 2016-07-29 Merge pull request #427 from onur/save_der
+- 2016-07-29 Merge pull request #428 from onur/get_handle_for_X509Req
+- 2016-07-29 Implement get_handle for X509Req
+- 2016-07-29 add RUST_BACKTRACE=1 to make debugging ci failures easier
+- 2016-07-29 Implement save_der for X509 and X509Req
+- 2016-07-29 start using cargo workspaces
+- 2016-07-24 Merge pull request #423 from taheris/fix/moving-write-buffer
+- 2016-07-22 Set SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER flag
+- 2016-07-03 Merge pull request #410 from jonas-schievink/passwd-callbacks
+- 2016-07-01 Merge branch 'release'
+- 2016-07-01 Merge branch 'release-v0.7.14' into release
+- 2016-07-01 Release v0.7.14
+- 2016-07-01 Set auto retry
+- 2016-06-26 FnMut -> FnOnce, update docs
+- 2016-06-26 Put the test behind the catch_unwind feature
+- 2016-06-22 Add an RSA key decryption test
+- 2016-06-22 Put password callbacks behind a cargo feature
+- 2016-06-22 Make the callback take a `&mut [c_char]`
+- 2016-06-14 Add RSA::private_key_from_pem_cb
+- 2016-06-14 Move into utility module
+- 2016-06-13 Try to propagate callback panics
+- 2016-06-13 Add PKey::private_key_from_pem_cb
+- 2016-06-26 Test on 1.8
+- 2016-06-14 Merge pull request #408 from jonas-schievink/bignum-docs
+- 2016-06-13 Document BigNum
+- 2016-06-02 Merge pull request #404 from frewsxcv/mut2
+- 2016-06-02 Fix a few mutable types for `self` parameters.
+- 2016-05-20 Merge branch 'release'
+- 2016-05-20 Merge branch 'release-v0.7.13' into release
+- 2016-05-20 Release v0.7.13
+- 2016-05-19 Merge pull request #398 from nox/gdi32
+- 2016-05-19 Update user32-sys and gdi32-sys to 0.2
+- 2016-05-17 Merge branch 'release'
+- 2016-05-17 Merge branch 'release-v0.7.12' into release
+- 2016-05-17 Release v0.7.12
+- 2016-05-17 Rustfmt
+- 2016-05-17 Clean up RSA signature API
+- 2016-05-17 Merge pull request #360 from pingzing/master
+- 2016-05-16 Merge pull request #393 from nox/bitflags
+- 2016-05-16 Update cert
+- 2016-05-15 Allow bitflags 0.7
+- 2016-05-09 Downgrade bitflags on travis to build on 1.7
+- 2016-05-06 Merge pull request #389 from cmsd2/master
+- 2016-05-05 add rsa signature tests
+- 2016-05-05 Merge branch 'release'
+- 2016-05-05 Merge branch 'release-v0.7.11' into release
+- 2016-05-05 Release v0.7.11
+- 2016-05-04 Merge pull request #390 from yosemitebandit/patch-1
+- 2016-05-04 fixes typo in appveyor config
+- 2016-05-04 add missing NIDs and use Nid as input to signing
+- 2016-05-04 Add a new trait based Nid setup
+- 2016-05-03 Remove AsRaw{Fd, Socket} impls
+- 2016-05-03 Remove silly internal error enum
+- 2016-05-03 Drop MaybeSslStream
+- 2016-05-03 Drop is_dtls methods on SslMethod
+- 2016-05-02 Clean up SNI APIs
+- 2016-05-02 Move SslContext::set_verify to a closure based API
+- 2016-05-02 Rename getters in line with conventions
+- 2016-02-09 Adjust set_ssl_context API
+- 2016-01-30 Error reform
+- 2016-01-30 Remove deprecated methods
+- 2016-01-30 Remove NonblockingSslStream
+- 2016-05-03 take enum instead of ints from openssl header file
+- 2016-05-03 add constructor for private keys from bignums
+- 2016-05-03 Update openssl version in CI
+- 2016-05-02 Remove dead C code
+- 2016-05-02 Add a version of Ssl::set_verify that doesn't set a callback
+- 2016-05-02 Merge pull request #388 from frewsxcv/lifetimes
+- 2016-05-02 Remove unnecessary explicit lifetime.
+- 2016-05-02 Still check UTF validity in dnsname
+- 2016-05-01 Document SAN APIs and tweak accessor names
+- 2016-05-01 Implement IntoIterator for &GeneralNames
+- 2016-05-01 Merge pull request #386 from frewsxcv/general-names
+- 2016-05-01 Implement `iter` method on `GeneralNames`.
+- 2016-04-30 Add X509StoreContext::error_depth
+- 2016-04-26 Add Ssl::set_verify
+- 2016-04-30 Cut out tests against beta
+- 2016-04-30 Ignore default verify paths test on windows
+- 2016-04-30 Merge pull request #385 from mbrubeck/bitflags-0.6
+- 2016-04-30 Merge pull request #381 from chaaz/master
+- 2016-04-30 Add accessors for x509 subject alt names
+- 2016-04-29 Upgrade to work with bitflags 0.5 and 0.6
+- 2016-04-29 Start on GeneralName
+- 2016-04-19 Remove des_cfb and des_ofb, since they appear on limit platforms
+- 2016-04-17 Merge branch 'release'
+- 2016-04-17 Merge branch 'release-v0.7.10' into release
+- 2016-04-17 Release v0.7.10
+- 2016-04-17 Add docs for set_default_verify_paths
+- 2016-04-17 Add SslContext::set_default_verify_paths
+- 2016-04-14 Add 1DES symm ciphers (des-cbc, des-ecb, des-cfb, des-ofb)
+- 2016-04-14 Update for nightly changes
+- 2016-04-14 Update lazy_static
+- 2016-04-13 Merge pull request #380 from Yoric/master
+- 2016-04-13 Resolves #378 - Module version with the version information
+- 2016-04-13 Merge pull request #379 from rix0rrr/add-context-id
+- 2016-04-13 Add ability to set session ID context on an SSL context
+- 2016-04-10 Merge pull request #376 from kcking/kcking-copy-pkey-using-der
+- 2016-04-10 copy PKey using DER encode and decode
+- 2016-04-07 Merge branch 'release'
+- 2016-04-07 Merge branch 'release-v0.7.9' into release
+- 2016-04-07 Release v0.7.9
+- 2016-04-07 Merge pull request #374 from kcking/kcking-pkey-clone-copy
+- 2016-04-06 add EVP_PKEY_copy_parameters to FFI
+- 2016-04-04 Merge pull request #372 from jwilm/safe-bio-method-wrapper
+- 2016-04-04 Add safe wrapper BioMethod for ffi::BIO_METHOD
+- 2016-03-27 Cleanup
+- 2016-03-27 Update for nightly changes
+- 2016-03-21 Merge pull request #364 from leon-anavi/master
+- 2016-03-21 Cast correctly c_char raw pointers (fixes build on ARM #363)
+- 2016-03-18 Merge branch 'release'
+- 2016-03-18 Merge branch 'release-v0.7.8' into release
+- 2016-03-18 Release v0.7.8
+- 2016-03-18 Merge pull request #361 from servo/ptr
+- 2016-03-18 Allow Rust to infer the type of the argument to SSL_CIPHER_description.
+- 2016-03-18 Clean up BIO name
+- 2016-03-18 Simplify panic safety logic for new nightly
+- 2016-03-17 Merge branch 'release'
+- 2016-03-17 Merge branch 'release-v0.7.7' into release
+- 2016-03-17 Release v0.7.7
+- 2016-03-14 Fix order of 32- and 64-bit for mingw toolchain
+- 2016-03-13 Clarify windows build instructions
+- 2016-03-11 Merge pull request #359 from alexcrichton/nightly-fixes
+- 2016-03-11 Fix nightly warnings about zero-sized fn pointers
+- 2016-03-10 Merge pull request #285 from winding-lines/patch-1
+- 2016-03-10 Merge pull request #358 from ajroetker/maint/update_openssl_download_name_in_appveyor
+- 2016-03-10 (maint) Update download version for OpenSSL in appveyor to latest
+- 2016-03-05 Update appveyor openssl version and disable x86_64 build
+- 2016-03-05 Merge pull request #353 from bluejekyll/master
+- 2016-03-05 making from_raw() unsafe
+- 2016-03-01 Stop testing sslv2 feature on Travis
+- 2016-03-01 Update source URL for new OpenSSL release
+- 2016-03-01 Merge pull request #356 from erikjohnston/conninfo
+- 2016-03-01 Merge pull request #355 from KalitaAlexey/master
+- 2016-02-29 Make SSLCipher.bits() return a struct.
+- 2016-02-18 Add SSL_get_version
+- 2016-02-29 added public key material to the constructor
+- 2016-02-28 Bump bitflags to 0.4
+- 2016-02-24 review fixes, keep raw RSA initiallization private
+- 2016-02-18 adding functionality to directly get and set RSA key material
+- 2016-02-17 Add support for SSL_CIPHER
+- 2016-02-10 Merge branch 'release'
+- 2016-02-10 Merge branch 'release-v0.7.6' into release
+- 2016-02-10 Release v0.7.6
+- 2016-02-09 More deprecated function cleanup
+- 2016-02-09 Stop using deprecated method
+- 2016-02-02 Update appveyor openssl version
+- 2016-02-02 Merge pull request #349 from jwilm/fix-UID-nid-value
+- 2016-02-02 Rename Nid uid/UID to prevent breakage
+- 2016-02-02 Fix Nid::UID value
+- 2016-02-01 Merge pull request #348 from Hywan/patch-1
+- 2016-02-01 Fix CS
+- 2016-01-31 Merge pull request #346 from sfackler/revert-344-revert-336-x509-pky-clone
+- 2016-01-31 Revert "Revert "impl Clone for PKey and X509 by using their 'references' member""
+- 2016-01-30 Fix PKey RSA constructors
+- 2016-01-29 Merge pull request #344 from sfackler/revert-336-x509-pky-clone
+- 2016-01-29 Revert "impl Clone for PKey and X509 by using their 'references' member"
+- 2016-01-29 Merge pull request #343 from jimmycuadra/ordered-extensions
+- 2016-01-29 Bump openssl version to test with
+- 2016-01-28 Preserve X.509 extension insertion order.
+- 2016-01-28 Merge pull request #342 from wuerges/master
+- 2016-01-27 Improved README.md for Fedora
+- 2016-01-23 Remove unwraps from rsa accessors
+- 2016-01-23 Merge pull request #330 from esclear/master
+- 2016-01-23 Exclude test directory from package
+- 2016-01-22 Merge branch 'release'
+- 2016-01-22 Merge branch 'release-v0.7.5' into release
+- 2016-01-22 Release v0.7.5
+- 2016-01-22 Fix connect and accept error reporting
+- 2016-01-22 Merge pull request #339 from jimmycuadra/allow-raw-pointer-derive
+- 2016-01-22 Remove raw_pointer_derive lint.
+- 2016-01-20 Fix up RSA integration
+- 2016-01-20 Merge branch 'master' of https://github.com/sfackler/rust-openssl
+- 2016-01-20 Merge pull request #334 from jmesmon/ssl-context
+- 2016-01-20 Merge pull request #336 from jmesmon/x509-pky-clone
+- 2016-01-20 x509: impl Clone using references & CRYPTO_add()
+- 2016-01-20 crypto/pkey: impl Clone for PKey using openssl's ref counting
+- 2016-01-18 openssl/ssl/context: test that we are refcounting correctly
+- 2016-01-18 ssl: fix refcounting of SslContext when set_ssl_context is used
+- 2016-01-12 Fix incorrect unsafe declaration
+- 2016-01-12 Adhere to rust conventions
+- 2016-01-12 Make all ffi structs' fields  public
+- 2016-01-12 Fix should_panic check
+- 2016-01-12 Test nightly on travis
+- 2016-01-12 Add stream panic propagation behind a nightly feature gate
+- 2016-01-09 Make the BigNum generation from a native pointer unsafe
+- 2016-01-09 Merge pull request #328 from Cyberunner23/PemRSA
+- 2016-01-09 Added tests for private_rsa_key_from_pem() and public_rsa_key_from_pem()
+- 2016-01-07 Merge pull request #329 from bheart/send-sync-pkey
+- 2016-01-07 Mark PKey as `Send` and `Sync`
+- 2016-01-05 Added private_rsa_key_from_pem and public_rsa_key_from_pem.
+- 2016-01-05 Added PEM_read_bio_RSAPrivateKey and PEM_read_bio_RSA_PUBKEY
+- 2016-01-01 Add public interface to access BigNums from RSA keys
+- 2016-01-01 Implement the possibility to create BigNums from their ffi counterpart
+- 2016-01-01 Add RSA structs
+- 2015-10-11 Update README.md.
+- 2015-10-11 Update README.md
+- 2015-10-11 Update README with OSX 10.11 instructions
+- 2015-12-19 Update README doc link
+- 2015-12-19 Merge branch 'release'
+- 2015-12-19 Merge branch 'release-v0.7.4' into release
+- 2015-12-19 Release v0.7.4
+- 2015-12-19 Rustfmt
+- 2015-12-19 Fix deprecation location
+- 2015-12-19 Drop verbose flag
+- 2015-12-19 Add a script to build docs with all features enabled
+- 2015-12-19 Work around the worst of clone bogusness
+- 2015-12-18 Merge pull request #324 from gentoo90/deps
+- 2015-12-18 Fix Cargo.toml to actually depend on gdi32-sys and user32-sys
+- 2015-12-18 Merge branch 'release'
+- 2015-12-18 Merge branch 'release-v0.7.3' into release
+- 2015-12-18 Release v0.7.3
+- 2015-12-18 Disable cross compilation for now
+- 2015-12-18 Fix nonblocking behavior
+- 2015-12-17 Travis fixes
+- 2015-12-17 Stop using manifest-path for now
+- 2015-12-17 Try cross compiling
+- 2015-12-17 Install an ARM cross compilation toolchain
+- 2015-12-17 Test overhaul + add an arm cross compile build
+- 2015-12-16 Merge pull request #322 from operutka/master
+- 2015-12-16 Fix regression of c_char type mismatches on ARM
+- 2015-12-16 Rustfmt
+- 2015-12-16 Fix bounds on ssl_read and ssl_write
+- 2015-12-16 Merge branch 'release'
+- 2015-12-16 Merge branch 'release-v0.7.2' into release
+- 2015-12-16 Release v0.7.2
+- 2015-12-16 Cleanup SNI stuff
+- 2015-12-16 Cleanup
+- 2015-12-16 Merge pull request #320 from uasi/add-variations-of-pbkdf2
+- 2015-12-16 Merge pull request #309 from Geal/master
+- 2015-12-15 Document unused variant
+- 2015-12-13 Use 1.5.0 instead of nightlies
+- 2015-12-13 Yet more AsRawSocket fixes
+- 2015-12-13 More AsRawSocket fixes
+- 2015-12-13 Fix AsRawSocket impls
+- 2015-12-12 Have NonblockingSslStream delegate to SslStream
+- 2015-12-12 Build out a new error type
+- 2015-12-11 Make error handling more reliable
+- 2015-12-10 Put pbkdf2_hmac_{256,512}() behind feature gate
+- 2015-12-10 Add PBKDF2-HMAC-SHA256 and -SHA512 functions
+- 2015-12-10 Replace SslStream implementation!
+- 2015-12-10 Implement read and write
+- 2015-12-10 IT LIVES
+- 2015-12-09 Custom BIO infrastructure
+- 2015-12-08 Add BIO type definitions
+- 2015-12-08 Bump openssl version for travis
+- 2015-12-08 Merge pull request #318 from ajroetker/maint/update_appveyor_openssl_download_link
+- 2015-12-08 (maint) Update appveyor link to the OpenSSL download
+- 2015-12-03 Increment SSL_CTX's reference count in Ssl::get_ssl_context()
+- 2015-11-30 Merge pull request #315 from operutka/master
+- 2015-11-30 Cast correctly c_char raw pointers (fixes build on ARM #314)
+- 2015-11-29 Mention el cap changes in readme
+- 2015-11-29 Merge branch 'release'
+- 2015-11-29 Merge branch 'release-v0.7.1' into release
+- 2015-11-29 Release v0.7.1
+- 2015-11-28 Merge pull request #312 from maximih/master
+- 2015-11-28 Avoid empty include paths (i.e. cc -I "" ) as they are not supported by GCC. Fix #311
+- 2015-11-25 Make shims for SSL_CTX_ctrl and SSL_CTX_callback_ctrl macro wrappers
+- 2015-11-25 fix memory management
+- 2015-11-22 Avoid freeing the SSL object when Ssl is dropped
+- 2015-11-22 implement get/set ssl context
+- 2015-11-21 test SNI support
+- 2015-11-21 Implement try_clone for MaybeSslStream
+- 2015-11-20 Merge pull request #307 from alex/patch-1
+- 2015-11-20 Fixed a typo in a comment.
+- 2015-11-18 Merge pull request #306 from overminder/get1-leak-fix
+- 2015-11-18 Fix a leak when using `EVP_PKEY_get1_RSA`.
+- 2015-11-17 Remove unecessary build dependency
+- 2015-11-17 Merge branch 'release'
+- 2015-11-17 Merge branch 'release-v0.7.0' into release
+- 2015-11-17 Release v0.7.0
+- 2015-11-17 Mention why the windows deps are there
+- 2015-11-17 Don't depend on wildcard windows deps
+- 2015-11-17 Merge pull request #297 from retep998/patch-1
+- 2015-11-17 Remove deprecated X509 methods
+- 2015-11-12 Move HMAC_CTX_copy to sys-extras
+- 2015-11-11 Split stuff requiring a shim out to a separate crate
+- 2015-11-10 Bump ws2_32-sys version
+- 2015-11-10 Set path for travis test
+- 2015-11-10 Switch to libc 0.2
+- 2015-10-27 Move SSL methods to Ssl object, add getter
+- 2015-11-10 Test all features
+- 2015-10-26 Fix feature gated sslv3
+- 2015-10-15 Revert "Revert "Merge pull request #280 from ltratt/libressl_build""
+- 2015-06-17 Revert "Use AsRef for backwards compatibility with passing IV as Vec"
+- 2015-11-17 Merge pull request #300 from thommay/pkey_private_encrypt
+- 2015-11-09 Fix syntax
+- 2015-11-09 Stop adding strace
+- 2015-11-09 Fix path for travis buidl
+- 2015-11-09 fuuu
+- 2015-11-09 Install strace
+- 2015-11-09 RUn tests through strace
+- 2015-11-09 Moar debuggign
+- 2015-11-09 Test with one thread to debug timeouts
+- 2015-11-09 Travis without sudo
+- 2015-10-28 Provide public_decrypt, private_encrypt for PKEY
+- 2015-10-27 Better debug impls
+- 2015-10-25 Explicitly depend on gdi32 and user32 on Windows
+- 2015-10-22 Merge pull request #294 from alexcrichton/nonblocking-tests
+- 2015-09-23 Get nonblocking tests working on OSX/Windows
+- 2015-10-21 Merge pull request #272 from dropbox/async_support
+- 2015-09-20 Nonblocking streams support.
+- 2015-10-18 Merge pull request #290 from jimmycuadra/master
+- 2015-10-15 Expose RSA_generate_key_ex.
+- 2015-10-15 Merge branch 'release'
+- 2015-10-15 Merge branch 'release-v0.6.7' into release
+- 2015-10-15 Release v0.6.7
+- 2015-10-15 Merge pull request #288 from alexcrichton/include
+- 2015-10-15 Revert "Merge pull request #280 from ltratt/libressl_build"
+- 2015-10-15 Merge pull request #289 from larsbergstrom/version_fixup
+- 2015-10-15 Update OpenSSL version checks to 1.0 numbers instead of 0.10 numbers
+- 2015-10-13 Add metadata for the include dir of openssl
+- 2015-10-13 Merge pull request #286 from jedisct1/use_certificate_chain
+- 2015-10-13 Merge pull request #284 from bheart/cfb-mode
+- 2015-10-13 Merge pull request #287 from radare/patch-1
+- 2015-10-12 Add certs.pem in cert probe list
+- 2015-10-12 Add set_certificate_chain_file()
+- 2015-10-09 AES CFB{1,8,128} mode support
+- 2015-10-11 Merge pull request #280 from ltratt/libressl_build
+- 2015-10-11 Merge pull request #277 from nixpulvis/read_public_pem
+- 2015-10-05 Merge branch 'release'
+- 2015-10-05 Merge branch 'release-v0.6.6' into release
+- 2015-10-05 Release v0.6.6
+- 2015-10-05 Clean up init stuff
+- 2015-10-05 Merge pull request #282 from Manishearth/threadid
+- 2015-10-05 Set threadid_func on linux/osx (fixes #281)
+- 2015-10-03 Fix build on LibreSSL.
+- 2015-10-03 Merge pull request #279 from jtdowney/sslv23_docs
+- 2015-10-02 Update documentation about SSLv23
+- 2015-10-02 Add public key PEM read function.
+- 2015-09-26 Merge pull request #263 from jedisct1/ecdh_auto
+- 2015-09-25 Add an ecdh_auto description
+- 2015-09-01 Add SSL::set_ecdh_auto()
+- 2015-09-23 Merge pull request #273 from alexcrichton/test-on-windows
+- 2015-09-22 Enable testing on Windows via AppVeyor
+- 2015-09-16 Merge pull request #266 from jmesmon/alpn
+- 2015-09-16 ssl/alpn: test mismatch between protocols resulting in None
+- 2015-09-16 Merge pull request #261 from jedisct1/try_ssl_null
+- 2015-09-16 Merge pull request #262 from jedisct1/read_dhparams
+- 2015-09-01 Use try_ssl_null!() when relevant
+- 2015-09-01 Add DH::from_pem() to load DH parameters from a file
+- 2015-09-11 Merge pull request #270 from mvdnes/crypto_segv
+- 2015-09-11 Fix one call to RSA_size found by tests
+- 2015-09-11 Add tests to ensure a panic occurs instead of segv
+- 2015-09-10 Check rsa.is_null() before passing it to RSA_size
+- 2015-09-10 Check _fromstr function for success
+- 2015-09-10 Merge pull request #268 from alex/patch-1
+- 2015-09-09 Make the docs say that load_pub/save_pub methods take DER bytes
+- 2015-09-01 ssl/npn+alpn: adjust protocol selection to fail if no protocols match
+- 2015-07-01 openssl/ssl: fix some of the comment text where I missed replacing NPN with ALPN
+- 2015-09-01 Merge pull request #265 from alexcrichton/swap-order
+- 2015-09-01 Swap order of linking ssl/crypto
+- 2015-09-01 Merge pull request #259 from jedisct1/dh
+- 2015-09-01 Merge branch 'release'
+- 2015-09-01 Merge branch 'release-v0.6.5' into release
+- 2015-09-01 Release v0.6.5
+- 2015-08-31 Add support for set_tmp_dh() and RFC5114 DH parameters for forward secrecy.
+- 2015-08-23 Merge pull request #251 from ebarnard/evp_bytestokey
+- 2015-08-03 Expose EVP_BytesToKey
+- 2015-08-19 Merge pull request #253 from manuels/master
+- 2015-08-14 Add get_state_string()
+- 2015-08-15 Fix openssl source link in tests
+- 2015-08-15 Merge pull request #240 from jethrogb/topic/x509_req_extension
+- 2015-08-11 Grab errno for directstream want errors
+- 2015-08-08 Handle WantWrite and WantRead errors
+- 2015-08-03 Merge pull request #243 from manuels/master
+- 2015-08-03 Add new feature to travis tests
+- 2015-08-03 Merge pull request #242 from awelkie/master
+- 2015-07-26 Merge pull request #247 from panicbit/pub-init
+- 2015-07-26 Expose ssl::init
+- 2015-07-24 Merge pull request #244 from andrew-d/andrew-save-pubkey
+- 2015-07-19 Add function to write RSA public key as PEM
+- 2015-07-24 Make curl follow redirects
+- 2015-07-18 Fix probelms with DTLS when no packets are pending.
+- 2015-07-16 Added AES CTR-mode under feature flag.
+- 2015-07-08 Implement certificate extensions for certificate requests
+- 2015-07-08 Merge pull request #239 from jethrogb/topic/x509_extension_fix
+- 2015-07-08 Add missing C-string conversion, fixing recent build errors
+- 2015-07-08 Merge pull request #227 from jethrogb/topic/x509_name
+- 2015-07-08 Merge pull request #221 from jethrogb/topic/ssl_options
+- 2015-06-30 Fix/add more X509generator tests
+- 2015-06-30 Add X509generator.add_names method
+- 2015-06-15 Add public add_name method to X509Generator
+- 2015-06-15 Replace CN field by names vector
+- 2015-07-08 Merge pull request #233 from jethrogb/topic/x509_extension
+- 2015-07-06 Merge branch 'release'
+- 2015-07-06 Merge branch 'release-v0.6.4' into release
+- 2015-07-06 Release v0.6.4
+- 2015-07-06 Merge pull request #236 from servo/unpin
+- 2015-07-06 Unpin the bitflags version.
+- 2015-06-23 Remove #ifs for same-value shimmed SSL options. Depend on compiler optimization instead.
+- 2015-07-02 Decouple C SSL Option bit flags from Rust version
+- 2015-07-01 tabs to spaces
+- 2015-07-01 Add documentation on X509 Extensions
+- 2015-07-01 Add Issuer Alternative Name extension
+- 2015-07-01 Add Subject Alternate Name extension
+- 2015-07-01 Add arbitrary X509 extensions by OID string
+- 2015-07-01 Add arbitrary X509 extensions by NID
+- 2015-07-01 Add public generic extension interface to X509Generator
+- 2015-07-01 Implement arbitrary X509 Extended Key Usage values
+- 2015-07-01 Implement "extensions" field in X509generator, and change existing extensions to use that
+- 2015-07-01 Turn assertions into unwraps such that tests provide useful output on panic.
+- 2015-07-01 Turn "dirty hack" into slightly less dirty hack, with potential to become non-dirty
+- 2015-07-01 Move X509 extensions to seperate module, implement ToString instead of custom AsStr
+- 2015-07-01 Merge pull request #232 from jethrogb/topic/fix_nid
+- 2015-07-01 Add a test that checks whether 3 known subject attributes can be retrieved by NID
+- 2015-07-01 Fix NID definitions to match OpenSSL. The previous numbers were introduced incorrectly in #213
+- 2015-07-01 More syntax fixes
+- 2015-07-01 Fix travis file syntax
+- 2015-06-30 Fix travis?
+- 2015-06-30 Manually set lib and include dirs on linux builds
+- 2015-06-30 Revert "Don't build a custom openssl on OSX"
+- 2015-06-30 Fix backcompat method
+- 2015-06-30 Fix build with alpn feature
+- 2015-06-30 Initialize FEATURES again in travis config
+- 2015-06-30 Merge pull request #229 from jmesmon/alpn
+- 2015-06-24 ssl: support ALPN
+- 2015-06-24 ssl/NPN: factor out encoding of the protocol list
+- 2015-06-24 ssl: use a common helper to generate new ex data indexes, switch NPN to a lazyref
+- 2015-06-29 Modernize cargo directives
+- 2015-06-29 Don't use pkg-config on windows
+- 2015-06-28 More docs
+- 2015-06-28 Fix windows build
+- 2015-06-28 Docs
+- 2015-06-28 Make the direct constructors the defaults
+- 2015-06-28 Add docs for accept and connect
+- 2015-06-28 Rename new_client to connect and new_server to accept
+- 2015-06-28 Implement direct IO support
+- 2015-06-28 Prepare for direct stream support
+- 2015-06-28 Docs tweak
+- 2015-06-28 Reduce SslStream constructor duplication
+- 2015-06-28 Initialize stream buffer
+- 2015-06-28 Fix set_hostname
+- 2015-06-27 Strip other LD_LIBRARY_PATH reference
+- 2015-06-27 Don't build a custom openssl on OSX
+- 2015-06-27 Import shim'd HMAC stuff with the original name
+- 2015-06-27 Move macro replicas into C shim
+- 2015-06-26 Merge branch 'release'
+- 2015-06-26 Merge branch 'release-v0.6.3' into release
+- 2015-06-26 Release v0.6.3
+- 2015-06-26 Add a test for connection negotiation failure
+- 2015-06-26 Fix EOF handling in retry wrapper
+- 2015-06-20 Merge pull request #225 from semmaz/mingw-build-fix
+- 2015-06-18 Mention mingw in README
+- 2015-06-17 Merge pull request #226 from jethrogb/topic/crypto_iv_slice
+- 2015-06-15 Don't ignore environment variables if building with mingw
+- 2015-06-15 Remove superfluous vec! usage
+- 2015-06-15 Use AsRef for backwards compatibility with passing IV as Vec
+- 2015-06-13 Pass symmetric crypto initialization vector as a slice
+- 2015-06-10 Added support for building on Windows with MinGW
+- 2015-06-02 Merge pull request #223 from Manishearth/patch-2
+- 2015-06-02 Bump bitflags version
+- 2015-06-01 Disable master doc uploads
+- 2015-06-01 Merge pull request #222 from cheme/master
+- 2015-05-30 Correction on sign and verify documentation to be more explicit of right
+- 2015-05-29 Merge pull request #219 from jethrogb/topic/x509req
+- 2015-05-29 Remove superfluous dead_code attribute
+- 2015-05-28 Merge pull request #218 from jethrogb/topic/documentation
+- 2015-05-28 Implement limited X509_REQ functionality
+- 2015-05-28 Clarify which keys are used where
+- 2015-05-23 Merge pull request #217 from nstoddard/master
+- 2015-05-23 Fix build instructions on Windows
+- 2015-05-17 Merge pull request #211 from bozaro/redefine_libs
+- 2015-05-17 Fix SslString Debug impl and drop lifetime
+- 2015-05-17 Merge pull request #213 from josephglanville/feature/read_subject
+- 2015-05-11 Test reading CN from test certificate
+- 2015-05-11 Add support for reading X509 subject information
+- 2015-05-16 Merge pull request #214 from josephglanville/feature/peer_cert
+- 2015-05-16 Add test for get_peer_certificate()
+- 2015-05-11 Add accessor for peer_certificate
+- 2015-05-15 Remove MSYSTEM environment variable check
+- 2015-05-13 Fix doc root
+- 2015-05-07 Add ability to redefine library list via OPENSSL_LIBS environment variable.
+- 2015-05-06 Merge pull request #210 from manuels/pending
+- 2015-05-04 Merge pull request #201 from manuels/pkey_cmp
+- 2015-05-02 Abstract over AsRef<Path>
+- 2015-05-01 Release v0.6.2
+- 2015-04-30 Move PKey comparison func to public_eq()
+- 2015-04-30 Add SslStream.pending()
+- 2015-04-30 Write through to underlying stream for every write call
+- 2015-04-30 Merge pull request #207 from Byron/master
+- 2015-04-28 docs(README.md): remove extra `\` character
+- 2015-04-28 Test on both nightly and beta
+- 2015-04-22 Release v0.6.1
+- 2015-04-20 Merge pull request #202 from DiamondLovesYou/master
+- 2015-04-19 Fixes for Native Client.
+- 2015-04-16 Add comparison for PKeys
+- 2015-04-16 Merge pull request #199 from CarlColglazier/patch-1
+- 2015-04-16 Merge pull request #200 from manuels/x509_pubkey
+- 2015-04-15 Add X509::public_key()
+- 2015-04-15 Fix nightly build issues
+- 2015-04-15 Fix documentation URL for openssl-sys.
+- 2015-04-09 Fix non-dtls tests
+- 2015-04-09 Fix dtls tests
+- 2015-04-09 Clean up build infrastructure
+- 2015-04-09 Merge pull request #179 from manuels/dtls
+- 2015-04-06 Use latest openssl library (v1.0.2)
+- 2015-04-06 Make connected_socket a dev-dependency
+- 2015-04-06 Adapt code for rust-1.0.0-beta
+- 2015-04-03 Fix rebase errors
+- 2015-03-19 Add ability to load private keys from files and use raw keys and certificates for SslContext
+- 2015-03-19 Add ability to load private keys from files and use raw keys and certificates for SslContext
+- 2015-03-19 Change SslContext::set_read_ahead(c_long) to SslContext::set_read_ahead(u32)
+- 2015-03-17 Fix preemtively exiting openssl dtls server for tests
+- 2015-03-15 Debug halteproblem with tests
+- 2015-03-15 Postpone custom openssl build
+- 2015-03-15 Move connected_socket to its own crate and fix SSL_CTX_set_read_ahead()
+- 2015-03-15 Use latest OpenSSL version in travis tests and more verbose error message in ConnectedSocket
+- 2015-03-12 Fix detect_invalid_ipv4 test on OSX
+- 2015-03-12 Fix OSX related compiler error and correct travis OpenSSL setup
+- 2015-03-12 Fix travis path to test bash script
+- 2015-03-12 Adjust sin_len/sin6_len for non-linux platforms
+- 2015-03-12 Fix portability issue and typo
+- 2015-03-11 Fix travis test setup for DTLS
+- 2015-03-10 Add DTLS docs
+- 2015-03-10 Add DTLSv1 and DTLSv1.2 support
+- 2015-03-04 Add connect() support for UDP sockets
+- 2015-04-05 Release v0.6.0
+- 2015-04-05 Merge pull request #186 from manuels/set_raw_key
+- 2015-04-03 Release v0.5.5
+- 2015-04-03 Fix errors in tests (SslVerifyPeer -> SSL_VERIFY_PEER)
+- 2015-04-03 Use raw pointers instead of ptr::Unique
+- 2015-03-19 Return Result<(),SslError> instead of Option<SslError>
+- 2015-03-19 Add SslContext::add_extra_chain_cert()
+- 2015-03-19 Add ability to load private keys from files and use raw keys and certificates for SslContext
+- 2015-03-12 Change SslVerifyMode to bitflags and add SSL_VERIFY_FAIL_IF_NO_PEER_CERT
+- 2015-04-03 Stabilize openssl!
+- 2015-04-03 Merge pull request #194 from alexcrichton/beta
+- 2015-04-03 Fixup for beta
+- 2015-04-02 Remove two features
+- 2015-04-02 Release v0.5.4
+- 2015-04-02 Fix doctest errors
+- 2015-04-02 Merge pull request #193 from seanmonstar/rustup
+- 2015-04-02 rustup: changes to io::Error
+- 2015-03-31 Remove a bunch of use of core feature
+- 2015-03-31 Remove unsafe_destructor
+- 2015-03-29 Release v0.5.3
+- 2015-03-29 Fix verify data free function
+- 2015-03-29 Merge pull request #191 from fhartwig/rustup
+- 2015-03-29 Fix error with current rust nightly
+- 2015-03-26 Fix npn feature
+- 2015-03-26 Fix deprecation warnings
+- 2015-03-25 Release v0.5.2
+- 2015-03-25 Merge pull request #189 from alexcrichton/update
+- 2015-03-25 Update to rust master
+- 2015-03-24 Merge pull request #185 from mlalic/npn-bindings
+- 2015-03-18 openssl: Add tests for server-side NPN
+- 2015-03-18 openssl: Add tests for client-side NPN
+- 2015-03-18 openssl: Advertise NPN protocols for server sockets
+- 2015-03-18 openssl: Add methods to get the protocol selected by NPN
+- 2015-03-18 openssl: Implement client-side NPN protocol selection
+- 2015-03-18 openssl: Add method for setting protocols to be used in NPN
+- 2015-03-18 openssl: Add NPN crate feature
+- 2015-03-18 openssl-sys: Add TLS extension constants
+- 2015-03-18 openssl-sys: Add NPN functions and constants
+- 2015-03-21 Merge pull request #187 from manuels/x509_sign
+- 2015-03-21 Add X509Generator::sign()
+- 2015-03-21 Fix doc test
+- 2015-03-20 Fix warnings and build issues
+- 2015-03-16 Merge pull request #184 from alexcrichton/update
+- 2015-03-16 Remove usage of unstable features in openssl-sys
+- 2015-03-11 Fix warnings
+- 2015-03-07 Merge pull request #172 from reaperhulk/add-ssl-ctx-set-get-options
+- 2015-03-05 Merge pull request #175 from aatxe/master
+- 2015-03-04 Merge pull request #176 from alexcrichton/update
+- 2015-03-04 Cut down on unstable features in openssl-sys
+- 2015-03-02 Added try_clone to SslStream for SslStream<TcpStream>.
+- 2015-02-28 Release v0.5.0
+- 2015-02-28 Merge branch 'breaks'
+- 2015-02-26 Silence stability warning
+- 2015-02-25 Convert to new IO.
+- 2015-02-22 Switch to cargo liblibc
+- 2015-02-24 add support for SSL_CTX_clear_options and use bitflags
+- 2015-02-22 add support for SSL_CTX_set_options and SSL_CTX_get_options
+- 2015-02-22 Use new path API in buildscript
+- 2015-02-22 Remove old attributes
+- 2015-02-20 Relase v0.4.3
+- 2015-02-20 Merge pull request #166 from Ryman/master
+- 2015-02-20 Update depreciated code
+- 2015-02-20 Unique<T> now derefs to *mut T
+- 2015-02-19 Fix warning
+- 2015-02-19 Release v0.4.2
+- 2015-02-19 Fix warnings
+- 2015-02-19 Merge pull request #164 from alexcrichton/ice
+- 2015-02-19 Fix debuginfo ICE for now
+- 2015-02-17 Release v0.4.1
+- 2015-02-17 Rename method for clarity
+- 2015-02-17 Properly handle errors in write
+- 2015-02-17 Deal with openssl errors in read
+- 2015-02-14 Release v0.4.0
+- 2015-02-14 Remove deprecated functions from openssl-sys
+- 2015-02-14 Move openssl license to openssl
+- 2015-02-14 Add OpenSSL license to THIRD_PARTY
+- 2015-02-14 Rewrite README for new setup
+- 2015-02-14 Don't use pkg-config if any overrides are passed
+- 2015-02-14 Stop hardcoding things in openssl-sys build.rs
+- 2015-02-14 Ask openssl what version it is
+- 2015-02-13 Oops, pass include dirs through for 1.0.0 versions too
+- 2015-02-13 Fix shim builds
+- 2015-02-13 Pass include directories to gcc
+- 2015-02-12 Merge pull request #161 from bombless/fix-windows
+- 2015-02-12 Make it safer
+- 2015-02-12 Fix Windows build
+- 2015-02-12 Release v0.3.6
+- 2015-02-12 Fix for upstream change
+- 2015-02-12 Merge pull request #160 from globin/fix/rustup
+- 2015-02-12 rustup to current master
+- 2015-02-12 Move BSD special case after pkg-config lookups
+- 2015-02-12 Release v0.3.5
+- 2015-02-12 Merge pull request #159 from wg/master
+- 2015-02-12 Add clarifying comment for BSD special case
+- 2015-02-12 Fix build on *BSD
+- 2015-02-12 Releaes v0.3.4
+- 2015-02-12 Merge pull request #158 from quentinbaradat/master
+- 2015-02-11 Fix a bad fix :)
+- 2015-02-11 Fix the target for windows
+- 2015-02-10 More test fixes
+- 2015-02-10 Derp
+- 2015-02-10 Don't test with features enabled on OSX
+- 2015-02-10 Enable multi OS builds
+- 2015-02-09 Release v0.3.3
+- 2015-02-09 Always build shim
+- 2015-02-09 Release v0.3.2
+- 2015-02-09 Fix builds against 0.9.x OpenSSL
+- 2015-02-09 Merge pull request #156 from s-panferov/patch-1
+- 2015-02-08 Fix test
+- 2015-02-08 Fix stuff
+- 2015-02-08 Fix travis.yml
+- 2015-02-08 Build fixes
+- 2015-02-08 Move docs to this repo and auto build
+- 2015-02-07 Add info about OS X to the README
+- 2015-02-06 Fix deprecation warnings in openssl-sys
+- 2015-02-03 Release v0.3.1
+- 2015-02-03 Move openssl-sys build.rs
+- 2015-02-03 Merge pull request #153 from mbrubeck/android
+- 2015-02-03 Don't bail out when targeting Android
+- 2015-02-03 Release v0.3.0
+- 2015-02-03 Merge pull request #152 from gkoz/std_stability
+- 2015-02-03 Chase std API stability changes
+- 2015-02-01 Merge pull request #150 from gkoz/show_debug
+- 2015-02-01 Merge pull request #151 from gkoz/std_stability_warns
+- 2015-02-01 Declare the use of unstable libstd APIs
+- 2015-02-01 Derive Debug instead of deprecated Show
+- 2015-01-29 Fix for stability changes
+- 2015-01-29 Merge pull request #149 from gkoz/hashers_double_fin
+- 2015-01-29 Avoid duplicate calls to *_Final when dropping Hasher and HMAC
+- 2015-01-28 Merge pull request #141 from gkoz/borrow_mut
+- 2015-01-22 Rename crypto::hash::HashType -> Type
+- 2015-01-10 Change Hasher and HMAC APIs closer to std::hash model
+- 2015-01-28 Release v0.2.18
+- 2015-01-28 Fix for IO changes
+- 2015-01-23 Release v0.2.17
+- 2015-01-23 Fix for upstream changes
+- 2015-01-21 Merge pull request #145 from gkoz/ffi_fixes
+- 2015-01-21 Bring ffi definitions closer to the originals
+- 2015-01-17 Release v0.2.16
+- 2015-01-17 Drop execute bits on source files
+- 2015-01-12 Merge pull request #142 from akiss77/pr-u8-c_char
+- 2015-01-12 Fix ffi: `BN_hex2bn` and `BN_dec2bn` shall take `*const c_char` as parameter
+- 2015-01-10 Add Show impls
+- 2015-01-09 Fix doctest
+- 2015-01-09 Merge pull request #140 from alexcrichton/update
+- 2015-01-09 Update to rust master
+- 2015-01-07 Merge pull request #139 from vhbit/up-master
+- 2015-01-07 Handle recent breaking changes
+- 2015-01-06 Release v0.2.13
+- 2015-01-06 Merge pull request #138 from retep998/master
+- 2015-01-06 Update rust
+- 2015-01-06 Merge pull request #137 from cjcole/master
+- 2015-01-06 Merge remote-tracking branch 'upstream/master'
+- 2015-01-04 Release v0.2.12
+- 2015-01-04 Fix for upstream changes
+- 2015-01-04 Added use of ToCStr trait.
+- 2015-01-04 Merge remote-tracking branch 'upstream/master'
+- 2015-01-03 Release v0.2.11
+- 2015-01-03 Fix deprecation warnings
+- 2015-01-03 Merge branch 'master' of https://github.com/cjcole/rust-openssl
+- 2015-01-03 Merge pull request #136 from vhbit/up-master
+- 2015-01-03 Merge remote-tracking branch 'upstream/master'
+- 2015-01-03 Updated to master:
+- 2015-01-02 Added BN_add_word, BN_sub_word, BN_mul_word, BN_div_word.
+- 2015-01-02 Merge remote-tracking branch 'upstream/master'
+- 2015-01-02 Merge pull request #134 from DiamondLovesYou/master
+- 2015-01-02 Merge pull request #135 from vhbit/array-syntax
+- 2015-01-02 Array syntax fallout
+- 2015-01-02 OpenSSL-sys: Cfg off target_os instead off feature.
+- 2015-01-01 Release v0.2.10
+- 2015-01-01 Merge pull request #133 from kinghajj/mutex-api-changes
+- 2014-12-31 Change to use updated Mutex API in latest Rust master.
+- 2014-12-29 Release v0.2.9
+- 2014-12-29 Merge pull request #132 from jmesmon/fix-opt-in-sync
+- 2014-12-29 ssl: use std::ptr::Unique to fix for opt-in Sync
+- 2014-12-23 Added Copy impl.
+- 2014-12-23 Merge remote-tracking branch 'upstream/master'
+- 2014-12-23 Release v0.2.8
+- 2014-12-23 Merge pull request #130 from alexcrichton/update
+- 2014-12-23 Update to rust master
+- 2014-12-21 Release v0.2.7
+- 2014-12-21 Merge pull request #128 from aatxe/master
+- 2014-12-21 Replaced now removed NativeMutex with StaticMutex, and fixed Neg
+- 2014-12-20 Print unexpected error codes
+- 2014-12-19 Release v0.2.6
+- 2014-12-19 Merge pull request #126 from aatxe/master
+- 2014-12-19 Updated for language changes to macros.
+- 2014-12-17 Merge pull request #119 from glennw/android-static-linking
+- 2014-12-16 Release v0.2.5
+- 2014-12-16 Merge pull request #125 from alexcrichton/update
+- 2014-12-16 Update to rust master
+- 2014-12-15 Merge pull request #115 from brunoqc/patch-1
+- 2014-12-15 Release v0.2.4
+- 2014-12-15 Merge pull request #122 from vhbit/proc_removal
+- 2014-12-15 Track master: proc removal, tuple indexing
+- 2014-12-14 Added BigNum::{from_dec_str,from_hex_str}, BN_dec2bn, and BN_hex2bn.
+- 2014-12-12 Release v0.2.3
+- 2014-12-11 Use static linking on android, which simplifies deployment since loading application specific shared libraries on android requires Java code or other hacks.
+- 2014-12-11 Clean up Copy impls a bit
+- 2014-12-11 Merge pull request #118 from vhbit/oibit-fix
+- 2014-12-11 Added BigNum::one().
+- 2014-12-11 Update to nightly: explicit Copy trait
+- 2014-12-11 Use "ffi" namespace.
+- 2014-12-11 Merge remote-tracking branch 'upstream/master'
+- 2014-12-11 Added mod_word.
+- 2014-12-10 Merge pull request #117 from Ummon/master
+- 2014-12-10 Add the openssl function prototype 'HMAC_CTX_cleanup'.
+- 2014-12-10 Add rustlib 64-bit path in README
+- 2014-12-10 Merge pull request #114 from DiamondLovesYou/master
+- 2014-12-10 Don't forget to bump the openssl-sys dep version!
+- 2014-12-10 Merge pull request #113 from DiamondLovesYou/nacl-crosses
+- 2014-12-10 Now that pkg-config 0.1.1 has been published, delegate to bailout detection to pkg-config.
+- 2014-12-09 Merge pull request #108 from DiamondLovesYou/nacl-crosses
+- 2014-12-06 Add a feature to openssl-sys to cause it to build a local copy of libressl for
+- 2014-12-06 Speed up SslStream initialization a bit
+- 2014-12-05 Merge pull request #110 from Manishearth/patch-1
+- 2014-12-05 Directly substitute $OPENSSL_PATH
+- 2014-12-03 Merge pull request #109 from Manishearth/android
+- 2014-12-03 Allow passing in Android paths
+- 2014-12-03 Fix doc test and stop doc upload
+- 2014-12-01 Release v0.2.2
+- 2014-11-30 Merge remote-tracking branch 'upstream/master'
+- 2014-11-30 Added mod_mul.
+- 2014-11-29 Make SslStream Cloneable
+- 2014-11-28 Release 0.2.1
+- 2014-11-28 Add MaybeSslStream
+- 2014-11-28 Drop execute bit on file
+- 2014-11-28 Bump to 0.2
+- 2014-11-28 Fix windows dependencies
+- 2014-11-28 Add openssl-sys dependency on windows
+- 2014-11-27 Fix to pkg-config 0.1
+- 2014-11-26 Merge pull request #99 from gkoz/context_reuse
+- 2014-11-20 Hasher: static contract checking, context reuse
+- 2014-11-26 Bump to 0.1.1
+- 2014-11-26 Merge pull request #105 from andor44/master
+- 2014-11-26 Sync is now part of the standard library
+- 2014-11-26 Bump to 0.1.0
+- 2014-11-26 Allow access to the underlying stream
+- 2014-11-24 Fix deprecation warning
+- 2014-11-24 Merge pull request #104 from jmesmon/sys
+- 2014-11-24 ssl: add get_peer_certificate()
+- 2014-11-24 sys: add SSL_get_peer_certificate()
+- 2014-09-23 sys: add some methods for dealing with x509 certs
+- 2014-10-13 sys (and bn): make CRYPTO_free() take a *mut c_void insead of a *const c_char
+- 2014-11-22 Add more crate metadata
+- 2014-11-22 Update stuff for upload to registry
+- 2014-11-22 Add license and description
+- 2014-11-21 Merge pull request #102 from vhbit/fix-neg-serials
+- 2014-11-21 Fix negative serials on generated certs
+- 2014-11-21 Merge pull request #101 from vhbit/runtime-fallout
+- 2014-11-21 Runtime fallout
+- 2014-11-20 Merge pull request #100 from gkoz/new_cert
+- 2014-11-20 Slice syntax fix
+- 2014-11-20 Replace an expired cert with a new one to make tests happy
+- 2014-11-19 Merge pull request #54 from jmesmon/server
+- 2014-11-19 Fix test build
+- 2014-09-23 Baseline server support
+- 2014-11-18 Remove Zero and One impls
+- 2014-11-18 Merge pull request #98 from jamesrhurst/namespaced-enums
+- 2014-11-18 Fixed compilation errors related to namedspaced enums
+- 2014-11-17 Impl Error for SslError
+- 2014-11-16 Fix travis features
+- 2014-11-16 Move AES XTS support to a feature
+- 2014-11-15 Merge pull request #96 from coyotebush/xts
+- 2014-11-06 Add XTS-AES mode
+- 2014-11-14 Merge pull request #95 from vhbit/custom-build
+- 2014-11-11 New build system
+- 2014-11-11 Bump to 0.0.1
+- 2014-11-10 Merge pull request #89 from pyrho/aes-256-cbc-decrypt-test
+- 2014-11-10 Merge pull request #94 from DiamondLovesYou/master
+- 2014-11-10 Force linkage of LibreSSL when targeting NaCl OSs.
+- 2014-11-10 Support PNaCl/NaCl.
+- 2014-11-09 Add overrideable platform ssl.
+- 2014-11-07 Merge pull request #92 from jmesmon/hash-writier
+- 2014-11-07 Hasher::write(): add basic test
+- 2014-11-07 crypto/hash: impl Writer for Hasher to allow use of Reader-Writer convenience functions
+- 2014-11-07 Merge pull request #93 from jmesmon/fix-tcpstream
+- 2014-11-07 Update to work with change in TcpStream api
+- 2014-11-01 Clean up some warnings
+- 2014-10-30 Merge pull request #90 from ebfe/fix-build
+- 2014-10-30 fail! -> panic!
+- 2014-10-28 Replaced vector of bytes with bytes string literal for expected output of AES_256_CBC deciphering unit test
+- 2014-10-28 Merge remote-tracking branch 'upstream/master' into aes-256-cbc-decrypt-test
+- 2014-10-28 AES 256 CBC unit test
+- 2014-10-27 Clean up some BN stuff
+- 2014-10-26 Update doc location
+- 2014-10-17 Merge pull request #85 from vhbit/x509-load-pem
+- 2014-10-14 Cert loading from PEM & restructuring 
+- 2014-10-14 Merge pull request #86 from vhbit/bn-squash-init
+- 2014-10-14 Merge pull request #87 from vhbit/removed-native
+- 2014-10-14 Removed redundant files
+- 2014-10-14 Cleaned up BigNum constructors
+- 2014-10-14 Merge pull request #81 from vhbit/lock-init
+- 2014-10-13 Correct init mutexes and locking function
+- 2014-10-14 Merge pull request #83 from jmesmon/set-cipher-list
+- 2014-09-23 ssl: allow setting cipher list
+- 2014-10-12 Merge pull request #79 from jroesch/init-cleanup
+- 2014-10-11 Refactor init and error handling code
+- 2014-10-10 Merge pull request #62 from vhbit/feature-matrix
+- 2014-10-02 Feature matrix & conditioned doc generation
+- 2014-10-10 Merge pull request #78 from alexcrichton/update
+- 2014-10-10 Prepare for s/static/const/
+- 2014-10-09 Merge pull request #75 from kinghajj/change-final-to-finalize
+- 2014-10-09 Merge pull request #76 from vhbit/bn-zero-int
+- 2014-10-09 BN_is_zero as a Rust function
+- 2014-10-09 "final" is now a reserved word, so change occurrences to "finalize".
+- 2014-10-08 Merge pull request #74 from vhbit/doc-samples
+- 2014-10-08 X509 Generator sample
+- 2014-10-08 Merge pull request #73 from vhbit/minor-doc-fixes
+- 2014-10-08 Minor doc fixes and feature mentions
+- 2014-10-08 Merge pull request #72 from sfackler/revert-66-fix-failing-test
+- 2014-10-08 Revert "Fix #65: failing test case"
+- 2014-10-08 Merge pull request #66 from jroesch/fix-failing-test
+- 2014-10-07 Merge pull request #67 from vhbit/membio-eof
+- 2014-10-07 Fixed incorrect EOF handling in MemBio, added error description
+- 2014-10-07 Merge pull request #71 from vhbit/path-ization
+- 2014-10-07 Merge pull request #69 from vhbit/bn-zero-fix
+- 2014-10-07 Potential fix for #68
+- 2014-10-07 Using `Path`s instead of plain strings
+- 2014-10-06 Fix #65: failing test case
+- 2014-10-06 Merge pull request #60 from vhbit/cert-gen-cleanup
+- 2014-10-01 Better error handling in cert generation
+- 2014-10-05 Ignore stderr from openssl s_server
+- 2014-10-05 Ignore error string text
+- 2014-10-05 Merge pull request #59 from jroesch/better-errors
+- 2014-10-05 Load crypto error strings
+- 2014-10-02 Fix error messages
+- 2014-10-02 Address CR comments and add a test
+- 2014-09-30 Make errors human readable
+- 2014-10-05 Clean up warnings
+- 2014-10-02 Changes made to support 0.12.0-dev ( October 2, 2014 )
+- 2014-10-05 Merge pull request #64 from reem/fix/big-num-is-zero
+- 2014-10-05 Merge pull request #58 from vhbit/verify-data
+- 2014-10-05 Add a dummy bn_is_zero C dependency to wrap BN_is_zero
+- 2014-10-04 Simpler setter for verify with data
+- 2014-09-30 User-provided data in verify
+- 2014-10-01 Merge pull request #61 from alexcrichton/memcmp
+- 2014-10-01 Add bindings to CRYPTO_memcmp
+- 2014-09-30 Merge pull request #57 from vhbit/mut-cleanup
+- 2014-09-30 Unification and explicity in FFI type decls
+- 2014-09-30 Fixed mut_null deprecation warnings
+- 2014-09-30 Merge pull request #56 from vhbit/single-ffi
+- 2014-09-28 single `ffi` module
+- 2014-09-30 Merge pull request #53 from vhbit/cert-gen
+- 2014-09-28 Addressed review comments
+- 2014-09-28 Merge pull request #55 from cjcole/master
+- 2014-09-28 Removed BN_sub_word signature for the time being.
+- 2014-09-28 Removing unused signatures for the time being.
+- 2014-09-28 Use CRYPTO_free to free the result of BN_bn2bin.
+- 2014-09-28 Added signatures forBN_sub_word, BN_is_zero, BN_is_one, BN_is_word,
+- 2014-09-24 Certificate/pkey generation & PEM export
+- 2014-09-25 Merge pull request #46 from vhbit/tls1-2-support
+- 2014-09-23 Merge pull request #51 from ebfe/deprecated
+- 2014-09-23 Fix deprecation warnings
+- 2014-09-23 TLS 1_1, 1_2, Ssl 2 is enabled by features
+- 2014-09-12 Enabling TLS1.2 support
+- 2014-09-20 Merge pull request #50 from vhbit/cert-fingerprint
+- 2014-09-17 Get certificate fingerprint
+- 2014-09-19 Merge pull request #47 from vhbit/cert-key-auth
+- 2014-09-17 Fixed documentation string
+- 2014-09-17 Merge pull request #48 from ebfe/rfc-52
+- 2014-09-17 Update for rust rfc 52 changes
+- 2014-09-12 Allow to set cert/key pair
+- 2014-09-12 Merge pull request #44 from mvdnes/rsa_pubkey
+- 2014-09-12 Switch to the more sane RSA PUBKEY function
+- 2014-09-12 Switch PKey load/save functions to RSA specific
+- 2014-09-11 Merge pull request #42 from cybergeek94/patch-1
+- 2014-09-10 Update README.md
+- 2014-09-10 Update README.md
+- 2014-09-10 Add build and testing instructions to the readme
+- 2014-09-06 Remove failing constructor wrappers
+- 2014-09-05 Merge pull request #39 from andrew-d/andrew-support-tls-sni
+- 2014-09-05 Make Ssl public, add new constructor to SslStream that takes an Ssl instance
+- 2014-09-05 Merge pull request #38 from andrew-d/andrew-get-compression
+- 2014-09-05 Allow getting the compression used in a connection
+- 2014-09-05 Merge pull request #37 from andrew-d/andrew-fix-lints
+- 2014-09-05 Merge pull request #36 from andrew-d/andrew-add-deriving
+- 2014-09-05 Allow setting hostname to support TLS-SNI
+- 2014-09-05 Fix lints for non snake-case functions
+- 2014-09-05 Derive things on SslMethod
+- 2014-08-29 Merge pull request #35 from Kroisse/master
+- 2014-08-27 Fix the ambiguous integer literal error
+- 2014-08-23 Switch to builtin language support on travis
+- 2014-08-22 Merge pull request #34 from ebfe/repr_c
+- 2014-08-22 Add repr(C) to C structs
+- 2014-08-21 Merge pull request #33 from isra17/master
+- 2014-08-21 Use BN_div instead of BN_mod
+- 2014-08-16 cargo update
+- 2014-08-10 Derive thigs for error types
+- 2014-08-04 Merge pull request #31 from yjerem/master
+- 2014-08-04 Add new HashType RIPEMD160
+- 2014-08-04 Fix doc build
+- 2014-08-04 Shift directory structure
+- 2014-08-04 Remove Makefile infrastructure
+- 2014-07-25 Merge pull request #29 from sghost/with-bn
+- 2014-07-24  Fix resource leak, correct interface inaccuracies.
+- 2014-07-21 Integration of BN functions.
+- 2014-07-16 Remove LD_LIBRARY_PATH override from travis config
+- 2014-07-16 Switch to Cargo for Travis tests
+- 2014-07-12 Merge pull request #28 from DiamondLovesYou/master
+- 2014-07-12 Add $(RUSTFLAGS) to the shell that gets crate file names.
+- 2014-07-11 Fix travis builds
+- 2014-07-11 Merge pull request #27 from brycefisher/readme
+- 2014-07-11 Added link to rust-ci.org documentation
+- 2014-07-11 Added README.md
+- 2014-07-09 Merge pull request #26 from davbo/correct-repr-x86
+- 2014-07-09 Removed unused X509NameFormat enum
+- 2014-07-07 Merge pull request #25 from ebfe/crate_id
+- 2014-07-06 crate_id -> crate_name
+- 2014-07-06 --crate-file-name -> --print-file-name
+- 2014-07-02 Merge pull request #24 from chris-morgan/patch-2
+- 2014-07-02 Change BUILDDIR to target/ for consistency w/Cargo
+- 2014-06-30 Merge pull request #23 from chris-morgan/patch-1
+- 2014-06-30 Add some now-necesssary #[repr] on enums
+- 2014-06-29 Switch docs back over to rust-ci (again)
+- 2014-06-29 Update for * -> *const change
+- 2014-06-26 Drop to version 0.0.0
+- 2014-06-25 Merge pull request #22 from alexcrichton/cargo
+- 2014-06-25 Add a Cargo.toml configuration
+- 2014-06-23 Merge pull request #21 from ebfe/remove-bytes
+- 2014-06-23 Remove use of bytes!()
+- 2014-06-20 Merge pull request #20 from zzmp/squelch-warnings
+- 2014-06-19 Squelch warnings
+- 2014-06-18 Stop using stamps for multi-targets
+- 2014-06-16 Fix parallel builds
+- 2014-06-13 Merge pull request #19 from zzmp/syntaxFix
+- 2014-06-12 Update symm test for ~[T] changes
+- 2014-06-12 Update symm for ~[T] changes
+- 2014-06-07 Update for mutex move
+- 2014-06-07 Merge pull request #16 from Florob/hmac
+- 2014-06-04 Fix HMAC
+- 2014-05-24 Update for string changes
+- 2014-05-24 Merge pull request #14 from iseki-masaya/update-syntax
+- 2014-05-22 Update syntax to pass the test
+- 2014-05-12 Update travis.yaml to use nightlies
+- 2014-05-12 Update for transmute move
+- 2014-05-11 Merge pull request #11 from ebfe/fix-build
+- 2014-05-11 Update for extern unsafe changes
+- 2014-05-10 Fix tests for upstream changes
+- 2014-05-09 Update for upstream changes
+- 2014-05-06 Update tests for ~"" change
+- 2014-05-05 Merge pull request #10 from Noxivs/master
+- 2014-05-05 unused m library
+- 2014-05-05 better linkage
+- 2014-05-04 link win32
+- 2014-04-28 Update docs URL
+- 2014-04-25 Update for attributes on match arms
+- 2014-04-24 Revert "Support the dynlock API"
+- 2014-04-23 Merge pull request #8 from DiamondLovesYou/master
+- 2014-04-23 Makefile: Don't ignore my env vars!
+- 2014-04-19 Update for ~[T] changes
+- 2014-04-08 Update for IO changes
+- 2014-04-07 Update for libc split
+- 2014-04-06 Remove use of {:?}
+- 2014-04-01 Update for visibility reform
+- 2014-03-29 Update to new inner attribute syntax
+- 2014-03-21 Update for vec API changes
+- 2014-03-19 Clean up locking code a bit
+- 2014-03-19 Support the dynlock API
+- 2014-03-18 SSL session closure should be treated like EOF
+- 2014-03-15 De-~[] ssl
+- 2014-03-11 Remove unneeded libextra dependency
+- 2014-03-10 Add a configure option for SSLv2 support
+- 2014-03-10 Properly propogate errors
+- 2014-02-28 Add SSLv2 support behind a cfg flag
+- 2014-02-25 Remove deriving(ToStr)
+- 2014-02-23 Stop complaining about FFI type names
+- 2014-02-16 Remove useless Option wrapper
+- 2014-02-16 Update to new mutex API
+- 2014-02-15 Switch to extern crate
+- 2014-02-15 Stop including debuginfo by default
+- 2014-02-14 Update for hex move
+- 2014-02-11 Make Makefile variables early evaluated
+- 2014-02-11 Update debuginfo flag
+- 2014-02-09 Build static and dynamic libs
+- 2014-02-06 Merge pull request #5 from zr40/sync-crate
+- 2014-02-06 extra::sync was moved to sync crate
+- 2014-02-05 Update for IO API update
+- 2014-01-26 Remove unused FFI binding
+- 2014-01-21 Always run configure from the right directory
+- 2014-01-21 Run configure on travis
+- 2014-01-21 Add a configure script and an install target
+- 2014-01-18 Switch doc link to rust-ci
+- 2014-01-18 Enable automatic doc upload
+- 2014-01-18 Shorten crate name
+- 2014-01-18 Add a way to print the target binary
+- 2014-01-18 Update build system
+- 2014-01-16 Update copyright date
+- 2014-01-13 Use Once instead of hacky mutex thing.
+- 2014-01-10 Update for API changes
+- 2013-12-30 Remove spurious extern "Rust" specifier
+- 2013-12-29 Stop using atomics for OpenSSL global state
+- 2013-12-29 Switch to real mutex for init.
+- 2013-12-29 Add a crate_type attribute
+- 2013-12-29 Delete crypto/hex
+- 2013-12-29 Integrate everything
+- 2013-12-29 Merge remote-tracking branches 'rustcrypto/master' and 'rust-ssl/master'
+- 2013-12-29 Prepare rustcrypto to merge into rust-openssl
+- 2013-12-28 Prepare rust-ssl to merge into rust-openssl
+- 2013-12-28 Relicense under Apache V2
+- 2013-12-28 update to rust 0.9-pre (a5fa1d9)
+- 2013-12-27 Update for API change
+- 2013-12-20 pkgid -> crate_id
+- 2013-12-18 Switch over to rustpkg
+- 2013-12-18 Update to rust 0.9x-pre
+- 2013-12-18 Merge branch 'master' of https://github.com/kballard/rustcrypto
+- 2013-12-18 Integrate with Travis
+- 2013-12-16 Fix doc root
+- 2013-12-16 Switch from link to pkgid
+- 2013-12-16 Remove some unused bindings
+- 2013-12-16 Fix for vec API changes
+- 2013-12-15 Update for latest rustc (0.9-pre ca54ad8)
+- 2013-12-13 Move docs to github
+- 2013-12-09 Delete unused main() function
+- 2013-12-09 Make MemBio interface safe
+- 2013-12-09 Add pointers to enforce lifetimes
+- 2013-12-05 Update for latest master (0.9-pre b5bab85)
+- 2013-12-04 Switch over to new link attribute
+- 2013-11-29 Update for latest master (0.9-pre 90d06ec)
+- 2013-11-27 Remove hacky macro module
+- 2013-11-26 Update for latest master (0.9-pre b42c438)
+- 2013-11-22 More work on X509 functionality
+- 2013-11-21 Make verification callbacks sound
+- 2013-11-20 Fix locking
+- 2013-11-17 Certificate error codes
+- 2013-11-17 Start of x509 interface
+- 2013-11-16 Switch docs to sfackler.com
+- 2013-11-13 Update for io move
+- 2013-11-12 Last indentation fix
+- 2013-11-12 Fix indentation
+- 2013-11-12 Remove externfn!
+- 2013-11-10 Run tests single threaded
+- 2013-11-10 Add attributes for rustdoc
+- 2013-11-10 Some documentation
+- 2013-11-10 Have traivs actually test
+- 2013-11-10 Update for latest master and fix segfault
+- 2013-10-24 Ssl errors may return a stack
+- 2013-10-24 Slightly better error handling
+- 2013-10-23 Remove Sslv2 option
+- 2013-10-23 Travis CI infrastructure
+- 2013-10-23 Sketch of custom cert verification callback
+- 2013-10-23 Fix for macro changes
+- 2013-10-22 Major rewrite for better error handling
+- 2013-10-21 Fill out the context methods
+- 2013-10-21 Move tests to in-binary and fix link args
+- 2013-10-21 Remove folder indirection
+- 2013-10-20 Update to latest rust master (0.9-pre 69e46f3)
+- 2013-10-14 Support for loading a trusted CA file
+- 2013-10-14 Clean up SslError conversion
+- 2013-10-13 Start of cert verification
+- 2013-10-10 Semi-fix EOF
+- 2013-10-06 Stuff roughly working
+- 2013-09-19 Sketched out implementation
+- 2013-10-05 Connect working
+- 2013-10-05 SslStream sketch
+- 2013-10-05 Create contexts
+- 2013-10-05 Basic library initialization
+- 2013-10-05 Initial commit
+- 2013-09-18 Update to latest rust master (0.8-pre d2b0b11)
+- 2013-08-23 Update to latest rust master (0.8-pre 063a005)
+- 2013-08-15 Merge pull request #2 from erickt/master
+- 2013-08-15 Merge remote-tracking branch 'remotes/kballard/master'
+- 2013-08-15 Remove pkey::ANYKEY
+- 2013-08-15 Replace constructors fns with static methods
+- 2013-08-15 Rename crypto.rc to crypto.rs
+- 2013-08-15 Add destructors to all the types that need destructing
+- 2013-08-15 Update to rust 0.8-pre
+- 2013-08-15 Update to latest rust master (0.8-pre 927aff1)
+- 2013-08-06 Merge pull request #1 from miloshadzic/master
+- 2013-08-06 Update syntax for latest Rust master (rust 0.8-pre bbda3fa).
+- 2013-07-27 Update to latest master (0.8-pre 4989799)
+- 2013-07-10 Update for 0.8-pre (f503e53)
+- 2013-07-02 Update for 0.7
+- 2013-06-15 Remove unused use warning on latest incoming (eac0200)
+- 2013-06-12 Update for latest incoming (4a52ff0)
+- 2013-06-09 Don't error on `make clean` if there is no dylib
+- 2013-06-09 Update to latest incoming (878a9b9)
+- 2013-05-30 Update for latest incoming (3a3bf8b)
+- 2013-05-24 Update for current incoming
+- 2013-05-11 Remove unnecessary `unsafe` blocks
+- 2013-05-11 Tweak for rust trunk (c081ffb 2013-04-30 02:21:37 -0700)
+- 2013-04-20 Remove debug prints in Crypter::final()
+- 2013-04-20 Update for Rust 0.6
+- 2013-03-12 Remove GCM support for now, EVP is more complicated than that
+- 2013-03-12 Add CTR and GCM support
+- 2013-03-11 Take hash test inputs as hex strings. Add MD5 tests.
+- 2013-03-11 Add RC4 and AES-128 support to Cryptor
+- 2013-03-11 Add support for HMAC, RC4, AES-128, hex encoding, etc
+- 2013-03-11 Update readme with new hash/padding options
+- 2013-03-11 Add support for RSA signing with alternate hashes (MD5, SHA-512, etc)
+- 2013-03-11 Add support for PKCS #1 v1.5 RSA encryption
+- 2012-10-09 Expose the submodules
+- 2012-10-02 Merge pull request #1 from brson/master
+- 2012-10-02 Update for language changes
+- 2012-09-28 Update to rust HEAD
+- 2012-07-04 Add a .gitignore
+- 2012-07-04 Update to latest rustc syntax.
+- 2012-06-21 Fix no-implicit-copies warnings
+- 2012-06-21 Bind was removed.
+- 2012-06-02 Merge pull request #5 from erickt/master
+- 2012-04-22 Expose RAND_bytes
+- 2012-04-20 Add support for PKCS5_PBKDF2_HMAC_SHA1.
+- 2012-04-20 Modernize crypto with new rust style and rustdoc support
+- 2012-03-28 Update for 0.2
+- 2012-01-19 [pkey] compat with 2286d8c17e5bf3d4312357eba9a845262068f007
+- 2012-01-19 [symm] update to 2286d8c17e5bf3d4312357eba9a845262068f007
+- 2012-01-19 [hash] update to 2286d8c17e5bf3d4312357eba9a845262068f007
+- 2011-12-16 manifest: Add license.
+- 2011-12-15 pkey: build under OSX?
+- 2011-12-15 pkey: use EVP_PKEY_get1_* instead of EVP_PKEY_get0.
+- 2011-12-15 Merge pull request #1 from boggle/stdcore
+- 2011-12-15 Refactored code to use core::*
+- 2011-12-15 Add manifest for rust-pkg.
+- 2011-12-15 Initial commit.
+

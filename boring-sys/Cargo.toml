@@ -1,34 +1,57 @@
 [package]
 name = "boring-sys"
-version = "2.1.0"
+version = { workspace = true }
 authors = ["Alex Crichton <alex@alexcrichton.com>",
            "Steven Fackler <sfackler@gmail.com>",
            "Ivan Nikulin <ifaaan@gmail.com>"]
 license = "MIT"
 description = "FFI bindings to BoringSSL"
-repository = "https://github.com/cloudflare/boring"
+repository = { workspace = true }
 documentation = "https://docs.rs/boring-sys"
 links = "boringssl"
 readme = "README.md"
 categories = ["cryptography", "external-ffi-bindings"]
-edition = "2018"
+edition = { workspace = true }
 include = [
     "/*.md",
     "/*.toml",
     "/LICENSE-MIT",
+    "/cmake/*.cmake",
+    # boringssl (non-FIPS)
     "/deps/boringssl/**/*.[chS]",
     "/deps/boringssl/**/*.asm",
+    "/deps/boringssl/sources.json",
+    "/deps/boringssl/src/crypto/obj/obj_mac.num",
+    "/deps/boringssl/src/crypto/obj/objects.txt",
+    "/deps/boringssl/**/*.bzl",
     "/deps/boringssl/src/**/*.cc",
     "/deps/boringssl/**/CMakeLists.txt",
     "/deps/boringssl/**/sources.cmake",
     "/deps/boringssl/LICENSE",
+    # boringssl (FIPS)
+    "/deps/boringssl-fips/**/*.[chS]",
+    "/deps/boringssl-fips/**/*.asm",
+    "/deps/boringssl-fips/**/*.pl",
+    "/deps/boringssl-fips/**/*.go",
+    "/deps/boringssl-fips/**/go.mod",
+    "/deps/boringssl-fips/**/go.sum",
+    "/deps/boringssl-fips/sources.json",
+    "/deps/boringssl-fips/crypto/obj/obj_mac.num",
+    "/deps/boringssl-fips/crypto/obj/objects.txt",
+    "/deps/boringssl-fips/crypto/err/*.errordata",
+    "/deps/boringssl-fips/**/*.bzl",
+    "/deps/boringssl-fips/**/*.cc",
+    "/deps/boringssl-fips/**/CMakeLists.txt",
+    "/deps/boringssl-fips/**/sources.cmake",
+    "/deps/boringssl-fips/LICENSE",
     "/build.rs",
     "/src",
+    "/patches",
 ]
 
-[build-dependencies]
-bindgen = { version = "0.62", default-features = false, features = ["runtime"] }
-cmake = "0.1"
+[package.metadata.docs.rs]
+features = ["rpk", "pq-experimental"]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["ssl"]
@@ -40,3 +63,30 @@ android-api-19 = []
 
 # Use a FIPS-validated version of boringssl.
 fips = []
+
+# Link with precompiled FIPS-validated `bcm.o` module.
+fips-link-precompiled = []
+
+# Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
+rpk = []
+
+# Applies a patch (`patches/boring-pq.patch`) to the boringSSL source code that
+# enables support for PQ key exchange. This feature is necessary in order to
+# compile the bindings for the default branch of boringSSL (`deps/boringssl`).
+# Alternatively, a version of boringSSL that implements the same feature set
+# can be provided by setting `BORING_BSSL_SOURCE_PATH`.
+pq-experimental = []
+
+# Disables git patching of the BoringSSL sources for features like `rpk` and `pq-experimental`, but
+# keeps the related Rust API. 
+# 
+# Supposed to be used with either pre-compiled BoringSSL (via `BORING_BSSL_PATH` env variable) or 
+# with custom BoringSSL sources (via `BORING_BSSL_SOURCE_PATH` env variable) already containing 
+# required patches.
+no-patches = []
+
+[build-dependencies]
+bindgen = { workspace = true }
+cmake = { workspace = true }
+fs_extra = { workspace = true }
+fslock = { workspace = true }

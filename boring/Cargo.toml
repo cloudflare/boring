@@ -1,30 +1,79 @@
 [package]
 name = "boring"
-version = "2.1.0"
+version = { workspace = true }
 authors = ["Steven Fackler <sfackler@gmail.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
 license = "Apache-2.0"
 description = "BoringSSL bindings"
-repository = "https://github.com/cloudflare/boring"
+repository = { workspace = true }
 documentation = "https://docs.rs/boring"
 readme = "README.md"
 keywords = ["crypto", "tls", "ssl", "dtls"]
 categories = ["cryptography", "api-bindings"]
-edition = "2018"
+edition = { workspace = true }
 
-[dependencies]
-bitflags = "1.0"
-foreign-types = "0.5"
-lazy_static = "1"
-libc = "0.2"
-boring-sys = { version = ">=1.1.0,<3.0.0", path = "../boring-sys", default-features = false }
-
-[dev-dependencies]
-hex = "0.4"
-rusty-hook = "^0.11"
+[package.metadata.docs.rs]
+features = ["rpk", "pq-experimental"]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["ssl"]
 ssl = ["boring-sys/ssl"]
 
+# Controlling the build
+
 # Use a FIPS-validated version of boringssl.
 fips = ["boring-sys/fips"]
+
+# Link with precompiled FIPS-validated `bcm.o` module.
+fips-link-precompiled = ["boring-sys/fips-link-precompiled"]
+
+# Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
+rpk = ["boring-sys/rpk"]
+
+# Applies a patch to the boringSSL source code that enables support for PQ key
+# exchange. This feature is necessary in order to compile the bindings for the
+# default branch of boringSSL. Alternatively, a version of boringSSL that
+# implements the same feature set can be provided by setting
+# `BORING_BSSL_SOURCE_PATH`.
+pq-experimental = ["boring-sys/pq-experimental"]
+
+# Disables git patching of the BoringSSL sources for features like `rpk` and `pq-experimental`, but
+# keeps the related Rust API.
+#
+# Supposed to be used with either pre-compiled BoringSSL (via `BORING_BSSL_PATH` env variable) or
+# with custom BoringSSL sources (via `BORING_BSSL_SOURCE_PATH` env variable) already containing
+# required patches.
+no-patches = ["boring-sys/no-patches"]
+
+# Controlling key exchange preferences at compile time
+
+# Choose key exchange preferences at compile time. This prevents the user from
+# choosing their own preferences.
+kx-safe-default = []
+
+# Support PQ key exchange. The client will prefer classical key exchange, but
+# will upgrade to PQ key exchange if requested by the server. This is the
+# safest option if you don't know if the peer supports PQ key exchange. This
+# feature implies "kx-safe-default".
+kx-client-pq-supported = ["kx-safe-default"]
+
+# Prefer PQ key exchange. The client will prefer PQ exchange, but fallback to
+# classical key exchange if requested by the server. This is the best option if
+# you know the peer supports PQ key exchange. This feature implies
+# "kx-safe-default" and "kx-client-pq-supported".
+kx-client-pq-preferred = ["kx-safe-default", "kx-client-pq-supported"]
+
+# Disable key exchange involving non-NIST key exchange on the client side.
+# Implies "kx-safe-default".
+kx-client-nist-required = ["kx-safe-default"]
+
+[dependencies]
+bitflags = { workspace = true }
+foreign-types = { workspace = true }
+once_cell = { workspace = true }
+libc = { workspace = true }
+boring-sys = { workspace = true }
+
+[dev-dependencies]
+hex = { workspace = true }
+rusty-hook = { workspace = true }

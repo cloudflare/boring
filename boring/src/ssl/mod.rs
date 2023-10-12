@@ -59,8 +59,8 @@
 //! ```
 use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef, Opaque};
-use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
+use once_cell::sync::Lazy;
 use std::any::TypeId;
 use std::cmp;
 use std::collections::HashMap;
@@ -109,6 +109,7 @@ mod test;
 
 bitflags! {
     /// Options controlling the behavior of an `SslContext`.
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
     pub struct SslOptions: c_uint {
         /// Disables a countermeasure against an SSLv3/TLSv1.0 vulnerability affecting CBC ciphers.
         const DONT_INSERT_EMPTY_FRAGMENTS = ffi::SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS as _;
@@ -181,6 +182,7 @@ bitflags! {
 
 bitflags! {
     /// Options controlling the behavior of an `SslContext`.
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
     pub struct SslMode: c_uint {
         /// Enables "short writes".
         ///
@@ -240,6 +242,12 @@ impl SslMethod {
         unsafe { SslMethod(TLS_method()) }
     }
 
+    /// Same as `tls`, but doesn't create X509 for certificates.
+    #[cfg(feature = "rpk")]
+    pub fn tls_with_buffer() -> SslMethod {
+        unsafe { SslMethod(ffi::TLS_with_buffers_method()) }
+    }
+
     /// Support all versions of the DTLS protocol.
     ///
     /// This corresponds to `DTLS_method` on OpenSSL 1.1.0 and `DTLSv1_method`
@@ -285,6 +293,7 @@ unsafe impl Send for SslMethod {}
 
 bitflags! {
     /// Options controling the behavior of certificate verification.
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
     pub struct SslVerifyMode: i32 {
         /// Verifies that the peer's certificate is trusted.
         ///
@@ -307,6 +316,7 @@ bitflags! {
 
 bitflags! {
     /// Options controlling the behavior of session caching.
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
     pub struct SslSessionCacheMode: c_int {
         /// No session caching for the client or server takes place.
         const OFF = ffi::SSL_SESS_CACHE_OFF;
@@ -408,11 +418,12 @@ impl NameType {
     }
 }
 
-lazy_static! {
-    static ref INDEXES: Mutex<HashMap<TypeId, c_int>> = Mutex::new(HashMap::new());
-    static ref SSL_INDEXES: Mutex<HashMap<TypeId, c_int>> = Mutex::new(HashMap::new());
-    static ref SESSION_CTX_INDEX: Index<Ssl, SslContext> = Ssl::new_ex_index().unwrap();
-}
+static INDEXES: Lazy<Mutex<HashMap<TypeId, c_int>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+static SSL_INDEXES: Lazy<Mutex<HashMap<TypeId, c_int>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+static SESSION_CTX_INDEX: Lazy<Index<Ssl, SslContext>> = Lazy::new(|| Ssl::new_ex_index().unwrap());
+#[cfg(feature = "rpk")]
+static RPK_FLAG_INDEX: Lazy<Index<SslContext, bool>> =
+    Lazy::new(|| SslContext::new_ex_index().unwrap());
 
 unsafe extern "C" fn free_data_box<T>(
     _parent: *mut c_void,
@@ -487,10 +498,8 @@ impl ExtensionType {
         Self(ffi::TLSEXT_TYPE_application_layer_protocol_negotiation as u16);
     pub const PADDING: Self = Self(ffi::TLSEXT_TYPE_padding as u16);
     pub const EXTENDED_MASTER_SECRET: Self = Self(ffi::TLSEXT_TYPE_extended_master_secret as u16);
-    #[cfg(not(feature = "fips"))]
     pub const QUIC_TRANSPORT_PARAMETERS_LEGACY: Self =
         Self(ffi::TLSEXT_TYPE_quic_transport_parameters_legacy as u16);
-    #[cfg(not(feature = "fips"))]
     pub const QUIC_TRANSPORT_PARAMETERS_STANDARD: Self =
         Self(ffi::TLSEXT_TYPE_quic_transport_parameters_standard as u16);
     pub const CERT_COMPRESSION: Self = Self(ffi::TLSEXT_TYPE_cert_compression as u16);
@@ -507,9 +516,7 @@ impl ExtensionType {
     pub const KEY_SHARE: Self = Self(ffi::TLSEXT_TYPE_key_share as u16);
     pub const RENEGOTIATE: Self = Self(ffi::TLSEXT_TYPE_renegotiate as u16);
     pub const DELEGATED_CREDENTIAL: Self = Self(ffi::TLSEXT_TYPE_delegated_credential as u16);
-    #[cfg(not(feature = "fips"))]
     pub const APPLICATION_SETTINGS: Self = Self(ffi::TLSEXT_TYPE_application_settings as u16);
-    #[cfg(not(feature = "fips"))]
     pub const ENCRYPTED_CLIENT_HELLO: Self = Self(ffi::TLSEXT_TYPE_encrypted_client_hello as u16);
     pub const CERTIFICATE_TIMESTAMP: Self = Self(ffi::TLSEXT_TYPE_certificate_timestamp as u16);
     pub const NEXT_PROTO_NEG: Self = Self(ffi::TLSEXT_TYPE_next_proto_neg as u16);
@@ -612,10 +619,12 @@ impl SslSignatureAlgorithm {
 }
 
 /// A TLS Curve.
+#[cfg(not(feature = "kx-safe-default"))]
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SslCurve(c_int);
 
+#[cfg(not(feature = "kx-safe-default"))]
 impl SslCurve {
     pub const SECP224R1: SslCurve = SslCurve(ffi::NID_secp224r1);
 
@@ -627,7 +636,17 @@ impl SslCurve {
 
     pub const X25519: SslCurve = SslCurve(ffi::NID_X25519);
 
-    pub const CECPQ2: SslCurve = SslCurve(ffi::NID_CECPQ2);
+    #[cfg(not(any(feature = "fips", feature = "fips-link-precompiled")))]
+    pub const X25519_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::NID_X25519Kyber768Draft00);
+
+    #[cfg(feature = "pq-experimental")]
+    pub const X25519_KYBER768_DRAFT00_OLD: SslCurve = SslCurve(ffi::NID_X25519Kyber768Draft00Old);
+
+    #[cfg(feature = "pq-experimental")]
+    pub const X25519_KYBER512_DRAFT00: SslCurve = SslCurve(ffi::NID_X25519Kyber512Draft00);
+
+    #[cfg(feature = "pq-experimental")]
+    pub const P256_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::NID_P256Kyber768Draft00);
 }
 
 /// A standard implementation of protocol selection for Application Layer Protocol Negotiation
@@ -663,8 +682,65 @@ pub fn select_next_proto<'a>(server: &[u8], client: &'a [u8]) -> Option<&'a [u8]
     }
 }
 
+#[cfg(feature = "rpk")]
+extern "C" fn rpk_verify_failure_callback(
+    _ssl: *mut ffi::SSL,
+    _out_alert: *mut u8,
+) -> ffi::ssl_verify_result_t {
+    // Always verify the peer.
+    ffi::ssl_verify_result_t::ssl_verify_invalid
+}
+
 /// A builder for `SslContext`s.
-pub struct SslContextBuilder(SslContext);
+pub struct SslContextBuilder {
+    ctx: SslContext,
+    #[cfg(feature = "rpk")]
+    is_rpk: bool,
+}
+
+#[cfg(feature = "rpk")]
+impl SslContextBuilder {
+    /// Creates a new `SslContextBuilder` to be used with Raw Public Key.
+    ///
+    /// This corresponds to [`SSL_CTX_new`].
+    ///
+    /// [`SSL_CTX_new`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_new.html
+    pub fn new_rpk() -> Result<SslContextBuilder, ErrorStack> {
+        unsafe {
+            init();
+            let ctx = cvt_p(ffi::SSL_CTX_new(SslMethod::tls_with_buffer().as_ptr()))?;
+
+            Ok(SslContextBuilder::from_ptr(ctx, true))
+        }
+    }
+
+    /// Sets raw public key certificate in DER format.
+    pub fn set_rpk_certificate(&mut self, cert: &[u8]) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt(ffi::SSL_CTX_set_server_raw_public_key_certificate(
+                self.as_ptr(),
+                cert.as_ptr(),
+                cert.len() as u32,
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Sets RPK null chain private key.
+    pub fn set_null_chain_private_key<T>(&mut self, key: &PKeyRef<T>) -> Result<(), ErrorStack>
+    where
+        T: HasPrivate,
+    {
+        unsafe {
+            cvt(ffi::SSL_CTX_set_nullchain_and_key(
+                self.as_ptr(),
+                key.as_ptr(),
+                ptr::null_mut(),
+            ))
+            .map(|_| ())
+        }
+    }
+}
 
 impl SslContextBuilder {
     /// Creates a new `SslContextBuilder`.
@@ -677,7 +753,15 @@ impl SslContextBuilder {
             init();
             let ctx = cvt_p(ffi::SSL_CTX_new(method.as_ptr()))?;
 
-            Ok(SslContextBuilder::from_ptr(ctx))
+            #[cfg(feature = "rpk")]
+            {
+                Ok(SslContextBuilder::from_ptr(ctx, false))
+            }
+
+            #[cfg(not(feature = "rpk"))]
+            {
+                Ok(SslContextBuilder::from_ptr(ctx))
+            }
         }
     }
 
@@ -686,13 +770,31 @@ impl SslContextBuilder {
     /// # Safety
     ///
     /// The caller must ensure that the pointer is valid and uniquely owned by the builder.
+    #[cfg(feature = "rpk")]
+    pub unsafe fn from_ptr(ctx: *mut ffi::SSL_CTX, is_rpk: bool) -> SslContextBuilder {
+        let ctx = SslContext::from_ptr(ctx);
+        let mut builder = SslContextBuilder { ctx, is_rpk };
+
+        builder.set_ex_data(*RPK_FLAG_INDEX, is_rpk);
+
+        builder
+    }
+
+    /// Creates an `SslContextBuilder` from a pointer to a raw OpenSSL value.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the pointer is valid and uniquely owned by the builder.
+    #[cfg(not(feature = "rpk"))]
     pub unsafe fn from_ptr(ctx: *mut ffi::SSL_CTX) -> SslContextBuilder {
-        SslContextBuilder(SslContext::from_ptr(ctx))
+        SslContextBuilder {
+            ctx: SslContext::from_ptr(ctx),
+        }
     }
 
     /// Returns a pointer to the raw OpenSSL value.
     pub fn as_ptr(&self) -> *mut ffi::SSL_CTX {
-        self.0.as_ptr()
+        self.ctx.as_ptr()
     }
 
     /// Configures the certificate verification method for new connections.
@@ -701,8 +803,11 @@ impl SslContextBuilder {
     ///
     /// [`SSL_CTX_set_verify`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_verify.html
     pub fn set_verify(&mut self, mode: SslVerifyMode) {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
         unsafe {
-            ffi::SSL_CTX_set_verify(self.as_ptr(), mode.bits as c_int, None);
+            ffi::SSL_CTX_set_verify(self.as_ptr(), mode.bits() as c_int, None);
         }
     }
 
@@ -720,9 +825,12 @@ impl SslContextBuilder {
     where
         F: Fn(bool, &mut X509StoreContextRef) -> bool + 'static + Sync + Send,
     {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
         unsafe {
             self.set_ex_data(SslContext::cached_ex_index::<F>(), verify);
-            ffi::SSL_CTX_set_verify(self.as_ptr(), mode.bits as c_int, Some(raw_verify::<F>));
+            ffi::SSL_CTX_set_verify(self.as_ptr(), mode.bits() as c_int, Some(raw_verify::<F>));
         }
     }
 
@@ -749,10 +857,9 @@ impl SslContextBuilder {
             // context's ex data. Instead, pass the pointer directly as the servername arg. It's
             // still stored in ex data to manage the lifetime.
             let arg = self.set_ex_data_inner(SslContext::cached_ex_index::<F>(), callback);
-            ffi::SSL_CTX_set_tlsext_servername_arg(self.as_ptr(), arg);
 
-            let f: extern "C" fn(_, _, _) -> _ = raw_sni::<F>;
-            ffi::SSL_CTX_set_tlsext_servername_callback(self.as_ptr(), Some(f));
+            ffi::SSL_CTX_set_tlsext_servername_arg(self.as_ptr(), arg);
+            ffi::SSL_CTX_set_tlsext_servername_callback(self.as_ptr(), Some(raw_sni::<F>));
         }
     }
 
@@ -764,6 +871,9 @@ impl SslContextBuilder {
     ///
     /// [`SSL_CTX_set_verify_depth`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_verify_depth.html
     pub fn set_verify_depth(&mut self, depth: u32) {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
         unsafe {
             ffi::SSL_CTX_set_verify_depth(self.as_ptr(), depth as c_int);
         }
@@ -775,6 +885,9 @@ impl SslContextBuilder {
     ///
     /// [`SSL_CTX_set0_verify_cert_store`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set0_verify_cert_store.html
     pub fn set_verify_cert_store(&mut self, cert_store: X509Store) -> Result<(), ErrorStack> {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
         unsafe {
             let ptr = cert_store.as_ptr();
             cvt(ffi::SSL_CTX_set0_verify_cert_store(self.as_ptr(), ptr) as c_int)?;
@@ -790,6 +903,9 @@ impl SslContextBuilder {
     ///
     /// [`SSL_CTX_set_cert_store`]: https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_cert_store.html
     pub fn set_cert_store(&mut self, cert_store: X509Store) {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
         unsafe {
             ffi::SSL_CTX_set_cert_store(self.as_ptr(), cert_store.as_ptr());
             mem::forget(cert_store);
@@ -820,7 +936,7 @@ impl SslContextBuilder {
     pub fn set_mode(&mut self, mode: SslMode) -> SslMode {
         unsafe {
             let bits = ffi::SSL_CTX_set_mode(self.as_ptr(), mode.bits());
-            SslMode { bits }
+            SslMode::from_bits_retain(bits)
         }
     }
 
@@ -849,6 +965,9 @@ impl SslContextBuilder {
     ///
     /// [`SSL_CTX_set_default_verify_paths`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_default_verify_paths.html
     pub fn set_default_verify_paths(&mut self) -> Result<(), ErrorStack> {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
         unsafe { cvt(ffi::SSL_CTX_set_default_verify_paths(self.as_ptr())).map(|_| ()) }
     }
 
@@ -860,6 +979,9 @@ impl SslContextBuilder {
     ///
     /// [`SSL_CTX_load_verify_locations`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_load_verify_locations.html
     pub fn set_ca_file<P: AsRef<Path>>(&mut self, file: P) -> Result<(), ErrorStack> {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
         let file = CString::new(file.as_ref().as_os_str().to_str().unwrap()).unwrap();
         unsafe {
             cvt(ffi::SSL_CTX_load_verify_locations(
@@ -880,6 +1002,9 @@ impl SslContextBuilder {
     ///
     /// [`SSL_CTX_set_client_CA_list`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_set_client_CA_list.html
     pub fn set_client_ca_list(&mut self, list: Stack<X509Name>) {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
         unsafe {
             ffi::SSL_CTX_set_client_CA_list(self.as_ptr(), list.as_ptr());
             mem::forget(list);
@@ -893,6 +1018,9 @@ impl SslContextBuilder {
     ///
     /// [`SSL_CTX_add_client_CA`]: https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_client_CA_list.html
     pub fn add_client_ca(&mut self, cacert: &X509Ref) -> Result<(), ErrorStack> {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
         unsafe { cvt(ffi::SSL_CTX_add_client_CA(self.as_ptr(), cacert.as_ptr())).map(|_| ()) }
     }
 
@@ -934,6 +1062,9 @@ impl SslContextBuilder {
         file: P,
         file_type: SslFiletype,
     ) -> Result<(), ErrorStack> {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
         let file = CString::new(file.as_ref().as_os_str().to_str().unwrap()).unwrap();
         unsafe {
             cvt(ffi::SSL_CTX_use_certificate_file(
@@ -988,6 +1119,9 @@ impl SslContextBuilder {
     ///
     /// [`SSL_CTX_add_extra_chain_cert`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_add_extra_chain_cert.html
     pub fn add_extra_chain_cert(&mut self, cert: X509) -> Result<(), ErrorStack> {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
         unsafe {
             cvt(ffi::SSL_CTX_add_extra_chain_cert(self.as_ptr(), cert.as_ptr()) as c_int)?;
             mem::forget(cert);
@@ -1061,7 +1195,7 @@ impl SslContextBuilder {
     /// [`SSL_CTX_set_options`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_set_options.html
     pub fn set_options(&mut self, option: SslOptions) -> SslOptions {
         let bits = unsafe { ffi::SSL_CTX_set_options(self.as_ptr(), option.bits()) };
-        SslOptions { bits }
+        SslOptions::from_bits_retain(bits)
     }
 
     /// Returns the options used by the context.
@@ -1071,7 +1205,7 @@ impl SslContextBuilder {
     /// [`SSL_CTX_get_options`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_set_options.html
     pub fn options(&self) -> SslOptions {
         let bits = unsafe { ffi::SSL_CTX_get_options(self.as_ptr()) };
-        SslOptions { bits }
+        SslOptions::from_bits_retain(bits)
     }
 
     /// Clears the options used by the context, returning the old set.
@@ -1081,7 +1215,7 @@ impl SslContextBuilder {
     /// [`SSL_CTX_clear_options`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_set_options.html
     pub fn clear_options(&mut self, option: SslOptions) -> SslOptions {
         let bits = unsafe { ffi::SSL_CTX_clear_options(self.as_ptr(), option.bits()) };
-        SslOptions { bits }
+        SslOptions::from_bits_retain(bits)
     }
 
     /// Sets the minimum supported protocol version.
@@ -1170,11 +1304,17 @@ impl SslContextBuilder {
     /// [`SSL_CTX_set_alpn_protos`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_alpn_protos.html
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            assert!(protocols.len() <= c_uint::max_value() as usize);
+            #[cfg_attr(
+                not(any(feature = "fips", feature = "fips-link-precompiled")),
+                allow(clippy::unnecessary_cast)
+            )]
+            {
+                assert!(protocols.len() <= ProtosLen::max_value() as usize);
+            }
             let r = ffi::SSL_CTX_set_alpn_protos(
                 self.as_ptr(),
                 protocols.as_ptr(),
-                protocols.len() as _,
+                protocols.len() as ProtosLen,
             );
             // fun fact, SSL_CTX_set_alpn_protos has a reversed return code D:
             if r == 0 {
@@ -1265,6 +1405,9 @@ impl SslContextBuilder {
     ///
     /// [`SSL_CTX_get_cert_store`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_get_cert_store.html
     pub fn cert_store(&self) -> &X509StoreBuilderRef {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
         unsafe { X509StoreBuilderRef::from_ptr(ffi::SSL_CTX_get_cert_store(self.as_ptr())) }
     }
 
@@ -1274,6 +1417,9 @@ impl SslContextBuilder {
     ///
     /// [`SSL_CTX_get_cert_store`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_get_cert_store.html
     pub fn cert_store_mut(&mut self) -> &mut X509StoreBuilderRef {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
         unsafe { X509StoreBuilderRef::from_ptr_mut(ffi::SSL_CTX_get_cert_store(self.as_ptr())) }
     }
 
@@ -1316,7 +1462,6 @@ impl SslContextBuilder {
     /// This corresponds to [`SSL_CTX_set_psk_client_callback`].
     ///
     /// [`SSL_CTX_set_psk_client_callback`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_psk_client_callback.html
-    #[cfg(not(osslconf = "OPENSSL_NO_PSK"))]
     pub fn set_psk_client_callback<F>(&mut self, callback: F)
     where
         F: Fn(&mut SslRef, Option<&[u8]>, &mut [u8], &mut [u8]) -> Result<usize, ErrorStack>
@@ -1331,7 +1476,6 @@ impl SslContextBuilder {
     }
 
     #[deprecated(since = "0.10.10", note = "renamed to `set_psk_client_callback`")]
-    #[cfg(not(osslconf = "OPENSSL_NO_PSK"))]
     pub fn set_psk_callback<F>(&mut self, callback: F)
     where
         F: Fn(&mut SslRef, Option<&[u8]>, &mut [u8], &mut [u8]) -> Result<usize, ErrorStack>
@@ -1351,7 +1495,6 @@ impl SslContextBuilder {
     /// This corresponds to [`SSL_CTX_set_psk_server_callback`].
     ///
     /// [`SSL_CTX_set_psk_server_callback`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_psk_server_callback.html
-    #[cfg(not(osslconf = "OPENSSL_NO_PSK"))]
     pub fn set_psk_server_callback<F>(&mut self, callback: F)
     where
         F: Fn(&mut SslRef, Option<&[u8]>, &mut [u8]) -> Result<usize, ErrorStack>
@@ -1462,7 +1605,7 @@ impl SslContextBuilder {
     pub fn set_session_cache_mode(&mut self, mode: SslSessionCacheMode) -> SslSessionCacheMode {
         unsafe {
             let bits = ffi::SSL_CTX_set_session_cache_mode(self.as_ptr(), mode.bits());
-            SslSessionCacheMode { bits }
+            SslSessionCacheMode::from_bits_retain(bits)
         }
     }
 
@@ -1562,6 +1705,11 @@ impl SslContextBuilder {
     /// This corresponds to [`SSL_CTX_set1_curves`]
     ///
     /// [`SSL_CTX_set1_curves`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set1_curves
+    //
+    // If the "kx-*" flags are used to set key exchange preference, then don't allow the user to
+    // set them here. This ensures we don't override the user's preference without telling them:
+    // when the flags are used, the preferences are set just before connecting or accepting.
+    #[cfg(not(feature = "kx-safe-default"))]
     pub fn set_curves(&mut self, curves: &[SslCurve]) -> Result<(), ErrorStack> {
         unsafe {
             cvt_0i(ffi::SSL_CTX_set1_curves(
@@ -1575,7 +1723,7 @@ impl SslContextBuilder {
 
     /// Consumes the builder, returning a new `SslContext`.
     pub fn build(self) -> SslContext {
-        self.0
+        self.ctx
     }
 }
 
@@ -1592,6 +1740,14 @@ foreign_type_and_impl_send_sync! {
 
 impl Clone for SslContext {
     fn clone(&self) -> Self {
+        (**self).to_owned()
+    }
+}
+
+impl ToOwned for SslContextRef {
+    type Owned = SslContext;
+
+    fn to_owned(&self) -> Self::Owned {
         unsafe {
             SSL_CTX_up_ref(self.as_ptr());
             SslContext::from_ptr(self.as_ptr())
@@ -1654,6 +1810,9 @@ impl SslContextRef {
     ///
     /// [`SSL_CTX_get0_certificate`]: https://www.openssl.org/docs/man1.1.0/ssl/ssl.html
     pub fn certificate(&self) -> Option<&X509Ref> {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk(), "This API is not supported for RPK");
+
         unsafe {
             let ptr = ffi::SSL_CTX_get0_certificate(self.as_ptr());
             if ptr.is_null() {
@@ -1686,6 +1845,9 @@ impl SslContextRef {
     ///
     /// [`SSL_CTX_get_cert_store`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_get_cert_store.html
     pub fn cert_store(&self) -> &X509StoreRef {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk(), "This API is not supported for RPK");
+
         unsafe { X509StoreRef::from_ptr(ffi::SSL_CTX_get_cert_store(self.as_ptr())) }
     }
 
@@ -1768,10 +1930,24 @@ impl SslContextRef {
     /// [`SslContextBuilder::set_verify`]: struct.SslContextBuilder.html#method.set_verify
     /// [`SSL_CTX_get_verify_mode`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_CTX_get_verify_mode.html
     pub fn verify_mode(&self) -> SslVerifyMode {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk(), "This API is not supported for RPK");
+
         let mode = unsafe { ffi::SSL_CTX_get_verify_mode(self.as_ptr()) };
         SslVerifyMode::from_bits(mode).expect("SSL_CTX_get_verify_mode returned invalid mode")
     }
+
+    /// Returns `true` if context was created for Raw Public Key verification
+    #[cfg(feature = "rpk")]
+    pub fn is_rpk(&self) -> bool {
+        self.ex_data(*RPK_FLAG_INDEX).copied().unwrap_or_default()
+    }
 }
+
+#[cfg(not(any(feature = "fips", feature = "fips-link-precompiled")))]
+type ProtosLen = usize;
+#[cfg(any(feature = "fips", feature = "fips-link-precompiled"))]
+type ProtosLen = libc::c_uint;
 
 /// Information about the state of a cipher.
 pub struct CipherBits {
@@ -2005,7 +2181,7 @@ impl SslSessionRef {
         unsafe {
             let mut len = 0;
             let p = ffi::SSL_SESSION_get_id(self.as_ptr(), &mut len);
-            slice::from_raw_parts(p as *const u8, len as usize)
+            slice::from_raw_parts(p, len as usize)
         }
     }
 
@@ -2175,16 +2351,40 @@ impl Ssl {
     where
         S: Read + Write,
     {
+        #[cfg(feature = "rpk")]
+        {
+            let ctx = self.ssl_context();
+
+            if ctx.is_rpk() {
+                unsafe {
+                    ffi::SSL_CTX_set_custom_verify(
+                        ctx.as_ptr(),
+                        SslVerifyMode::PEER.bits(),
+                        Some(rpk_verify_failure_callback),
+                    );
+                }
+            }
+        }
+
         SslStreamBuilder::new(self, stream).accept()
     }
 }
 
 impl fmt::Debug for SslRef {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.debug_struct("Ssl")
-            .field("state", &self.state_string_long())
-            .field("verify_result", &self.verify_result())
-            .finish()
+        let mut builder = fmt.debug_struct("Ssl");
+
+        builder.field("state", &self.state_string_long());
+
+        #[cfg(feature = "rpk")]
+        if !self.ssl_context().is_rpk() {
+            builder.field("verify_result", &self.verify_result());
+        }
+
+        #[cfg(not(feature = "rpk"))]
+        builder.field("verify_result", &self.verify_result());
+
+        builder.finish()
     }
 }
 
@@ -2207,6 +2407,48 @@ impl SslRef {
         unsafe { ErrorCode::from_raw(ffi::SSL_get_error(self.as_ptr(), ret)) }
     }
 
+    #[cfg(feature = "kx-safe-default")]
+    fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
+        let curves = CString::new(curves).unwrap();
+        unsafe {
+            cvt(ffi::SSL_set1_curves_list(
+                self.as_ptr(),
+                curves.as_ptr() as *const _,
+            ))
+            .map(|_| ())
+        }
+    }
+
+    #[cfg(feature = "kx-safe-default")]
+    fn client_set_default_curves_list(&mut self) -> Result<(), ErrorStack> {
+        let curves = if cfg!(feature = "kx-client-pq-preferred") {
+            if cfg!(feature = "kx-client-nist-required") {
+                "P256Kyber768Draft00:P-256:P-384"
+            } else {
+                "X25519Kyber768Draft00:X25519:P256Kyber768Draft00:P-256:P-384"
+            }
+        } else if cfg!(feature = "kx-client-pq-supported") {
+            if cfg!(feature = "kx-client-nist-required") {
+                "P-256:P-384:P256Kyber768Draft00"
+            } else {
+                "X25519:P-256:P-384:X25519Kyber768Draft00:P256Kyber768Draft00"
+            }
+        } else {
+            if cfg!(feature = "kx-client-nist-required") {
+                "P-256:P-384"
+            } else {
+                "X25519:P-256:P-384"
+            }
+        };
+
+        self.set_curves_list(curves)
+    }
+
+    #[cfg(feature = "kx-safe-default")]
+    fn server_set_default_curves_list(&mut self) -> Result<(), ErrorStack> {
+        self.set_curves_list("X25519Kyber768Draft00:P256Kyber768Draft00:X25519:P-256:P-384")
+    }
+
     /// Like [`SslContextBuilder::set_verify`].
     ///
     /// This corresponds to [`SSL_set_verify`].
@@ -2214,7 +2456,13 @@ impl SslRef {
     /// [`SslContextBuilder::set_verify`]: struct.SslContextBuilder.html#method.set_verify
     /// [`SSL_set_verify`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_set_verify.html
     pub fn set_verify(&mut self, mode: SslVerifyMode) {
-        unsafe { ffi::SSL_set_verify(self.as_ptr(), mode.bits as c_int, None) }
+        #[cfg(feature = "rpk")]
+        assert!(
+            !self.ssl_context().is_rpk(),
+            "This API is not supported for RPK"
+        );
+
+        unsafe { ffi::SSL_set_verify(self.as_ptr(), mode.bits() as c_int, None) }
     }
 
     /// Returns the verify mode that was set using `set_verify`.
@@ -2223,6 +2471,12 @@ impl SslRef {
     ///
     /// [`SSL_get_verify_mode`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_get_verify_mode.html
     pub fn verify_mode(&self) -> SslVerifyMode {
+        #[cfg(feature = "rpk")]
+        assert!(
+            !self.ssl_context().is_rpk(),
+            "This API is not supported for RPK"
+        );
+
         let mode = unsafe { ffi::SSL_get_verify_mode(self.as_ptr()) };
         SslVerifyMode::from_bits(mode).expect("SSL_get_verify_mode returned invalid mode")
     }
@@ -2237,10 +2491,20 @@ impl SslRef {
     where
         F: Fn(bool, &mut X509StoreContextRef) -> bool + 'static + Sync + Send,
     {
+        #[cfg(feature = "rpk")]
+        assert!(
+            !self.ssl_context().is_rpk(),
+            "This API is not supported for RPK"
+        );
+
         unsafe {
             // this needs to be in an Arc since the callback can register a new callback!
             self.set_ex_data(Ssl::cached_ex_index(), Arc::new(verify));
-            ffi::SSL_set_verify(self.as_ptr(), mode.bits as c_int, Some(ssl_raw_verify::<F>));
+            ffi::SSL_set_verify(
+                self.as_ptr(),
+                mode.bits() as c_int,
+                Some(ssl_raw_verify::<F>),
+            );
         }
     }
 
@@ -2271,9 +2535,18 @@ impl SslRef {
     /// [`SSL_set_alpn_protos`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_alpn_protos.html
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            assert!(protocols.len() <= c_uint::max_value() as usize);
-            let r =
-                ffi::SSL_set_alpn_protos(self.as_ptr(), protocols.as_ptr(), protocols.len() as _);
+            #[cfg_attr(
+                not(any(feature = "fips", feature = "fips-link-precompiled")),
+                allow(clippy::unnecessary_cast)
+            )]
+            {
+                assert!(protocols.len() <= ProtosLen::max_value() as usize);
+            }
+            let r = ffi::SSL_set_alpn_protos(
+                self.as_ptr(),
+                protocols.as_ptr(),
+                protocols.len() as ProtosLen,
+            );
             // fun fact, SSL_set_alpn_protos has a reversed return code D:
             if r == 0 {
                 Ok(())
@@ -2349,6 +2622,12 @@ impl SslRef {
     ///
     /// [`SSL_get_peer_certificate`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_get_peer_certificate.html
     pub fn peer_certificate(&self) -> Option<X509> {
+        #[cfg(feature = "rpk")]
+        assert!(
+            !self.ssl_context().is_rpk(),
+            "This API is not supported for RPK"
+        );
+
         unsafe {
             let ptr = ffi::SSL_get_peer_certificate(self.as_ptr());
             if ptr.is_null() {
@@ -2368,6 +2647,12 @@ impl SslRef {
     ///
     /// [`SSL_get_peer_cert_chain`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_get_peer_cert_chain.html
     pub fn peer_cert_chain(&self) -> Option<&StackRef<X509>> {
+        #[cfg(feature = "rpk")]
+        assert!(
+            !self.ssl_context().is_rpk(),
+            "This API is not supported for RPK"
+        );
+
         unsafe {
             let ptr = ffi::SSL_get_peer_cert_chain(self.as_ptr());
             if ptr.is_null() {
@@ -2384,6 +2669,12 @@ impl SslRef {
     ///
     /// [`SslContext::certificate`]: struct.SslContext.html#method.certificate
     pub fn certificate(&self) -> Option<&X509Ref> {
+        #[cfg(feature = "rpk")]
+        assert!(
+            !self.ssl_context().is_rpk(),
+            "This API is not supported for RPK"
+        );
+
         unsafe {
             let ptr = ffi::SSL_get_certificate(self.as_ptr());
             if ptr.is_null() {
@@ -2607,6 +2898,12 @@ impl SslRef {
     ///
     /// [`SSL_get0_param`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_get0_param.html
     pub fn param_mut(&mut self) -> &mut X509VerifyParamRef {
+        #[cfg(feature = "rpk")]
+        assert!(
+            !self.ssl_context().is_rpk(),
+            "This API is not supported for RPK"
+        );
+
         unsafe { X509VerifyParamRef::from_ptr_mut(ffi::SSL_get0_param(self.as_ptr())) }
     }
 
@@ -2616,6 +2913,12 @@ impl SslRef {
     ///
     /// [`SSL_get_verify_result`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_get_verify_result.html
     pub fn verify_result(&self) -> X509VerifyResult {
+        #[cfg(feature = "rpk")]
+        assert!(
+            !self.ssl_context().is_rpk(),
+            "This API is not supported for RPK"
+        );
+
         unsafe { X509VerifyResult::from_raw(ffi::SSL_get_verify_result(self.as_ptr()) as c_int) }
     }
 
@@ -2744,7 +3047,7 @@ impl SslRef {
             if len == 0 {
                 None
             } else {
-                Some(slice::from_raw_parts(p as *const u8, len))
+                Some(slice::from_raw_parts(p, len))
             }
         }
     }
@@ -3064,7 +3367,7 @@ impl<S: Read + Write> SslStream<S> {
     pub fn get_shutdown(&mut self) -> ShutdownState {
         unsafe {
             let bits = ffi::SSL_get_shutdown(self.ssl.as_ptr());
-            ShutdownState { bits }
+            ShutdownState::from_bits_retain(bits)
         }
     }
 
@@ -3226,6 +3529,10 @@ where
     /// See `Ssl::connect`
     pub fn connect(self) -> Result<SslStream<S>, HandshakeError<S>> {
         let mut stream = self.inner;
+
+        #[cfg(feature = "kx-safe-default")]
+        stream.ssl.client_set_default_curves_list()?;
+
         let ret = unsafe { ffi::SSL_connect(stream.ssl.as_ptr()) };
         if ret > 0 {
             Ok(stream)
@@ -3249,6 +3556,10 @@ where
     /// See `Ssl::accept`
     pub fn accept(self) -> Result<SslStream<S>, HandshakeError<S>> {
         let mut stream = self.inner;
+
+        #[cfg(feature = "kx-safe-default")]
+        stream.ssl.server_set_default_curves_list()?;
+
         let ret = unsafe { ffi::SSL_accept(stream.ssl.as_ptr()) };
         if ret > 0 {
             Ok(stream)
@@ -3354,6 +3665,7 @@ pub enum ShutdownResult {
 
 bitflags! {
     /// The shutdown state of a session.
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
     pub struct ShutdownState: c_int {
         /// A close notify message has been sent to the peer.
         const SENT = ffi::SSL_SENT_SHUTDOWN;

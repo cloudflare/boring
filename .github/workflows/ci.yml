@@ -178,6 +178,18 @@ jobs:
       # but for now, make sure that BoringSSL only builds.
       run: cargo check --target ${{ matrix.target }} --all-targets
       name: Check tests (iOS)
+    - name: Test boring-sys cargo publish
+      # Running `cargo publish --dry-run` tests two things:
+      #
+      # 1. That `boring-sys` can build BoringSSL with just the files included
+      #    in the crates.io package (as determined by the `include` field in
+      #    the `Cargo.toml`).
+      # 2. That the final `boring-sys` package size, including the BoringSSL
+      #    submodules, is not too large to be published to `crates.io`.
+      #
+      # Both of these may no longer be the case after updating the BoringSSL
+      # submodules to a new revision, so it's important to test this on CI.
+      run: cargo publish --dry-run -p boring-sys
 
   test-fips:
     name: Test FIPS integration
@@ -189,7 +201,44 @@ jobs:
     - name: Install Rust (rustup)
       run: rustup update stable --no-self-update && rustup default stable
       shell: bash
-    - name: Install Clang-7
-      run: sudo apt-get install -y clang-7
+    - name: Install Clang-12
+      uses: KyleMayes/install-llvm-action@v1
+      with:
+        version: "12.0.0"
+        directory: ${{ runner.temp }}/llvm
+    - name: Add clang++-12 link
+      working-directory: ${{ runner.temp }}/llvm/bin
+      run: ln -s clang clang++-12
     - run: cargo test --features fips
       name: Run tests
+    - name: Test boring-sys cargo publish (FIPS)
+      # Running `cargo publish --dry-run` tests two things:
+      #
+      # 1. That `boring-sys` can build BoringSSL with just the files included
+      #    in the crates.io package (as determined by the `include` field in
+      #    the `Cargo.toml`).
+      # 2. That the final `boring-sys` package size, including the BoringSSL
+      #    submodules, is not too large to be published to `crates.io`.
+      #
+      # Both of these may no longer be the case after updating the BoringSSL
+      # submodules to a new revision, so it's important to test this on CI.
+      run: cargo publish --dry-run -p boring-sys --features fips
+
+  test-features:
+    name: Test features
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: Install Rust (rustup)
+      run: rustup update stable --no-self-update && rustup default stable
+      shell: bash
+    - run: cargo test --features rpk
+      name: Run `rpk` tests
+    - run: cargo test --features pq-experimental
+      name: Run `pq-experimental` tests
+    - run: cargo test --features pq-experimental,rpk
+      name: Run `pq-experimental,rpk` tests
+    - run: cargo test --features kx-safe-default,pq-experimental
+      name: Run `kx-safe-default` tests
