@@ -65,7 +65,6 @@ jobs:
       matrix:
         thing:
         - stable
-        - macos-x86_64
         - arm-android
         - arm64-android
         - i686-android
@@ -76,6 +75,8 @@ jobs:
         - i686-linux
         - arm-linux
         - aarch64-linux
+        - arm64-macos
+        - x86_64-macos
         - x86_64-mingw
         - i686-msvc
         - x86_64-msvc
@@ -88,10 +89,6 @@ jobs:
           target: x86_64-unknown-linux-gnu
           rust: stable
           os: ubuntu-latest
-        - thing: macos-x86_64
-          target: x86_64-apple-darwin
-          rust: stable
-          os: macos-latest
         - thing: arm-android
           target: armv7-linux-androideabi
           rust: stable
@@ -151,6 +148,15 @@ jobs:
             CC: aarch64-linux-gnu-gcc
             CXX: aarch64-linux-gnu-g++
             CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-g++
+        - thing: arm64-macos
+          target: aarch64-apple-darwin
+          rust: stable
+          os: macos-latest
+          check_only: true
+        - thing: x86_64-macos
+          target: x86_64-apple-darwin
+          rust: stable
+          os: macos-latest
         - thing: x86_64-mingw
           target: x86_64-pc-windows-gnu
           rust: stable
