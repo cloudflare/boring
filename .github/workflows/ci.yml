@@ -205,11 +205,13 @@ jobs:
     - if: "!matrix.check_only"
       run: cargo test --target ${{ matrix.target }} ${{ matrix.extra_test_args }}
       name: Run tests
+      shell: bash
       env: ${{ matrix.custom_env }}
     - if: matrix.check_only
       # We `build` because we want the linker to verify we are cross-compiling correctly.
       run: cargo build --target ${{ matrix.target }} --tests
       name: Build tests
+      shell: bash
       env: ${{ matrix.custom_env }}
     - name: Test boring-sys cargo publish
       # Running `cargo publish --dry-run` tests two things:
