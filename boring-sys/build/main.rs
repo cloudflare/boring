@@ -153,7 +153,7 @@ fn get_boringssl_source_path(config: &Config) -> &PathBuf {
 /// so adjust library location based on platform and build target.
 /// See issue: https://github.com/alexcrichton/cmake-rs/issues/18
 fn get_boringssl_platform_output_path(config: &Config) -> String {
-    if config.target_env == "msvc" {
+    if config.target.ends_with("-msvc") {
         // Code under this branch should match the logic in cmake-rs
         let debug_env_var = config
             .env
