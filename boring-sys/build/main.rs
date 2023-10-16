@@ -295,20 +295,20 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
 /// See "Installation Instructions" under section 12.1.
 // TODO: maybe this should also verify the Go and Ninja versions? But those haven't been an issue in practice ...
 fn verify_fips_clang_version() -> (&'static str, &'static str) {
-    fn version(tool: &str) -> String {
+    fn version(tool: &str) -> Option<String> {
         let output = match Command::new(tool).arg("--version").output() {
             Ok(o) => o,
             Err(e) => {
                 eprintln!("warning: missing {}, trying other compilers: {}", tool, e);
                 // NOTE: hard-codes that the loop below checks the version
-                return String::new();
+                return None;
             }
         };
         if !output.status.success() {
-            return String::new();
+            return Some(String::new());
         }
         let output = std::str::from_utf8(&output.stdout).expect("invalid utf8 output");
-        output.lines().next().expect("empty output").to_string()
+        Some(output.lines().next().expect("empty output").to_string())
     }
 
     const REQUIRED_CLANG_VERSION: &str = "12.0.0";
@@ -317,10 +317,13 @@ fn verify_fips_clang_version() -> (&'static str, &'static str) {
         ("clang", "clang++"),
         ("cc", "c++"),
     ] {
-        let cc_version = version(cc);
+        let (Some(cc_version), Some(cxx_version)) = (version(cc), version(cxx)) else {
+            continue;
+        };
+
         if cc_version.contains(REQUIRED_CLANG_VERSION) {
             assert!(
-                version(cxx).contains(REQUIRED_CLANG_VERSION),
+                cxx_version.contains(REQUIRED_CLANG_VERSION),
                 "mismatched versions of cc and c++"
             );
             return (cc, cxx);
