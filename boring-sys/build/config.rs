@@ -30,6 +30,7 @@ pub(crate) struct Env {
     pub(crate) debug: Option<OsString>,
     pub(crate) opt_level: Option<OsString>,
     pub(crate) android_ndk_home: Option<PathBuf>,
+    pub(crate) cmake_toolchain_file: Option<PathBuf>,
 }
 
 impl Config {
@@ -147,6 +148,7 @@ impl Env {
             debug: target_var("DEBUG"),
             opt_level: target_var("OPT_LEVEL"),
             android_ndk_home: target_var("ANDROID_NDK_HOME").map(Into::into),
+            cmake_toolchain_file: target_var("CMAKE_TOOLCHAIN_FILE").map(Into::into),
         }
     }
 }
