@@ -27,6 +27,8 @@ pub(crate) struct Env {
     pub(crate) source_path: Option<PathBuf>,
     pub(crate) precompiled_bcm_o: Option<PathBuf>,
     pub(crate) assume_patched: bool,
+    pub(crate) sysroot: Option<PathBuf>,
+    pub(crate) compiler_external_toolchain: Option<PathBuf>,
     pub(crate) debug: Option<OsString>,
     pub(crate) opt_level: Option<OsString>,
     pub(crate) android_ndk_home: Option<PathBuf>,
@@ -145,6 +147,9 @@ impl Env {
             precompiled_bcm_o: boringssl_var("BORING_BSSL_PRECOMPILED_BCM_O").map(PathBuf::from),
             assume_patched: boringssl_var("BORING_BSSL_ASSUME_PATCHED")
                 .is_some_and(|v| !v.is_empty()),
+            sysroot: boringssl_var("BORING_BSSL_SYSROOT").map(PathBuf::from),
+            compiler_external_toolchain: boringssl_var("BORING_BSSL_COMPILER_EXTERNAL_TOOLCHAIN")
+                .map(PathBuf::from),
             debug: target_var("DEBUG"),
             opt_level: target_var("OPT_LEVEL"),
             android_ndk_home: target_var("ANDROID_NDK_HOME").map(Into::into),

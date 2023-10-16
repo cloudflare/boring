@@ -193,6 +193,23 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
         return boringssl_cmake;
     }
 
+    boringssl_cmake
+        .define("CMAKE_CROSSCOMPILING", "true")
+        .define("CMAKE_C_COMPILER_TARGET", &config.target)
+        .define("CMAKE_CXX_COMPILER_TARGET", &config.target)
+        .define("CMAKE_ASM_COMPILER_TARGET", &config.target);
+
+    if let Some(sysroot) = &config.env.sysroot {
+        boringssl_cmake.define("CMAKE_SYSROOT", sysroot);
+    }
+
+    if let Some(toolchain) = &config.env.compiler_external_toolchain {
+        boringssl_cmake
+            .define("CMAKE_C_COMPILER_EXTERNAL_TOOLCHAIN", toolchain)
+            .define("CMAKE_CXX_COMPILER_EXTERNAL_TOOLCHAIN", toolchain)
+            .define("CMAKE_ASM_COMPILER_EXTERNAL_TOOLCHAIN", toolchain);
+    }
+
     // Add platform-specific parameters for cross-compilation.
     match &*config.target_os {
         "android" => {
@@ -646,6 +663,12 @@ fn main() {
         .clang_args(get_extra_clang_args_for_bindgen(&config))
         .clang_arg("-I")
         .clang_arg(include_path.display().to_string());
+
+    if let Some(sysroot) = &config.env.sysroot {
+        builder = builder
+            .clang_arg("--sysroot")
+            .clang_arg(&sysroot.display().to_string());
+    }
 
     match &*config.target {
         // bindgen produces alignment tests that cause undefined behavior [1]
