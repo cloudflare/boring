@@ -207,8 +207,8 @@ jobs:
     - name: Add clang++-12 link
       working-directory: ${{ runner.temp }}/llvm/bin
       run: ln -s clang clang++-12
-    - run: cargo test --features fips
-      name: Run tests
+    - name: Run tests
+      run: cargo test --features fips
     - name: Test boring-sys cargo publish (FIPS)
       # Running `cargo publish --dry-run` tests two things:
       #
@@ -221,6 +221,65 @@ jobs:
       # Both of these may no longer be the case after updating the BoringSSL
       # submodules to a new revision, so it's important to test this on CI.
       run: cargo publish --dry-run -p boring-sys --features fips
+
+  cross-build:
+    name: Cross build from macOS to Linux
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: Install Rust (rustup)
+      run: rustup update stable --no-self-update && rustup default stable && rustup target add ${{ matrix.target }}
+      shell: bash
+    - name: Install ${{ matrix.target }} toolchain
+      run: brew tap messense/macos-cross-toolchains && brew install ${{ matrix.target }}
+    - name: Set BORING_BSSL_SYSROOT
+      run: echo "BORING_BSSL_SYSROOT=$(brew --prefix ${{ matrix.target }})/toolchain/${{ matrix.target }}/sysroot" >> $GITHUB_ENV
+      shell: bash
+    - name: Set CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER
+      run: echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=${{ matrix.target }}-gcc" >> $GITHUB_ENV
+    - name: Build for ${{ matrix.target }}
+      run: cargo build --target ${{ matrix.target }} --all-targets
+
+  cross-build-fips:
+    name: Cross build from macOS to Linux (FIPS)
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: 'recursive'
+    - name: Install Rust (rustup)
+      run: rustup update stable --no-self-update && rustup default stable && rustup target add ${{ matrix.target }}
+      shell: bash
+    - name: Install Clang-12
+      uses: KyleMayes/install-llvm-action@v1
+      with:
+        version: "12.0.0"
+        directory: ${{ runner.temp }}/llvm
+    - name: Add clang++-12 link
+      working-directory: ${{ runner.temp }}/llvm/bin
+      run: ln -s clang clang++-12
+    - name: Install ${{ matrix.target }} toolchain
+      run: brew tap messense/macos-cross-toolchains && brew install ${{ matrix.target }}
+    - name: Set BORING_BSSL_FIPS_COMPILER_EXTERNAL_TOOLCHAIN
+      run: echo "BORING_BSSL_FIPS_COMPILER_EXTERNAL_TOOLCHAIN=$(brew --prefix ${{ matrix.target }})/toolchain" >> $GITHUB_ENV
+      shell: bash
+    - name: Set BORING_BSSL_FIPS_SYSROOT
+      run: echo "BORING_BSSL_FIPS_SYSROOT=$BORING_BSSL_FIPS_COMPILER_EXTERNAL_TOOLCHAIN/${{ matrix.target }}/sysroot" >> $GITHUB_ENV
+      shell: bash
+    - name: Set CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER
+      run: echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=${{ matrix.target }}-gcc" >> $GITHUB_ENV
+    - name: Build for ${{ matrix.target }}
+      run: cargo build --target ${{ matrix.target }} --all-targets --features fips
 
   test-features:
     name: Test features
