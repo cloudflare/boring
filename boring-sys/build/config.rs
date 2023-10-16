@@ -43,7 +43,11 @@ impl Config {
         let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
 
         let features = Features::from_env();
-        let env = Env::from_env(features.fips || features.fips_link_precompiled);
+        let env = Env::from_env(
+            &host,
+            &target,
+            features.fips || features.fips_link_precompiled,
+        );
 
         let config = Self {
             manifest_dir,
@@ -105,9 +109,21 @@ impl Features {
 }
 
 impl Env {
-    fn from_env(is_fips_like: bool) -> Self {
+    fn from_env(target: &str, host: &str, is_fips_like: bool) -> Self {
         const NORMAL_PREFIX: &str = "BORING_BSSL";
         const FIPS_PREFIX: &str = "BORING_BSSL_FIPS";
+
+        let target_with_underscores = target.replace('-', "_");
+
+        // Logic stolen from cmake-rs.
+        let target_var = |name: &str| {
+            let kind = if host == target { "HOST" } else { "TARGET" };
+
+            var(&format!("{}_{}", name, target))
+                .or_else(|| var(&format!("{}_{}", name, target_with_underscores)))
+                .or_else(|| var(&format!("{}_{}", kind, name)))
+                .or_else(|| var(name))
+        };
 
         let boringssl_var = |name: &str| {
             // The passed name is the non-fips version of the environment variable,
@@ -115,9 +131,9 @@ impl Env {
             assert!(name.starts_with(NORMAL_PREFIX));
 
             if is_fips_like {
-                var(&name.replace(NORMAL_PREFIX, FIPS_PREFIX))
+                target_var(&name.replace(NORMAL_PREFIX, FIPS_PREFIX))
             } else {
-                var(name)
+                target_var(name)
             }
         };
 
@@ -128,9 +144,9 @@ impl Env {
             precompiled_bcm_o: boringssl_var("BORING_BSSL_PRECOMPILED_BCM_O").map(PathBuf::from),
             assume_patched: boringssl_var("BORING_BSSL_ASSUME_PATCHED")
                 .is_some_and(|v| !v.is_empty()),
-            debug: var("DEBUG"),
-            opt_level: var("OPT_LEVEL"),
-            android_ndk_home: var("ANDROID_NDK_HOME").map(Into::into),
+            debug: target_var("DEBUG"),
+            opt_level: target_var("OPT_LEVEL"),
+            android_ndk_home: target_var("ANDROID_NDK_HOME").map(Into::into),
         }
     }
 }
