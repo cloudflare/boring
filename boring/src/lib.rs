@@ -105,6 +105,7 @@ pub mod asn1;
 pub mod base64;
 pub mod bn;
 pub mod conf;
+pub mod curve25519;
 pub mod derive;
 pub mod dh;
 pub mod dsa;
