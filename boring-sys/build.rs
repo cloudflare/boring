@@ -168,7 +168,10 @@ fn get_boringssl_source_path() -> String {
 /// so adjust library location based on platform and build target.
 /// See issue: https://github.com/alexcrichton/cmake-rs/issues/18
 fn get_boringssl_platform_output_path() -> String {
-    if cfg!(target_env = "msvc") {
+    if env::var("TARGET")
+        .expect("TARGET variable not defined in env")
+        .ends_with("-msvc")
+    {
         // Code under this branch should match the logic in cmake-rs
         let debug_env_var = env::var("DEBUG").expect("DEBUG variable not defined in env");
 
@@ -680,6 +683,7 @@ fn main() {
         .size_t_is_usize(true)
         .layout_tests(true)
         .prepend_enum_name(true)
+        .blocklist_type("max_align_t") // Not supported by bindgen on all targets, not used by BoringSSL
         .clang_args(get_extra_clang_args_for_bindgen())
         .clang_args(&["-I", &include_path]);
 

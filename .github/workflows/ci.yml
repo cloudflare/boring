@@ -67,7 +67,6 @@ jobs:
       matrix:
         thing:
         - stable
-        - macos-x86_64
         - arm-android
         - arm64-android
         - i686-android
@@ -78,72 +77,99 @@ jobs:
         - i686-linux
         - arm-linux
         - aarch64-linux
-        - x86_64-musl
-        - x86_64-mingw
+        - arm64-macos
+        - x86_64-macos
         - i686-msvc
         - x86_64-msvc
         include:
+        - check_only: false
+        - extra_test_args: ''
+        - apt_packages: ''
+        - custom_env: {}
         - thing: stable
           target: x86_64-unknown-linux-gnu
           rust: stable
           os: ubuntu-latest
-        - thing: macos-x86_64
-          target: x86_64-apple-darwin
-          rust: stable
-          os: macos-latest
         - thing: arm-android
-          target: arm-linux-androideabi
+          target: armv7-linux-androideabi
           rust: stable
           os: ubuntu-latest
+          check_only: true
         - thing: arm64-android
           target: aarch64-linux-android
           rust: stable
           os: ubuntu-latest
+          check_only: true
         - thing: i686-android
           target: i686-linux-android
           rust: stable
           os: ubuntu-latest
+          check_only: true
         - thing: x86_64-android
           target: x86_64-linux-android
           rust: stable
           os: ubuntu-latest
+          check_only: true
         - thing: aarch64-ios
           target: aarch64-apple-ios
           os: macos-latest
+          check_only: true
+          # It's... theoretically possible to run tests on iPhone Simulator,
+          # but for now, make sure that BoringSSL only builds.
         - thing: aarch64-ios-sim
           target: aarch64-apple-ios-sim
           os: macos-latest
+          check_only: true
         - thing: x86_64-ios
           target: x86_64-apple-ios
           os: macos-latest
+          check_only: true
         - thing: i686-linux
           target: i686-unknown-linux-gnu
           rust: stable
           os: ubuntu-latest
+          apt_packages: gcc-multilib g++-multilib
         - thing: arm-linux
           target: arm-unknown-linux-gnueabi
           rust: stable
           os: ubuntu-latest
+          apt_packages: gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
+          check_only: true
+          custom_env:
+            CC: arm-linux-gnueabi-gcc
+            CXX: arm-linux-gnueabi-g++
+            CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABI_LINKER: arm-linux-gnueabi-g++
         - thing: aarch64-linux
           target: aarch64-unknown-linux-gnu
           rust: stable
           os: ubuntu-latest
-        - thing: x86_64-musl
-          target: x86_64-unknown-linux-musl
+          apt_packages: crossbuild-essential-arm64
+          check_only: true
+          custom_env:
+            CC: aarch64-linux-gnu-gcc
+            CXX: aarch64-linux-gnu-g++
+            CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-g++
+        - thing: arm64-macos
+          target: aarch64-apple-darwin
           rust: stable
-          os: ubuntu-latest
-        - thing: x86_64-mingw
-          target: x86_64-pc-windows-gnu
+          os: macos-latest
+          check_only: true
+        - thing: x86_64-macos
+          target: x86_64-apple-darwin
           rust: stable
-          os: ubuntu-latest
+          os: macos-latest
         - thing: i686-msvc
           target: i686-pc-windows-msvc
           rust: stable-x86_64-msvc
           os: windows-latest
+          # CI's Windows doesn't have required root certs
+          extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring
         - thing: x86_64-msvc
           target: x86_64-pc-windows-msvc
           rust: stable-x86_64-msvc
           os: windows-latest
+          # CI's Windows doesn't have required root certs
+          extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring
 
     steps:
     - uses: actions/checkout@v2
@@ -153,6 +179,10 @@ jobs:
       run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
       shell: bash
     - run: rustup target add ${{ matrix.target }}
+    - name: Install target-specific APT dependencies
+      if: "matrix.apt_packages != ''"
+      run: sudo apt update && sudo apt install -y ${{ matrix.apt_packages }}
+      shell: bash
     - name: Install nasm
       if: startsWith(matrix.os, 'windows')
       run: choco install nasm
@@ -166,18 +196,20 @@ jobs:
     - name: Set LIBCLANG_PATH
       if: startsWith(matrix.os, 'windows')
       run: echo "LIBCLANG_PATH=$((gcm clang).source -replace "clang.exe")" >> $env:GITHUB_ENV
-    - if: "startsWith(matrix.os, 'windows') && !contains(matrix.target, 'ios')"
-      # CI's Windows doesn't have require root certs
-      run: cargo test --workspace --exclude tokio-boring --exclude hyper-boring
-      name: Run tests (Windows)
-    - if: "!startsWith(matrix.os, 'windows') && !contains(matrix.target, 'ios')"
-      run: cargo test
-      name: Run tests (not Windows)
-    - if: "contains(matrix.target, 'ios')"
-      # It's... theoretically possible to run tests on iPhone Simulator,
-      # but for now, make sure that BoringSSL only builds.
-      run: cargo check --target ${{ matrix.target }} --all-targets
-      name: Check tests (iOS)
+    - name: Set Android Linker path
+      if: endsWith(matrix.thing, '-android')
+      run: echo "CARGO_TARGET_$(echo ${{ matrix.target }} | tr \\-a-z _A-Z)_LINKER=$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/$(echo ${{ matrix.target }} | sed s/armv7/armv7a/)21-clang++" >> "$GITHUB_ENV"
+    - name: Run tests
+      if: "!matrix.check_only"
+      run: cargo test --target ${{ matrix.target }} ${{ matrix.extra_test_args }}
+      shell: bash
+      env: ${{ matrix.custom_env }}
+    - name: Build tests
+      if: matrix.check_only
+      # We `build` because we want the linker to verify we are cross-compiling correctly.
+      run: cargo build --target ${{ matrix.target }} --tests
+      shell: bash
+      env: ${{ matrix.custom_env }}
     - name: Test boring-sys cargo publish
       # Running `cargo publish --dry-run` tests two things:
       #
