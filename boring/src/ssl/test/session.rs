@@ -1,7 +1,10 @@
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::OnceLock;
 
 use crate::ssl::test::server::Server;
-use crate::ssl::{Ssl, SslContext, SslContextBuilder, SslMethod, SslSessionCacheMode};
+use crate::ssl::{
+    Ssl, SslContext, SslContextBuilder, SslMethod, SslOptions, SslSessionCacheMode, SslVersion,
+};
 
 #[test]
 fn idle_session() {
@@ -28,9 +31,18 @@ fn active_session() {
 
 #[test]
 fn new_session_callback() {
-    static CALLED_BACK: AtomicBool = AtomicBool::new(false);
+    static SESSION_ID: OnceLock<Vec<u8>> = OnceLock::new();
 
     let mut server = Server::builder();
+
+    server
+        .ctx()
+        .set_max_proto_version(Some(SslVersion::TLS1_2))
+        .unwrap();
+    server.ctx().set_options(SslOptions::NO_TICKET);
+    server
+        .ctx()
+        .set_new_session_callback(|_, session| SESSION_ID.set(session.id().to_owned()).unwrap());
     server.ctx().set_session_id_context(b"foo").unwrap();
 
     let server = server.build();
@@ -42,11 +54,11 @@ fn new_session_callback() {
         .set_session_cache_mode(SslSessionCacheMode::CLIENT | SslSessionCacheMode::NO_INTERNAL);
     client
         .ctx()
-        .set_new_session_callback(|_, _| CALLED_BACK.store(true, Ordering::SeqCst));
+        .set_new_session_callback(|_, session| assert_eq!(SESSION_ID.get().unwrap(), session.id()));
 
     client.connect();
 
-    assert!(CALLED_BACK.load(Ordering::SeqCst));
+    assert!(SESSION_ID.get().is_some());
 }
 
 #[test]
