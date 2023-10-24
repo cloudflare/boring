@@ -3,8 +3,7 @@ use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::thread::{self, JoinHandle};
 
 use crate::ssl::{
-    HandshakeError, MidHandshakeSslStream, Ssl, SslContext, SslContextBuilder, SslFiletype,
-    SslMethod, SslRef, SslStream,
+    HandshakeError, Ssl, SslContext, SslContextBuilder, SslFiletype, SslMethod, SslRef, SslStream,
 };
 
 pub struct Server {

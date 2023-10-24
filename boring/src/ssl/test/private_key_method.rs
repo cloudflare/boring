@@ -2,7 +2,7 @@ use once_cell::sync::OnceCell;
 
 use super::server::{Builder, Server};
 use super::KEY;
-use crate::hash::{Hasher, MessageDigest};
+use crate::hash::MessageDigest;
 use crate::pkey::PKey;
 use crate::rsa::Padding;
 use crate::sign::{RsaPssSaltlen, Signer};
@@ -10,9 +10,7 @@ use crate::ssl::{
     ErrorCode, HandshakeError, PrivateKeyMethod, PrivateKeyMethodError, SslRef,
     SslSignatureAlgorithm,
 };
-use crate::x509::X509;
-use std::cmp;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 
