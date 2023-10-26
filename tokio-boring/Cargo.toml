@@ -33,5 +33,5 @@ tokio = { workspace = true }
 
 [dev-dependencies]
 futures = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = [ "full" ] }
 anyhow = { workspace = true }
