@@ -1,3 +1,4 @@
+use crate::mut_only::MutOnly;
 use boring::ex_data::Index;
 use boring::ssl::{self, ClientHello, PrivateKeyMethod, Ssl, SslContextBuilder};
 use once_cell::sync::Lazy;
@@ -29,17 +30,18 @@ pub type BoxGetSessionFinish = Box<dyn FnOnce(&mut ssl::SslRef, &[u8]) -> Option
 /// Convenience alias for futures stored in [`Ssl`] ex data by [`SslContextBuilderExt`] methods.
 ///
 /// Public for documentation purposes.
-pub type ExDataFuture<T> = Pin<Box<dyn Future<Output = T> + Send + Sync>>;
+pub type ExDataFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 
 pub(crate) static TASK_WAKER_INDEX: Lazy<Index<Ssl, Option<Waker>>> =
     Lazy::new(|| Ssl::new_ex_index().unwrap());
-pub(crate) static SELECT_CERT_FUTURE_INDEX: Lazy<Index<Ssl, Option<BoxSelectCertFuture>>> =
+pub(crate) static SELECT_CERT_FUTURE_INDEX: Lazy<Index<Ssl, MutOnly<Option<BoxSelectCertFuture>>>> =
     Lazy::new(|| Ssl::new_ex_index().unwrap());
 pub(crate) static SELECT_PRIVATE_KEY_METHOD_FUTURE_INDEX: Lazy<
-    Index<Ssl, Option<BoxPrivateKeyMethodFuture>>,
+    Index<Ssl, MutOnly<Option<BoxPrivateKeyMethodFuture>>>,
 > = Lazy::new(|| Ssl::new_ex_index().unwrap());
-pub(crate) static SELECT_GET_SESSION_FUTURE_INDEX: Lazy<Index<Ssl, Option<BoxGetSessionFuture>>> =
-    Lazy::new(|| Ssl::new_ex_index().unwrap());
+pub(crate) static SELECT_GET_SESSION_FUTURE_INDEX: Lazy<
+    Index<Ssl, MutOnly<Option<BoxGetSessionFuture>>>,
+> = Lazy::new(|| Ssl::new_ex_index().unwrap());
 
 /// Extensions to [`SslContextBuilder`].
 ///
@@ -270,7 +272,7 @@ fn with_private_key_method(
 /// created by `create_fut` returns `Poll::Ready(_)` on the first poll call.
 fn with_ex_data_future<H, R, T, E>(
     ssl_handle: &mut H,
-    index: Index<ssl::Ssl, Option<ExDataFuture<R>>>,
+    index: Index<ssl::Ssl, MutOnly<Option<ExDataFuture<R>>>>,
     get_ssl_mut: impl Fn(&mut H) -> &mut ssl::SslRef,
     create_fut: impl FnOnce(&mut H) -> Result<ExDataFuture<R>, E>,
     into_result: impl Fn(R) -> Result<T, E>,
@@ -284,7 +286,7 @@ fn with_ex_data_future<H, R, T, E>(
 
     let mut ctx = Context::from_waker(&waker);
 
-    if let Some(data @ Some(_)) = ssl.ex_data_mut(index) {
+    if let Some(data @ Some(_)) = ssl.ex_data_mut(index).map(MutOnly::get_mut) {
         let fut_result = into_result(ready!(data.as_mut().unwrap().as_mut().poll(&mut ctx)));
 
         *data = None;
@@ -296,7 +298,7 @@ fn with_ex_data_future<H, R, T, E>(
         match fut.as_mut().poll(&mut ctx) {
             Poll::Ready(fut_result) => Poll::Ready(into_result(fut_result)),
             Poll::Pending => {
-                get_ssl_mut(ssl_handle).set_ex_data(index, Some(fut));
+                get_ssl_mut(ssl_handle).set_ex_data(index, MutOnly::new(Some(fut)));
 
                 Poll::Pending
             }
