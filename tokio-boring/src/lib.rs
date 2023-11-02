@@ -29,6 +29,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 mod async_callbacks;
 mod bridge;
+mod mut_only;
 
 use self::async_callbacks::TASK_WAKER_INDEX;
 pub use self::async_callbacks::{
