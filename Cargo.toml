@@ -12,6 +12,12 @@ version = "4.0.0-rc.1"
 repository = "https://github.com/cloudflare/boring"
 edition = "2021"
 
+[workspace.metadata.release]
+pre-release-commit-message = "Release {{version}}"
+shared-version = true
+tag-prefix = ""
+publish = false
+
 [workspace.dependencies]
 boring-sys = { version = "4.0.0-rc.1", path = "./boring-sys" }
 boring = { version = "4.0.0-rc.1", path = "./boring" }
