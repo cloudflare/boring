@@ -1,5 +1,56 @@
+4.0.0-rc.2
+- 2023-11-06 Add cargo-release metadata
+- 2023-11-02 Remove Sync trait bounds on callback futures
+- 2023-10-30 Update Cargo.toml
+- 2023-10-26 hyper and tokio "full" feature for dev builds only
+
+4.0.0-rc.1
+- 2023-10-26 Specify exact versions of dependent crates in the workspace manifest
+- 2023-10-16 Add CI for cross-building from macOS
+- 2023-10-16 Introduce BORING_BSSL_SYSROOT and BORING_BSSL_EXTERNAL_TOOLCHAIN
+- 2023-10-16 Check for CMAKE_TOOLCHAIN_FILE when creating cmake config
+- 2023-10-16 Introduce target-specific env vars
+- 2023-10-16 Continue looping if candidate cxx isn't found in verify_fips_clang_version
+- 2023-10-12 Introduce set_async_get_session_callback
+- 2023-10-12 Allow returning GetSessionPendingError from get session callbacks
+- 2023-10-24 Test set_get_session_callback
+- 2023-10-24 Test new session callback on server side
+- 2023-10-24 Move session tests to their own module
+- 2023-10-11 Replace feature no-patches with BORING_BSSL{,_FIPS}_ASSUME_PATCHED
+- 2023-10-11 Remove feature rpk from hyper-boring and tokio-boring
+- 2023-10-10 Introduce a new set of env variables for FIPS-like builds
+- 2023-10-10 Use prefix BORING_BSSL_ for all boringssl env variables
+- 2023-10-10 Don't read BORINGSSL_BUILD_DIR anymore
+- 2023-10-10 Don't use env::current_dir in build script
+- 2023-10-10 Introduce struct Config in build script
+- 2023-10-11 Change X509VerifyResult to Result<(), X509VerifyError>
+- 2023-10-11 Introduce bindings for all X509_V_ERR_* constants
+- 2023-02-17 Add SHA224, SHA512, SHA512-256 tests
+- 2023-02-17 Expose SHA512-256
+- 2023-10-09 Remove boring::fips::enable (fixes #150)
+- 2023-10-09 Remove futures from ex data slots once they resolve
+- 2023-10-06 Introduce SslSignatureAlgorithm::RSA_PKCS1_MD5_SHA1
+- 2023-10-06 Introduce Ssl::set_certificate
+- 2023-07-28 Introduce async callbacks
+- 2023-08-02 Implement SslContextBuilder::set_private_key_method
+- 2023-07-28 Change signature for set_select_certificate_callback
+- 2023-08-04 Introduce AsyncStreamBridge
+- 2023-06-23 Add a few WouldBlock cases
+- 2023-08-04 Introduce helper module in tokio-boring tests
+- 2023-08-03 Introduce setup_accept and setup_connect
+- 2023-09-14 Panic on error when setting default curves list
+- 2023-06-23 Introduce ssl::Error::would_block
+- 2023-09-22 deps: update to bindgen 0.68
+- 2023-10-06 Fix clippy lints
+- 2023-08-15 Add new(), connect(), accept() and handshake() to SslStream
+- 2023-09-18 Enable P-521 with "kx-safe-default"
+- 2023-08-15 Provide into_ssl() for ConnectConfiguration
+
 3.1.0
-- 2023-09-12 Release 3.1.0
+- 2023-09-13 Update Cargo.toml
+- 2023-09-13 Update RELEASE_NOTES
+- 2023-09-13 Update RELEASE_NOTES
+- 2023-09-12 Release 3.0.5
 - 2023-09-12 tweaks for ergonomic linking
 - 2023-08-08 Use features to set key exchange preferences
 - 2023-08-30 Introduce `no-patches` feature
@@ -10,9 +61,9 @@
 - 2023-08-25 add CI jobs to run `cargo package`
 - 2023-08-15 Fix -Z minimal-versions
 - 2023-08-29 Separate `fips` and `fips-link-precompiled` features.
-- 2023-08-05 Bump version in Cargo.toml
 
 3.0.4
+- 2023-08-05 Bump version in Cargo.toml
 - 2023-08-05 Release 3.0.4
 - 2023-08-05 Add missing cmake files to the package
 
