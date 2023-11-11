@@ -11,6 +11,20 @@ use crate::config::Config;
 
 mod config;
 
+fn should_use_cmake_cross_compilation(config: &Config) -> bool {
+    if config.host == config.target {
+        return false;
+    }
+    match config.target_os.as_str() {
+        "macos" | "ios" => {
+            // Cross-compiling for Apple platforms on macOS is supported using the normal Xcode
+            // tools, along with the settings from `cmake_params_apple`.
+            !config.host.ends_with("-darwin")
+        }
+        _ => true,
+    }
+}
+
 // Android NDK >= 19.
 const CMAKE_PARAMS_ANDROID_NDK: &[(&str, &[(&str, &str)])] = &[
     ("aarch64", &[("ANDROID_ABI", "arm64-v8a")]),
@@ -193,11 +207,13 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
         return boringssl_cmake;
     }
 
-    boringssl_cmake
-        .define("CMAKE_CROSSCOMPILING", "true")
-        .define("CMAKE_C_COMPILER_TARGET", &config.target)
-        .define("CMAKE_CXX_COMPILER_TARGET", &config.target)
-        .define("CMAKE_ASM_COMPILER_TARGET", &config.target);
+    if should_use_cmake_cross_compilation(config) {
+        boringssl_cmake
+            .define("CMAKE_CROSSCOMPILING", "true")
+            .define("CMAKE_C_COMPILER_TARGET", &config.target)
+            .define("CMAKE_CXX_COMPILER_TARGET", &config.target)
+            .define("CMAKE_ASM_COMPILER_TARGET", &config.target);
+    }
 
     if let Some(sysroot) = &config.env.sysroot {
         boringssl_cmake.define("CMAKE_SYSROOT", sysroot);
