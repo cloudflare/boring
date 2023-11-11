@@ -3,8 +3,6 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 
 pub(crate) struct Config {
-    // TODO(nox): Use manifest dir instead.
-    pub(crate) pwd: PathBuf,
     pub(crate) manifest_dir: PathBuf,
     pub(crate) out_dir: PathBuf,
     pub(crate) host: String,
@@ -16,7 +14,6 @@ pub(crate) struct Config {
 }
 
 pub(crate) struct Features {
-    pub(crate) no_patches: bool,
     pub(crate) fips: bool,
     pub(crate) fips_link_precompiled: bool,
     pub(crate) pq_experimental: bool,
@@ -29,17 +26,17 @@ pub(crate) struct Env {
     pub(crate) include_path: Option<PathBuf>,
     pub(crate) source_path: Option<PathBuf>,
     pub(crate) precompiled_bcm_o: Option<PathBuf>,
-    #[allow(dead_code)]
-    pub(crate) build_dir: Option<PathBuf>,
+    pub(crate) assume_patched: bool,
+    pub(crate) sysroot: Option<PathBuf>,
+    pub(crate) compiler_external_toolchain: Option<PathBuf>,
     pub(crate) debug: Option<OsString>,
     pub(crate) opt_level: Option<OsString>,
     pub(crate) android_ndk_home: Option<PathBuf>,
+    pub(crate) cmake_toolchain_file: Option<PathBuf>,
 }
 
 impl Config {
     pub(crate) fn from_env() -> Self {
-        let pwd = env::current_dir().unwrap();
-
         let manifest_dir = env::var_os("CARGO_MANIFEST_DIR").unwrap().into();
         let out_dir = env::var_os("OUT_DIR").unwrap().into();
         let host = env::var("HOST").unwrap();
@@ -48,10 +45,13 @@ impl Config {
         let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
 
         let features = Features::from_env();
-        let env = Env::from_env();
+        let env = Env::from_env(
+            &host,
+            &target,
+            features.fips || features.fips_link_precompiled,
+        );
 
         let config = Self {
-            pwd,
             manifest_dir,
             out_dir,
             host,
@@ -76,15 +76,15 @@ impl Config {
         let is_external_native_lib_source =
             !is_precompiled_native_lib && self.env.source_path.is_none();
 
-        if self.features.no_patches && is_external_native_lib_source {
+        if self.env.assume_patched && is_external_native_lib_source {
             panic!(
-                "`no-patches` feature is supposed to be used with `BORING_BSSL_PATH`\
-                or `BORING_BSSL_SOURCE_PATH` env variables"
+                "`BORING_BSSL_{{,_FIPS}}_ASSUME_PATCHED` env variable is supposed to be used with\
+                `BORING_BSSL{{,_FIPS}}_PATH` or `BORING_BSSL{{,_FIPS}}_SOURCE_PATH` env variables"
             );
         }
 
         let features_with_patches_enabled = self.features.rpk || self.features.pq_experimental;
-        let patches_required = features_with_patches_enabled && !self.features.no_patches;
+        let patches_required = features_with_patches_enabled && !self.env.assume_patched;
         let build_from_sources_required = self.features.fips_link_precompiled || patches_required;
 
         if is_precompiled_native_lib && build_from_sources_required {
@@ -95,7 +95,6 @@ impl Config {
 
 impl Features {
     fn from_env() -> Self {
-        let no_patches = env::var_os("CARGO_FEATURE_NO_PATCHES").is_some();
         let fips = env::var_os("CARGO_FEATURE_FIPS").is_some();
         let fips_link_precompiled = env::var_os("CARGO_FEATURE_FIPS_LINK_PRECOMPILED").is_some();
         let pq_experimental = env::var_os("CARGO_FEATURE_PQ_EXPERIMENTAL").is_some();
@@ -103,7 +102,6 @@ impl Features {
         let ssl = env::var_os("CARGO_FEATURE_SSL").is_some();
 
         Self {
-            no_patches,
             fips,
             fips_link_precompiled,
             pq_experimental,
@@ -114,16 +112,48 @@ impl Features {
 }
 
 impl Env {
-    fn from_env() -> Self {
+    fn from_env(target: &str, host: &str, is_fips_like: bool) -> Self {
+        const NORMAL_PREFIX: &str = "BORING_BSSL";
+        const FIPS_PREFIX: &str = "BORING_BSSL_FIPS";
+
+        let target_with_underscores = target.replace('-', "_");
+
+        // Logic stolen from cmake-rs.
+        let target_var = |name: &str| {
+            let kind = if host == target { "HOST" } else { "TARGET" };
+
+            var(&format!("{}_{}", name, target))
+                .or_else(|| var(&format!("{}_{}", name, target_with_underscores)))
+                .or_else(|| var(&format!("{}_{}", kind, name)))
+                .or_else(|| var(name))
+        };
+
+        let boringssl_var = |name: &str| {
+            // The passed name is the non-fips version of the environment variable,
+            // to help look for them in the repository.
+            assert!(name.starts_with(NORMAL_PREFIX));
+
+            if is_fips_like {
+                target_var(&name.replace(NORMAL_PREFIX, FIPS_PREFIX))
+            } else {
+                target_var(name)
+            }
+        };
+
         Self {
-            path: var("BORING_BSSL_PATH").map(Into::into),
-            include_path: var("BORING_BSSL_INCLUDE_PATH").map(Into::into),
-            source_path: var("BORING_BSSL_SOURCE_PATH").map(Into::into),
-            precompiled_bcm_o: var("BORING_SSL_PRECOMPILED_BCM_O").map(Into::into),
-            build_dir: var("BORINGSSL_BUILD_DIR").map(Into::into),
-            debug: var("DEBUG"),
-            opt_level: var("OPT_LEVEL"),
-            android_ndk_home: var("ANDROID_NDK_HOME").map(Into::into),
+            path: boringssl_var("BORING_BSSL_PATH").map(PathBuf::from),
+            include_path: boringssl_var("BORING_BSSL_INCLUDE_PATH").map(PathBuf::from),
+            source_path: boringssl_var("BORING_BSSL_SOURCE_PATH").map(PathBuf::from),
+            precompiled_bcm_o: boringssl_var("BORING_BSSL_PRECOMPILED_BCM_O").map(PathBuf::from),
+            assume_patched: boringssl_var("BORING_BSSL_ASSUME_PATCHED")
+                .is_some_and(|v| !v.is_empty()),
+            sysroot: boringssl_var("BORING_BSSL_SYSROOT").map(PathBuf::from),
+            compiler_external_toolchain: boringssl_var("BORING_BSSL_COMPILER_EXTERNAL_TOOLCHAIN")
+                .map(PathBuf::from),
+            debug: target_var("DEBUG"),
+            opt_level: target_var("OPT_LEVEL"),
+            android_ndk_home: target_var("ANDROID_NDK_HOME").map(Into::into),
+            cmake_toolchain_file: target_var("CMAKE_TOOLCHAIN_FILE").map(Into::into),
         }
     }
 }

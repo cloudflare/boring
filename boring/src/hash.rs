@@ -64,6 +64,10 @@ impl MessageDigest {
         unsafe { MessageDigest(ffi::EVP_sha512()) }
     }
 
+    pub fn sha512_256() -> MessageDigest {
+        unsafe { MessageDigest(ffi::EVP_sha512_256()) }
+    }
+
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn as_ptr(&self) -> *const ffi::EVP_MD {
         self.0
@@ -434,6 +438,18 @@ mod tests {
     }
 
     #[test]
+    fn test_sha224() {
+        let tests = [(
+            "616263",
+            "23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7",
+        )];
+
+        for test in tests.iter() {
+            hash_test(MessageDigest::sha224(), test);
+        }
+    }
+
+    #[test]
     fn test_sha256() {
         let tests = [(
             "616263",
@@ -442,6 +458,31 @@ mod tests {
 
         for test in tests.iter() {
             hash_test(MessageDigest::sha256(), test);
+        }
+    }
+
+    #[test]
+    fn test_sha512() {
+        let tests = [(
+            "616263",
+            "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2\
+             192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f",
+        )];
+
+        for test in tests.iter() {
+            hash_test(MessageDigest::sha512(), test);
+        }
+    }
+
+    #[test]
+    fn test_sha512_256() {
+        let tests = [(
+            "616263",
+            "53048e2681941ef99b2e29b76b4c7dabe4c2d0c634fc6d46e0e2f13107e7af23",
+        )];
+
+        for test in tests.iter() {
+            hash_test(MessageDigest::sha512_256(), test);
         }
     }
 

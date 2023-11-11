@@ -14,7 +14,7 @@ use crate::x509::extension::{
 };
 use crate::x509::store::X509StoreBuilder;
 use crate::x509::verify::X509VerifyFlags;
-use crate::x509::{X509Extension, X509Name, X509Req, X509StoreContext, X509VerifyResult, X509};
+use crate::x509::{X509Extension, X509Name, X509Req, X509StoreContext, X509VerifyError, X509};
 
 fn pkey() -> PKey<Private> {
     let rsa = Rsa::generate(2048).unwrap();
@@ -417,8 +417,8 @@ fn issued() {
     let ca = include_bytes!("../../test/root-ca.pem");
     let ca = X509::from_pem(ca).unwrap();
 
-    assert_eq!(ca.issued(&cert), X509VerifyResult::OK);
-    assert_ne!(cert.issued(&cert), X509VerifyResult::OK);
+    assert_eq!(ca.issued(&cert), Ok(()));
+    assert!(cert.issued(&cert).is_err());
 }
 
 #[test]
@@ -561,7 +561,7 @@ fn test_untrusted_valid_crl() {
         .init(&store, &cert, &chain, |c| c
             .verify_cert_with_crls(stack_of(crl)))
         .unwrap());
-    assert_eq!(context.error().as_raw(), ffi::X509_V_ERR_CERT_REVOKED);
+    assert_eq!(context.verify_result(), Err(X509VerifyError::CERT_REVOKED));
 }
 
 #[test]
@@ -589,7 +589,10 @@ fn test_untrusted_invalid_crl() {
         .init(&store, &cert, &chain, |c| c
             .verify_cert_with_crls(stack_of(crl)))
         .unwrap());
-    assert_eq!(context.error().as_raw(), ffi::X509_V_ERR_UNABLE_TO_GET_CRL);
+    assert_eq!(
+        context.verify_result(),
+        Err(X509VerifyError::UNABLE_TO_GET_CRL)
+    );
 
     // this CRL has an invalid signature
     let crl = include_bytes!("../../test/bad_sig.pem");
@@ -600,8 +603,8 @@ fn test_untrusted_invalid_crl() {
             .verify_cert_with_crls(stack_of(crl)))
         .unwrap());
     assert_eq!(
-        context.error().as_raw(),
-        ffi::X509_V_ERR_CRL_SIGNATURE_FAILURE
+        context.verify_result(),
+        Err(X509VerifyError::CRL_SIGNATURE_FAILURE)
     );
 }
 

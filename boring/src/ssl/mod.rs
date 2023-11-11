@@ -92,7 +92,9 @@ use crate::ssl::error::InnerError;
 use crate::stack::{Stack, StackRef};
 use crate::x509::store::{X509Store, X509StoreBuilderRef, X509StoreRef};
 use crate::x509::verify::X509VerifyParamRef;
-use crate::x509::{X509Name, X509Ref, X509StoreContextRef, X509VerifyResult, X509};
+use crate::x509::{
+    X509Name, X509Ref, X509StoreContextRef, X509VerifyError, X509VerifyResult, X509,
+};
 use crate::{cvt, cvt_0i, cvt_n, cvt_p, init};
 
 pub use crate::ssl::connector::{
@@ -482,6 +484,9 @@ pub struct SelectCertError(ffi::ssl_select_cert_result_t);
 impl SelectCertError {
     /// A fatal error occured and the handshake should be terminated.
     pub const ERROR: Self = Self(ffi::ssl_select_cert_result_t::ssl_select_cert_error);
+
+    /// The operation could not be completed and should be retried later.
+    pub const RETRY: Self = Self(ffi::ssl_select_cert_result_t::ssl_select_cert_retry);
 }
 
 /// Extension types, to be used with `ClientHello::get_extension`.
@@ -593,6 +598,9 @@ impl SslSignatureAlgorithm {
 
     pub const RSA_PKCS1_SHA512: SslSignatureAlgorithm =
         SslSignatureAlgorithm(ffi::SSL_SIGN_RSA_PKCS1_SHA512 as _);
+
+    pub const RSA_PKCS1_MD5_SHA1: SslSignatureAlgorithm =
+        SslSignatureAlgorithm(ffi::SSL_SIGN_RSA_PKCS1_MD5_SHA1 as _);
 
     pub const ECDSA_SHA1: SslSignatureAlgorithm =
         SslSignatureAlgorithm(ffi::SSL_SIGN_ECDSA_SHA1 as _);
@@ -1370,6 +1378,7 @@ impl SslContextBuilder {
             );
         }
     }
+
     /// Sets a callback that is called before most ClientHello processing and before the decision whether
     /// to resume a session is made. The callback may inspect the ClientHello and configure the
     /// connection.
@@ -1379,7 +1388,7 @@ impl SslContextBuilder {
     /// [`SSL_CTX_set_select_certificate_cb`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_select_certificate_cb.html
     pub fn set_select_certificate_callback<F>(&mut self, callback: F)
     where
-        F: Fn(&ClientHello) -> Result<(), SelectCertError> + Sync + Send + 'static,
+        F: Fn(ClientHello<'_>) -> Result<(), SelectCertError> + Sync + Send + 'static,
     {
         unsafe {
             self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
@@ -1387,6 +1396,31 @@ impl SslContextBuilder {
                 self.as_ptr(),
                 Some(callbacks::raw_select_cert::<F>),
             );
+        }
+    }
+
+    /// Configures a custom private key method on the context.
+    ///
+    /// See [`PrivateKeyMethod`] for more details.
+    ///
+    /// This corresponds to [`SSL_CTX_set_private_key_method`]
+    ///
+    /// [`SSL_CTX_set_private_key_method`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set_private_key_method
+    pub fn set_private_key_method<M>(&mut self, method: M)
+    where
+        M: PrivateKeyMethod,
+    {
+        unsafe {
+            self.set_ex_data(SslContext::cached_ex_index::<M>(), method);
+
+            ffi::SSL_CTX_set_private_key_method(
+                self.as_ptr(),
+                &ffi::SSL_PRIVATE_KEY_METHOD {
+                    sign: Some(callbacks::raw_sign::<M>),
+                    decrypt: Some(callbacks::raw_decrypt::<M>),
+                    complete: Some(callbacks::raw_complete::<M>),
+                },
+            )
         }
     }
 
@@ -1565,12 +1599,15 @@ impl SslContextBuilder {
     ///
     /// # Safety
     ///
-    /// The returned `SslSession` must not be associated with a different `SslContext`.
+    /// The returned [`SslSession`] must not be associated with a different [`SslContext`].
     ///
     /// [`SSL_CTX_sess_set_get_cb`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_sess_set_new_cb.html
     pub unsafe fn set_get_session_callback<F>(&mut self, callback: F)
     where
-        F: Fn(&mut SslRef, &[u8]) -> Option<SslSession> + 'static + Sync + Send,
+        F: Fn(&mut SslRef, &[u8]) -> Result<Option<SslSession>, GetSessionPendingError>
+            + 'static
+            + Sync
+            + Send,
     {
         self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
         ffi::SSL_CTX_sess_set_get_cb(self.as_ptr(), Some(callbacks::raw_get_session::<F>));
@@ -1944,6 +1981,13 @@ impl SslContextRef {
     }
 }
 
+/// Error returned by the callback to get a session when operation
+/// could not complete and should be retried later.
+///
+/// See [`SslContextBuilder::set_get_session_callback`].
+#[derive(Debug)]
+pub struct GetSessionPendingError;
+
 #[cfg(not(any(feature = "fips", feature = "fips-link-precompiled")))]
 type ProtosLen = usize;
 #[cfg(any(feature = "fips", feature = "fips-link-precompiled"))]
@@ -1959,9 +2003,9 @@ pub struct CipherBits {
 }
 
 #[repr(transparent)]
-pub struct ClientHello(ffi::SSL_CLIENT_HELLO);
+pub struct ClientHello<'ssl>(&'ssl ffi::SSL_CLIENT_HELLO);
 
-impl ClientHello {
+impl ClientHello<'_> {
     /// Returns the data of a given extension, if present.
     ///
     /// This corresponds to [`SSL_early_callback_ctx_extension_get`].
@@ -1972,7 +2016,7 @@ impl ClientHello {
             let mut ptr = ptr::null();
             let mut len = 0;
             let result =
-                ffi::SSL_early_callback_ctx_extension_get(&self.0, ext_type.0, &mut ptr, &mut len);
+                ffi::SSL_early_callback_ctx_extension_get(self.0, ext_type.0, &mut ptr, &mut len);
             if result == 0 {
                 return None;
             }
@@ -1980,7 +2024,11 @@ impl ClientHello {
         }
     }
 
-    fn ssl(&self) -> &SslRef {
+    pub fn ssl_mut(&mut self) -> &mut SslRef {
+        unsafe { SslRef::from_ptr_mut(self.0.ssl) }
+    }
+
+    pub fn ssl(&self) -> &SslRef {
         unsafe { SslRef::from_ptr(self.0.ssl) }
     }
 
@@ -2320,34 +2368,70 @@ impl Ssl {
         }
     }
 
-    /// Initiates a client-side TLS handshake.
+    /// Creates a new [`Ssl`].
     ///
-    /// This corresponds to [`SSL_connect`].
+    /// This corresponds to [`SSL_new`](`ffi::SSL_new`).
+    ///
+    /// This function does the same as [`Self:new`] except that it takes &[SslContextRef].
+    // Both functions exist for backward compatibility (no breaking API).
+    pub fn new_from_ref(ctx: &SslContextRef) -> Result<Ssl, ErrorStack> {
+        unsafe {
+            let ptr = cvt_p(ffi::SSL_new(ctx.as_ptr()))?;
+            let mut ssl = Ssl::from_ptr(ptr);
+            SSL_CTX_up_ref(ctx.as_ptr());
+            let ctx_owned = SslContext::from_ptr(ctx.as_ptr());
+            ssl.set_ex_data(*SESSION_CTX_INDEX, ctx_owned);
+
+            Ok(ssl)
+        }
+    }
+
+    /// Initiates a client-side TLS handshake, returning a [`MidHandshakeSslStream`].
+    ///
+    /// This method is guaranteed to return without calling any callback defined
+    /// in the internal [`Ssl`] or [`SslContext`].
+    ///
+    /// See [`SslStreamBuilder::setup_connect`] for more details.
+    ///
+    /// # Warning
+    ///
+    /// BoringSSL's default configuration is insecure. It is highly recommended to use
+    /// [`SslConnector`] rather than [`Ssl`] directly, as it manages that configuration.
+    pub fn setup_connect<S>(self, stream: S) -> MidHandshakeSslStream<S>
+    where
+        S: Read + Write,
+    {
+        SslStreamBuilder::new(self, stream).setup_connect()
+    }
+
+    /// Attempts a client-side TLS handshake.
+    ///
+    /// This is a convenience method which combines [`Self::setup_connect`] and
+    /// [`MidHandshakeSslStream::handshake`].
     ///
     /// # Warning
     ///
     /// OpenSSL's default configuration is insecure. It is highly recommended to use
-    /// `SslConnector` rather than `Ssl` directly, as it manages that configuration.
-    ///
-    /// [`SSL_connect`]: https://www.openssl.org/docs/manmaster/man3/SSL_connect.html
+    /// [`SslConnector`] rather than `Ssl` directly, as it manages that configuration.
     pub fn connect<S>(self, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
     where
         S: Read + Write,
     {
-        SslStreamBuilder::new(self, stream).connect()
+        self.setup_connect(stream).handshake()
     }
 
     /// Initiates a server-side TLS handshake.
     ///
-    /// This corresponds to [`SSL_accept`].
+    /// This method is guaranteed to return without calling any callback defined
+    /// in the internal [`Ssl`] or [`SslContext`].
+    ///
+    /// See [`SslStreamBuilder::setup_accept`] for more details.
     ///
     /// # Warning
     ///
-    /// OpenSSL's default configuration is insecure. It is highly recommended to use
-    /// `SslAcceptor` rather than `Ssl` directly, as it manages that configuration.
-    ///
-    /// [`SSL_accept`]: https://www.openssl.org/docs/manmaster/man3/SSL_accept.html
-    pub fn accept<S>(self, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
+    /// BoringSSL's default configuration is insecure. It is highly recommended to use
+    /// [`SslAcceptor`] rather than [`Ssl`] directly, as it manages that configuration.
+    pub fn setup_accept<S>(self, stream: S) -> MidHandshakeSslStream<S>
     where
         S: Read + Write,
     {
@@ -2366,7 +2450,25 @@ impl Ssl {
             }
         }
 
-        SslStreamBuilder::new(self, stream).accept()
+        SslStreamBuilder::new(self, stream).setup_accept()
+    }
+
+    /// Attempts a server-side TLS handshake.
+    ///
+    /// This is a convenience method which combines [`Self::setup_accept`] and
+    /// [`MidHandshakeSslStream::handshake`].
+    ///
+    /// # Warning
+    ///
+    /// OpenSSL's default configuration is insecure. It is highly recommended to use
+    /// `SslAcceptor` rather than `Ssl` directly, as it manages that configuration.
+    ///
+    /// [`SSL_accept`]: https://www.openssl.org/docs/manmaster/man3/SSL_accept.html
+    pub fn accept<S>(self, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
+    where
+        S: Read + Write,
+    {
+        self.setup_accept(stream).handshake()
     }
 }
 
@@ -2420,33 +2522,35 @@ impl SslRef {
     }
 
     #[cfg(feature = "kx-safe-default")]
-    fn client_set_default_curves_list(&mut self) -> Result<(), ErrorStack> {
+    fn client_set_default_curves_list(&mut self) {
         let curves = if cfg!(feature = "kx-client-pq-preferred") {
             if cfg!(feature = "kx-client-nist-required") {
-                "P256Kyber768Draft00:P-256:P-384"
+                "P256Kyber768Draft00:P-256:P-384:P-521"
             } else {
-                "X25519Kyber768Draft00:X25519:P256Kyber768Draft00:P-256:P-384"
+                "X25519Kyber768Draft00:X25519:P256Kyber768Draft00:P-256:P-384:P-521"
             }
         } else if cfg!(feature = "kx-client-pq-supported") {
             if cfg!(feature = "kx-client-nist-required") {
-                "P-256:P-384:P256Kyber768Draft00"
+                "P-256:P-384:P-521:P256Kyber768Draft00"
             } else {
-                "X25519:P-256:P-384:X25519Kyber768Draft00:P256Kyber768Draft00"
+                "X25519:P-256:P-384:P-521:X25519Kyber768Draft00:P256Kyber768Draft00"
             }
         } else {
             if cfg!(feature = "kx-client-nist-required") {
-                "P-256:P-384"
+                "P-256:P-384:P-521"
             } else {
-                "X25519:P-256:P-384"
+                "X25519:P-256:P-384:P-521"
             }
         };
 
         self.set_curves_list(curves)
+            .expect("invalid default client curves list");
     }
 
     #[cfg(feature = "kx-safe-default")]
-    fn server_set_default_curves_list(&mut self) -> Result<(), ErrorStack> {
+    fn server_set_default_curves_list(&mut self) {
         self.set_curves_list("X25519Kyber768Draft00:P256Kyber768Draft00:X25519:P-256:P-384")
+            .expect("invalid default server curves list");
     }
 
     /// Like [`SslContextBuilder::set_verify`].
@@ -2919,7 +3023,7 @@ impl SslRef {
             "This API is not supported for RPK"
         );
 
-        unsafe { X509VerifyResult::from_raw(ffi::SSL_get_verify_result(self.as_ptr()) as c_int) }
+        unsafe { X509VerifyError::from_raw(ffi::SSL_get_verify_result(self.as_ptr()) as c_int) }
     }
 
     /// Returns a shared reference to the SSL session.
@@ -3169,6 +3273,19 @@ impl SslRef {
     pub fn set_mtu(&mut self, mtu: u32) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_set_mtu(self.as_ptr(), mtu as c_uint) as c_int).map(|_| ()) }
     }
+
+    /// Sets the certificate.
+    ///
+    /// This corresponds to [`SSL_use_certificate`].
+    ///
+    /// [`SSL_use_certificate`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_use_certificate.html
+    pub fn set_certificate(&mut self, cert: &X509Ref) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt(ffi::SSL_use_certificate(self.as_ptr(), cert.as_ptr()))?;
+        }
+
+        Ok(())
+    }
 }
 
 /// An SSL stream midway through the handshake process.
@@ -3192,6 +3309,11 @@ impl<S> MidHandshakeSslStream<S> {
     /// Returns a shared reference to the `Ssl` of the stream.
     pub fn ssl(&self) -> &SslRef {
         self.stream.ssl()
+    }
+
+    /// Returns a mutable reference to the `Ssl` of the stream.
+    pub fn ssl_mut(&mut self) -> &mut SslRef {
+        self.stream.ssl_mut()
     }
 
     /// Returns the underlying error which interrupted this handshake.
@@ -3225,11 +3347,9 @@ impl<S> MidHandshakeSslStream<S> {
             Ok(self.stream)
         } else {
             self.error = self.stream.make_error(ret);
-            match self.error.code() {
-                ErrorCode::WANT_READ | ErrorCode::WANT_WRITE => {
-                    Err(HandshakeError::WouldBlock(self))
-                }
-                _ => Err(HandshakeError::Failure(self)),
+            match self.error.would_block() {
+                true => Err(HandshakeError::WouldBlock(self)),
+                false => Err(HandshakeError::Failure(self)),
             }
         }
     }
@@ -3276,6 +3396,15 @@ impl<S: Read + Write> SslStream<S> {
                 _p: PhantomData,
             }
         }
+    }
+
+    /// Creates a new `SslStream`.
+    ///
+    /// This function performs no IO; the stream will not have performed any part of the handshake
+    /// with the peer. The `connect` and `accept` methods can be used to
+    /// explicitly perform the handshake.
+    pub fn new(ssl: Ssl, stream: S) -> Result<Self, ErrorStack> {
+        Ok(Self::new_base(ssl, stream))
     }
 
     /// Constructs an `SslStream` from a pointer to the underlying OpenSSL `SSL` struct.
@@ -3382,6 +3511,48 @@ impl<S: Read + Write> SslStream<S> {
     pub fn set_shutdown(&mut self, state: ShutdownState) {
         unsafe { ffi::SSL_set_shutdown(self.ssl.as_ptr(), state.bits()) }
     }
+
+    /// Initiates a client-side TLS handshake.
+    ///
+    /// This corresponds to [`SSL_connect`].
+    ///
+    /// [`SSL_connect`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_connect.html
+    pub fn connect(&mut self) -> Result<(), Error> {
+        let ret = unsafe { ffi::SSL_connect(self.ssl.as_ptr()) };
+        if ret > 0 {
+            Ok(())
+        } else {
+            Err(self.make_error(ret))
+        }
+    }
+
+    /// Initiates a server-side TLS handshake.
+    ///
+    /// This corresponds to [`SSL_accept`].
+    ///
+    /// [`SSL_accept`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_accept.html
+    pub fn accept(&mut self) -> Result<(), Error> {
+        let ret = unsafe { ffi::SSL_accept(self.ssl.as_ptr()) };
+        if ret > 0 {
+            Ok(())
+        } else {
+            Err(self.make_error(ret))
+        }
+    }
+
+    /// Initiates the handshake.
+    ///
+    /// This corresponds to [`SSL_do_handshake`].
+    ///
+    /// [`SSL_do_handshake`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_do_handshake.html
+    pub fn do_handshake(&mut self) -> Result<(), Error> {
+        let ret = unsafe { ffi::SSL_do_handshake(self.ssl.as_ptr()) };
+        if ret > 0 {
+            Ok(())
+        } else {
+            Err(self.make_error(ret))
+        }
+    }
 }
 
 impl<S> SslStream<S> {
@@ -3449,6 +3620,11 @@ impl<S> SslStream<S> {
     /// Returns a shared reference to the `Ssl` object associated with this stream.
     pub fn ssl(&self) -> &SslRef {
         &self.ssl
+    }
+
+    /// Returns a mutable reference to the `Ssl` object associated with this stream.
+    pub fn ssl_mut(&mut self) -> &mut SslRef {
+        &mut self.ssl
     }
 }
 
@@ -3526,58 +3702,66 @@ where
         unsafe { ffi::SSL_set_accept_state(self.inner.ssl.as_ptr()) }
     }
 
-    /// See `Ssl::connect`
-    pub fn connect(self) -> Result<SslStream<S>, HandshakeError<S>> {
-        let mut stream = self.inner;
+    /// Initiates a client-side TLS handshake, returning a [`MidHandshakeSslStream`].
+    ///
+    /// This method calls [`Self::set_connect_state`] and returns without actually
+    /// initiating the handshake. The caller is then free to call
+    /// [`MidHandshakeSslStream`] and loop on [`HandshakeError::WouldBlock`].
+    pub fn setup_connect(mut self) -> MidHandshakeSslStream<S> {
+        self.set_connect_state();
 
         #[cfg(feature = "kx-safe-default")]
-        stream.ssl.client_set_default_curves_list()?;
+        self.inner.ssl.client_set_default_curves_list();
 
-        let ret = unsafe { ffi::SSL_connect(stream.ssl.as_ptr()) };
-        if ret > 0 {
-            Ok(stream)
-        } else {
-            let error = stream.make_error(ret);
-            match error.code() {
-                ErrorCode::WANT_READ | ErrorCode::WANT_WRITE => {
-                    Err(HandshakeError::WouldBlock(MidHandshakeSslStream {
-                        stream,
-                        error,
-                    }))
-                }
-                _ => Err(HandshakeError::Failure(MidHandshakeSslStream {
-                    stream,
-                    error,
-                })),
-            }
+        MidHandshakeSslStream {
+            stream: self.inner,
+            error: Error {
+                code: ErrorCode::WANT_WRITE,
+                cause: Some(InnerError::Io(io::Error::new(
+                    io::ErrorKind::WouldBlock,
+                    "connect handshake has not started yet",
+                ))),
+            },
         }
     }
 
-    /// See `Ssl::accept`
-    pub fn accept(self) -> Result<SslStream<S>, HandshakeError<S>> {
-        let mut stream = self.inner;
+    /// Attempts a client-side TLS handshake.
+    ///
+    /// This is a convenience method which combines [`Self::setup_connect`] and
+    /// [`MidHandshakeSslStream::handshake`].
+    pub fn connect(self) -> Result<SslStream<S>, HandshakeError<S>> {
+        self.setup_connect().handshake()
+    }
+
+    /// Initiates a server-side TLS handshake, returning a [`MidHandshakeSslStream`].
+    ///
+    /// This method calls [`Self::set_accept_state`] and returns without actually
+    /// initiating the handshake. The caller is then free to call
+    /// [`MidHandshakeSslStream`] and loop on [`HandshakeError::WouldBlock`].
+    pub fn setup_accept(mut self) -> MidHandshakeSslStream<S> {
+        self.set_accept_state();
 
         #[cfg(feature = "kx-safe-default")]
-        stream.ssl.server_set_default_curves_list()?;
+        self.inner.ssl.server_set_default_curves_list();
 
-        let ret = unsafe { ffi::SSL_accept(stream.ssl.as_ptr()) };
-        if ret > 0 {
-            Ok(stream)
-        } else {
-            let error = stream.make_error(ret);
-            match error.code() {
-                ErrorCode::WANT_READ | ErrorCode::WANT_WRITE => {
-                    Err(HandshakeError::WouldBlock(MidHandshakeSslStream {
-                        stream,
-                        error,
-                    }))
-                }
-                _ => Err(HandshakeError::Failure(MidHandshakeSslStream {
-                    stream,
-                    error,
-                })),
-            }
+        MidHandshakeSslStream {
+            stream: self.inner,
+            error: Error {
+                code: ErrorCode::WANT_READ,
+                cause: Some(InnerError::Io(io::Error::new(
+                    io::ErrorKind::WouldBlock,
+                    "accept handshake has not started yet",
+                ))),
+            },
         }
+    }
+
+    /// Attempts a server-side TLS handshake.
+    ///
+    /// This is a convenience method which combines [`Self::setup_accept`] and
+    /// [`MidHandshakeSslStream::handshake`].
+    pub fn accept(self) -> Result<SslStream<S>, HandshakeError<S>> {
+        self.setup_accept().handshake()
     }
 
     /// Initiates the handshake.
@@ -3594,14 +3778,12 @@ where
             Ok(stream)
         } else {
             let error = stream.make_error(ret);
-            match error.code() {
-                ErrorCode::WANT_READ | ErrorCode::WANT_WRITE => {
-                    Err(HandshakeError::WouldBlock(MidHandshakeSslStream {
-                        stream,
-                        error,
-                    }))
-                }
-                _ => Err(HandshakeError::Failure(MidHandshakeSslStream {
+            match error.would_block() {
+                true => Err(HandshakeError::WouldBlock(MidHandshakeSslStream {
+                    stream,
+                    error,
+                })),
+                false => Err(HandshakeError::Failure(MidHandshakeSslStream {
                     stream,
                     error,
                 })),
@@ -3672,6 +3854,77 @@ bitflags! {
         /// A close notify message has been received from the peer.
         const RECEIVED = ffi::SSL_RECEIVED_SHUTDOWN;
     }
+}
+
+/// Describes private key hooks. This is used to off-load signing operations to
+/// a custom, potentially asynchronous, backend. Metadata about the key such as
+/// the type and size are parsed out of the certificate.
+///
+/// Corresponds to [`ssl_private_key_method_st`].
+///
+/// [`ssl_private_key_method_st`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#ssl_private_key_method_st
+pub trait PrivateKeyMethod: Send + Sync + 'static {
+    /// Signs the message `input` using the specified signature algorithm.
+    ///
+    /// On success, it returns `Ok(written)` where `written` is the number of
+    /// bytes written into `output`. On failure, it returns
+    /// `Err(PrivateKeyMethodError::FAILURE)`. If the operation has not completed,
+    /// it returns `Err(PrivateKeyMethodError::RETRY)`.
+    ///
+    /// The caller should arrange for the high-level operation on `ssl` to be
+    /// retried when the operation is completed. This will result in a call to
+    /// [`Self::complete`].
+    fn sign(
+        &self,
+        ssl: &mut SslRef,
+        input: &[u8],
+        signature_algorithm: SslSignatureAlgorithm,
+        output: &mut [u8],
+    ) -> Result<usize, PrivateKeyMethodError>;
+
+    /// Decrypts `input`.
+    ///
+    /// On success, it returns `Ok(written)` where `written` is the number of
+    /// bytes written into `output`. On failure, it returns
+    /// `Err(PrivateKeyMethodError::FAILURE)`. If the operation has not completed,
+    /// it returns `Err(PrivateKeyMethodError::RETRY)`.
+    ///
+    /// The caller should arrange for the high-level operation on `ssl` to be
+    /// retried when the operation is completed. This will result in a call to
+    /// [`Self::complete`].
+    ///
+    /// This method only works with RSA keys and should perform a raw RSA
+    /// decryption operation with no padding.
+    // NOTE(nox): What does it mean that it is an error?
+    fn decrypt(
+        &self,
+        ssl: &mut SslRef,
+        input: &[u8],
+        output: &mut [u8],
+    ) -> Result<usize, PrivateKeyMethodError>;
+
+    /// Completes a pending operation.
+    ///
+    /// On success, it returns `Ok(written)` where `written` is the number of
+    /// bytes written into `output`. On failure, it returns
+    /// `Err(PrivateKeyMethodError::FAILURE)`. If the operation has not completed,
+    /// it returns `Err(PrivateKeyMethodError::RETRY)`.
+    ///
+    /// This method may be called arbitrarily many times before completion.
+    fn complete(&self, ssl: &mut SslRef, output: &mut [u8])
+        -> Result<usize, PrivateKeyMethodError>;
+}
+
+/// An error returned from a private key method.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct PrivateKeyMethodError(ffi::ssl_private_key_result_t);
+
+impl PrivateKeyMethodError {
+    /// A fatal error occured and the handshake should be terminated.
+    pub const FAILURE: Self = Self(ffi::ssl_private_key_result_t::ssl_private_key_failure);
+
+    /// The operation could not be completed and should be retried later.
+    pub const RETRY: Self = Self(ffi::ssl_private_key_result_t::ssl_private_key_retry);
 }
 
 use crate::ffi::{SSL_CTX_up_ref, SSL_SESSION_get_master_key, SSL_SESSION_up_ref, SSL_is_server};

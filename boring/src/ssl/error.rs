@@ -7,7 +7,6 @@ use std::io;
 
 use crate::error::ErrorStack;
 use crate::ssl::MidHandshakeSslStream;
-use crate::x509::X509VerifyResult;
 
 /// An error code returned from SSL functions.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -26,6 +25,17 @@ impl ErrorCode {
     ///
     /// Wait for write readiness and retry the operation.
     pub const WANT_WRITE: ErrorCode = ErrorCode(ffi::SSL_ERROR_WANT_WRITE);
+
+    pub const WANT_X509_LOOKUP: ErrorCode = ErrorCode(ffi::SSL_ERROR_WANT_X509_LOOKUP);
+
+    pub const PENDING_SESSION: ErrorCode = ErrorCode(ffi::SSL_ERROR_PENDING_SESSION);
+
+    pub const PENDING_CERTIFICATE: ErrorCode = ErrorCode(ffi::SSL_ERROR_PENDING_CERTIFICATE);
+
+    pub const WANT_PRIVATE_KEY_OPERATION: ErrorCode =
+        ErrorCode(ffi::SSL_ERROR_WANT_PRIVATE_KEY_OPERATION);
+
+    pub const PENDING_TICKET: ErrorCode = ErrorCode(ffi::SSL_ERROR_PENDING_TICKET);
 
     /// A non-recoverable IO error occurred.
     pub const SYSCALL: ErrorCode = ErrorCode(ffi::SSL_ERROR_SYSCALL);
@@ -80,6 +90,19 @@ impl Error {
             Some(InnerError::Ssl(ref e)) => Some(e),
             _ => None,
         }
+    }
+
+    pub fn would_block(&self) -> bool {
+        matches!(
+            self.code,
+            ErrorCode::WANT_READ
+                | ErrorCode::WANT_WRITE
+                | ErrorCode::WANT_X509_LOOKUP
+                | ErrorCode::PENDING_SESSION
+                | ErrorCode::PENDING_CERTIFICATE
+                | ErrorCode::WANT_PRIVATE_KEY_OPERATION
+                | ErrorCode::PENDING_TICKET
+        )
     }
 }
 
@@ -176,8 +199,8 @@ fn fmt_mid_handshake_error(
     }
 
     match s.ssl().verify_result() {
-        X509VerifyResult::OK => write!(f, "{}", prefix)?,
-        verify => write!(f, "{}: cert verification failed - {}", prefix, verify)?,
+        Ok(()) => write!(f, "{}", prefix)?,
+        Err(verify) => write!(f, "{}: cert verification failed - {}", prefix, verify)?,
     }
 
     write!(f, " {}", s.error())

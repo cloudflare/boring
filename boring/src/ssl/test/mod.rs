@@ -1,22 +1,12 @@
-#![allow(unused_imports)]
-
 use hex;
-use std::cell::Cell;
-use std::env;
-use std::fs::File;
+use std::io;
 use std::io::prelude::*;
-use std::io::{self, BufReader};
-use std::iter;
 use std::mem;
-use std::net::UdpSocket;
-use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::net::{TcpListener, TcpStream};
 use std::path::Path;
-use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
-use std::time::Duration;
 
-use crate::dh::Dh;
 use crate::error::ErrorStack;
 use crate::hash::MessageDigest;
 use crate::pkey::PKey;
@@ -25,16 +15,16 @@ use crate::ssl;
 use crate::ssl::test::server::Server;
 use crate::ssl::SslVersion;
 use crate::ssl::{
-    Error, ExtensionType, HandshakeError, MidHandshakeSslStream, ShutdownResult, ShutdownState,
-    Ssl, SslAcceptor, SslAcceptorBuilder, SslConnector, SslContext, SslContextBuilder, SslFiletype,
-    SslMethod, SslOptions, SslSessionCacheMode, SslStream, SslStreamBuilder, SslVerifyMode,
-    StatusType,
+    ExtensionType, ShutdownResult, ShutdownState, Ssl, SslAcceptor, SslAcceptorBuilder,
+    SslConnector, SslContext, SslFiletype, SslMethod, SslOptions, SslStream, SslVerifyMode,
 };
 use crate::x509::store::X509StoreBuilder;
 use crate::x509::verify::X509CheckFlags;
-use crate::x509::{X509Name, X509StoreContext, X509VerifyResult, X509};
+use crate::x509::{X509Name, X509};
 
+mod private_key_method;
 mod server;
+mod session;
 
 static ROOT_CERT: &[u8] = include_bytes!("../../../test/root-ca.pem");
 static CERT: &[u8] = include_bytes!("../../../test/cert.pem");
@@ -55,9 +45,7 @@ fn verify_untrusted() {
 #[test]
 fn verify_trusted() {
     let server = Server::builder().build();
-
-    let mut client = server.client();
-    client.ctx().set_ca_file("test/root-ca.pem").unwrap();
+    let client = server.client_with_root_ca();
 
     client.connect();
 }
@@ -109,9 +97,8 @@ fn verify_untrusted_callback_override_bad() {
 #[test]
 fn verify_trusted_callback_override_ok() {
     let server = Server::builder().build();
+    let mut client = server.client_with_root_ca();
 
-    let mut client = server.client();
-    client.ctx().set_ca_file("test/root-ca.pem").unwrap();
     client
         .ctx()
         .set_verify_callback(SslVerifyMode::PEER, |_, x509| {
@@ -125,11 +112,12 @@ fn verify_trusted_callback_override_ok() {
 #[test]
 fn verify_trusted_callback_override_bad() {
     let mut server = Server::builder();
-    server.should_error();
-    let server = server.build();
 
-    let mut client = server.client();
-    client.ctx().set_ca_file("test/root-ca.pem").unwrap();
+    server.should_error();
+
+    let server = server.build();
+    let mut client = server.client_with_root_ca();
+
     client
         .ctx()
         .set_verify_callback(SslVerifyMode::PEER, |_, _| false);
@@ -155,13 +143,12 @@ fn verify_callback_load_certs() {
 #[test]
 fn verify_trusted_get_error_ok() {
     let server = Server::builder().build();
+    let mut client = server.client_with_root_ca();
 
-    let mut client = server.client();
-    client.ctx().set_ca_file("test/root-ca.pem").unwrap();
     client
         .ctx()
         .set_verify_callback(SslVerifyMode::PEER, |_, x509| {
-            assert_eq!(x509.error(), X509VerifyResult::OK);
+            assert_eq!(x509.verify_result(), Ok(()));
             true
         });
 
@@ -178,7 +165,7 @@ fn verify_trusted_get_error_err() {
     client
         .ctx()
         .set_verify_callback(SslVerifyMode::PEER, |_, x509| {
-            assert_ne!(x509.error(), X509VerifyResult::OK);
+            assert!(x509.verify_result().is_err());
             false
         });
 
@@ -697,9 +684,8 @@ fn add_extra_chain_cert() {
 #[test]
 fn verify_valid_hostname() {
     let server = Server::builder().build();
+    let mut client = server.client_with_root_ca();
 
-    let mut client = server.client();
-    client.ctx().set_ca_file("test/root-ca.pem").unwrap();
     client.ctx().set_verify(SslVerifyMode::PEER);
 
     let mut client = client.build().builder();
@@ -714,11 +700,12 @@ fn verify_valid_hostname() {
 #[test]
 fn verify_invalid_hostname() {
     let mut server = Server::builder();
-    server.should_error();
-    let server = server.build();
 
-    let mut client = server.client();
-    client.ctx().set_ca_file("test/root-ca.pem").unwrap();
+    server.should_error();
+
+    let server = server.build();
+    let mut client = server.client_with_root_ca();
+
     client.ctx().set_verify(SslVerifyMode::PEER);
 
     let mut client = client.build().builder();
@@ -897,80 +884,6 @@ fn cert_store() {
 }
 
 #[test]
-fn idle_session() {
-    let ctx = SslContext::builder(SslMethod::tls()).unwrap().build();
-    let ssl = Ssl::new(&ctx).unwrap();
-    assert!(ssl.session().is_none());
-}
-
-#[test]
-fn active_session() {
-    let server = Server::builder().build();
-
-    let s = server.client().connect();
-
-    let session = s.ssl().session().unwrap();
-    let len = session.master_key_len();
-    let mut buf = vec![0; len - 1];
-    let copied = session.master_key(&mut buf);
-    assert_eq!(copied, buf.len());
-    let mut buf = vec![0; len + 1];
-    let copied = session.master_key(&mut buf);
-    assert_eq!(copied, len);
-}
-
-#[test]
-fn new_session_callback() {
-    static CALLED_BACK: AtomicBool = AtomicBool::new(false);
-
-    let mut server = Server::builder();
-    server.ctx().set_session_id_context(b"foo").unwrap();
-
-    let server = server.build();
-
-    let mut client = server.client();
-
-    client
-        .ctx()
-        .set_session_cache_mode(SslSessionCacheMode::CLIENT | SslSessionCacheMode::NO_INTERNAL);
-    client
-        .ctx()
-        .set_new_session_callback(|_, _| CALLED_BACK.store(true, Ordering::SeqCst));
-
-    client.connect();
-
-    assert!(CALLED_BACK.load(Ordering::SeqCst));
-}
-
-#[test]
-fn new_session_callback_swapped_ctx() {
-    static CALLED_BACK: AtomicBool = AtomicBool::new(false);
-
-    let mut server = Server::builder();
-    server.ctx().set_session_id_context(b"foo").unwrap();
-
-    let server = server.build();
-
-    let mut client = server.client();
-
-    client
-        .ctx()
-        .set_session_cache_mode(SslSessionCacheMode::CLIENT | SslSessionCacheMode::NO_INTERNAL);
-    client
-        .ctx()
-        .set_new_session_callback(|_, _| CALLED_BACK.store(true, Ordering::SeqCst));
-
-    let mut client = client.build().builder();
-
-    let ctx = SslContextBuilder::new(SslMethod::tls()).unwrap().build();
-    client.ssl().set_ssl_context(&ctx).unwrap();
-
-    client.connect();
-
-    assert!(CALLED_BACK.load(Ordering::SeqCst));
-}
-
-#[test]
 fn keying_export() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
@@ -1108,30 +1021,26 @@ fn sni_callback_swapped_ctx() {
     assert!(CALLED_BACK.load(Ordering::SeqCst));
 }
 
-#[test]
-fn session_cache_size() {
-    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
-    ctx.set_session_cache_size(1234);
-    let ctx = ctx.build();
-    assert_eq!(ctx.session_cache_size(), 1234);
-}
-
 #[cfg(feature = "kx-safe-default")]
 #[test]
 fn client_set_default_curves_list() {
-    let ssl_ctx = SslContextBuilder::new(SslMethod::tls()).unwrap().build();
+    let ssl_ctx = crate::ssl::SslContextBuilder::new(SslMethod::tls())
+        .unwrap()
+        .build();
     let mut ssl = Ssl::new(&ssl_ctx).unwrap();
 
-    ssl.client_set_default_curves_list()
-        .expect("Failed to set curves list. Is Kyber768 missing in boringSSL?")
+    // Panics if Kyber768 missing in boringSSL.
+    ssl.client_set_default_curves_list();
 }
 
 #[cfg(feature = "kx-safe-default")]
 #[test]
 fn server_set_default_curves_list() {
-    let ssl_ctx = SslContextBuilder::new(SslMethod::tls()).unwrap().build();
+    let ssl_ctx = crate::ssl::SslContextBuilder::new(SslMethod::tls())
+        .unwrap()
+        .build();
     let mut ssl = Ssl::new(&ssl_ctx).unwrap();
 
-    ssl.server_set_default_curves_list()
-        .expect("Failed to set curves list. Is Kyber768 missing in boringSSL?")
+    // Panics if Kyber768 missing in boringSSL.
+    ssl.server_set_default_curves_list();
 }

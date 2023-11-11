@@ -28,22 +28,18 @@ fips = ["boring-sys/fips"]
 fips-link-precompiled = ["boring-sys/fips-link-precompiled"]
 
 # Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
+# This feature is necessary in order to compile the bindings for the
+# default branch of boringSSL. Alternatively, a version of boringSSL that
+# implements the same feature set can be provided by setting
+# `BORING_BSSL{,_FIPS}_SOURCE_PATH` and `BORING_BSSL{,_FIPS}_ASSUME_PATCHED`.
 rpk = ["boring-sys/rpk"]
 
 # Applies a patch to the boringSSL source code that enables support for PQ key
 # exchange. This feature is necessary in order to compile the bindings for the
 # default branch of boringSSL. Alternatively, a version of boringSSL that
 # implements the same feature set can be provided by setting
-# `BORING_BSSL_SOURCE_PATH`.
+# `BORING_BSSL{,_FIPS}_SOURCE_PATH` and `BORING_BSSL{,_FIPS}_ASSUME_PATCHED`.
 pq-experimental = ["boring-sys/pq-experimental"]
-
-# Disables git patching of the BoringSSL sources for features like `rpk` and `pq-experimental`, but
-# keeps the related Rust API.
-#
-# Supposed to be used with either pre-compiled BoringSSL (via `BORING_BSSL_PATH` env variable) or
-# with custom BoringSSL sources (via `BORING_BSSL_SOURCE_PATH` env variable) already containing
-# required patches.
-no-patches = ["boring-sys/no-patches"]
 
 # Controlling key exchange preferences at compile time
 
