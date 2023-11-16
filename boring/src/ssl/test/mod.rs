@@ -1044,3 +1044,24 @@ fn server_set_default_curves_list() {
     // Panics if Kyber768 missing in boringSSL.
     ssl.server_set_default_curves_list();
 }
+
+#[test]
+fn drop_ex_data_in_context() {
+    let index = SslContext::new_ex_index::<&'static str>().unwrap();
+    let mut ctx = SslContext::builder(SslMethod::dtls()).unwrap();
+
+    assert_eq!(ctx.replace_ex_data(index, "comté"), None);
+    assert_eq!(ctx.replace_ex_data(index, "camembert"), Some("comté"));
+    assert_eq!(ctx.replace_ex_data(index, "raclette"), Some("camembert"));
+}
+
+#[test]
+fn drop_ex_data_in_ssl() {
+    let index = Ssl::new_ex_index::<&'static str>().unwrap();
+    let ctx = SslContext::builder(SslMethod::dtls()).unwrap().build();
+    let mut ssl = Ssl::new(&ctx).unwrap();
+
+    assert_eq!(ssl.replace_ex_data(index, "comté"), None);
+    assert_eq!(ssl.replace_ex_data(index, "camembert"), Some("comté"));
+    assert_eq!(ssl.replace_ex_data(index, "raclette"), Some("camembert"));
+}
