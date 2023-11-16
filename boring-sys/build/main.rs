@@ -667,7 +667,7 @@ fn main() {
     if let Some(sysroot) = &config.env.sysroot {
         builder = builder
             .clang_arg("--sysroot")
-            .clang_arg(&sysroot.display().to_string());
+            .clang_arg(sysroot.display().to_string());
     }
 
     match &*config.target {
