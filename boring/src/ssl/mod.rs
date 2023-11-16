@@ -864,7 +864,9 @@ impl SslContextBuilder {
             // out. When that happens, we wouldn't be able to look up the callback's state in the
             // context's ex data. Instead, pass the pointer directly as the servername arg. It's
             // still stored in ex data to manage the lifetime.
-            let arg = self.set_ex_data_inner(SslContext::cached_ex_index::<F>(), callback);
+            let arg = self
+                .ctx
+                .set_ex_data(SslContext::cached_ex_index::<F>(), callback);
 
             ffi::SSL_CTX_set_tlsext_servername_arg(self.as_ptr(), arg);
             ffi::SSL_CTX_set_tlsext_servername_callback(self.as_ptr(), Some(raw_sni::<F>));
@@ -1653,17 +1655,28 @@ impl SslContextBuilder {
     ///
     /// This corresponds to [`SSL_CTX_set_ex_data`].
     ///
+    /// Note that if this method is called multiple times with the same index, any previous
+    /// value stored in the `SslContextBuilder` will be leaked.
+    ///
     /// [`SSL_CTX_set_ex_data`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_ex_data.html
     pub fn set_ex_data<T>(&mut self, index: Index<SslContext, T>, data: T) {
-        self.set_ex_data_inner(index, data);
+        unsafe {
+            self.ctx.set_ex_data(index, data);
+        }
     }
 
-    fn set_ex_data_inner<T>(&mut self, index: Index<SslContext, T>, data: T) -> *mut c_void {
-        unsafe {
-            let data = Box::into_raw(Box::new(data)) as *mut c_void;
-            ffi::SSL_CTX_set_ex_data(self.as_ptr(), index.as_raw(), data);
-            data
-        }
+    /// Sets or overwrites the extra data at the specified index.
+    ///
+    /// This can be used to provide data to callbacks registered with the context. Use the
+    /// `Ssl::new_ex_index` method to create an `Index`.
+    ///
+    /// This corresponds to [`SSL_set_ex_data`].
+    ///
+    /// Any previous value will be returned and replaced by the new one.
+    ///
+    /// [`SSL_set_ex_data`]: https://www.openssl.org/docs/manmaster/man3/SSL_set_ex_data.html
+    pub fn replace_ex_data<T>(&mut self, index: Index<SslContext, T>, data: T) -> Option<T> {
+        unsafe { self.ctx.replace_ex_data(index, data) }
     }
 
     /// Sets the context's session cache size limit, returning the previous limit.
@@ -1914,6 +1927,39 @@ impl SslContextRef {
                 Some(&*(data as *const T))
             }
         }
+    }
+
+    // Unsafe because SSL contexts are not guaranteed to be unique, we call
+    // this only from SslContextBuilder.
+    unsafe fn ex_data_mut<T>(&mut self, index: Index<SslContext, T>) -> Option<&mut T> {
+        let data = ffi::SSL_CTX_get_ex_data(self.as_ptr(), index.as_raw());
+        if data.is_null() {
+            None
+        } else {
+            Some(&mut *(data as *mut T))
+        }
+    }
+
+    // Unsafe because SSL contexts are not guaranteed to be unique, we call
+    // this only from SslContextBuilder.
+    unsafe fn set_ex_data<T>(&mut self, index: Index<SslContext, T>, data: T) -> *mut c_void {
+        unsafe {
+            let data = Box::into_raw(Box::new(data)) as *mut c_void;
+            ffi::SSL_CTX_set_ex_data(self.as_ptr(), index.as_raw(), data);
+            data
+        }
+    }
+
+    // Unsafe because SSL contexts are not guaranteed to be unique, we call
+    // this only from SslContextBuilder.
+    unsafe fn replace_ex_data<T>(&mut self, index: Index<SslContext, T>, data: T) -> Option<T> {
+        if let Some(old) = self.ex_data_mut(index) {
+            return Some(mem::replace(old, data));
+        }
+
+        self.set_ex_data(index, data);
+
+        None
     }
 
     /// Adds a session to the context's cache.
@@ -3191,8 +3237,17 @@ impl SslRef {
     ///
     /// This corresponds to [`SSL_set_ex_data`].
     ///
+    /// Note that if this method is called multiple times with the same index, any previous
+    /// value stored in the `SslContextBuilder` will be leaked.
+    ///
     /// [`SSL_set_ex_data`]: https://www.openssl.org/docs/manmaster/man3/SSL_set_ex_data.html
     pub fn set_ex_data<T>(&mut self, index: Index<Ssl, T>, data: T) {
+        if let Some(old) = self.ex_data_mut(index) {
+            *old = data;
+
+            return;
+        }
+
         unsafe {
             let data = Box::new(data);
             ffi::SSL_set_ex_data(
@@ -3201,6 +3256,26 @@ impl SslRef {
                 Box::into_raw(data) as *mut c_void,
             );
         }
+    }
+
+    /// Sets or overwrites the extra data at the specified index.
+    ///
+    /// This can be used to provide data to callbacks registered with the context. Use the
+    /// `Ssl::new_ex_index` method to create an `Index`.
+    ///
+    /// This corresponds to [`SSL_set_ex_data`].
+    ///
+    /// Any previous value will be dropped and replaced by the new one.
+    ///
+    /// [`SSL_set_ex_data`]: https://www.openssl.org/docs/manmaster/man3/SSL_set_ex_data.html
+    pub fn replace_ex_data<T>(&mut self, index: Index<Ssl, T>, data: T) -> Option<T> {
+        if let Some(old) = self.ex_data_mut(index) {
+            return Some(mem::replace(old, data));
+        }
+
+        self.set_ex_data(index, data);
+
+        None
     }
 
     /// Returns a reference to the extra data at the specified index.
