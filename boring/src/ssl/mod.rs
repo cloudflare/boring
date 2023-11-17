@@ -837,7 +837,7 @@ impl SslContextBuilder {
         assert!(!self.is_rpk, "This API is not supported for RPK");
 
         unsafe {
-            self.set_ex_data(SslContext::cached_ex_index::<F>(), verify);
+            self.replace_ex_data(SslContext::cached_ex_index::<F>(), verify);
             ffi::SSL_CTX_set_verify(self.as_ptr(), mode.bits() as c_int, Some(raw_verify::<F>));
         }
     }
@@ -864,9 +864,12 @@ impl SslContextBuilder {
             // out. When that happens, we wouldn't be able to look up the callback's state in the
             // context's ex data. Instead, pass the pointer directly as the servername arg. It's
             // still stored in ex data to manage the lifetime.
-            let arg = self
-                .ctx
-                .set_ex_data(SslContext::cached_ex_index::<F>(), callback);
+
+            let callback_index = SslContext::cached_ex_index::<F>();
+
+            self.ctx.replace_ex_data(callback_index, callback);
+
+            let arg = self.ctx.ex_data(callback_index).unwrap() as *const F as *mut c_void;
 
             ffi::SSL_CTX_set_tlsext_servername_arg(self.as_ptr(), arg);
             ffi::SSL_CTX_set_tlsext_servername_callback(self.as_ptr(), Some(raw_sni::<F>));
@@ -1372,7 +1375,7 @@ impl SslContextBuilder {
         F: for<'a> Fn(&mut SslRef, &'a [u8]) -> Result<&'a [u8], AlpnError> + 'static + Sync + Send,
     {
         unsafe {
-            self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
+            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_set_alpn_select_cb(
                 self.as_ptr(),
                 Some(callbacks::raw_alpn_select::<F>),
@@ -1393,7 +1396,7 @@ impl SslContextBuilder {
         F: Fn(ClientHello<'_>) -> Result<(), SelectCertError> + Sync + Send + 'static,
     {
         unsafe {
-            self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
+            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_set_select_certificate_cb(
                 self.as_ptr(),
                 Some(callbacks::raw_select_cert::<F>),
@@ -1413,7 +1416,7 @@ impl SslContextBuilder {
         M: PrivateKeyMethod,
     {
         unsafe {
-            self.set_ex_data(SslContext::cached_ex_index::<M>(), method);
+            self.replace_ex_data(SslContext::cached_ex_index::<M>(), method);
 
             ffi::SSL_CTX_set_private_key_method(
                 self.as_ptr(),
@@ -1480,7 +1483,7 @@ impl SslContextBuilder {
         F: Fn(&mut SslRef) -> Result<bool, ErrorStack> + 'static + Sync + Send,
     {
         unsafe {
-            self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
+            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             cvt(
                 ffi::SSL_CTX_set_tlsext_status_cb(self.as_ptr(), Some(raw_tlsext_status::<F>))
                     as c_int,
@@ -1506,7 +1509,7 @@ impl SslContextBuilder {
             + Send,
     {
         unsafe {
-            self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
+            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_set_psk_client_callback(self.as_ptr(), Some(raw_client_psk::<F>));
         }
     }
@@ -1539,7 +1542,7 @@ impl SslContextBuilder {
             + Send,
     {
         unsafe {
-            self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
+            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_set_psk_server_callback(self.as_ptr(), Some(raw_server_psk::<F>));
         }
     }
@@ -1565,7 +1568,7 @@ impl SslContextBuilder {
         F: Fn(&mut SslRef, SslSession) + 'static + Sync + Send,
     {
         unsafe {
-            self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
+            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_sess_set_new_cb(self.as_ptr(), Some(callbacks::raw_new_session::<F>));
         }
     }
@@ -1582,7 +1585,7 @@ impl SslContextBuilder {
         F: Fn(&SslContextRef, &SslSessionRef) + 'static + Sync + Send,
     {
         unsafe {
-            self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
+            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_sess_set_remove_cb(
                 self.as_ptr(),
                 Some(callbacks::raw_remove_session::<F>),
@@ -1611,7 +1614,7 @@ impl SslContextBuilder {
             + Sync
             + Send,
     {
-        self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
+        self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
         ffi::SSL_CTX_sess_set_get_cb(self.as_ptr(), Some(callbacks::raw_get_session::<F>));
     }
 
@@ -1629,7 +1632,7 @@ impl SslContextBuilder {
         F: Fn(&SslRef, &str) + 'static + Sync + Send,
     {
         unsafe {
-            self.set_ex_data(SslContext::cached_ex_index::<F>(), callback);
+            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_set_keylog_callback(self.as_ptr(), Some(callbacks::raw_keylog::<F>));
         }
     }
@@ -1942,11 +1945,10 @@ impl SslContextRef {
 
     // Unsafe because SSL contexts are not guaranteed to be unique, we call
     // this only from SslContextBuilder.
-    unsafe fn set_ex_data<T>(&mut self, index: Index<SslContext, T>, data: T) -> *mut c_void {
+    unsafe fn set_ex_data<T>(&mut self, index: Index<SslContext, T>, data: T) {
         unsafe {
             let data = Box::into_raw(Box::new(data)) as *mut c_void;
             ffi::SSL_CTX_set_ex_data(self.as_ptr(), index.as_raw(), data);
-            data
         }
     }
 
@@ -2649,7 +2651,7 @@ impl SslRef {
 
         unsafe {
             // this needs to be in an Arc since the callback can register a new callback!
-            self.set_ex_data(Ssl::cached_ex_index(), Arc::new(verify));
+            self.replace_ex_data(Ssl::cached_ex_index(), Arc::new(verify));
             ffi::SSL_set_verify(
                 self.as_ptr(),
                 mode.bits() as c_int,

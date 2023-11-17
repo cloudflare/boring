@@ -298,7 +298,7 @@ fn with_ex_data_future<H, R, T, E>(
         match fut.as_mut().poll(&mut ctx) {
             Poll::Ready(fut_result) => Poll::Ready(into_result(fut_result)),
             Poll::Pending => {
-                get_ssl_mut(ssl_handle).set_ex_data(index, MutOnly::new(Some(fut)));
+                get_ssl_mut(ssl_handle).replace_ex_data(index, MutOnly::new(Some(fut)));
 
                 Poll::Pending
             }
