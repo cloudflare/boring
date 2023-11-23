@@ -1,6 +1,8 @@
+use crate::mut_only::MutOnly;
 use boring::ex_data::Index;
 use boring::ssl::{self, ClientHello, PrivateKeyMethod, Ssl, SslContextBuilder};
 use once_cell::sync::Lazy;
+use std::convert::identity;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{ready, Context, Poll, Waker};
@@ -19,17 +21,26 @@ pub type BoxPrivateKeyMethodFuture =
 pub type BoxPrivateKeyMethodFinish =
     Box<dyn FnOnce(&mut ssl::SslRef, &mut [u8]) -> Result<usize, AsyncPrivateKeyMethodError>>;
 
+/// The type of futures to pass to [`SslContextBuilderExt::set_async_get_session_callback`].
+pub type BoxGetSessionFuture = ExDataFuture<Option<BoxGetSessionFinish>>;
+
+/// The type of callbacks returned by [`BoxSelectCertFuture`] methods.
+pub type BoxGetSessionFinish = Box<dyn FnOnce(&mut ssl::SslRef, &[u8]) -> Option<ssl::SslSession>>;
+
 /// Convenience alias for futures stored in [`Ssl`] ex data by [`SslContextBuilderExt`] methods.
 ///
 /// Public for documentation purposes.
-pub type ExDataFuture<T> = Pin<Box<dyn Future<Output = T> + Send + Sync>>;
+pub type ExDataFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 
 pub(crate) static TASK_WAKER_INDEX: Lazy<Index<Ssl, Option<Waker>>> =
     Lazy::new(|| Ssl::new_ex_index().unwrap());
-pub(crate) static SELECT_CERT_FUTURE_INDEX: Lazy<Index<Ssl, Option<BoxSelectCertFuture>>> =
+pub(crate) static SELECT_CERT_FUTURE_INDEX: Lazy<Index<Ssl, MutOnly<Option<BoxSelectCertFuture>>>> =
     Lazy::new(|| Ssl::new_ex_index().unwrap());
 pub(crate) static SELECT_PRIVATE_KEY_METHOD_FUTURE_INDEX: Lazy<
-    Index<Ssl, Option<BoxPrivateKeyMethodFuture>>,
+    Index<Ssl, MutOnly<Option<BoxPrivateKeyMethodFuture>>>,
+> = Lazy::new(|| Ssl::new_ex_index().unwrap());
+pub(crate) static SELECT_GET_SESSION_FUTURE_INDEX: Lazy<
+    Index<Ssl, MutOnly<Option<BoxGetSessionFuture>>>,
 > = Lazy::new(|| Ssl::new_ex_index().unwrap());
 
 /// Extensions to [`SslContextBuilder`].
@@ -57,6 +68,23 @@ pub trait SslContextBuilderExt: private::Sealed {
     ///
     /// See [`AsyncPrivateKeyMethod`] for more details.
     fn set_async_private_key_method(&mut self, method: impl AsyncPrivateKeyMethod);
+
+    /// Sets a callback that is called when a client proposed to resume a session
+    /// but it was not found in the internal cache.
+    ///
+    /// The callback is passed a reference to the session ID provided by the client.
+    /// It should return the session corresponding to that ID if available. This is
+    /// only used for servers, not clients.
+    ///
+    /// See [`SslContextBuilder::set_get_session_callback`] for the sync setter
+    /// of this callback.
+    ///
+    /// # Safety
+    ///
+    /// The returned [`SslSession`] must not be associated with a different [`SslContext`].
+    unsafe fn set_async_get_session_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&mut ssl::SslRef, &[u8]) -> Option<BoxGetSessionFuture> + Send + Sync + 'static;
 }
 
 impl SslContextBuilderExt for SslContextBuilder {
@@ -73,6 +101,7 @@ impl SslContextBuilderExt for SslContextBuilder {
                 *SELECT_CERT_FUTURE_INDEX,
                 ClientHello::ssl_mut,
                 &callback,
+                identity,
             );
 
             let fut_result = match fut_poll_result {
@@ -88,6 +117,29 @@ impl SslContextBuilderExt for SslContextBuilder {
 
     fn set_async_private_key_method(&mut self, method: impl AsyncPrivateKeyMethod) {
         self.set_private_key_method(AsyncPrivateKeyMethodBridge(Box::new(method)));
+    }
+
+    unsafe fn set_async_get_session_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&mut ssl::SslRef, &[u8]) -> Option<BoxGetSessionFuture> + Send + Sync + 'static,
+    {
+        let async_callback = move |ssl: &mut ssl::SslRef, id: &[u8]| {
+            let fut_poll_result = with_ex_data_future(
+                &mut *ssl,
+                *SELECT_GET_SESSION_FUTURE_INDEX,
+                |ssl| ssl,
+                |ssl| callback(ssl, id).ok_or(()),
+                |option| option.ok_or(()),
+            );
+
+            match fut_poll_result {
+                Poll::Ready(Err(())) => Ok(None),
+                Poll::Ready(Ok(finish)) => Ok(finish(ssl, id)),
+                Poll::Pending => Err(ssl::GetSessionPendingError),
+            }
+        };
+
+        self.set_get_session_callback(async_callback)
     }
 }
 
@@ -201,6 +253,7 @@ fn with_private_key_method(
         *SELECT_PRIVATE_KEY_METHOD_FUTURE_INDEX,
         |ssl| ssl,
         |ssl| create_fut(ssl, output),
+        identity,
     );
 
     let fut_result = match fut_poll_result {
@@ -217,11 +270,12 @@ fn with_private_key_method(
 ///
 /// This function won't even bother storing the future in `index` if the future
 /// created by `create_fut` returns `Poll::Ready(_)` on the first poll call.
-fn with_ex_data_future<H, T, E>(
+fn with_ex_data_future<H, R, T, E>(
     ssl_handle: &mut H,
-    index: Index<ssl::Ssl, Option<ExDataFuture<Result<T, E>>>>,
+    index: Index<ssl::Ssl, MutOnly<Option<ExDataFuture<R>>>>,
     get_ssl_mut: impl Fn(&mut H) -> &mut ssl::SslRef,
-    create_fut: impl FnOnce(&mut H) -> Result<ExDataFuture<Result<T, E>>, E>,
+    create_fut: impl FnOnce(&mut H) -> Result<ExDataFuture<R>, E>,
+    into_result: impl Fn(R) -> Result<T, E>,
 ) -> Poll<Result<T, E>> {
     let ssl = get_ssl_mut(ssl_handle);
     let waker = ssl
@@ -232,8 +286,8 @@ fn with_ex_data_future<H, T, E>(
 
     let mut ctx = Context::from_waker(&waker);
 
-    if let Some(data @ Some(_)) = ssl.ex_data_mut(index) {
-        let fut_result = ready!(data.as_mut().unwrap().as_mut().poll(&mut ctx));
+    if let Some(data @ Some(_)) = ssl.ex_data_mut(index).map(MutOnly::get_mut) {
+        let fut_result = into_result(ready!(data.as_mut().unwrap().as_mut().poll(&mut ctx)));
 
         *data = None;
 
@@ -242,9 +296,9 @@ fn with_ex_data_future<H, T, E>(
         let mut fut = create_fut(ssl_handle)?;
 
         match fut.as_mut().poll(&mut ctx) {
-            Poll::Ready(fut_result) => Poll::Ready(fut_result),
+            Poll::Ready(fut_result) => Poll::Ready(into_result(fut_result)),
             Poll::Pending => {
-                get_ssl_mut(ssl_handle).set_ex_data(index, Some(fut));
+                get_ssl_mut(ssl_handle).replace_ex_data(index, MutOnly::new(Some(fut)));
 
                 Poll::Pending
             }

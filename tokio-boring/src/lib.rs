@@ -29,12 +29,13 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 mod async_callbacks;
 mod bridge;
+mod mut_only;
 
 use self::async_callbacks::TASK_WAKER_INDEX;
 pub use self::async_callbacks::{
-    AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError,
-    BoxPrivateKeyMethodFinish, BoxPrivateKeyMethodFuture, BoxSelectCertFinish, BoxSelectCertFuture,
-    ExDataFuture, SslContextBuilderExt,
+    AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError, BoxGetSessionFinish,
+    BoxGetSessionFuture, BoxPrivateKeyMethodFinish, BoxPrivateKeyMethodFuture, BoxSelectCertFinish,
+    BoxSelectCertFuture, ExDataFuture, SslContextBuilderExt,
 };
 use self::bridge::AsyncStreamBridge;
 
@@ -299,18 +300,20 @@ where
         mid_handshake.get_mut().set_waker(Some(ctx));
         mid_handshake
             .ssl_mut()
-            .set_ex_data(*TASK_WAKER_INDEX, Some(ctx.waker().clone()));
+            .replace_ex_data(*TASK_WAKER_INDEX, Some(ctx.waker().clone()));
 
         match mid_handshake.handshake() {
             Ok(mut stream) => {
                 stream.get_mut().set_waker(None);
-                stream.ssl_mut().set_ex_data(*TASK_WAKER_INDEX, None);
+                stream.ssl_mut().replace_ex_data(*TASK_WAKER_INDEX, None);
 
                 Poll::Ready(Ok(SslStream(stream)))
             }
             Err(ssl::HandshakeError::WouldBlock(mut mid_handshake)) => {
                 mid_handshake.get_mut().set_waker(None);
-                mid_handshake.ssl_mut().set_ex_data(*TASK_WAKER_INDEX, None);
+                mid_handshake
+                    .ssl_mut()
+                    .replace_ex_data(*TASK_WAKER_INDEX, None);
 
                 self.0 = Some(mid_handshake);
 

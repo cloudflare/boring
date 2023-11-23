@@ -1,22 +1,12 @@
-#![allow(unused_imports)]
-
 use hex;
-use std::cell::Cell;
-use std::env;
-use std::fs::File;
+use std::io;
 use std::io::prelude::*;
-use std::io::{self, BufReader};
-use std::iter;
 use std::mem;
-use std::net::UdpSocket;
-use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::net::{TcpListener, TcpStream};
 use std::path::Path;
-use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
-use std::time::Duration;
 
-use crate::dh::Dh;
 use crate::error::ErrorStack;
 use crate::hash::MessageDigest;
 use crate::pkey::PKey;
@@ -25,17 +15,16 @@ use crate::ssl;
 use crate::ssl::test::server::Server;
 use crate::ssl::SslVersion;
 use crate::ssl::{
-    Error, ExtensionType, HandshakeError, MidHandshakeSslStream, ShutdownResult, ShutdownState,
-    Ssl, SslAcceptor, SslAcceptorBuilder, SslConnector, SslContext, SslContextBuilder, SslFiletype,
-    SslMethod, SslOptions, SslSessionCacheMode, SslStream, SslStreamBuilder, SslVerifyMode,
-    StatusType,
+    ExtensionType, ShutdownResult, ShutdownState, Ssl, SslAcceptor, SslAcceptorBuilder,
+    SslConnector, SslContext, SslFiletype, SslMethod, SslOptions, SslStream, SslVerifyMode,
 };
 use crate::x509::store::X509StoreBuilder;
 use crate::x509::verify::X509CheckFlags;
-use crate::x509::{X509Name, X509StoreContext, X509};
+use crate::x509::{X509Name, X509};
 
 mod private_key_method;
 mod server;
+mod session;
 
 static ROOT_CERT: &[u8] = include_bytes!("../../../test/root-ca.pem");
 static CERT: &[u8] = include_bytes!("../../../test/cert.pem");
@@ -895,80 +884,6 @@ fn cert_store() {
 }
 
 #[test]
-fn idle_session() {
-    let ctx = SslContext::builder(SslMethod::tls()).unwrap().build();
-    let ssl = Ssl::new(&ctx).unwrap();
-    assert!(ssl.session().is_none());
-}
-
-#[test]
-fn active_session() {
-    let server = Server::builder().build();
-
-    let s = server.client().connect();
-
-    let session = s.ssl().session().unwrap();
-    let len = session.master_key_len();
-    let mut buf = vec![0; len - 1];
-    let copied = session.master_key(&mut buf);
-    assert_eq!(copied, buf.len());
-    let mut buf = vec![0; len + 1];
-    let copied = session.master_key(&mut buf);
-    assert_eq!(copied, len);
-}
-
-#[test]
-fn new_session_callback() {
-    static CALLED_BACK: AtomicBool = AtomicBool::new(false);
-
-    let mut server = Server::builder();
-    server.ctx().set_session_id_context(b"foo").unwrap();
-
-    let server = server.build();
-
-    let mut client = server.client();
-
-    client
-        .ctx()
-        .set_session_cache_mode(SslSessionCacheMode::CLIENT | SslSessionCacheMode::NO_INTERNAL);
-    client
-        .ctx()
-        .set_new_session_callback(|_, _| CALLED_BACK.store(true, Ordering::SeqCst));
-
-    client.connect();
-
-    assert!(CALLED_BACK.load(Ordering::SeqCst));
-}
-
-#[test]
-fn new_session_callback_swapped_ctx() {
-    static CALLED_BACK: AtomicBool = AtomicBool::new(false);
-
-    let mut server = Server::builder();
-    server.ctx().set_session_id_context(b"foo").unwrap();
-
-    let server = server.build();
-
-    let mut client = server.client();
-
-    client
-        .ctx()
-        .set_session_cache_mode(SslSessionCacheMode::CLIENT | SslSessionCacheMode::NO_INTERNAL);
-    client
-        .ctx()
-        .set_new_session_callback(|_, _| CALLED_BACK.store(true, Ordering::SeqCst));
-
-    let mut client = client.build().builder();
-
-    let ctx = SslContextBuilder::new(SslMethod::tls()).unwrap().build();
-    client.ssl().set_ssl_context(&ctx).unwrap();
-
-    client.connect();
-
-    assert!(CALLED_BACK.load(Ordering::SeqCst));
-}
-
-#[test]
 fn keying_export() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
@@ -1106,18 +1021,12 @@ fn sni_callback_swapped_ctx() {
     assert!(CALLED_BACK.load(Ordering::SeqCst));
 }
 
-#[test]
-fn session_cache_size() {
-    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
-    ctx.set_session_cache_size(1234);
-    let ctx = ctx.build();
-    assert_eq!(ctx.session_cache_size(), 1234);
-}
-
 #[cfg(feature = "kx-safe-default")]
 #[test]
 fn client_set_default_curves_list() {
-    let ssl_ctx = SslContextBuilder::new(SslMethod::tls()).unwrap().build();
+    let ssl_ctx = crate::ssl::SslContextBuilder::new(SslMethod::tls())
+        .unwrap()
+        .build();
     let mut ssl = Ssl::new(&ssl_ctx).unwrap();
 
     // Panics if Kyber768 missing in boringSSL.
@@ -1127,9 +1036,32 @@ fn client_set_default_curves_list() {
 #[cfg(feature = "kx-safe-default")]
 #[test]
 fn server_set_default_curves_list() {
-    let ssl_ctx = SslContextBuilder::new(SslMethod::tls()).unwrap().build();
+    let ssl_ctx = crate::ssl::SslContextBuilder::new(SslMethod::tls())
+        .unwrap()
+        .build();
     let mut ssl = Ssl::new(&ssl_ctx).unwrap();
 
     // Panics if Kyber768 missing in boringSSL.
     ssl.server_set_default_curves_list();
+}
+
+#[test]
+fn drop_ex_data_in_context() {
+    let index = SslContext::new_ex_index::<&'static str>().unwrap();
+    let mut ctx = SslContext::builder(SslMethod::dtls()).unwrap();
+
+    assert_eq!(ctx.replace_ex_data(index, "comté"), None);
+    assert_eq!(ctx.replace_ex_data(index, "camembert"), Some("comté"));
+    assert_eq!(ctx.replace_ex_data(index, "raclette"), Some("camembert"));
+}
+
+#[test]
+fn drop_ex_data_in_ssl() {
+    let index = Ssl::new_ex_index::<&'static str>().unwrap();
+    let ctx = SslContext::builder(SslMethod::dtls()).unwrap().build();
+    let mut ssl = Ssl::new(&ctx).unwrap();
+
+    assert_eq!(ssl.replace_ex_data(index, "comté"), None);
+    assert_eq!(ssl.replace_ex_data(index, "camembert"), Some("comté"));
+    assert_eq!(ssl.replace_ex_data(index, "raclette"), Some("camembert"));
 }

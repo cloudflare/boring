@@ -18,18 +18,26 @@
 //!
 //! # Compilation and linking options
 //!
+//! ## Environment variables
+//!
+//! This crate uses various environment variables to tweak how boring is built. The variables
+//! are all prefixed by `BORING_BSSL_` for non-FIPS builds, and by `BORING_BSSL_FIPS_` for FIPS builds.
+//!
 //! ## Support for pre-built binaries or custom source
 //!
 //! While this crate can build BoringSSL on its own, you may want to provide pre-built binaries instead.
-//! To do so, specify the environment variable `BORING_BSSL_PATH` with the path to the binaries.
+//! To do so, specify the environment variable `BORING_BSSL{,_FIPS}_PATH` with the path to the binaries.
 //!
-//! You can also provide specific headers by setting `BORING_BSSL_INCLUDE_PATH`.
+//! You can also provide specific headers by setting `BORING_BSSL{,_FIPS}_INCLUDE_PATH`.
 //!
-//! _Notes_: The crate will look for headers in the `$BORING_BSSL_INCLUDE_PATH/openssl/` folder, make sure to place your headers there.
+//! _Notes_: The crate will look for headers in the`$BORING_BSSL{,_FIPS}_INCLUDE_PATH/openssl/`
+//! folder, make sure to place your headers there.
 //!
-//! In alternative a different path for the BoringSSL source code directory can be specified by setting `BORING_BSSL_SOURCE_PATH` which will automatically be compiled during the build process.
+//! In alternative a different path for the BoringSSL source code directory can be specified by setting
+//! `BORING_BSSL{,_FIPS}_SOURCE_PATH` which will automatically be compiled during the build process.
 //!
-//! _Warning_: When providing a different version of BoringSSL make sure to use a compatible one, the crate relies on the presence of certain functions.
+//! _Warning_: When providing a different version of BoringSSL make sure to use a compatible one, the
+//! crate relies on the presence of certain functions.
 //!
 //! ## Building with a FIPS-validated module
 //!
@@ -44,10 +52,14 @@
 //! ```
 //!
 //! ## Linking current BoringSSL version with precompiled FIPS-validated module (`bcm.o`)
+//!
 //! It's possible to link latest supported version of BoringSSL with FIPS-validated crypto module
 //! (`bcm.o`). To enable this compilation option one should enable `fips-link-precompiled`
-//! compilation feature and provide a `BORING_SSL_PRECOMPILED_BCM_O` env variable with a path to the
+//! compilation feature and provide a `BORING_BSSL_FIPS_PRECOMPILED_BCM_O` env variable with a path to the
 //! precompiled FIPS-validated `bcm.o` module.
+//!
+//! Note that `BORING_BSSL_PRECOMPILED_BCM_O` is never used, as linking BoringSSL with precompiled non-FIPS
+//! module is not supported.
 //!
 //! # Optional patches
 //!

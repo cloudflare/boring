@@ -3,8 +3,7 @@ use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::thread::{self, JoinHandle};
 
 use crate::ssl::{
-    HandshakeError, MidHandshakeSslStream, Ssl, SslContext, SslContextBuilder, SslFiletype,
-    SslMethod, SslRef, SslStream,
+    HandshakeError, Ssl, SslContext, SslContextBuilder, SslFiletype, SslMethod, SslRef, SslStream,
 };
 
 pub struct Server {
@@ -33,6 +32,7 @@ impl Server {
             io_cb: Box::new(|_| {}),
             err_cb: Box::new(|_| {}),
             should_error: false,
+            expected_connections_count: 1,
         }
     }
 
@@ -62,6 +62,7 @@ pub struct Builder {
     io_cb: Box<dyn FnMut(SslStream<TcpStream>) + Send>,
     err_cb: Box<dyn FnMut(HandshakeError<TcpStream>) + Send>,
     should_error: bool,
+    expected_connections_count: usize,
 }
 
 impl Builder {
@@ -93,6 +94,10 @@ impl Builder {
         self.should_error = true;
     }
 
+    pub fn expected_connections_count(&mut self, count: usize) {
+        self.expected_connections_count = count;
+    }
+
     pub fn build(self) -> Server {
         let ctx = self.ctx.build();
         let socket = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -101,18 +106,27 @@ impl Builder {
         let mut io_cb = self.io_cb;
         let mut err_cb = self.err_cb;
         let should_error = self.should_error;
+        let mut count = self.expected_connections_count;
 
         let handle = thread::spawn(move || {
-            let socket = socket.accept().unwrap().0;
-            let mut ssl = Ssl::new(&ctx).unwrap();
-            ssl_cb(&mut ssl);
-            let r = ssl.accept(socket);
-            if should_error {
-                err_cb(r.unwrap_err());
-            } else {
-                let mut socket = r.unwrap();
-                socket.write_all(&[0]).unwrap();
-                io_cb(socket);
+            while count > 0 {
+                let socket = socket.accept().unwrap().0;
+                let mut ssl = Ssl::new(&ctx).unwrap();
+
+                ssl_cb(&mut ssl);
+
+                let r = ssl.accept(socket);
+
+                if should_error {
+                    err_cb(r.unwrap_err());
+                } else {
+                    let mut socket = r.unwrap();
+
+                    socket.write_all(&[0]).unwrap();
+                    io_cb(socket);
+                }
+
+                count -= 1;
             }
         });
 

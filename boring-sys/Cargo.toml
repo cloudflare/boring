@@ -9,6 +9,7 @@ description = "FFI bindings to BoringSSL"
 repository = { workspace = true }
 documentation = "https://docs.rs/boring-sys"
 links = "boringssl"
+build = "build/main.rs"
 readme = "README.md"
 categories = ["cryptography", "external-ffi-bindings"]
 edition = { workspace = true }
@@ -44,7 +45,7 @@ include = [
     "/deps/boringssl-fips/**/CMakeLists.txt",
     "/deps/boringssl-fips/**/sources.cmake",
     "/deps/boringssl-fips/LICENSE",
-    "/build.rs",
+    "/build/*",
     "/src",
     "/patches",
 ]
@@ -67,16 +68,8 @@ rpk = []
 # enables support for PQ key exchange. This feature is necessary in order to
 # compile the bindings for the default branch of boringSSL (`deps/boringssl`).
 # Alternatively, a version of boringSSL that implements the same feature set
-# can be provided by setting `BORING_BSSL_SOURCE_PATH`.
+# can be provided by setting `BORING_BSSL{,_FIPS}_SOURCE_PATH`.
 pq-experimental = []
-
-# Disables git patching of the BoringSSL sources for features like `rpk` and `pq-experimental`, but
-# keeps the related Rust API. 
-# 
-# Supposed to be used with either pre-compiled BoringSSL (via `BORING_BSSL_PATH` env variable) or 
-# with custom BoringSSL sources (via `BORING_BSSL_SOURCE_PATH` env variable) already containing 
-# required patches.
-no-patches = []
 
 [build-dependencies]
 bindgen = { workspace = true }
