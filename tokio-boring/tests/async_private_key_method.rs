@@ -5,10 +5,7 @@ use boring::sign::{RsaPssSaltlen, Signer};
 use boring::ssl::{SslRef, SslSignatureAlgorithm};
 use futures::future;
 use tokio::task::yield_now;
-use tokio_boring::{
-    AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, BoxPrivateKeyMethodFuture,
-    SslContextBuilderExt,
-};
+use tokio_boring::{AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, BoxPrivateKeyMethodFuture};
 
 mod common;
 

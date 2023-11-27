@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 use tokio::net::TcpStream;
 use tokio::task::yield_now;
-use tokio_boring::{BoxGetSessionFinish, SslContextBuilderExt};
+use tokio_boring::BoxGetSessionFinish;
 
 mod common;
 

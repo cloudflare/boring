@@ -1,9 +1,7 @@
 use boring::ssl::ClientHello;
 use futures::future;
 use tokio::task::yield_now;
-use tokio_boring::{
-    AsyncSelectCertError, BoxSelectCertFinish, BoxSelectCertFuture, SslContextBuilderExt,
-};
+use tokio_boring::{AsyncSelectCertError, BoxSelectCertFinish, BoxSelectCertFuture};
 
 mod common;
 
