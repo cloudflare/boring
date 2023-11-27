@@ -97,15 +97,22 @@ use crate::x509::{
 };
 use crate::{cvt, cvt_0i, cvt_n, cvt_p, init};
 
-pub use crate::ssl::connector::{
+pub use self::async_callbacks::{
+    AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError, BoxGetSessionFinish,
+    BoxGetSessionFuture, BoxPrivateKeyMethodFinish, BoxPrivateKeyMethodFuture, BoxSelectCertFinish,
+    BoxSelectCertFuture, ExDataFuture,
+};
+pub use self::connector::{
     ConnectConfiguration, SslAcceptor, SslAcceptorBuilder, SslConnector, SslConnectorBuilder,
 };
-pub use crate::ssl::error::{Error, ErrorCode, HandshakeError};
+pub use self::error::{Error, ErrorCode, HandshakeError};
 
+mod async_callbacks;
 mod bio;
 mod callbacks;
 mod connector;
 mod error;
+mod mut_only;
 #[cfg(test)]
 mod test;
 
