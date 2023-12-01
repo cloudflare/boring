@@ -87,6 +87,20 @@ pub struct HttpsLayer {
     inner: Inner,
 }
 
+/// Settings for [`HttpsLayer`]
+pub struct HttpsLayerSettings {
+    /// Maximum number of sessions to cache. Session capacity is per session key (domain).
+    pub session_cache_capacity: usize,
+}
+
+impl Default for HttpsLayerSettings {
+    fn default() -> Self {
+        Self {
+            session_cache_capacity: 8,
+        }
+    }
+}
+
 impl HttpsLayer {
     /// Creates a new `HttpsLayer` with default settings.
     ///
@@ -103,18 +117,17 @@ impl HttpsLayer {
     ///
     /// The session cache configuration of `ssl` will be overwritten.
     pub fn with_connector(ssl: SslConnectorBuilder) -> Result<HttpsLayer, ErrorStack> {
-        Self::with_connector_and_capacity(ssl, 8)
+        Self::with_connector_and_settings(ssl, Default::default())
     }
 
-    /// Creates a new `HttpsLayer` with session capacity.
-    ///
-    /// The session cache configuration of `ssl` will be overwritten. Session capacity is per
-    /// session key (domain).
-    pub fn with_connector_and_capacity(
+    /// Creates a new `HttpsLayer` with settings
+    pub fn with_connector_and_settings(
         mut ssl: SslConnectorBuilder,
-        capacity: usize,
+        settings: HttpsLayerSettings,
     ) -> Result<HttpsLayer, ErrorStack> {
-        let cache = Arc::new(Mutex::new(SessionCache::with_capacity(capacity)));
+        let cache = Arc::new(Mutex::new(SessionCache::with_capacity(
+            settings.session_cache_capacity,
+        )));
 
         ssl.set_session_cache_mode(SslSessionCacheMode::CLIENT);
 
