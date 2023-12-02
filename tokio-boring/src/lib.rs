@@ -29,17 +29,20 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 mod async_callbacks;
 mod bridge;
-mod mut_only;
 
-use self::async_callbacks::TASK_WAKER_INDEX;
-pub use self::async_callbacks::{
-    AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError, BoxGetSessionFinish,
-    BoxGetSessionFuture, BoxPrivateKeyMethodFinish, BoxPrivateKeyMethodFuture, BoxSelectCertFinish,
-    BoxSelectCertFuture, ExDataFuture, SslContextBuilderExt,
-};
 use self::bridge::AsyncStreamBridge;
 
+pub use crate::async_callbacks::SslContextBuilderExt;
+pub use boring::ssl::{
+    AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError, BoxGetSessionFinish,
+    BoxGetSessionFuture, BoxPrivateKeyMethodFinish, BoxPrivateKeyMethodFuture, BoxSelectCertFinish,
+    BoxSelectCertFuture, ExDataFuture,
+};
+
 /// Asynchronously performs a client-side TLS handshake over the provided stream.
+///
+/// This function automatically sets the task waker on the `Ssl` from `config` to
+/// allow to make use of async callbacks provided by the boring crate.
 pub async fn connect<S>(
     config: ConnectConfiguration,
     domain: &str,
@@ -52,6 +55,9 @@ where
 }
 
 /// Asynchronously performs a server-side TLS handshake over the provided stream.
+///
+/// This function automatically sets the task waker on the `Ssl` from `config` to
+/// allow to make use of async callbacks provided by the boring crate.
 pub async fn accept<S>(acceptor: &SslAcceptor, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
 where
     S: AsyncRead + AsyncWrite + Unpin,
@@ -300,20 +306,18 @@ where
         mid_handshake.get_mut().set_waker(Some(ctx));
         mid_handshake
             .ssl_mut()
-            .replace_ex_data(*TASK_WAKER_INDEX, Some(ctx.waker().clone()));
+            .set_task_waker(Some(ctx.waker().clone()));
 
         match mid_handshake.handshake() {
             Ok(mut stream) => {
                 stream.get_mut().set_waker(None);
-                stream.ssl_mut().replace_ex_data(*TASK_WAKER_INDEX, None);
+                stream.ssl_mut().set_task_waker(None);
 
                 Poll::Ready(Ok(SslStream(stream)))
             }
             Err(ssl::HandshakeError::WouldBlock(mut mid_handshake)) => {
                 mid_handshake.get_mut().set_waker(None);
-                mid_handshake
-                    .ssl_mut()
-                    .replace_ex_data(*TASK_WAKER_INDEX, None);
+                mid_handshake.ssl_mut().set_task_waker(None);
 
                 self.0 = Some(mid_handshake);
 
