@@ -80,8 +80,14 @@ pub struct HttpsLayer {
 
 /// Settings for [`HttpsLayer`]
 pub struct HttpsLayerSettings {
-    /// Maximum number of sessions to cache. Session capacity is per session key (domain).
-    pub session_cache_capacity: usize,
+    session_cache_capacity: usize,
+}
+
+impl HttpsLayerSettings {
+    /// Constructs an [`HttpsLayerSettingsBuilder`] for configuring settings
+    pub fn builder() -> HttpsLayerSettingsBuilder {
+        HttpsLayerSettingsBuilder(HttpsLayerSettings::default())
+    }
 }
 
 impl Default for HttpsLayerSettings {
@@ -89,6 +95,22 @@ impl Default for HttpsLayerSettings {
         Self {
             session_cache_capacity: 8,
         }
+    }
+}
+
+/// Builder for [`HttpsLayerSettings`]
+pub struct HttpsLayerSettingsBuilder(HttpsLayerSettings);
+
+impl HttpsLayerSettingsBuilder {
+    /// Sets maximum number of sessions to cache. Session capacity is per session key (domain).
+    /// Defaults to 8.
+    pub fn set_session_cache_capacity(&mut self, capacity: usize) {
+        self.0.session_cache_capacity = capacity;
+    }
+
+    /// Consumes the builder, returning a new [`HttpsLayerSettings`]
+    pub fn build(self) -> HttpsLayerSettings {
+        self.0
     }
 }
 
