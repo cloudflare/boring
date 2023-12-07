@@ -301,7 +301,7 @@ unsafe impl Sync for SslMethod {}
 unsafe impl Send for SslMethod {}
 
 bitflags! {
-    /// Options controling the behavior of certificate verification.
+    /// Options controlling the behavior of certificate verification.
     #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
     pub struct SslVerifyMode: i32 {
         /// Verifies that the peer's certificate is trusted.
@@ -489,7 +489,7 @@ impl AlpnError {
 pub struct SelectCertError(ffi::ssl_select_cert_result_t);
 
 impl SelectCertError {
-    /// A fatal error occured and the handshake should be terminated.
+    /// A fatal error occurred and the handshake should be terminated.
     pub const ERROR: Self = Self(ffi::ssl_select_cert_result_t::ssl_select_cert_error);
 
     /// The operation could not be completed and should be retried later.
@@ -3512,7 +3512,7 @@ impl<S: Read + Write> SslStream<S> {
     ///
     /// [`SSL_read`]: https://www.openssl.org/docs/manmaster/man3/SSL_read.html
     pub fn ssl_read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        // The intepretation of the return code here is a little odd with a
+        // The interpretation of the return code here is a little odd with a
         // zero-length write. OpenSSL will likely correctly report back to us
         // that it read zero bytes, but zero is also the sentinel for "error".
         // To avoid that confusion short-circuit that logic and return quickly
@@ -4004,7 +4004,7 @@ pub trait PrivateKeyMethod: Send + Sync + 'static {
 pub struct PrivateKeyMethodError(ffi::ssl_private_key_result_t);
 
 impl PrivateKeyMethodError {
-    /// A fatal error occured and the handshake should be terminated.
+    /// A fatal error occurred and the handshake should be terminated.
     pub const FAILURE: Self = Self(ffi::ssl_private_key_result_t::ssl_private_key_failure);
 
     /// The operation could not be completed and should be retried later.
