@@ -11,7 +11,7 @@ readme = "README.md"
 exclude = ["test/*"]
 
 [package.metadata.docs.rs]
-features = ["rpk", "pq-experimental"]
+features = ["pq-experimental"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
