@@ -25,6 +25,9 @@ fips-link-precompiled = ["boring/fips-link-precompiled", "boring-sys/fips-link-p
 # Enables experimental post-quantum crypto (https://blog.cloudflare.com/post-quantum-for-all/)
 pq-experimental = ["boring/pq-experimental"]
 
+# Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
+rpk = ["boring/rpk"]
+
 [dependencies]
 boring = { workspace = true }
 boring-sys = { workspace = true }
