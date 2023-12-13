@@ -98,9 +98,9 @@ use crate::x509::{
 use crate::{cvt, cvt_0i, cvt_n, cvt_p, init};
 
 pub use self::async_callbacks::{
-    AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError, BoxGetSessionFinish,
-    BoxGetSessionFuture, BoxPrivateKeyMethodFinish, BoxPrivateKeyMethodFuture, BoxSelectCertFinish,
-    BoxSelectCertFuture, ExDataFuture,
+    AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError, BoxCustomVerifyFinish,
+    BoxCustomVerifyFuture, BoxGetSessionFinish, BoxGetSessionFuture, BoxPrivateKeyMethodFinish,
+    BoxPrivateKeyMethodFuture, BoxSelectCertFinish, BoxSelectCertFuture, ExDataFuture,
 };
 pub use self::connector::{
     ConnectConfiguration, SslAcceptor, SslAcceptorBuilder, SslConnector, SslConnectorBuilder,
@@ -323,6 +323,12 @@ bitflags! {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SslVerifyError {
+    Invalid(SslAlert),
+    Retry,
+}
+
 bitflags! {
     /// Options controlling the behavior of session caching.
     #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
@@ -466,10 +472,41 @@ impl SniError {
 pub struct SslAlert(c_int);
 
 impl SslAlert {
-    /// Alert 112 - `unrecognized_name`.
-    pub const UNRECOGNIZED_NAME: SslAlert = SslAlert(ffi::SSL_AD_UNRECOGNIZED_NAME);
-    pub const ILLEGAL_PARAMETER: SslAlert = SslAlert(ffi::SSL_AD_ILLEGAL_PARAMETER);
-    pub const DECODE_ERROR: SslAlert = SslAlert(ffi::SSL_AD_DECODE_ERROR);
+    pub const CLOSE_NOTIFY: Self = Self(ffi::SSL_AD_CLOSE_NOTIFY);
+    pub const UNEXPECTED_MESSAGE: Self = Self(ffi::SSL_AD_UNEXPECTED_MESSAGE);
+    pub const BAD_RECORD_MAC: Self = Self(ffi::SSL_AD_BAD_RECORD_MAC);
+    pub const DECRYPTION_FAILED: Self = Self(ffi::SSL_AD_DECRYPTION_FAILED);
+    pub const RECORD_OVERFLOW: Self = Self(ffi::SSL_AD_RECORD_OVERFLOW);
+    pub const DECOMPRESSION_FAILURE: Self = Self(ffi::SSL_AD_DECOMPRESSION_FAILURE);
+    pub const HANDSHAKE_FAILURE: Self = Self(ffi::SSL_AD_HANDSHAKE_FAILURE);
+    pub const NO_CERTIFICATE: Self = Self(ffi::SSL_AD_NO_CERTIFICATE);
+    pub const BAD_CERTIFICATE: Self = Self(ffi::SSL_AD_BAD_CERTIFICATE);
+    pub const UNSUPPORTED_CERTIFICATE: Self = Self(ffi::SSL_AD_UNSUPPORTED_CERTIFICATE);
+    pub const CERTIFICATE_REVOKED: Self = Self(ffi::SSL_AD_CERTIFICATE_REVOKED);
+    pub const CERTIFICATE_EXPIRED: Self = Self(ffi::SSL_AD_CERTIFICATE_EXPIRED);
+    pub const CERTIFICATE_UNKNOWN: Self = Self(ffi::SSL_AD_CERTIFICATE_UNKNOWN);
+    pub const ILLEGAL_PARAMETER: Self = Self(ffi::SSL_AD_ILLEGAL_PARAMETER);
+    pub const UNKNOWN_CA: Self = Self(ffi::SSL_AD_UNKNOWN_CA);
+    pub const ACCESS_DENIED: Self = Self(ffi::SSL_AD_ACCESS_DENIED);
+    pub const DECODE_ERROR: Self = Self(ffi::SSL_AD_DECODE_ERROR);
+    pub const DECRYPT_ERROR: Self = Self(ffi::SSL_AD_DECRYPT_ERROR);
+    pub const EXPORT_RESTRICTION: Self = Self(ffi::SSL_AD_EXPORT_RESTRICTION);
+    pub const PROTOCOL_VERSION: Self = Self(ffi::SSL_AD_PROTOCOL_VERSION);
+    pub const INSUFFICIENT_SECURITY: Self = Self(ffi::SSL_AD_INSUFFICIENT_SECURITY);
+    pub const INTERNAL_ERROR: Self = Self(ffi::SSL_AD_INTERNAL_ERROR);
+    pub const INAPPROPRIATE_FALLBACK: Self = Self(ffi::SSL_AD_INAPPROPRIATE_FALLBACK);
+    pub const USER_CANCELLED: Self = Self(ffi::SSL_AD_USER_CANCELLED);
+    pub const NO_RENEGOTIATION: Self = Self(ffi::SSL_AD_NO_RENEGOTIATION);
+    pub const MISSING_EXTENSION: Self = Self(ffi::SSL_AD_MISSING_EXTENSION);
+    pub const UNSUPPORTED_EXTENSION: Self = Self(ffi::SSL_AD_UNSUPPORTED_EXTENSION);
+    pub const CERTIFICATE_UNOBTAINABLE: Self = Self(ffi::SSL_AD_CERTIFICATE_UNOBTAINABLE);
+    pub const UNRECOGNIZED_NAME: Self = Self(ffi::SSL_AD_UNRECOGNIZED_NAME);
+    pub const BAD_CERTIFICATE_STATUS_RESPONSE: Self =
+        Self(ffi::SSL_AD_BAD_CERTIFICATE_STATUS_RESPONSE);
+    pub const BAD_CERTIFICATE_HASH_VALUE: Self = Self(ffi::SSL_AD_BAD_CERTIFICATE_HASH_VALUE);
+    pub const UNKNOWN_PSK_IDENTITY: Self = Self(ffi::SSL_AD_UNKNOWN_PSK_IDENTITY);
+    pub const CERTIFICATE_REQUIRED: Self = Self(ffi::SSL_AD_CERTIFICATE_REQUIRED);
+    pub const NO_APPLICATION_PROTOCOL: Self = Self(ffi::SSL_AD_NO_APPLICATION_PROTOCOL);
 }
 
 /// An error returned from an ALPN selection callback.
@@ -829,14 +866,24 @@ impl SslContextBuilder {
     /// Configures the certificate verification method for new connections and
     /// registers a verification callback.
     ///
-    /// The callback is passed a boolean indicating if OpenSSL's internal verification succeeded as
-    /// well as a reference to the `X509StoreContext` which can be used to examine the certificate
-    /// chain. It should return a boolean indicating if verification succeeded.
+    /// *Warning*: This callback does not replace the default certificate verification
+    /// process and is, instead, called multiple times in the course of that process.
+    /// It is very difficult to implement this callback correctly, without inadvertently
+    /// relying on implementation details or making incorrect assumptions about when the
+    /// callback is called.
+    ///
+    /// Instead, use [`SslContextBuilder::set_custom_verify_callback`] to customize certificate verification.
+    /// Those callbacks can inspect the peer-sent chain, call [`X509StoreContextRef::verify_cert`]
+    /// and inspect the result, or perform other operations more straightforwardly.
     ///
     /// This corresponds to [`SSL_CTX_set_verify`].
     ///
+    /// # Panics
+    ///
+    /// This method panics if this `Ssl` is associated with a RPK context.
+    ///
     /// [`SSL_CTX_set_verify`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_verify.html
-    pub fn set_verify_callback<F>(&mut self, mode: SslVerifyMode, verify: F)
+    pub fn set_verify_callback<F>(&mut self, mode: SslVerifyMode, callback: F)
     where
         F: Fn(bool, &mut X509StoreContextRef) -> bool + 'static + Sync + Send,
     {
@@ -844,8 +891,39 @@ impl SslContextBuilder {
         assert!(!self.is_rpk, "This API is not supported for RPK");
 
         unsafe {
-            self.replace_ex_data(SslContext::cached_ex_index::<F>(), verify);
+            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_set_verify(self.as_ptr(), mode.bits() as c_int, Some(raw_verify::<F>));
+        }
+    }
+
+    /// Configures certificate verification.
+    ///
+    /// The callback should return `Ok(())` if the certificate is valid.
+    /// If the certificate is invalid, the callback should return `SslVerifyError::Invalid(alert)`.
+    /// Some useful alerts include [`SslAlert::CERTIFICATE_EXPIRED`], [`SslAlert::CERTIFICATE_REVOKED`],
+    /// [`SslAlert::UNKNOWN_CA`], [`SslAlert::BAD_CERTIFICATE`], [`SslAlert::CERTIFICATE_UNKNOWN`],
+    /// and [`SslAlert::INTERNAL_ERROR`]. See RFC 5246 section 7.2.2 for their precise meanings.
+    ///
+    /// To verify a certificate asynchronously, the callback may return `Err(SslVerifyError::Retry)`.
+    /// The handshake will then pause with an error with code [`ErrorCode::WANT_CERTIFICATE_VERIFY`].
+    ///
+    /// # Panics
+    ///
+    /// This method panics if this `Ssl` is associated with a RPK context.
+    pub fn set_custom_verify_callback<F>(&mut self, mode: SslVerifyMode, callback: F)
+    where
+        F: Fn(&mut SslRef) -> Result<(), SslVerifyError> + 'static + Sync + Send,
+    {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
+        unsafe {
+            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+            ffi::SSL_CTX_set_custom_verify(
+                self.as_ptr(),
+                mode.bits() as c_int,
+                Some(raw_custom_verify::<F>),
+            );
         }
     }
 
@@ -2642,11 +2720,25 @@ impl SslRef {
 
     /// Like [`SslContextBuilder::set_verify_callback`].
     ///
+    /// *Warning*: This callback does not replace the default certificate verification
+    /// process and is, instead, called multiple times in the course of that process.
+    /// It is very difficult to implement this callback correctly, without inadvertently
+    /// relying on implementation details or making incorrect assumptions about when the
+    /// callback is called.
+    ///
+    /// Instead, use [`SslContextBuilder::set_custom_verify_callback`] to customize
+    /// certificate verification. Those callbacks can inspect the peer-sent chain,
+    /// call [`X509StoreContextRef::verify_cert`] and inspect the result, or perform
+    /// other operations more straightforwardly.
+    ///
     /// This corresponds to [`SSL_set_verify`].
     ///
-    /// [`SslContextBuilder::set_verify_callback`]: struct.SslContextBuilder.html#method.set_verify_callback
+    /// # Panics
+    ///
+    /// This method panics if this `Ssl` is associated with a RPK context.
+    ///
     /// [`SSL_set_verify`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_set_verify.html
-    pub fn set_verify_callback<F>(&mut self, mode: SslVerifyMode, verify: F)
+    pub fn set_verify_callback<F>(&mut self, mode: SslVerifyMode, callback: F)
     where
         F: Fn(bool, &mut X509StoreContextRef) -> bool + 'static + Sync + Send,
     {
@@ -2658,11 +2750,39 @@ impl SslRef {
 
         unsafe {
             // this needs to be in an Arc since the callback can register a new callback!
-            self.replace_ex_data(Ssl::cached_ex_index(), Arc::new(verify));
+            self.replace_ex_data(Ssl::cached_ex_index(), Arc::new(callback));
             ffi::SSL_set_verify(
                 self.as_ptr(),
                 mode.bits() as c_int,
                 Some(ssl_raw_verify::<F>),
+            );
+        }
+    }
+
+    /// Like [`SslContextBuilder::set_custom_verify_callback`].
+    ///
+    /// This corresponds to [`SSL_set_custom_verify`].
+    ///
+    /// # Panics
+    ///
+    /// This method panics if this `Ssl` is associated with a RPK context.
+    pub fn set_custom_verify_callback<F>(&mut self, mode: SslVerifyMode, callback: F)
+    where
+        F: Fn(&mut SslRef) -> Result<(), SslVerifyError> + 'static + Sync + Send,
+    {
+        #[cfg(feature = "rpk")]
+        assert!(
+            !self.ssl_context().is_rpk(),
+            "This API is not supported for RPK"
+        );
+
+        unsafe {
+            // this needs to be in an Arc since the callback can register a new callback!
+            self.replace_ex_data(Ssl::cached_ex_index(), Arc::new(callback));
+            ffi::SSL_set_custom_verify(
+                self.as_ptr(),
+                mode.bits() as c_int,
+                Some(ssl_raw_custom_verify::<F>),
             );
         }
     }

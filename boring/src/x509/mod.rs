@@ -559,7 +559,7 @@ impl X509Ref {
     ///
     /// Returns `true` if verification succeeds.
     ///
-    /// This corresponds to [`X509_verify"].
+    /// This corresponds to [`X509_verify`].
     ///
     /// [`X509_verify`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_verify.html
     pub fn verify<T>(&self, key: &PKeyRef<T>) -> Result<bool, ErrorStack>
