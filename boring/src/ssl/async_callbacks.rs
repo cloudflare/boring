@@ -1,7 +1,8 @@
 use super::mut_only::MutOnly;
 use super::{
     ClientHello, GetSessionPendingError, PrivateKeyMethod, PrivateKeyMethodError, SelectCertError,
-    Ssl, SslContextBuilder, SslRef, SslSession, SslSignatureAlgorithm,
+    Ssl, SslAlert, SslContextBuilder, SslRef, SslSession, SslSignatureAlgorithm, SslVerifyError,
+    SslVerifyMode,
 };
 use crate::ex_data::Index;
 use once_cell::sync::Lazy;
@@ -30,6 +31,12 @@ pub type BoxGetSessionFuture = ExDataFuture<Option<BoxGetSessionFinish>>;
 /// The type of callbacks returned by [`BoxSelectCertFuture`] methods.
 pub type BoxGetSessionFinish = Box<dyn FnOnce(&mut SslRef, &[u8]) -> Option<SslSession>>;
 
+/// The type of futures to pass to [`SslContextBuilderExt::set_async_custom_verify_callback`].
+pub type BoxCustomVerifyFuture = ExDataFuture<Result<BoxCustomVerifyFinish, SslAlert>>;
+
+/// The type of callbacks returned by [`BoxCustomVerifyFuture`] methods.
+pub type BoxCustomVerifyFinish = Box<dyn FnOnce(&mut SslRef) -> Result<(), SslAlert>>;
+
 /// Convenience alias for futures stored in [`Ssl`] ex data by [`SslContextBuilderExt`] methods.
 ///
 /// Public for documentation purposes.
@@ -44,6 +51,9 @@ pub(crate) static SELECT_PRIVATE_KEY_METHOD_FUTURE_INDEX: Lazy<
 > = Lazy::new(|| Ssl::new_ex_index().unwrap());
 pub(crate) static SELECT_GET_SESSION_FUTURE_INDEX: Lazy<
     Index<Ssl, MutOnly<Option<BoxGetSessionFuture>>>,
+> = Lazy::new(|| Ssl::new_ex_index().unwrap());
+pub(crate) static SELECT_CUSTOM_VERIFY_FUTURE_INDEX: Lazy<
+    Index<Ssl, MutOnly<Option<BoxCustomVerifyFuture>>>,
 > = Lazy::new(|| Ssl::new_ex_index().unwrap());
 
 impl SslContextBuilder {
@@ -135,12 +145,65 @@ impl SslContextBuilder {
 
         self.set_get_session_callback(async_callback)
     }
+
+    /// Configures certificate verification.
+    ///
+    /// The callback should return `Ok(())` if the certificate is valid.
+    /// If the certificate is invalid, the callback should return `SslVerifyError::Invalid(alert)`.
+    /// Some useful alerts include [`SslAlert::CERTIFICATE_EXPIRED`], [`SslAlert::CERTIFICATE_REVOKED`],
+    /// [`SslAlert::UNKNOWN_CA`], [`SslAlert::BAD_CERTIFICATE`], [`SslAlert::CERTIFICATE_UNKNOWN`],
+    /// and [`SslAlert::INTERNAL_ERROR`]. See RFC 5246 section 7.2.2 for their precise meanings.
+    ///
+    /// A task waker must be set on `Ssl` values associated with the resulting
+    /// `SslContext` with [`SslRef::set_task_waker`].
+    ///
+    /// See [`SslContextBuilder::set_custom_verify_callback`] for the sync version of this method.
+    ///
+    /// # Panics
+    ///
+    /// This method panics if this `Ssl` is associated with a RPK context.
+    pub fn set_async_custom_verify_callback<F>(&mut self, mode: SslVerifyMode, callback: F)
+    where
+        F: Fn(&mut SslRef) -> Result<BoxCustomVerifyFuture, SslAlert> + Send + Sync + 'static,
+    {
+        self.set_custom_verify_callback(mode, async_custom_verify_callback(callback))
+    }
 }
 
 impl SslRef {
+    pub fn set_async_custom_verify_callback<F>(&mut self, mode: SslVerifyMode, callback: F)
+    where
+        F: Fn(&mut SslRef) -> Result<BoxCustomVerifyFuture, SslAlert> + Send + Sync + 'static,
+    {
+        self.set_custom_verify_callback(mode, async_custom_verify_callback(callback))
+    }
+
     /// Sets the task waker to be used in async callbacks installed on this `Ssl`.
     pub fn set_task_waker(&mut self, waker: Option<Waker>) {
         self.replace_ex_data(*TASK_WAKER_INDEX, waker);
+    }
+}
+
+fn async_custom_verify_callback<F>(
+    callback: F,
+) -> impl Fn(&mut SslRef) -> Result<(), SslVerifyError>
+where
+    F: Fn(&mut SslRef) -> Result<BoxCustomVerifyFuture, SslAlert> + Send + Sync + 'static,
+{
+    move |ssl| {
+        let fut_poll_result = with_ex_data_future(
+            &mut *ssl,
+            *SELECT_CUSTOM_VERIFY_FUTURE_INDEX,
+            |ssl| ssl,
+            &callback,
+            identity,
+        );
+
+        match fut_poll_result {
+            Poll::Ready(Err(alert)) => Err(SslVerifyError::Invalid(alert)),
+            Poll::Ready(Ok(finish)) => Ok(finish(ssl).map_err(SslVerifyError::Invalid)?),
+            Poll::Pending => Err(SslVerifyError::Retry),
+        }
     }
 }
 
