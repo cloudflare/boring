@@ -13,7 +13,6 @@
 #![warn(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-use boring::error::ErrorStack;
 use boring::ssl::{
     self, ConnectConfiguration, ErrorCode, MidHandshakeSslStream, ShutdownResult, SslAcceptor,
     SslRef,
@@ -51,7 +50,11 @@ pub async fn connect<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    handshake(|s| config.setup_connect(domain, s), stream).await
+    let mid_handshake = config
+        .setup_connect(domain, AsyncStreamBridge::new(stream))
+        .map_err(|err| HandshakeError(ssl::HandshakeError::SetupFailure(err)))?;
+
+    HandshakeFuture(Some(mid_handshake)).await
 }
 
 /// Asynchronously performs a server-side TLS handshake over the provided stream.
@@ -62,19 +65,8 @@ pub async fn accept<S>(acceptor: &SslAcceptor, stream: S) -> Result<SslStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    handshake(|s| acceptor.setup_accept(s), stream).await
-}
-
-async fn handshake<S>(
-    f: impl FnOnce(
-        AsyncStreamBridge<S>,
-    ) -> Result<MidHandshakeSslStream<AsyncStreamBridge<S>>, ErrorStack>,
-    stream: S,
-) -> Result<SslStream<S>, HandshakeError<S>>
-where
-    S: AsyncRead + AsyncWrite + Unpin,
-{
-    let mid_handshake = f(AsyncStreamBridge::new(stream))
+    let mid_handshake = acceptor
+        .setup_accept(AsyncStreamBridge::new(stream))
         .map_err(|err| HandshakeError(ssl::HandshakeError::SetupFailure(err)))?;
 
     HandshakeFuture(Some(mid_handshake)).await
@@ -85,6 +77,49 @@ fn cvt<T>(r: io::Result<T>) -> Poll<io::Result<T>> {
         Ok(v) => Poll::Ready(Ok(v)),
         Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => Poll::Pending,
         Err(e) => Poll::Ready(Err(e)),
+    }
+}
+
+/// A partially constructed `SslStream`, useful for unusual handshakes.
+pub struct SslStreamBuilder<S> {
+    inner: ssl::SslStreamBuilder<AsyncStreamBridge<S>>,
+}
+
+impl<S> SslStreamBuilder<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    /// Begins creating an `SslStream` atop `stream`.
+    pub fn new(ssl: ssl::Ssl, stream: S) -> Self {
+        Self {
+            inner: ssl::SslStreamBuilder::new(ssl, AsyncStreamBridge::new(stream)),
+        }
+    }
+
+    /// Initiates a client-side TLS handshake.
+    pub async fn accept(self) -> Result<SslStream<S>, HandshakeError<S>> {
+        let mid_handshake = self.inner.setup_accept();
+
+        HandshakeFuture(Some(mid_handshake)).await
+    }
+
+    /// Initiates a server-side TLS handshake.
+    pub async fn connect(self) -> Result<SslStream<S>, HandshakeError<S>> {
+        let mid_handshake = self.inner.setup_connect();
+
+        HandshakeFuture(Some(mid_handshake)).await
+    }
+}
+
+impl<S> SslStreamBuilder<S> {
+    /// Returns a shared reference to the `Ssl` object associated with this builder.
+    pub fn ssl(&self) -> &SslRef {
+        self.inner.ssl()
+    }
+
+    /// Returns a mutable reference to the `Ssl` object associated with this builder.
+    pub fn ssl_mut(&mut self) -> &mut SslRef {
+        self.inner.ssl_mut()
     }
 }
 
