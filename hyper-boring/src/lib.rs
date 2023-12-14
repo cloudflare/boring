@@ -10,11 +10,11 @@ use boring::ssl::{
     ConnectConfiguration, Ssl, SslConnector, SslConnectorBuilder, SslMethod, SslSessionCacheMode,
 };
 use http::uri::Scheme;
-use hyper::client::connect::{Connected, Connection};
-#[cfg(feature = "runtime")]
-use hyper::client::HttpConnector;
-use hyper::service::Service;
+use hyper::rt::{Read, ReadBufCursor, Write};
 use hyper::Uri;
+use hyper_util::client::legacy::connect::HttpConnector;
+use hyper_util::client::legacy::connect::{Connected, Connection};
+use hyper_util::rt::TokioIo;
 use once_cell::sync::OnceCell;
 use std::fmt::Debug;
 use std::future::Future;
@@ -27,6 +27,7 @@ use std::{error::Error, fmt};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio_boring::SslStream;
 use tower_layer::Layer;
+use tower_service::Service;
 
 mod cache;
 #[cfg(test)]
@@ -148,7 +149,6 @@ pub struct HttpsConnector<T> {
     inner: Inner,
 }
 
-#[cfg(feature = "runtime")]
 impl HttpsConnector<HttpConnector> {
     /// Creates a a new `HttpsConnector` using default settings.
     ///
@@ -169,7 +169,7 @@ where
     S: Service<Uri, Response = T> + Send,
     S::Error: Into<Box<dyn Error + Send + Sync>>,
     S::Future: Unpin + Send + 'static,
-    T: AsyncRead + AsyncWrite + Connection + Unpin + Debug + Sync + Send + 'static,
+    T: Read + Write + Connection + Unpin + Debug + Sync + Send + 'static,
 {
     /// Creates a new `HttpsConnector`.
     ///
@@ -195,9 +195,9 @@ where
     S: Service<Uri> + Send,
     S::Error: Into<Box<dyn Error + Send + Sync>>,
     S::Future: Unpin + Send + 'static,
-    S::Response: AsyncRead + AsyncWrite + Connection + Unpin + Debug + Sync + Send + 'static,
+    S::Response: Read + Write + Connection + Unpin + Debug + Sync + Send + 'static,
 {
-    type Response = MaybeHttpsStream<S::Response>;
+    type Response = MaybeHttpsStream<TokioIo<S::Response>>;
     type Error = Box<dyn Error + Sync + Send>;
     #[allow(clippy::type_complexity)]
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
@@ -221,8 +221,8 @@ where
         let connect = self.http.call(uri);
 
         let f = async {
-            let conn = connect.await.map_err(Into::into)?;
-
+            let conn = connect.await.map_err(Into::into)?; // This returns a hyper type
+            let conn = TokioIo::new(conn); // Turn it into a tokio one
             let (inner, uri) = match tls_setup {
                 Some((inner, uri)) => (inner, uri),
                 None => return Ok(MaybeHttpsStream::Http(conn)),
@@ -246,7 +246,6 @@ where
 
             let config = inner.setup_ssl(&uri, host)?;
             let stream = tokio_boring::connect(config, host, conn).await?;
-
             Ok(MaybeHttpsStream::Https(stream))
         };
 
@@ -262,23 +261,27 @@ pub enum MaybeHttpsStream<T> {
     Https(SslStream<T>),
 }
 
-impl<T> AsyncRead for MaybeHttpsStream<T>
+impl<T> hyper::rt::Read for MaybeHttpsStream<T>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
     fn poll_read(
         mut self: Pin<&mut Self>,
         ctx: &mut Context<'_>,
-        buf: &mut ReadBuf,
+        buf: ReadBufCursor,
     ) -> Poll<io::Result<()>> {
         match &mut *self {
-            MaybeHttpsStream::Http(s) => Pin::new(s).poll_read(ctx, buf),
-            MaybeHttpsStream::Https(s) => Pin::new(s).poll_read(ctx, buf),
+            MaybeHttpsStream::Http(s) => {
+                hyper::rt::Read::poll_read(Pin::new(&mut TokioIo::new(s)), ctx, buf)
+            }
+            MaybeHttpsStream::Https(s) => {
+                hyper::rt::Read::poll_read(Pin::new(&mut TokioIo::new(s)), ctx, buf)
+            }
         }
     }
 }
 
-impl<T> AsyncWrite for MaybeHttpsStream<T>
+impl<T> hyper::rt::Write for MaybeHttpsStream<T>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
@@ -289,34 +292,90 @@ where
     ) -> Poll<io::Result<usize>> {
         match &mut *self {
             MaybeHttpsStream::Http(s) => Pin::new(s).poll_write(ctx, buf),
-            MaybeHttpsStream::Https(s) => Pin::new(s).poll_write(ctx, buf),
+            MaybeHttpsStream::Https(s) => {
+                hyper::rt::Write::poll_write(Pin::new(&mut TokioIo::new(s)), ctx, buf)
+            }
         }
     }
 
     fn poll_flush(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match &mut *self {
             MaybeHttpsStream::Http(s) => Pin::new(s).poll_flush(ctx),
-            MaybeHttpsStream::Https(s) => Pin::new(s).poll_flush(ctx),
+            MaybeHttpsStream::Https(s) => {
+                hyper::rt::Write::poll_flush(Pin::new(&mut TokioIo::new(s)), ctx)
+            }
         }
     }
 
     fn poll_shutdown(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<io::Result<()>> {
         match &mut *self {
             MaybeHttpsStream::Http(s) => Pin::new(s).poll_shutdown(ctx),
-            MaybeHttpsStream::Https(s) => Pin::new(s).poll_shutdown(ctx),
+            MaybeHttpsStream::Https(s) => {
+                hyper::rt::Write::poll_shutdown(Pin::new(&mut TokioIo::new(s)), ctx)
+            }
+        }
+    }
+
+    // TODO: implement poll_write_vectored
+}
+
+impl<T> AsyncRead for MaybeHttpsStream<T>
+where
+    T: AsyncRead + Unpin,
+{
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        ctx: &mut Context<'_>,
+        buf: &mut ReadBuf,
+    ) -> Poll<io::Result<()>> {
+        match &mut *self {
+            MaybeHttpsStream::Http(s) => Pin::new(s).poll_read(ctx, buf),
+            MaybeHttpsStream::Https(s) => Pin::new(s.get_mut()).poll_read(ctx, buf),
         }
     }
 }
 
-impl<T> Connection for MaybeHttpsStream<T>
+impl<T> AsyncWrite for MaybeHttpsStream<T>
+where
+    T: AsyncWrite + Unpin,
+{
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        ctx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        match &mut *self {
+            MaybeHttpsStream::Http(s) => Pin::new(s).poll_write(ctx, buf),
+            MaybeHttpsStream::Https(s) => Pin::new(s.get_mut()).poll_write(ctx, buf),
+        }
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match &mut *self {
+            MaybeHttpsStream::Http(s) => Pin::new(s).poll_flush(ctx),
+            MaybeHttpsStream::Https(s) => Pin::new(s.get_mut()).poll_flush(ctx),
+        }
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match &mut *self {
+            MaybeHttpsStream::Http(s) => Pin::new(s).poll_shutdown(ctx),
+            MaybeHttpsStream::Https(s) => Pin::new(s.get_mut()).poll_shutdown(ctx),
+        }
+    }
+
+    // TODO: implement poll_write_vectored
+}
+
+impl<T> Connection for MaybeHttpsStream<TokioIo<T>>
 where
     T: Connection,
 {
     fn connected(&self) -> Connected {
         match self {
-            MaybeHttpsStream::Http(s) => s.connected(),
+            MaybeHttpsStream::Http(s) => s.inner().connected(),
             MaybeHttpsStream::Https(s) => {
-                let mut connected = s.get_ref().connected();
+                let mut connected = s.get_ref().inner().connected();
 
                 if s.ssl().selected_alpn_protocol() == Some(b"h2") {
                     connected = connected.negotiated_h2();
