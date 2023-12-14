@@ -3903,6 +3903,11 @@ impl<S> SslStreamBuilder<S> {
         &self.inner.ssl
     }
 
+    /// Returns a mutable reference to the `Ssl` object associated with this builder.
+    pub fn ssl_mut(&mut self) -> &mut SslRef {
+        &mut self.inner.ssl
+    }
+
     /// Set the DTLS MTU size.
     ///
     /// It will be ignored if the value is smaller than the minimum packet size
