@@ -1,0 +1,61 @@
+https://github.com/google/boringssl/compare/master...cloudflare:boringssl:underscore-wildcards
+
+--- a/src/crypto/x509v3/v3_utl.c
++++ b/src/crypto/x509v3/v3_utl.c
+@@ -790,7 +790,9 @@ static int wildcard_match(const unsigned char *prefix, size_t prefix_len,
+   // Check that the part matched by the wildcard contains only
+   // permitted characters and only matches a single label.
+   for (p = wildcard_start; p != wildcard_end; ++p) {
+-    if (!OPENSSL_isalnum(*p) && *p != '-') {
++    if (!OPENSSL_isalnum(*p) && *p != '-' &&
++        !(*p == '_' &&
++          (flags & X509_CHECK_FLAG_UNDERSCORE_WILDCARDS))) {
+       return 0;
+     }
+   }
+--- a/src/crypto/x509/x509_test.cc
++++ b/src/crypto/x509/x509_test.cc
+@@ -4500,6 +4500,31 @@ TEST(X509Test, Names) {
+           /*invalid_emails=*/{},
+           /*flags=*/0,
+       },
++
++      // Underscores in DNS names are forbidden by default.
++      {
++          /*cert_subject=*/{},
++          /*cert_dns_names=*/{"*.example.com"},
++          /*cert_emails=*/{},
++          /*valid_dns_names=*/{},
++          /*invalid_dns_names=*/{"not_allowed.example.com"},
++          /*valid_emails=*/{},
++          /*invalid_emails=*/{},
++          /*flags=*/0,
++      },
++
++      // Underscores in DNS names can be allowed with the right flag.
++      {
++          /*cert_subject=*/{},
++          /*cert_dns_names=*/{"*.example.com"},
++          /*cert_emails=*/{},
++          /*valid_dns_names=*/{"now_allowed.example.com"},
++          /*invalid_dns_names=*/{},
++          /*valid_emails=*/{},
++          /*invalid_emails=*/{},
++          /*flags=*/X509_CHECK_FLAG_UNDERSCORE_WILDCARDS,
++      },
++
+   };
+ 
+   size_t i = 0;
+--- a/src/include/openssl/x509c3.h
++++ b/src/include/openssl/x509v3.h
+@@ -4497,6 +4497,8 @@ OPENSSL_EXPORT int X509_PURPOSE_get_id(const X509_PURPOSE *);
+ #define X509_CHECK_FLAG_SINGLE_LABEL_SUBDOMAINS 0
+ // Skip the subject common name fallback if subjectAltNames is missing.
+ #define X509_CHECK_FLAG_NEVER_CHECK_SUBJECT 0x20
++// Allow underscores in DNS wildcard matches.
++#define X509_CHECK_FLAG_UNDERSCORE_WILDCARDS 0x40
+ 
+ OPENSSL_EXPORT int X509_check_host(X509 *x, const char *chk, size_t chklen,
+                                    unsigned int flags, char **peername);
+-- 
