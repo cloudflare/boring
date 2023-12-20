@@ -688,7 +688,7 @@ impl SslCurve {
 
     pub const X25519: SslCurve = SslCurve(ffi::NID_X25519);
 
-    #[cfg(not(any(feature = "fips", feature = "fips-link-precompiled")))]
+    #[cfg(not(feature = "fips"))]
     pub const X25519_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::NID_X25519Kyber768Draft00);
 
     #[cfg(feature = "pq-experimental")]
@@ -1402,10 +1402,7 @@ impl SslContextBuilder {
     /// [`SSL_CTX_set_alpn_protos`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_alpn_protos.html
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            #[cfg_attr(
-                not(any(feature = "fips", feature = "fips-link-precompiled")),
-                allow(clippy::unnecessary_cast)
-            )]
+            #[cfg_attr(not(feature = "fips"), allow(clippy::unnecessary_cast))]
             {
                 assert!(protocols.len() <= ProtosLen::max_value() as usize);
             }
@@ -2121,9 +2118,9 @@ impl SslContextRef {
 #[derive(Debug)]
 pub struct GetSessionPendingError;
 
-#[cfg(not(any(feature = "fips", feature = "fips-link-precompiled")))]
+#[cfg(not(feature = "fips"))]
 type ProtosLen = usize;
-#[cfg(any(feature = "fips", feature = "fips-link-precompiled"))]
+#[cfg(feature = "fips")]
 type ProtosLen = libc::c_uint;
 
 /// Information about the state of a cipher.
@@ -2814,10 +2811,7 @@ impl SslRef {
     /// [`SSL_set_alpn_protos`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_alpn_protos.html
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            #[cfg_attr(
-                not(any(feature = "fips", feature = "fips-link-precompiled")),
-                allow(clippy::unnecessary_cast)
-            )]
+            #[cfg_attr(not(feature = "fips"), allow(clippy::unnecessary_cast))]
             {
                 assert!(protocols.len() <= ProtosLen::max_value() as usize);
             }
