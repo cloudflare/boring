@@ -5,6 +5,8 @@ use hyper::client::HttpConnector;
 use hyper::server::conn::Http;
 use hyper::{service, Response};
 use hyper::{Body, Client};
+use std::convert::Infallible;
+use std::iter;
 use tokio::net::TcpListener;
 
 #[tokio::test]
@@ -28,7 +30,8 @@ async fn google() {
 #[tokio::test]
 async fn localhost() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
+    let addr = listener.local_addr().unwrap();
+    let port = addr.port();
 
     let server = async move {
         let mut acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
@@ -57,10 +60,16 @@ async fn localhost() {
     };
     tokio::spawn(server);
 
-    let mut connector = HttpConnector::new();
+    let resolver =
+        tower::service_fn(move |_name| async move { Ok::<_, Infallible>(iter::once(addr)) });
+
+    let mut connector = HttpConnector::new_with_resolver(resolver);
+
     connector.enforce_http(false);
+
     let mut ssl = SslConnector::builder(SslMethod::tls()).unwrap();
-    ssl.set_ca_file("test/cert.pem").unwrap();
+
+    ssl.set_ca_file("test/root-ca.pem").unwrap();
 
     use std::fs::File;
     use std::io::Write;
@@ -75,7 +84,7 @@ async fn localhost() {
 
     for _ in 0..3 {
         let resp = client
-            .get(format!("https://localhost:{}", port).parse().unwrap())
+            .get(format!("https://foobar.com:{}", port).parse().unwrap())
             .await
             .unwrap();
         assert!(resp.status().is_success(), "{}", resp.status());
@@ -89,7 +98,8 @@ async fn alpn_h2() {
     use boring::ssl::{self, AlpnError};
 
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
+    let addr = listener.local_addr().unwrap();
+    let port = addr.port();
 
     let server = async move {
         let mut acceptor = SslAcceptor::mozilla_modern(SslMethod::tls()).unwrap();
@@ -119,17 +129,23 @@ async fn alpn_h2() {
     };
     tokio::spawn(server);
 
-    let mut connector = HttpConnector::new();
+    let resolver =
+        tower::service_fn(move |_name| async move { Ok::<_, Infallible>(iter::once(addr)) });
+
+    let mut connector = HttpConnector::new_with_resolver(resolver);
+
     connector.enforce_http(false);
+
     let mut ssl = SslConnector::builder(SslMethod::tls()).unwrap();
-    ssl.set_ca_file("test/cert.pem").unwrap();
+
+    ssl.set_ca_file("test/root-ca.pem").unwrap();
     ssl.set_alpn_protos(b"\x02h2\x08http/1.1").unwrap();
 
     let ssl = HttpsConnector::with_connector(connector, ssl).unwrap();
     let client = Client::builder().build::<_, Body>(ssl);
 
     let resp = client
-        .get(format!("https://localhost:{}", port).parse().unwrap())
+        .get(format!("https://foobar.com:{}", port).parse().unwrap())
         .await
         .unwrap();
     assert!(resp.status().is_success(), "{}", resp.status());
