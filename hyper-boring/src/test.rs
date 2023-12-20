@@ -139,9 +139,11 @@ async fn alpn_h2() {
     let mut ssl = SslConnector::builder(SslMethod::tls()).unwrap();
 
     ssl.set_ca_file("test/root-ca.pem").unwrap();
-    ssl.set_alpn_protos(b"\x02h2\x08http/1.1").unwrap();
 
-    let ssl = HttpsConnector::with_connector(connector, ssl).unwrap();
+    let mut ssl = HttpsConnector::with_connector(connector, ssl).unwrap();
+
+    ssl.set_ssl_callback(|ssl, _| ssl.set_alpn_protos(b"\x02h2\x08http/1.1"));
+
     let client = Client::builder().build::<_, Body>(ssl);
 
     let resp = client
