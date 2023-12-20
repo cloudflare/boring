@@ -7,7 +7,8 @@ use antidote::Mutex;
 use boring::error::ErrorStack;
 use boring::ex_data::Index;
 use boring::ssl::{
-    ConnectConfiguration, Ssl, SslConnector, SslConnectorBuilder, SslMethod, SslSessionCacheMode,
+    ConnectConfiguration, Ssl, SslConnector, SslConnectorBuilder, SslMethod, SslRef,
+    SslSessionCacheMode,
 };
 use http::uri::Scheme;
 use hyper::client::connect::{Connected, Connection};
@@ -45,10 +46,12 @@ struct Inner {
     callback: Option<
         Arc<dyn Fn(&mut ConnectConfiguration, &Uri) -> Result<(), ErrorStack> + Sync + Send>,
     >,
+    #[allow(clippy::type_complexity)]
+    ssl_callback: Option<Arc<dyn Fn(&mut SslRef, &Uri) -> Result<(), ErrorStack> + Sync + Send>>,
 }
 
 impl Inner {
-    fn setup_ssl(&self, uri: &Uri, host: &str) -> Result<ConnectConfiguration, ErrorStack> {
+    fn setup_ssl(&self, uri: &Uri, host: &str) -> Result<Ssl, ErrorStack> {
         let mut conf = self.ssl.configure()?;
 
         if let Some(ref callback) = self.callback {
@@ -69,7 +72,13 @@ impl Inner {
         let idx = key_index()?;
         conf.set_ex_data(idx, key);
 
-        Ok(conf)
+        let mut ssl = conf.into_ssl(host)?;
+
+        if let Some(ref ssl_callback) = self.ssl_callback {
+            ssl_callback(&mut ssl, uri)?;
+        }
+
+        Ok(ssl)
     }
 }
 
@@ -117,16 +126,29 @@ impl HttpsLayer {
                 ssl: ssl.build(),
                 cache,
                 callback: None,
+                ssl_callback: None,
             },
         })
     }
 
     /// Registers a callback which can customize the configuration of each connection.
+    ///
+    /// Unsuitable to change verify hostflags (with `config.param_mut().set_hostflags(…)`),
+    /// as they are reset after the callback is executed. Use [`Self::set_ssl_callback`]
+    /// instead.
     pub fn set_callback<F>(&mut self, callback: F)
     where
         F: Fn(&mut ConnectConfiguration, &Uri) -> Result<(), ErrorStack> + 'static + Sync + Send,
     {
         self.inner.callback = Some(Arc::new(callback));
+    }
+
+    /// Registers a callback which can customize the `Ssl` of each connection.
+    pub fn set_ssl_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&mut SslRef, &Uri) -> Result<(), ErrorStack> + 'static + Sync + Send,
+    {
+        self.inner.ssl_callback = Some(Arc::new(callback));
     }
 }
 
@@ -182,11 +204,23 @@ where
     }
 
     /// Registers a callback which can customize the configuration of each connection.
+    ///
+    /// Unsuitable to change verify hostflags (with `config.param_mut().set_hostflags(…)`),
+    /// as they are reset after the callback is executed. Use [`Self::set_ssl_callback`]
+    /// instead.
     pub fn set_callback<F>(&mut self, callback: F)
     where
         F: Fn(&mut ConnectConfiguration, &Uri) -> Result<(), ErrorStack> + 'static + Sync + Send,
     {
         self.inner.callback = Some(Arc::new(callback));
+    }
+
+    /// Registers a callback which can customize the `Ssl` of each connection.
+    pub fn set_ssl_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&mut SslRef, &Uri) -> Result<(), ErrorStack> + 'static + Sync + Send,
+    {
+        self.inner.ssl_callback = Some(Arc::new(callback));
     }
 }
 
@@ -244,8 +278,10 @@ where
                 }
             }
 
-            let config = inner.setup_ssl(&uri, host)?;
-            let stream = tokio_boring::connect(config, host, conn).await?;
+            let ssl = inner.setup_ssl(&uri, host)?;
+            let stream = tokio_boring::SslStreamBuilder::new(ssl, conn)
+                .connect()
+                .await?;
 
             Ok(MaybeHttpsStream::Https(stream))
         };

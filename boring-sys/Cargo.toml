@@ -51,7 +51,7 @@ include = [
 ]
 
 [package.metadata.docs.rs]
-features = ["rpk", "pq-experimental"]
+features = ["rpk", "pq-experimental", "underscore-wildcards"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -70,6 +70,11 @@ rpk = []
 # Alternatively, a version of boringSSL that implements the same feature set
 # can be provided by setting `BORING_BSSL{,_FIPS}_SOURCE_PATH`.
 pq-experimental = []
+
+# Applies a patch (`patches/underscore-wildcards.patch`) to enable
+# `ffi::X509_CHECK_FLAG_UNDERSCORE_WILDCARDS`. Same caveats as
+# those for `pq-experimental` feature apply.
+underscore-wildcards = []
 
 [build-dependencies]
 bindgen = { workspace = true }

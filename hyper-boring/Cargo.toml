@@ -42,4 +42,5 @@ tower-layer = { workspace = true }
 [dev-dependencies]
 hyper = { workspace = true, features = [ "full" ] }
 tokio = { workspace = true, features = [ "full" ] }
+tower = { workspace = true, features = ["util"] }
 futures = { workspace = true }
