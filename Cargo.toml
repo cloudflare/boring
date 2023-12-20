@@ -40,4 +40,5 @@ http = "0.2"
 hyper = { version = "0.14", default-features = false }
 linked_hash_set = "0.1"
 once_cell = "1.0"
+tower = "0.4"
 tower-layer = "0.3"
