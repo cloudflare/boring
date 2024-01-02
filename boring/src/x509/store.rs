@@ -40,14 +40,13 @@
 //! let store: X509Store = builder.build();
 //! ```
 
-use crate::ffi;
-use foreign_types::{ForeignType, ForeignTypeRef};
-use std::mem;
-
 use crate::error::ErrorStack;
+use crate::ffi;
 use crate::stack::StackRef;
 use crate::x509::{X509Object, X509};
 use crate::{cvt, cvt_p};
+use foreign_types::{ForeignType, ForeignTypeRef};
+use std::mem;
 
 foreign_type_and_impl_send_sync! {
     type CType = ffi::X509_STORE;
@@ -105,8 +104,6 @@ foreign_type_and_impl_send_sync! {
 impl X509StoreRef {
     /// Get a reference to the cache of certificates in this store.
     pub fn objects(&self) -> &StackRef<X509Object> {
-        unsafe { StackRef::from_ptr(X509_STORE_get0_objects(self.as_ptr())) }
+        unsafe { StackRef::from_ptr(ffi::X509_STORE_get0_objects(self.as_ptr())) }
     }
 }
-
-use crate::ffi::X509_STORE_get0_objects;
