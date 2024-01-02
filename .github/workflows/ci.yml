@@ -244,14 +244,14 @@ jobs:
     - name: Install Rust (rustup)
       run: rustup update stable --no-self-update && rustup default stable
       shell: bash
-    - name: Install Clang-12
+    - name: Install Clang-14
       uses: KyleMayes/install-llvm-action@v1
       with:
-        version: "12.0.0"
+        version: "14.0.0"
         directory: ${{ runner.temp }}/llvm
-    - name: Add clang++-12 link
+    - name: Add clang++-14 link
       working-directory: ${{ runner.temp }}/llvm/bin
-      run: ln -s clang clang++-12
+      run: ln -s clang clang++-14
     - name: Run tests
       run: cargo test --features fips
     - name: Test boring-sys cargo publish (FIPS)
@@ -305,14 +305,14 @@ jobs:
     - name: Install Rust (rustup)
       run: rustup update stable --no-self-update && rustup default stable && rustup target add ${{ matrix.target }}
       shell: bash
-    - name: Install Clang-12
+    - name: Install Clang-14
       uses: KyleMayes/install-llvm-action@v1
       with:
-        version: "12.0.0"
+        version: "14.0.0"
         directory: ${{ runner.temp }}/llvm
-    - name: Add clang++-12 link
+    - name: Add clang++-14 link
       working-directory: ${{ runner.temp }}/llvm/bin
-      run: ln -s clang clang++-12
+      run: ln -s clang clang++-14
     - name: Install ${{ matrix.target }} toolchain
       run: brew tap messense/macos-cross-toolchains && brew install ${{ matrix.target }}
     - name: Set BORING_BSSL_FIPS_COMPILER_EXTERNAL_TOOLCHAIN
