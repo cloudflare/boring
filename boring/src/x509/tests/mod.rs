@@ -21,7 +21,7 @@ fn pkey() -> PKey<Private> {
 
 #[test]
 fn test_cert_loading() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let fingerprint = cert.digest(MessageDigest::sha1()).unwrap();
 
@@ -33,7 +33,7 @@ fn test_cert_loading() {
 
 #[test]
 fn test_debug() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let debugged = format!("{:#?}", cert);
 
@@ -47,7 +47,7 @@ fn test_debug() {
 
 #[test]
 fn test_cert_issue_validity() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let not_before = cert.not_before().to_string();
     let not_after = cert.not_after().to_string();
@@ -58,7 +58,7 @@ fn test_cert_issue_validity() {
 
 #[test]
 fn test_save_der() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
 
     let der = cert.to_der().unwrap();
@@ -67,7 +67,7 @@ fn test_save_der() {
 
 #[test]
 fn test_subject_read_cn() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let subject = cert.subject_name();
     let cn = subject.entries_by_nid(Nid::COMMONNAME).next().unwrap();
@@ -76,7 +76,7 @@ fn test_subject_read_cn() {
 
 #[test]
 fn test_nid_values() {
-    let cert = include_bytes!("../../test/nid_test_cert.pem");
+    let cert = include_bytes!("../../../test/nid_test_cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let subject = cert.subject_name();
 
@@ -95,7 +95,7 @@ fn test_nid_values() {
 
 #[test]
 fn test_nameref_iterator() {
-    let cert = include_bytes!("../../test/nid_test_cert.pem");
+    let cert = include_bytes!("../../../test/nid_test_cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let subject = cert.subject_name();
     let mut all_entries = subject.entries();
@@ -122,7 +122,7 @@ fn test_nameref_iterator() {
 
 #[test]
 fn test_nid_uid_value() {
-    let cert = include_bytes!("../../test/nid_uid_test_cert.pem");
+    let cert = include_bytes!("../../../test/nid_uid_test_cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let subject = cert.subject_name();
 
@@ -132,7 +132,7 @@ fn test_nid_uid_value() {
 
 #[test]
 fn test_subject_alt_name() {
-    let cert = include_bytes!("../../test/alt_name_cert.pem");
+    let cert = include_bytes!("../../../test/alt_name_cert.pem");
     let cert = X509::from_pem(cert).unwrap();
 
     let subject_alt_names = cert.subject_alt_names().unwrap();
@@ -149,7 +149,7 @@ fn test_subject_alt_name() {
 
 #[test]
 fn test_subject_alt_name_iter() {
-    let cert = include_bytes!("../../test/alt_name_cert.pem");
+    let cert = include_bytes!("../../../test/alt_name_cert.pem");
     let cert = X509::from_pem(cert).unwrap();
 
     let subject_alt_names = cert.subject_alt_names().unwrap();
@@ -342,7 +342,7 @@ fn x509_req_builder() {
 
 #[test]
 fn test_stack_from_pem() {
-    let certs = include_bytes!("../../test/certs.pem");
+    let certs = include_bytes!("../../../test/certs.pem");
     let certs = X509::stack_from_pem(certs).unwrap();
 
     assert_eq!(certs.len(), 2);
@@ -358,9 +358,9 @@ fn test_stack_from_pem() {
 
 #[test]
 fn issued() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
-    let ca = include_bytes!("../../test/root-ca.pem");
+    let ca = include_bytes!("../../../test/root-ca.pem");
     let ca = X509::from_pem(ca).unwrap();
 
     assert_eq!(ca.issued(&cert), Ok(()));
@@ -369,7 +369,7 @@ fn issued() {
 
 #[test]
 fn signature() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let signature = cert.signature();
     assert_eq!(
@@ -390,16 +390,16 @@ fn signature() {
 #[test]
 #[allow(clippy::redundant_clone)]
 fn clone_x509() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     drop(cert.clone());
 }
 
 #[test]
 fn test_verify_cert() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
-    let ca = include_bytes!("../../test/root-ca.pem");
+    let ca = include_bytes!("../../../test/root-ca.pem");
     let ca = X509::from_pem(ca).unwrap();
     let chain = Stack::new().unwrap();
 
@@ -418,9 +418,9 @@ fn test_verify_cert() {
 
 #[test]
 fn test_verify_fails() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
-    let ca = include_bytes!("../../test/alt_name_cert.pem");
+    let ca = include_bytes!("../../../test/alt_name_cert.pem");
     let ca = X509::from_pem(ca).unwrap();
     let chain = Stack::new().unwrap();
 
@@ -436,7 +436,7 @@ fn test_verify_fails() {
 
 #[test]
 fn test_save_subject_der() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
 
     let der = cert.subject_name().to_der().unwrap();
@@ -446,7 +446,7 @@ fn test_save_subject_der() {
 
 #[test]
 fn test_load_subject_der() {
-    // The subject from ../../test/cert.pem
+    // The subject from ../../../test/cert.pem
     const SUBJECT_DER: &[u8] = &[
         48, 90, 49, 11, 48, 9, 6, 3, 85, 4, 6, 19, 2, 65, 85, 49, 19, 48, 17, 6, 3, 85, 4, 8, 12,
         10, 83, 111, 109, 101, 45, 83, 116, 97, 116, 101, 49, 33, 48, 31, 6, 3, 85, 4, 10, 12, 24,
