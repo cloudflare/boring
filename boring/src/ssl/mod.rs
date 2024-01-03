@@ -3176,7 +3176,7 @@ impl SslRef {
     /// This corresponds to [`SSL_get0_param`].
     ///
     /// [`SSL_get0_param`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_get0_param.html
-    pub fn param_mut(&mut self) -> &mut X509VerifyParamRef {
+    pub fn verify_param_mut(&mut self) -> &mut X509VerifyParamRef {
         #[cfg(feature = "rpk")]
         assert!(
             !self.ssl_context().is_rpk(),
@@ -3184,6 +3184,11 @@ impl SslRef {
         );
 
         unsafe { X509VerifyParamRef::from_ptr_mut(ffi::SSL_get0_param(self.as_ptr())) }
+    }
+
+    /// See [`Self::verify_param_mut`].
+    pub fn param_mut(&mut self) -> &mut X509VerifyParamRef {
+        self.verify_param_mut()
     }
 
     /// Returns the certificate verification result.

@@ -1,6 +1,6 @@
 use crate::ffi;
 use foreign_types::ForeignTypeRef;
-use libc::c_uint;
+use libc::{c_uint, c_ulong};
 use std::net::IpAddr;
 
 use crate::cvt;
@@ -22,6 +22,14 @@ bitflags! {
     }
 }
 
+bitflags! {
+    /// Flags used to check an `X509` certificate.
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
+    pub struct X509Flags: c_ulong {
+        const TRUSTED_FIRST = ffi::X509_V_FLAG_TRUSTED_FIRST as _;
+    }
+}
+
 foreign_type_and_impl_send_sync! {
     type CType = ffi::X509_VERIFY_PARAM;
     fn drop = ffi::X509_VERIFY_PARAM_free;
@@ -31,6 +39,31 @@ foreign_type_and_impl_send_sync! {
 }
 
 impl X509VerifyParamRef {
+    /// Set flags.
+    ///
+    /// This corresponds to [`X509_VERIFY_PARAM_set_flags`].
+    ///
+    /// [`X509_VERIFY_PARAM_set_flags`]: https://www.openssl.org/docs/man3.2/man3/X509_VERIFY_PARAM_set_flags.html
+    pub fn set_flags(&mut self, flags: X509Flags) {
+        unsafe {
+            ffi::X509_VERIFY_PARAM_set_flags(self.as_ptr(), flags.bits());
+        }
+    }
+
+    /// Clear flags.
+    ///
+    /// Useful to clear out default flags, such as `X509Flags::TRUSTED_FIRST` when the fips feature is off.
+    ///
+    /// This corresponds to [`X509_VERIFY_PARAM_clear_flags`].
+    ///
+    /// [`X509_VERIFY_PARAM_set_flags`]: https://www.openssl.org/docs/man3.2/man3/X509_VERIFY_PARAM_set_flags.html
+    pub fn clear_flags(&mut self, flags: X509Flags) {
+        unsafe {
+            ffi::X509_VERIFY_PARAM_clear_flags(self.as_ptr(), flags.bits());
+        }
+    }
+
+    ///
     /// Set the host flags.
     ///
     /// This corresponds to [`X509_VERIFY_PARAM_set_hostflags`].
