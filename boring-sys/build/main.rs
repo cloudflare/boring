@@ -350,7 +350,7 @@ fn verify_fips_clang_version() -> (&'static str, &'static str) {
         Some(output.lines().next().expect("empty output").to_string())
     }
 
-    const REQUIRED_CLANG_VERSION: &str = "14.0.0";
+    const REQUIRED_CLANG_VERSION: &str = "14.0.6";
     for (cc, cxx) in [
         ("clang-14", "clang++-14"),
         ("clang", "clang++"),

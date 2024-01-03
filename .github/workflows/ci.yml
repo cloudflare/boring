@@ -247,7 +247,7 @@ jobs:
     - name: Install Clang-14
       uses: KyleMayes/install-llvm-action@v1
       with:
-        version: "14.0.0"
+        version: "14.0.6"
         directory: ${{ runner.temp }}/llvm
     - name: Add clang++-14 link
       working-directory: ${{ runner.temp }}/llvm/bin
@@ -308,7 +308,7 @@ jobs:
     - name: Install Clang-14
       uses: KyleMayes/install-llvm-action@v1
       with:
-        version: "14.0.0"
+        version: "14.0.6"
         directory: ${{ runner.temp }}/llvm
     - name: Add clang++-14 link
       working-directory: ${{ runner.temp }}/llvm/bin
