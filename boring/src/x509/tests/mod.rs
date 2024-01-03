@@ -14,6 +14,8 @@ use crate::x509::extension::{
 use crate::x509::store::X509StoreBuilder;
 use crate::x509::{X509Extension, X509Name, X509Req, X509StoreContext, X509};
 
+mod trusted_first;
+
 fn pkey() -> PKey<Private> {
     let rsa = Rsa::generate(2048).unwrap();
     PKey::from_rsa(rsa).unwrap()
