@@ -253,6 +253,16 @@ impl<T: Stackable> StackRef<T> {
     }
 }
 
+impl<T> fmt::Debug for StackRef<T>
+where
+    T: Stackable,
+    T::Ref: fmt::Debug,
+{
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.debug_list().entries(self).finish()
+    }
+}
+
 impl<T: Stackable> Index<usize> for StackRef<T> {
     type Output = T::Ref;
 

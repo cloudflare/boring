@@ -36,8 +36,10 @@ use crate::pkey::{HasPrivate, HasPublic, PKey, PKeyRef, Public};
 use crate::ssl::SslRef;
 use crate::stack::{Stack, StackRef, Stackable};
 use crate::string::OpensslString;
+use crate::x509::crl::X509CRL;
 use crate::{cvt, cvt_n, cvt_p};
 
+pub mod crl;
 pub mod extension;
 pub mod store;
 pub mod verify;
@@ -159,6 +161,32 @@ impl X509StoreContextRef {
     /// [`X509_verify_cert`]:  https://www.openssl.org/docs/man1.0.2/crypto/X509_verify_cert.html
     pub fn verify_cert(&mut self) -> Result<bool, ErrorStack> {
         unsafe { cvt_n(ffi::X509_verify_cert(self.as_ptr())).map(|n| n != 0) }
+    }
+
+    /// Verifies the stored certificate with additional untrusted CRLs
+    ///
+    /// Returns `true` if verification succeeds. The `error` method will return the specific
+    /// validation error if the certificate was not valid.
+    ///
+    /// This will only work inside of a call to `init`.
+    ///
+    /// This corresponds to [`X509_STORE_CTX_set0_crls`] followed by [`X509_verify_cert`].
+    ///
+    /// [`X509_STORE_CTX_set0_crls`]:  https://www.openssl.org/docs/man1.0.2/crypto/X509_STORE_CTX_set0_crls.html
+    /// [`X509_verify_cert`]:  https://www.openssl.org/docs/man1.0.2/crypto/X509_verify_cert.html
+    pub fn verify_cert_with_crls(
+        &mut self,
+        untrusted_crls: Stack<X509CRL>,
+    ) -> Result<bool, ErrorStack> {
+        unsafe {
+            ffi::X509_STORE_CTX_set0_crls(self.as_ptr(), untrusted_crls.as_ptr());
+            let res = cvt_n(ffi::X509_verify_cert(self.as_ptr())).map(|n| n != 0);
+            // set0_crls does not take ownership of the stack, so we'll drop and free
+            // untrusted_crls after this method. null out the crls in ctx to make sure
+            // no one has a reference to it.
+            ffi::X509_STORE_CTX_set0_crls(self.as_ptr(), ptr::null_mut());
+            res
+        }
     }
 
     /// Set the verify result of the context.
