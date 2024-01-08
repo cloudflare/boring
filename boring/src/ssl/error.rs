@@ -13,6 +13,9 @@ use crate::ssl::MidHandshakeSslStream;
 pub struct ErrorCode(c_int);
 
 impl ErrorCode {
+    /// No error.
+    pub const NONE: ErrorCode = ErrorCode(ffi::SSL_ERROR_NONE);
+
     /// The SSL session has been closed.
     pub const ZERO_RETURN: ErrorCode = ErrorCode(ffi::SSL_ERROR_ZERO_RETURN);
 
