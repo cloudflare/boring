@@ -2635,10 +2635,6 @@ impl SslRef {
         unsafe { ffi::SSL_write(self.as_ptr(), buf.as_ptr() as *const c_void, len) }
     }
 
-    fn get_error(&self, ret: c_int) -> ErrorCode {
-        unsafe { ErrorCode::from_raw(ffi::SSL_get_error(self.as_ptr(), ret)) }
-    }
-
     #[cfg(feature = "kx-safe-default")]
     fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
         let curves = CString::new(curves).unwrap();
@@ -2681,6 +2677,15 @@ impl SslRef {
     fn server_set_default_curves_list(&mut self) {
         self.set_curves_list("X25519Kyber768Draft00:P256Kyber768Draft00:X25519:P-256:P-384")
             .expect("invalid default server curves list");
+    }
+
+    /// Returns an `ErrorCode` value for the most recent operation on this `SslRef`.
+    ///
+    /// This corresponds to [`SSL_get_error`].
+    ///
+    /// [`SSL_get_error`]: https://github.com/google/boringssl/blob/master/include/openssl/ssl.h#L475
+    pub fn error_code(&self, ret: c_int) -> ErrorCode {
+        unsafe { ErrorCode::from_raw(ffi::SSL_get_error(self.as_ptr(), ret)) }
     }
 
     /// Like [`SslContextBuilder::set_verify`].
@@ -3762,7 +3767,7 @@ impl<S> SslStream<S> {
     fn make_error(&mut self, ret: c_int) -> Error {
         self.check_panic();
 
-        let code = self.ssl.get_error(ret);
+        let code = self.ssl.error_code(ret);
 
         let cause = match code {
             ErrorCode::SSL => Some(InnerError::Ssl(ErrorStack::get())),
