@@ -40,14 +40,14 @@
 //! let store: X509Store = builder.build();
 //! ```
 
-use crate::ffi;
-use foreign_types::{ForeignType, ForeignTypeRef};
-use std::mem;
-
 use crate::error::ErrorStack;
+use crate::ffi;
 use crate::stack::StackRef;
+use crate::x509::verify::{X509Flags, X509VerifyParamRef};
 use crate::x509::{X509Object, X509};
 use crate::{cvt, cvt_p};
+use foreign_types::{ForeignType, ForeignTypeRef};
+use std::mem;
 
 foreign_type_and_impl_send_sync! {
     type CType = ffi::X509_STORE;
@@ -92,6 +92,26 @@ impl X509StoreBuilderRef {
     pub fn set_default_paths(&mut self) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::X509_STORE_set_default_paths(self.as_ptr())).map(|_| ()) }
     }
+
+    /// Sets verify flags.
+    ///
+    /// This corresponds to [`X509_STORE_set_flags`].
+    ///
+    /// [`X509_STORE_set_flags`]: https://www.openssl.org/docs/manmaster/man3/X509_STORE_set_flags.html
+    pub fn set_flags(&mut self, flags: X509Flags) {
+        unsafe {
+            ffi::X509_STORE_set_flags(self.as_ptr(), flags.bits());
+        }
+    }
+
+    /// Returns a mutable reference to the X509 verification configuration.
+    ///
+    /// This corresponds to [`X509_STORE_get0_param`].
+    ///
+    /// [`SSL_get0_param`]: https://www.openssl.org/docs/manmaster/man3/X509_STORE_get0_param.html
+    pub fn verify_param_mut(&mut self) -> &mut X509VerifyParamRef {
+        unsafe { X509VerifyParamRef::from_ptr_mut(ffi::X509_STORE_get0_param(self.as_ptr())) }
+    }
 }
 
 foreign_type_and_impl_send_sync! {
@@ -105,8 +125,6 @@ foreign_type_and_impl_send_sync! {
 impl X509StoreRef {
     /// Get a reference to the cache of certificates in this store.
     pub fn objects(&self) -> &StackRef<X509Object> {
-        unsafe { StackRef::from_ptr(X509_STORE_get0_objects(self.as_ptr())) }
+        unsafe { StackRef::from_ptr(ffi::X509_STORE_get0_objects(self.as_ptr())) }
     }
 }
-
-use crate::ffi::X509_STORE_get0_objects;

@@ -13,6 +13,9 @@ use crate::ssl::MidHandshakeSslStream;
 pub struct ErrorCode(c_int);
 
 impl ErrorCode {
+    /// No error.
+    pub const NONE: ErrorCode = ErrorCode(ffi::SSL_ERROR_NONE);
+
     /// The SSL session has been closed.
     pub const ZERO_RETURN: ErrorCode = ErrorCode(ffi::SSL_ERROR_ZERO_RETURN);
 
@@ -31,6 +34,9 @@ impl ErrorCode {
     pub const PENDING_SESSION: ErrorCode = ErrorCode(ffi::SSL_ERROR_PENDING_SESSION);
 
     pub const PENDING_CERTIFICATE: ErrorCode = ErrorCode(ffi::SSL_ERROR_PENDING_CERTIFICATE);
+
+    pub const WANT_CERTIFICATE_VERIFY: ErrorCode =
+        ErrorCode(ffi::SSL_ERROR_WANT_CERTIFICATE_VERIFY);
 
     pub const WANT_PRIVATE_KEY_OPERATION: ErrorCode =
         ErrorCode(ffi::SSL_ERROR_WANT_PRIVATE_KEY_OPERATION);
@@ -101,6 +107,7 @@ impl Error {
                 | ErrorCode::PENDING_SESSION
                 | ErrorCode::PENDING_CERTIFICATE
                 | ErrorCode::WANT_PRIVATE_KEY_OPERATION
+                | ErrorCode::WANT_CERTIFICATE_VERIFY
                 | ErrorCode::PENDING_TICKET
         )
     }

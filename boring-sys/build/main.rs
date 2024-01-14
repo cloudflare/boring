@@ -153,7 +153,7 @@ fn get_boringssl_source_path(config: &Config) -> &PathBuf {
 /// so adjust library location based on platform and build target.
 /// See issue: https://github.com/alexcrichton/cmake-rs/issues/18
 fn get_boringssl_platform_output_path(config: &Config) -> String {
-    if config.target_env == "msvc" {
+    if config.target.ends_with("-msvc") {
         // Code under this branch should match the logic in cmake-rs
         let debug_env_var = config
             .env
@@ -491,6 +491,11 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
         apply_patch(config, "rpk.patch")?;
     }
 
+    if config.features.underscore_wildcards {
+        println!("cargo:warning=applying underscore wildcards patch to boringssl");
+        apply_patch(config, "underscore-wildcards.patch")?;
+    }
+
     Ok(())
 }
 
@@ -676,6 +681,7 @@ fn main() {
         .size_t_is_usize(true)
         .layout_tests(true)
         .prepend_enum_name(true)
+        .blocklist_type("max_align_t") // Not supported by bindgen on all targets, not used by BoringSSL
         .clang_args(get_extra_clang_args_for_bindgen(&config))
         .clang_arg("-I")
         .clang_arg(include_path.display().to_string());
