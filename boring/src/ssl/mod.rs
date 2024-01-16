@@ -89,7 +89,7 @@ use crate::srtp::{SrtpProtectionProfile, SrtpProtectionProfileRef};
 use crate::ssl::bio::BioMethod;
 use crate::ssl::callbacks::*;
 use crate::ssl::error::InnerError;
-use crate::stack::{Stack, StackRef};
+use crate::stack::{Stack, StackRef, Stackable};
 use crate::x509::store::{X509Store, X509StoreBuilderRef, X509StoreRef};
 use crate::x509::verify::X509VerifyParamRef;
 use crate::x509::{
@@ -701,6 +701,27 @@ impl SslCurve {
     pub const P256_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::NID_P256Kyber768Draft00);
 }
 
+/// A compliance policy.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg(not(feature = "fips"))]
+pub struct CompliancePolicy(ffi::ssl_compliance_policy_t);
+
+#[cfg(not(feature = "fips"))]
+impl CompliancePolicy {
+    /// Does nothing, however setting this does not undo other policies, so trying to set this is an error.
+    pub const NONE: Self = Self(ffi::ssl_compliance_policy_t::ssl_compliance_policy_none);
+
+    /// Configures a TLS connection to try and be compliant with NIST requirements, but does not guarantee success.
+    /// This policy can be called even if Boring is not built with FIPS.
+    pub const FIPS_202205: Self =
+        Self(ffi::ssl_compliance_policy_t::ssl_compliance_policy_fips_202205);
+
+    /// Partially configures a TLS connection to be compliant with WPA3. Callers must enforce certificate chain requirements themselves.
+    /// Use of this policy is less secure than the default and not recommended.
+    pub const WPA3_192_202304: Self =
+        Self(ffi::ssl_compliance_policy_t::ssl_compliance_policy_wpa3_192_202304);
+}
+
 /// A standard implementation of protocol selection for Application Layer Protocol Negotiation
 /// (ALPN).
 ///
@@ -1262,7 +1283,9 @@ impl SslContextBuilder {
 
     /// Sets the list of supported ciphers for protocols before TLSv1.3.
     ///
-    /// The `set_ciphersuites` method controls the cipher suites for TLSv1.3.
+    /// The `set_ciphersuites` method controls the cipher suites for TLSv1.3 in OpenSSL.
+    /// BoringSSL doesn't implement `set_ciphersuites`.
+    /// See https://github.com/google/boringssl/blob/master/include/openssl/ssl.h#L1542-L1544
     ///
     /// See [`ciphers`] for details on the format.
     ///
@@ -1279,6 +1302,18 @@ impl SslContextBuilder {
             ))
             .map(|_| ())
         }
+    }
+
+    /// Gets the list of supported ciphers for protocols before TLSv1.3.
+    ///
+    /// See [`ciphers`] for details on the format
+    ///
+    /// This corresponds to [`SSL_CTX_get_ciphers`].
+    ///
+    /// [`ciphers`]: https://www.openssl.org/docs/manmaster/man1/ciphers.html
+    /// [`SSL_CTX_set_cipher_list`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_get_ciphers.html
+    pub fn ciphers(&self) -> Option<&StackRef<SslCipher>> {
+        self.ctx.ciphers()
     }
 
     /// Sets the options used by the context, returning the old set.
@@ -1856,6 +1891,17 @@ impl SslContextBuilder {
         }
     }
 
+    /// Sets the context's compliance policy.
+    ///
+    /// This corresponds to [`SSL_CTX_set_compliance_policy`]
+    ///
+    /// [`SSL_CTX_set_compliance_policy`] https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set_compliance_policy
+    /// This feature isn't available in the certified version of BoringSSL.
+    #[cfg(not(feature = "fips"))]
+    pub fn set_compliance_policy(&mut self, policy: CompliancePolicy) -> Result<(), ErrorStack> {
+        unsafe { cvt_0i(ffi::SSL_CTX_set_compliance_policy(self.as_ptr(), policy.0)).map(|_| ()) }
+    }
+
     /// Consumes the builder, returning a new `SslContext`.
     pub fn build(self) -> SslContext {
         self.ctx
@@ -1934,6 +1980,25 @@ impl SslContext {
                 .entry(TypeId::of::<T>())
                 .or_insert_with(|| SslContext::new_ex_index::<T>().unwrap().as_raw());
             Index::from_raw(idx)
+        }
+    }
+
+    /// Gets the list of supported ciphers for protocols before TLSv1.3.
+    ///
+    /// See [`ciphers`] for details on the format
+    ///
+    /// This corresponds to [`SSL_CTX_get_ciphers`].
+    ///
+    /// [`ciphers`]: https://www.openssl.org/docs/manmaster/man1/ciphers.html
+    /// [`SSL_CTX_set_cipher_list`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_get_ciphers.html
+    pub fn ciphers(&self) -> Option<&StackRef<SslCipher>> {
+        unsafe {
+            let ciphers = ffi::SSL_CTX_get_ciphers(self.as_ptr());
+            if ciphers.is_null() {
+                None
+            } else {
+                Some(StackRef::from_ptr(ciphers))
+            }
         }
     }
 }
@@ -2180,6 +2245,10 @@ impl ClientHello<'_> {
 
 /// Information about a cipher.
 pub struct SslCipher(*mut ffi::SSL_CIPHER);
+
+impl Stackable for SslCipher {
+    type StackType = ffi::stack_st_SSL_CIPHER;
+}
 
 unsafe impl ForeignType for SslCipher {
     type CType = ffi::SSL_CIPHER;
