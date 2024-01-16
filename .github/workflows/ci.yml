@@ -3,10 +3,10 @@ name: CI
 on:
   pull_request:
     branches:
-      - master
+      - teleport
   push:
     branches:
-      - master
+      - teleport
 
 env:
   RUSTFLAGS: -Dwarnings
@@ -35,6 +35,8 @@ jobs:
       - name: Get rust version
         id: rust-version
         run: echo "::set-output name=version::$(rustc --version)"
+      - name: Install Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v4
       - name: Cache cargo index
         uses: actions/cache@v1
         with:
@@ -244,6 +246,8 @@ jobs:
     - name: Install Rust (rustup)
       run: rustup update stable --no-self-update && rustup default stable
       shell: bash
+    - name: Install Ninja
+      uses: seanmiddleditch/gha-setup-ninja@v4
     - name: Install Clang-12
       uses: KyleMayes/install-llvm-action@v1
       with:
@@ -305,6 +309,8 @@ jobs:
     - name: Install Rust (rustup)
       run: rustup update stable --no-self-update && rustup default stable && rustup target add ${{ matrix.target }}
       shell: bash
+    - name: Install Ninja
+      uses: seanmiddleditch/gha-setup-ninja@v4
     - name: Install Clang-12
       uses: KyleMayes/install-llvm-action@v1
       with:
