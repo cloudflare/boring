@@ -21,6 +21,9 @@ use crate::ssl::{
 use crate::x509::verify::X509CheckFlags;
 use crate::x509::{X509Name, X509};
 
+#[cfg(not(feature = "fips"))]
+use super::CompliancePolicy;
+
 mod custom_verify;
 mod private_key_method;
 mod server;
@@ -915,6 +918,80 @@ fn server_set_default_curves_list() {
 
     // Panics if Kyber768 missing in boringSSL.
     ssl.server_set_default_curves_list();
+}
+
+#[test]
+fn test_get_ciphers() {
+    let ctx_builder = SslContext::builder(SslMethod::tls()).unwrap();
+    let ctx_builder_ciphers: Vec<&str> = ctx_builder
+        .ciphers()
+        .unwrap()
+        .into_iter()
+        .map(|v| v.name())
+        .collect();
+    assert!(!(ctx_builder_ciphers.is_empty()));
+
+    let ctx = ctx_builder.build();
+    let ctx_ciphers: Vec<&str> = ctx
+        .ciphers()
+        .unwrap()
+        .into_iter()
+        .map(|v| v.name())
+        .collect();
+    assert!(!(ctx_ciphers.is_empty()));
+
+    assert_eq!(ctx_builder_ciphers.len(), ctx_ciphers.len());
+
+    for (ctx_builder_cipher, ctx_cipher) in ctx_builder_ciphers.into_iter().zip(ctx_ciphers) {
+        assert_eq!(ctx_builder_cipher, ctx_cipher);
+    }
+}
+
+#[test]
+#[cfg(not(feature = "fips"))]
+fn test_set_compliance() {
+    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
+    ctx.set_compliance_policy(CompliancePolicy::FIPS_202205)
+        .unwrap();
+
+    assert_eq!(ctx.max_proto_version().unwrap(), SslVersion::TLS1_3);
+    assert_eq!(ctx.min_proto_version().unwrap(), SslVersion::TLS1_2);
+
+    const FIPS_CIPHERS: [&str; 4] = [
+        "ECDHE-ECDSA-AES128-GCM-SHA256",
+        "ECDHE-RSA-AES128-GCM-SHA256",
+        "ECDHE-ECDSA-AES256-GCM-SHA384",
+        "ECDHE-RSA-AES256-GCM-SHA384",
+    ];
+
+    let ciphers = ctx.ciphers().unwrap();
+    assert_eq!(ciphers.len(), FIPS_CIPHERS.len());
+
+    for cipher in ciphers.into_iter().zip(FIPS_CIPHERS) {
+        assert_eq!(cipher.0.name(), cipher.1)
+    }
+
+    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
+    ctx.set_compliance_policy(CompliancePolicy::WPA3_192_202304)
+        .unwrap();
+
+    assert_eq!(ctx.max_proto_version().unwrap(), SslVersion::TLS1_3);
+    assert_eq!(ctx.min_proto_version().unwrap(), SslVersion::TLS1_2);
+
+    const WPA3_192_CIPHERS: [&str; 2] = [
+        "ECDHE-ECDSA-AES256-GCM-SHA384",
+        "ECDHE-RSA-AES256-GCM-SHA384",
+    ];
+
+    let ciphers = ctx.ciphers().unwrap();
+    assert_eq!(ciphers.len(), WPA3_192_CIPHERS.len());
+
+    for cipher in ciphers.into_iter().zip(WPA3_192_CIPHERS) {
+        assert_eq!(cipher.0.name(), cipher.1)
+    }
+
+    ctx.set_compliance_policy(CompliancePolicy::NONE)
+        .expect_err("Testing expect err if set compliance policy to NONE");
 }
 
 #[test]
