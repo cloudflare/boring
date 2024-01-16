@@ -504,11 +504,80 @@ fn verify_valid_hostname() {
     client.ctx().set_verify(SslVerifyMode::PEER);
 
     let mut client = client.build().builder();
+
+    client.ssl().param_mut().set_host("foobar.com").unwrap();
+    client.connect();
+}
+
+#[test]
+fn verify_valid_hostname_with_wildcard() {
+    let mut server = Server::builder();
+
+    server
+        .ctx()
+        .set_certificate_chain_file("test/cert-wildcard.pem")
+        .unwrap();
+
+    let server = server.build();
+    let mut client = server.client_with_root_ca();
+
+    client.ctx().set_verify(SslVerifyMode::PEER);
+
+    let mut client = client.build().builder();
+    client.ssl().param_mut().set_host("yes.foobar.com").unwrap();
+    client.connect();
+}
+
+#[test]
+fn verify_reject_underscore_hostname_with_wildcard() {
+    let mut server = Server::builder();
+
+    server.should_error();
+    server
+        .ctx()
+        .set_certificate_chain_file("test/cert-wildcard.pem")
+        .unwrap();
+
+    let server = server.build();
+    let mut client = server.client_with_root_ca();
+
+    client.ctx().set_verify(SslVerifyMode::PEER);
+
+    let mut client = client.build().builder();
     client
         .ssl()
         .param_mut()
-        .set_hostflags(X509CheckFlags::NO_PARTIAL_WILDCARDS);
-    client.ssl().param_mut().set_host("foobar.com").unwrap();
+        .set_host("not_allowed.foobar.com")
+        .unwrap();
+    client.connect_err();
+}
+
+#[cfg(feature = "underscore-wildcards")]
+#[test]
+fn verify_allow_underscore_hostname_with_wildcard() {
+    let mut server = Server::builder();
+
+    server
+        .ctx()
+        .set_certificate_chain_file("test/cert-wildcard.pem")
+        .unwrap();
+
+    let server = server.build();
+    let mut client = server.client_with_root_ca();
+
+    client.ctx().set_verify(SslVerifyMode::PEER);
+
+    let mut client = client.build().builder();
+
+    client
+        .ssl()
+        .param_mut()
+        .set_hostflags(X509CheckFlags::UNDERSCORE_WILDCARDS);
+    client
+        .ssl()
+        .param_mut()
+        .set_host("now_allowed.foobar.com")
+        .unwrap();
     client.connect();
 }
 

@@ -688,7 +688,7 @@ impl SslCurve {
 
     pub const X25519: SslCurve = SslCurve(ffi::NID_X25519);
 
-    #[cfg(not(any(feature = "fips", feature = "fips-link-precompiled")))]
+    #[cfg(not(feature = "fips"))]
     pub const X25519_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::NID_X25519Kyber768Draft00);
 
     #[cfg(feature = "pq-experimental")]
@@ -1402,10 +1402,7 @@ impl SslContextBuilder {
     /// [`SSL_CTX_set_alpn_protos`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_alpn_protos.html
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            #[cfg_attr(
-                not(any(feature = "fips", feature = "fips-link-precompiled")),
-                allow(clippy::unnecessary_cast)
-            )]
+            #[cfg_attr(not(feature = "fips"), allow(clippy::unnecessary_cast))]
             {
                 assert!(protocols.len() <= ProtosLen::max_value() as usize);
             }
@@ -2121,9 +2118,9 @@ impl SslContextRef {
 #[derive(Debug)]
 pub struct GetSessionPendingError;
 
-#[cfg(not(any(feature = "fips", feature = "fips-link-precompiled")))]
+#[cfg(not(feature = "fips"))]
 type ProtosLen = usize;
-#[cfg(any(feature = "fips", feature = "fips-link-precompiled"))]
+#[cfg(feature = "fips")]
 type ProtosLen = libc::c_uint;
 
 /// Information about the state of a cipher.
@@ -2638,10 +2635,6 @@ impl SslRef {
         unsafe { ffi::SSL_write(self.as_ptr(), buf.as_ptr() as *const c_void, len) }
     }
 
-    fn get_error(&self, ret: c_int) -> ErrorCode {
-        unsafe { ErrorCode::from_raw(ffi::SSL_get_error(self.as_ptr(), ret)) }
-    }
-
     #[cfg(feature = "kx-safe-default")]
     fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
         let curves = CString::new(curves).unwrap();
@@ -2684,6 +2677,15 @@ impl SslRef {
     fn server_set_default_curves_list(&mut self) {
         self.set_curves_list("X25519Kyber768Draft00:P256Kyber768Draft00:X25519:P-256:P-384")
             .expect("invalid default server curves list");
+    }
+
+    /// Returns an `ErrorCode` value for the most recent operation on this `SslRef`.
+    ///
+    /// This corresponds to [`SSL_get_error`].
+    ///
+    /// [`SSL_get_error`]: https://github.com/google/boringssl/blob/master/include/openssl/ssl.h#L475
+    pub fn error_code(&self, ret: c_int) -> ErrorCode {
+        unsafe { ErrorCode::from_raw(ffi::SSL_get_error(self.as_ptr(), ret)) }
     }
 
     /// Like [`SslContextBuilder::set_verify`].
@@ -2814,10 +2816,7 @@ impl SslRef {
     /// [`SSL_set_alpn_protos`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_alpn_protos.html
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            #[cfg_attr(
-                not(any(feature = "fips", feature = "fips-link-precompiled")),
-                allow(clippy::unnecessary_cast)
-            )]
+            #[cfg_attr(not(feature = "fips"), allow(clippy::unnecessary_cast))]
             {
                 assert!(protocols.len() <= ProtosLen::max_value() as usize);
             }
@@ -3176,7 +3175,7 @@ impl SslRef {
     /// This corresponds to [`SSL_get0_param`].
     ///
     /// [`SSL_get0_param`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_get0_param.html
-    pub fn param_mut(&mut self) -> &mut X509VerifyParamRef {
+    pub fn verify_param_mut(&mut self) -> &mut X509VerifyParamRef {
         #[cfg(feature = "rpk")]
         assert!(
             !self.ssl_context().is_rpk(),
@@ -3184,6 +3183,11 @@ impl SslRef {
         );
 
         unsafe { X509VerifyParamRef::from_ptr_mut(ffi::SSL_get0_param(self.as_ptr())) }
+    }
+
+    /// See [`Self::verify_param_mut`].
+    pub fn param_mut(&mut self) -> &mut X509VerifyParamRef {
+        self.verify_param_mut()
     }
 
     /// Returns the certificate verification result.
@@ -3763,7 +3767,7 @@ impl<S> SslStream<S> {
     fn make_error(&mut self, ret: c_int) -> Error {
         self.check_panic();
 
-        let code = self.ssl.get_error(ret);
+        let code = self.ssl.error_code(ret);
 
         let cause = match code {
             ErrorCode::SSL => Some(InnerError::Ssl(ErrorStack::get())),
