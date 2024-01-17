@@ -8,7 +8,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "4.3.0"
+version = "4.4.0"
 repository = "https://github.com/cloudflare/boring"
 edition = "2021"
 
@@ -19,9 +19,9 @@ tag-prefix = ""
 publish = false
 
 [workspace.dependencies]
-boring-sys = { version = "4.3.0", path = "./boring-sys" }
-boring = { version = "4.3.0", path = "./boring" }
-tokio-boring = { version = "4.3.0", path = "./tokio-boring" }
+boring-sys = { version = "4.4.0", path = "./boring-sys" }
+boring = { version = "4.4.0", path = "./boring" }
+tokio-boring = { version = "4.4.0", path = "./tokio-boring" }
 
 bindgen = { version = "0.68.1", default-features = false, features = ["runtime"] }
 cmake = "0.1.18"
