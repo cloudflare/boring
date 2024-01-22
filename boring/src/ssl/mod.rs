@@ -703,10 +703,8 @@ impl SslCurve {
 
 /// A compliance policy.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[cfg(not(feature = "fips"))]
 pub struct CompliancePolicy(ffi::ssl_compliance_policy_t);
 
-#[cfg(not(feature = "fips"))]
 impl CompliancePolicy {
     /// Does nothing, however setting this does not undo other policies, so trying to set this is an error.
     pub const NONE: Self = Self(ffi::ssl_compliance_policy_t::ssl_compliance_policy_none);
@@ -825,6 +823,9 @@ impl SslContextBuilder {
         unsafe {
             init();
             let ctx = cvt_p(ffi::SSL_CTX_new(method.as_ptr()))?;
+
+            #[cfg(feature = "fips")]
+            ctx.set_compliance_policy(CompliancePolicy::FIPS_202205).unwrap();
 
             #[cfg(feature = "rpk")]
             {
@@ -1896,8 +1897,6 @@ impl SslContextBuilder {
     /// This corresponds to [`SSL_CTX_set_compliance_policy`]
     ///
     /// [`SSL_CTX_set_compliance_policy`] https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set_compliance_policy
-    /// This feature isn't available in the certified version of BoringSSL.
-    #[cfg(not(feature = "fips"))]
     pub fn set_compliance_policy(&mut self, policy: CompliancePolicy) -> Result<(), ErrorStack> {
         unsafe { cvt_0i(ffi::SSL_CTX_set_compliance_policy(self.as_ptr(), policy.0)).map(|_| ()) }
     }
