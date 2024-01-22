@@ -17,7 +17,7 @@ jobs:
     name: rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install Rust
         run: rustup update stable && rustup default stable
       - name: Check formatting
@@ -27,7 +27,7 @@ jobs:
     name: clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
       - name: Install Rust
@@ -38,7 +38,7 @@ jobs:
       - name: Install Ninja
         uses: seanmiddleditch/gha-setup-ninja@v4
       - name: Cache cargo index
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.cargo/registry/index
           key: index-${{ runner.os }}-${{ github.run_number }}
@@ -47,14 +47,14 @@ jobs:
       - name: Create lockfile
         run: cargo generate-lockfile
       - name: Cache cargo registry
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: ~/.cargo/registry/cache
           key: registry-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
       - name: Fetch dependencies
         run: cargo fetch
       - name: Cache target directory
-        uses: actions/cache@v1
+        uses: actions/cache@v4
         with:
           path: target
           key: clippy-target-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
@@ -186,7 +186,7 @@ jobs:
           extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)
@@ -240,7 +240,7 @@ jobs:
     name: Test FIPS integration
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)
@@ -251,7 +251,7 @@ jobs:
     - name: Install Clang-14
       uses: KyleMayes/install-llvm-action@v1
       with:
-        version: "14.0.6"
+        version: "14.0"
         directory: ${{ runner.temp }}/llvm
     - name: Add clang++-14 link
       working-directory: ${{ runner.temp }}/llvm/bin
@@ -279,7 +279,7 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)
@@ -303,7 +303,7 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)
@@ -314,7 +314,7 @@ jobs:
     - name: Install Clang-14
       uses: KyleMayes/install-llvm-action@v1
       with:
-        version: "14.0.6"
+        version: "14.0"
         directory: ${{ runner.temp }}/llvm
     - name: Add clang++-14 link
       working-directory: ${{ runner.temp }}/llvm/bin
@@ -336,7 +336,7 @@ jobs:
     name: Test features
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)
