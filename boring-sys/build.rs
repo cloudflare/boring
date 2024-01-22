@@ -308,6 +308,7 @@ fn get_boringssl_cmake_config() -> cmake::Config {
 
 /// Verify that the toolchains match https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf
 /// See "Installation Instructions" under section 12.1.
+// TODO: update above URL once BoringCrypto CMVP certification for `fips-20220613` is approved
 // TODO: maybe this should also verify the Go and Ninja versions? But those haven't been an issue in practice ...
 fn verify_fips_clang_version() -> (&'static str, &'static str) {
     fn version(tool: &str) -> String {

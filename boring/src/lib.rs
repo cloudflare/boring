@@ -41,8 +41,8 @@
 //!
 //! ## Building with a FIPS-validated module
 //!
-//! Only BoringCrypto module version `853ca1ea1168dff08011e5d42d94609cc0ca2e27`, as certified with
-//! [FIPS 140-2 certificate 4407](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4407)
+//! Only BoringCrypto module version `0c6f40132b828e92ba365c6b7680e32820c63fa7`, as certified with
+//! [FIPS 140-3 certificate XXX](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/XXX)
 //! is supported by this crate. Support is enabled by this crate's `fips` feature.
 //!
 //! `boring-sys` comes with a test that FIPS is enabled/disabled depending on the feature flag. You can run it as follows:
