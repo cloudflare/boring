@@ -203,10 +203,6 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
         boringssl_cmake.generator("Ninja");
     }
 
-    if config.features.fips {
-        boringssl_cmake.generator("Ninja");
-    }
-
     if config.host == config.target {
         return boringssl_cmake;
     }

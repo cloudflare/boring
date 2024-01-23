@@ -825,7 +825,8 @@ impl SslContextBuilder {
             let ctx = cvt_p(ffi::SSL_CTX_new(method.as_ptr()))?;
 
             #[cfg(feature = "fips")]
-            ctx.set_compliance_policy(CompliancePolicy::FIPS_202205).unwrap();
+            ctx.set_compliance_policy(CompliancePolicy::FIPS_202205)
+                .unwrap();
 
             #[cfg(feature = "rpk")]
             {
