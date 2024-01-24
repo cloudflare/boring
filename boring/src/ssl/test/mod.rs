@@ -21,6 +21,7 @@ use crate::ssl::{
 use crate::x509::verify::X509CheckFlags;
 use crate::x509::{X509Name, X509};
 
+#[cfg(not(feature = "fips"))]
 use super::CompliancePolicy;
 
 mod custom_verify;
@@ -947,6 +948,7 @@ fn test_get_ciphers() {
 }
 
 #[test]
+#[cfg(not(feature = "fips"))]
 fn test_set_compliance() {
     let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
     ctx.set_compliance_policy(CompliancePolicy::FIPS_202205)
