@@ -5,6 +5,7 @@ use std::path::PathBuf;
 pub(crate) struct Config {
     pub(crate) manifest_dir: PathBuf,
     pub(crate) out_dir: PathBuf,
+    pub(crate) is_bazel: bool,
     pub(crate) host: String,
     pub(crate) target: String,
     pub(crate) target_arch: String,
@@ -51,9 +52,15 @@ impl Config {
             features.fips || features.fips_link_precompiled,
         );
 
+        let mut is_bazel = false;
+        if let Some(src_path) = &env.source_path {
+            is_bazel = src_path.join("src").exists();
+        }
+
         let config = Self {
             manifest_dir,
             out_dir,
+            is_bazel,
             host,
             target,
             target_arch,

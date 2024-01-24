@@ -347,9 +347,9 @@ index 8d5a23872..b9ac70dfe 100644
  
 @@ -150,6 +169,7 @@ SSL_HANDSHAKE::SSL_HANDSHAKE(SSL *ssl_arg)
        cert_compression_negotiated(false),
++      server_certificate_type_negotiated(false),
        apply_jdk11_workaround(false),
        can_release_private_key(false),
-+      server_certificate_type_negotiated(false),
        channel_id_negotiated(false) {
    assert(ssl);
  
