@@ -24,6 +24,7 @@ pub(crate) struct Features {
 pub(crate) struct Env {
     pub(crate) path: Option<PathBuf>,
     pub(crate) include_path: Option<PathBuf>,
+    pub(crate) cplus_include_path: Option<PathBuf>,
     pub(crate) source_path: Option<PathBuf>,
     pub(crate) precompiled_bcm_o: Option<PathBuf>,
     pub(crate) assume_patched: bool,
@@ -146,6 +147,7 @@ impl Env {
         Self {
             path: boringssl_var("BORING_BSSL_PATH").map(PathBuf::from),
             include_path: boringssl_var("BORING_BSSL_INCLUDE_PATH").map(PathBuf::from),
+            cplus_include_path: boringssl_var("BORING_BSSL_CPLUS_INCLUDE_PATH").map(PathBuf::from),
             source_path: boringssl_var("BORING_BSSL_SOURCE_PATH").map(PathBuf::from),
             precompiled_bcm_o: boringssl_var("BORING_BSSL_PRECOMPILED_BCM_O").map(PathBuf::from),
             assume_patched: boringssl_var("BORING_BSSL_ASSUME_PATCHED")

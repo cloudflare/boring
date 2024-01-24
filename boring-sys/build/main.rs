@@ -619,8 +619,17 @@ fn link_in_precompiled_bcm_o(config: &Config) {
     .unwrap();
 }
 
+// Note: this is the entrypoint into the boring-sys build process.
 fn main() {
     let config = Config::from_env();
+
+    if let Some(ref cplus_include_path) = config.env.cplus_include_path {
+        // Inject CPLUS_INCLUDE_PATH into the environment for the build.
+        // This must be done before we build the boring source path so that it can
+        // be used during that build process.
+        std::env::set_var("CPLUS_INCLUDE_PATH", cplus_include_path);
+    }
+
     let bssl_dir = built_boring_source_path(&config);
     let build_path = get_boringssl_platform_output_path(&config);
 
