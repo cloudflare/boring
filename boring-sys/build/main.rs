@@ -507,9 +507,16 @@ fn apply_patch(config: &Config, patch_name: &str) -> io::Result<()> {
         .join(patch_name)
         .canonicalize()?;
 
+    let mut args = vec!["apply", "-v", "--whitespace=fix"];
+
+    // non-bazel versions of BoringSSL have no src/ dir
+    if config.is_bazel {
+        args.push("-p2");
+    }
+
     run_command(
         Command::new("git")
-            .args(["apply", "-v", "--whitespace=fix"])
+            .args(&args)
             .arg(cmd_path)
             .current_dir(src_path),
     )?;
@@ -547,6 +554,16 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
             println!(
                 "cargo:warning=skipping git patches application, provided\
                 native BoringSSL is expected to have the patches included"
+            );
+        } else if config.env.source_path.is_some()
+            && (config.features.rpk
+                || config.features.pq_experimental
+                || config.features.underscore_wildcards)
+        {
+            panic!(
+                "BORING_BSSL_ASSUME_PATCHED must be set when setting
+                   BORING_BSSL_SOURCE_PATH and using any of the following
+                   features: rpk, pq-experimental, underscore-wildcards"
             );
         } else {
             ensure_patches_applied(config).unwrap();
@@ -620,7 +637,13 @@ fn main() {
     let bssl_dir = built_boring_source_path(&config);
     let build_path = get_boringssl_platform_output_path(&config);
 
-    if config.features.fips || config.features.fips_link_precompiled {
+    if config.is_bazel {
+        println!(
+            "cargo:rustc-link-search=native={}/lib/{}",
+            bssl_dir.display(),
+            build_path
+        );
+    } else {
         println!(
             "cargo:rustc-link-search=native={}/build/crypto/{}",
             bssl_dir.display(),
@@ -631,12 +654,6 @@ fn main() {
             bssl_dir.display(),
             build_path
         );
-        println!(
-            "cargo:rustc-link-search=native={}/lib/{}",
-            bssl_dir.display(),
-            build_path
-        );
-    } else {
         println!(
             "cargo:rustc-link-search=native={}/build/{}",
             bssl_dir.display(),
