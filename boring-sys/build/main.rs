@@ -645,19 +645,8 @@ fn main() {
         );
     } else {
         println!(
-            "cargo:rustc-link-search=native={}/build/crypto/{}",
+            "cargo:rustc-link-search=native={}/build",
             bssl_dir.display(),
-            build_path
-        );
-        println!(
-            "cargo:rustc-link-search=native={}/build/ssl/{}",
-            bssl_dir.display(),
-            build_path
-        );
-        println!(
-            "cargo:rustc-link-search=native={}/build/{}",
-            bssl_dir.display(),
-            build_path
         );
     }
 
