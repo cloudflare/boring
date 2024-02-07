@@ -3563,6 +3563,18 @@ impl SslRef {
 
         Ok(())
     }
+
+    /// Sets the private key.
+    ///
+    /// This corresponds to [`SSL_use_PrivateKey`].
+    ///
+    /// [`SSL_use_PrivateKey`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_use_PrivateKey.html
+    pub fn set_private_key<T>(&mut self, key: &PKeyRef<T>) -> Result<(), ErrorStack>
+    where
+        T: HasPrivate,
+    {
+        unsafe { cvt(ffi::SSL_use_PrivateKey(self.as_ptr(), key.as_ptr())).map(|_| ()) }
+    }
 }
 
 /// An SSL stream midway through the handshake process.
