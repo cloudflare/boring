@@ -699,6 +699,22 @@ impl SslCurve {
 
     #[cfg(feature = "pq-experimental")]
     pub const P256_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::NID_P256Kyber768Draft00);
+
+    /// Returns the curve name
+    ///
+    /// This corresponds to [`SSL_get_curve_name`]
+    ///
+    /// [`SSL_get_curve_name`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_get_curve_name
+    pub fn name(&self) -> Option<&'static str> {
+        unsafe {
+            let ptr = ffi::SSL_get_curve_name(self.0 as u16);
+            if ptr == std::ptr::null() {
+                return None;
+            }
+
+            CStr::from_ptr(ptr).to_str().ok()
+        }
+    }
 }
 
 /// A compliance policy.
@@ -2746,6 +2762,21 @@ impl SslRef {
     fn server_set_default_curves_list(&mut self) {
         self.set_curves_list("X25519Kyber768Draft00:P256Kyber768Draft00:X25519:P-256:P-384")
             .expect("invalid default server curves list");
+    }
+
+    /// Returns the [`SslCurve`] used for this `SslRef`.
+    ///
+    /// This corresponds to [`SSL_get_curve_id`]
+    ///
+    /// [`SSL_get_curve_id`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_get_curve_id
+    #[cfg(not(feature = "kx-safe-default"))]
+    pub fn get_curve(&self) -> Option<SslCurve> {
+        let curve_id = unsafe { ffi::SSL_get_curve_id(self.as_ptr()) };
+        if curve_id == 0 {
+            return None;
+        }
+        let curve_id: c_int = curve_id.try_into().ok()?;
+        Some(SslCurve(curve_id))
     }
 
     /// Returns an `ErrorCode` value for the most recent operation on this `SslRef`.
