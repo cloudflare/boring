@@ -2240,6 +2240,16 @@ impl ClientHello<'_> {
     pub fn version_str(&self) -> &'static str {
         self.ssl().version_str()
     }
+
+    /// Returns the raw data of the client hello message
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(self.0.client_hello, self.0.client_hello_len) }
+    }
+
+    /// Returns the client random data
+    pub fn random(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(self.0.random, self.0.random_len) }
+    }
 }
 
 /// Information about a cipher.
