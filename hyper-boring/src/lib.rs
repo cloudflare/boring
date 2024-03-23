@@ -35,7 +35,7 @@ mod test;
 
 fn key_index() -> Result<Index<Ssl, SessionKey>, ErrorStack> {
     static IDX: OnceCell<Index<Ssl, SessionKey>> = OnceCell::new();
-    IDX.get_or_try_init(Ssl::new_ex_index).map(|v| *v)
+    IDX.get_or_try_init(Ssl::new_ex_index).copied()
 }
 
 #[derive(Clone)]
