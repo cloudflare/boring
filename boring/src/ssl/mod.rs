@@ -670,12 +670,10 @@ impl SslSignatureAlgorithm {
 }
 
 /// A TLS Curve.
-#[cfg(not(feature = "kx-safe-default"))]
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SslCurve(c_int);
 
-#[cfg(not(feature = "kx-safe-default"))]
 impl SslCurve {
     pub const SECP224R1: SslCurve = SslCurve(ffi::NID_secp224r1);
 
