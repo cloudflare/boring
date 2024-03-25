@@ -2770,7 +2770,7 @@ impl SslRef {
     ///
     /// [`SSL_get_curve_id`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_get_curve_id
     #[cfg(not(feature = "kx-safe-default"))]
-    pub fn get_curve(&self) -> Option<SslCurve> {
+    pub fn curve(&self) -> Option<SslCurve> {
         let curve_id = unsafe { ffi::SSL_get_curve_id(self.as_ptr()) };
         if curve_id == 0 {
             return None;
