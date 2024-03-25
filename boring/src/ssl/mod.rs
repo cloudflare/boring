@@ -708,7 +708,7 @@ impl SslCurve {
     pub fn name(&self) -> Option<&'static str> {
         unsafe {
             let ptr = ffi::SSL_get_curve_name(self.0 as u16);
-            if ptr == std::ptr::null() {
+            if ptr.is_null() {
                 return None;
             }
 
