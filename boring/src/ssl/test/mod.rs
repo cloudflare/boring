@@ -920,7 +920,6 @@ fn server_set_default_curves_list() {
     ssl.server_set_default_curves_list();
 }
 
-#[cfg(not(feature = "kx-safe-default"))]
 #[test]
 fn get_curve() {
     let server = Server::builder().build();
