@@ -925,7 +925,7 @@ fn get_curve() {
     let server = Server::builder().build();
     let client = server.client_with_root_ca();
     let client_stream = client.connect();
-    let curve = client_stream.ssl().get_curve().expect("curve");
+    let curve = client_stream.ssl().curve().expect("curve");
     assert!(curve.name().is_some());
 }
 
