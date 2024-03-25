@@ -2774,8 +2774,7 @@ impl SslRef {
         if curve_id == 0 {
             return None;
         }
-        let curve_id: c_int = curve_id.try_into().ok()?;
-        Some(SslCurve(curve_id))
+        Some(SslCurve(curve_id.into()))
     }
 
     /// Returns an `ErrorCode` value for the most recent operation on this `SslRef`.
