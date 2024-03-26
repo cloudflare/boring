@@ -921,6 +921,15 @@ fn server_set_default_curves_list() {
 }
 
 #[test]
+fn get_curve() {
+    let server = Server::builder().build();
+    let client = server.client_with_root_ca();
+    let client_stream = client.connect();
+    let curve = client_stream.ssl().curve().expect("curve");
+    assert!(curve.name().is_some());
+}
+
+#[test]
 fn test_get_ciphers() {
     let ctx_builder = SslContext::builder(SslMethod::tls()).unwrap();
     let ctx_builder_ciphers: Vec<&str> = ctx_builder
