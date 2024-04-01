@@ -315,7 +315,7 @@ impl Asn1Time {
         ffi::init();
 
         unsafe {
-            let handle = cvt_p(ffi::ASN1_TIME_set(ptr::null_mut(), time))?;
+            let handle = cvt_p(ffi::ASN1_TIME_set(ptr::null_mut(), time.into()))?;
             Ok(Asn1Time::from_ptr(handle))
         }
     }
