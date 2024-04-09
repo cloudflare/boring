@@ -44,3 +44,11 @@ hyper = { workspace = true, features = [ "full" ] }
 tokio = { workspace = true, features = [ "full" ] }
 tower = { workspace = true, features = ["util"] }
 futures = { workspace = true }
+
+[package.metadata.release]
+pre-release-hook = [
+  "git-cliff",
+  "--workdir", "..",
+  "-o", "../RELEASE_NOTES",
+  "--tag", "{{version}}"
+]
