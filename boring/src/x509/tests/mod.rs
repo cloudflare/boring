@@ -16,6 +16,8 @@ use crate::x509::store::X509StoreBuilder;
 use crate::x509::verify::X509VerifyFlags;
 use crate::x509::{X509Extension, X509Name, X509Req, X509StoreContext, X509VerifyError, X509};
 
+mod trusted_first;
+
 fn pkey() -> PKey<Private> {
     let rsa = Rsa::generate(2048).unwrap();
     PKey::from_rsa(rsa).unwrap()
@@ -32,7 +34,7 @@ where
 
 #[test]
 fn test_cert_loading() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let fingerprint = cert.digest(MessageDigest::sha1()).unwrap();
 
@@ -44,7 +46,7 @@ fn test_cert_loading() {
 
 #[test]
 fn test_debug() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let debugged = format!("{:#?}", cert);
 
@@ -58,7 +60,7 @@ fn test_debug() {
 
 #[test]
 fn test_cert_issue_validity() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let not_before = cert.not_before().to_string();
     let not_after = cert.not_after().to_string();
@@ -69,7 +71,7 @@ fn test_cert_issue_validity() {
 
 #[test]
 fn test_save_der() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
 
     let der = cert.to_der().unwrap();
@@ -78,7 +80,7 @@ fn test_save_der() {
 
 #[test]
 fn test_subject_read_cn() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let subject = cert.subject_name();
     let cn = subject.entries_by_nid(Nid::COMMONNAME).next().unwrap();
@@ -87,7 +89,7 @@ fn test_subject_read_cn() {
 
 #[test]
 fn test_nid_values() {
-    let cert = include_bytes!("../../test/nid_test_cert.pem");
+    let cert = include_bytes!("../../../test/nid_test_cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let subject = cert.subject_name();
 
@@ -106,7 +108,7 @@ fn test_nid_values() {
 
 #[test]
 fn test_nameref_iterator() {
-    let cert = include_bytes!("../../test/nid_test_cert.pem");
+    let cert = include_bytes!("../../../test/nid_test_cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let subject = cert.subject_name();
     let mut all_entries = subject.entries();
@@ -133,7 +135,7 @@ fn test_nameref_iterator() {
 
 #[test]
 fn test_nid_uid_value() {
-    let cert = include_bytes!("../../test/nid_uid_test_cert.pem");
+    let cert = include_bytes!("../../../test/nid_uid_test_cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let subject = cert.subject_name();
 
@@ -143,7 +145,7 @@ fn test_nid_uid_value() {
 
 #[test]
 fn test_subject_alt_name() {
-    let cert = include_bytes!("../../test/alt_name_cert.pem");
+    let cert = include_bytes!("../../../test/alt_name_cert.pem");
     let cert = X509::from_pem(cert).unwrap();
 
     let subject_alt_names = cert.subject_alt_names().unwrap();
@@ -160,7 +162,7 @@ fn test_subject_alt_name() {
 
 #[test]
 fn test_subject_alt_name_iter() {
-    let cert = include_bytes!("../../test/alt_name_cert.pem");
+    let cert = include_bytes!("../../../test/alt_name_cert.pem");
     let cert = X509::from_pem(cert).unwrap();
 
     let subject_alt_names = cert.subject_alt_names().unwrap();
@@ -396,7 +398,7 @@ fn x509_req_builder() {
 
 #[test]
 fn test_stack_from_pem() {
-    let certs = include_bytes!("../../test/certs.pem");
+    let certs = include_bytes!("../../../test/certs.pem");
     let certs = X509::stack_from_pem(certs).unwrap();
 
     assert_eq!(certs.len(), 2);
@@ -412,9 +414,9 @@ fn test_stack_from_pem() {
 
 #[test]
 fn issued() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
-    let ca = include_bytes!("../../test/root-ca.pem");
+    let ca = include_bytes!("../../../test/root-ca.pem");
     let ca = X509::from_pem(ca).unwrap();
 
     assert_eq!(ca.issued(&cert), Ok(()));
@@ -423,7 +425,7 @@ fn issued() {
 
 #[test]
 fn signature() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let signature = cert.signature();
     assert_eq!(
@@ -444,16 +446,16 @@ fn signature() {
 #[test]
 #[allow(clippy::redundant_clone)]
 fn clone_x509() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     drop(cert.clone());
 }
 
 #[test]
 fn test_verify_cert() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
-    let ca = include_bytes!("../../test/root-ca.pem");
+    let ca = include_bytes!("../../../test/root-ca.pem");
     let ca = X509::from_pem(ca).unwrap();
     let chain = Stack::new().unwrap();
 
@@ -472,9 +474,9 @@ fn test_verify_cert() {
 
 #[test]
 fn test_verify_fails() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
-    let ca = include_bytes!("../../test/alt_name_cert.pem");
+    let ca = include_bytes!("../../../test/alt_name_cert.pem");
     let ca = X509::from_pem(ca).unwrap();
     let chain = Stack::new().unwrap();
 
@@ -490,11 +492,11 @@ fn test_verify_fails() {
 
 #[test]
 fn test_verify_revoked() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
-    let ca = include_bytes!("../../test/root-ca.pem");
+    let ca = include_bytes!("../../../test/root-ca.pem");
     let ca = X509::from_pem(ca).unwrap();
-    let crl = include_bytes!("../../test/crl.pem");
+    let crl = include_bytes!("../../../test/crl.pem");
     let crl = X509CRL::from_pem(crl).unwrap();
     let chain = Stack::new().unwrap();
 
@@ -515,23 +517,23 @@ fn test_verify_revoked() {
 
 #[test]
 fn test_crl_signature() {
-    let ca = include_bytes!("../../test/root-ca.pem");
+    let ca = include_bytes!("../../../test/root-ca.pem");
     let ca = X509::from_pem(ca).unwrap();
 
-    let crl = include_bytes!("../../test/bad_sig.pem");
+    let crl = include_bytes!("../../../test/bad_sig.pem");
     let crl = X509CRL::from_pem(crl).unwrap();
     assert!(!crl.verify(&ca.public_key().unwrap()).unwrap());
 
-    let crl = include_bytes!("../../test/crl.pem");
+    let crl = include_bytes!("../../../test/crl.pem");
     let crl = X509CRL::from_pem(crl).unwrap();
     assert!(crl.verify(&ca.public_key().unwrap()).unwrap());
 }
 
 #[test]
 fn test_untrusted_valid_crl() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
-    let ca = include_bytes!("../../test/root-ca.pem");
+    let ca = include_bytes!("../../../test/root-ca.pem");
     let ca = X509::from_pem(ca).unwrap();
     let chain = Stack::new().unwrap();
 
@@ -545,7 +547,7 @@ fn test_untrusted_valid_crl() {
     let store = store_bldr.build();
 
     // cert is not revoked
-    let crl = include_bytes!("../../test/empty_crl.pem");
+    let crl = include_bytes!("../../../test/empty_crl.pem");
     let crl = X509CRL::from_pem(crl).unwrap();
     let mut context = X509StoreContext::new().unwrap();
     assert!(context
@@ -554,7 +556,7 @@ fn test_untrusted_valid_crl() {
         .unwrap());
 
     // cert is revoked
-    let crl = include_bytes!("../../test/crl.pem");
+    let crl = include_bytes!("../../../test/crl.pem");
     let crl = X509CRL::from_pem(crl).unwrap();
     let mut context = X509StoreContext::new().unwrap();
     assert!(!context
@@ -566,9 +568,9 @@ fn test_untrusted_valid_crl() {
 
 #[test]
 fn test_untrusted_invalid_crl() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
-    let ca = include_bytes!("../../test/root-ca.pem");
+    let ca = include_bytes!("../../../test/root-ca.pem");
     let ca = X509::from_pem(ca).unwrap();
     let chain = Stack::new().unwrap();
 
@@ -582,7 +584,7 @@ fn test_untrusted_invalid_crl() {
     let store = store_bldr.build();
 
     // this CRL was issued by a different CA (not in the trusted store)
-    let crl = include_bytes!("../../test/invalid_crl.pem");
+    let crl = include_bytes!("../../../test/invalid_crl.pem");
     let crl = X509CRL::from_pem(crl).unwrap();
     let mut context = X509StoreContext::new().unwrap();
     assert!(!context
@@ -595,7 +597,7 @@ fn test_untrusted_invalid_crl() {
     );
 
     // this CRL has an invalid signature
-    let crl = include_bytes!("../../test/bad_sig.pem");
+    let crl = include_bytes!("../../../test/bad_sig.pem");
     let crl = X509CRL::from_pem(crl).unwrap();
     let mut context = X509StoreContext::new().unwrap();
     assert!(!context
@@ -610,11 +612,11 @@ fn test_untrusted_invalid_crl() {
 
 #[test]
 fn test_revoked_serial_numbers() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
     let cert_sn = cert.serial_number().to_bn().unwrap();
 
-    let crl = include_bytes!("../../test/crl.pem");
+    let crl = include_bytes!("../../../test/crl.pem");
     let crl = X509CRL::from_pem(crl).unwrap();
 
     assert_eq!(
@@ -629,7 +631,7 @@ fn test_revoked_serial_numbers() {
 
 #[test]
 fn test_serialize_crl() {
-    let crl = include_bytes!("../../test/crl.pem");
+    let crl = include_bytes!("../../../test/crl.pem");
     let crl = X509CRL::from_pem(crl).unwrap();
     let digest = hex::encode(crl.digest(MessageDigest::sha1()).unwrap());
 
@@ -641,7 +643,7 @@ fn test_serialize_crl() {
 
 #[test]
 fn test_crl_extensions() {
-    let crl = include_bytes!("../../test/crl.pem");
+    let crl = include_bytes!("../../../test/crl.pem");
     let crl = X509CRL::from_pem(crl).unwrap();
     let extensions = crl.extensions();
     assert_eq!(
@@ -664,7 +666,7 @@ fn test_crl_extensions() {
 
 #[test]
 fn test_debug_crl() {
-    let crl = include_bytes!("../../test/crl.pem");
+    let crl = include_bytes!("../../../test/crl.pem");
     let crl = X509CRL::from_pem(crl).unwrap();
     let debugged = format!("{:#?}", crl);
     assert!(debugged.contains(r#"countryName = "AU""#));
@@ -680,9 +682,9 @@ fn test_debug_crl() {
 
 #[test]
 fn test_custom_time_valid() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
-    let ca = include_bytes!("../../test/root-ca.pem");
+    let ca = include_bytes!("../../../test/root-ca.pem");
     let ca = X509::from_pem(ca).unwrap();
     let chain = Stack::new().unwrap();
 
@@ -699,9 +701,9 @@ fn test_custom_time_valid() {
 
 #[test]
 fn test_custom_time_expired() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
-    let ca = include_bytes!("../../test/root-ca.pem");
+    let ca = include_bytes!("../../../test/root-ca.pem");
     let ca = X509::from_pem(ca).unwrap();
     let chain = Stack::new().unwrap();
 
@@ -718,9 +720,9 @@ fn test_custom_time_expired() {
 
 #[test]
 fn test_custom_time_too_soon() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
-    let ca = include_bytes!("../../test/root-ca.pem");
+    let ca = include_bytes!("../../../test/root-ca.pem");
     let ca = X509::from_pem(ca).unwrap();
     let chain = Stack::new().unwrap();
 
@@ -737,11 +739,11 @@ fn test_custom_time_too_soon() {
 
 #[test]
 fn test_custom_time_crl() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
-    let ca = include_bytes!("../../test/root-ca.pem");
+    let ca = include_bytes!("../../../test/root-ca.pem");
     let ca = X509::from_pem(ca).unwrap();
-    let crl = include_bytes!("../../test/crl.pem");
+    let crl = include_bytes!("../../../test/crl.pem");
     let crl = X509CRL::from_pem(crl).unwrap();
     let chain = Stack::new().unwrap();
 
@@ -763,7 +765,7 @@ fn test_custom_time_crl() {
 
 #[test]
 fn test_save_subject_der() {
-    let cert = include_bytes!("../../test/cert.pem");
+    let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
 
     let der = cert.subject_name().to_der().unwrap();
@@ -773,7 +775,7 @@ fn test_save_subject_der() {
 
 #[test]
 fn test_load_subject_der() {
-    // The subject from ../../test/cert.pem
+    // The subject from ../../../test/cert.pem
     const SUBJECT_DER: &[u8] = &[
         48, 90, 49, 11, 48, 9, 6, 3, 85, 4, 6, 19, 2, 65, 85, 49, 19, 48, 17, 6, 3, 85, 4, 8, 12,
         10, 83, 111, 109, 101, 45, 83, 116, 97, 116, 101, 49, 33, 48, 31, 6, 3, 85, 4, 10, 12, 24,

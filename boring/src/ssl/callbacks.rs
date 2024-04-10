@@ -3,7 +3,7 @@
 use super::{
     AlpnError, ClientHello, GetSessionPendingError, PrivateKeyMethod, PrivateKeyMethodError,
     SelectCertError, SniError, Ssl, SslAlert, SslContext, SslContextRef, SslRef, SslSession,
-    SslSessionRef, SslSignatureAlgorithm, SESSION_CTX_INDEX,
+    SslSessionRef, SslSignatureAlgorithm, SslVerifyError, SESSION_CTX_INDEX,
 };
 use crate::error::ErrorStack;
 use crate::ffi;
@@ -40,6 +40,66 @@ where
     let verify = unsafe { &*(verify as *const F) };
 
     verify(preverify_ok != 0, ctx) as c_int
+}
+
+pub(super) unsafe extern "C" fn raw_custom_verify<F>(
+    ssl: *mut ffi::SSL,
+    out_alert: *mut u8,
+) -> ffi::ssl_verify_result_t
+where
+    F: Fn(&mut SslRef) -> Result<(), SslVerifyError> + 'static + Sync + Send,
+{
+    let callback = |ssl: &mut SslRef| {
+        let custom_verify_idx = SslContext::cached_ex_index::<F>();
+
+        let ssl_context = ssl.ssl_context().to_owned();
+        let callback = ssl_context
+            .ex_data(custom_verify_idx)
+            .expect("BUG: custom verify callback missing");
+
+        callback(ssl)
+    };
+
+    unsafe { raw_custom_verify_callback(ssl, out_alert, callback) }
+}
+
+pub(super) unsafe extern "C" fn ssl_raw_custom_verify<F>(
+    ssl: *mut ffi::SSL,
+    out_alert: *mut u8,
+) -> ffi::ssl_verify_result_t
+where
+    F: Fn(&mut SslRef) -> Result<(), SslVerifyError> + 'static + Sync + Send,
+{
+    let callback = |ssl: &mut SslRef| {
+        let callback = ssl
+            .ex_data(Ssl::cached_ex_index::<Arc<F>>())
+            .expect("BUG: ssl verify callback missing")
+            .clone();
+
+        callback(ssl)
+    };
+
+    unsafe { raw_custom_verify_callback(ssl, out_alert, callback) }
+}
+
+unsafe fn raw_custom_verify_callback(
+    ssl: *mut ffi::SSL,
+    out_alert: *mut u8,
+    callback: impl FnOnce(&mut SslRef) -> Result<(), SslVerifyError>,
+) -> ffi::ssl_verify_result_t {
+    // SAFETY: boring provides valid inputs.
+    let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
+    let out_alert = unsafe { &mut *out_alert };
+
+    match callback(ssl) {
+        Ok(()) => ffi::ssl_verify_result_t::ssl_verify_ok,
+        Err(SslVerifyError::Invalid(alert)) => {
+            *out_alert = alert.0 as u8;
+
+            ffi::ssl_verify_result_t::ssl_verify_invalid
+        }
+        Err(SslVerifyError::Retry) => ffi::ssl_verify_result_t::ssl_verify_retry,
+    }
 }
 
 pub(super) unsafe extern "C" fn raw_client_psk<F>(

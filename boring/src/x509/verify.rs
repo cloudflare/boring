@@ -1,6 +1,6 @@
 use crate::ffi;
 use foreign_types::ForeignTypeRef;
-use libc::{c_uint, time_t};
+use libc::{c_uint, c_ulong, time_t};
 use std::net::IpAddr;
 
 use crate::cvt;
@@ -16,6 +16,8 @@ bitflags! {
         const MULTI_LABEL_WILDCARDS = ffi::X509_CHECK_FLAG_MULTI_LABEL_WILDCARDS as _;
         const SINGLE_LABEL_SUBDOMAINS = ffi::X509_CHECK_FLAG_SINGLE_LABEL_SUBDOMAINS as _;
         const NEVER_CHECK_SUBJECT = ffi::X509_CHECK_FLAG_NEVER_CHECK_SUBJECT as _;
+        #[cfg(feature = "underscore-wildcards")]
+        const UNDERSCORE_WILDCARDS = ffi::X509_CHECK_FLAG_UNDERSCORE_WILDCARDS as _;
 
         #[deprecated(since = "0.10.6", note = "renamed to NO_WILDCARDS")]
         const FLAG_NO_WILDCARDS = ffi::X509_CHECK_FLAG_NO_WILDCARDS as _;
@@ -24,7 +26,8 @@ bitflags! {
 
 bitflags! {
     /// Flags used to configure verification of an `X509` certificate
-    pub struct X509VerifyFlags: c_uint {
+    #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
+    pub struct X509VerifyFlags: c_ulong {
         const CB_ISSUER_CHECK = ffi::X509_V_FLAG_CB_ISSUER_CHECK as _;
         const USE_CHECK_TIME = ffi::X509_V_FLAG_USE_CHECK_TIME as _;
         const CRL_CHECK = ffi::X509_V_FLAG_CRL_CHECK as _;
@@ -55,6 +58,39 @@ foreign_type_and_impl_send_sync! {
 }
 
 impl X509VerifyParamRef {
+    /// Set the verify flags by OR-ing them with `flags`
+    ///
+    /// This corresponds to [`X509_VERIFY_PARAM_set_flags`].
+    ///
+    /// [`X509_VERIFY_PARAM_set_flags`]: https://www.openssl.org/docs/man3.2/man3/X509_VERIFY_PARAM_set_flags.html
+    pub fn set_flags(&mut self, flags: X509VerifyFlags) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt(ffi::X509_VERIFY_PARAM_set_flags(
+                self.as_ptr(),
+                flags.bits(),
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Clears the verify flags in `flags`
+    ///
+    /// Useful to clear out default flags, such as `X509VerifyFlags::TRUSTED_FIRST` when the fips feature is off.
+    ///
+    /// This corresponds to [`X509_VERIFY_PARAM_clear_flags`].
+    ///
+    /// [`X509_VERIFY_PARAM_clear_flags`]: https://www.openssl.org/docs/man3.2/man3/X509_VERIFY_PARAM_clear_flags.html
+    pub fn clear_flags(&mut self, flags: X509VerifyFlags) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt(ffi::X509_VERIFY_PARAM_clear_flags(
+                self.as_ptr(),
+                flags.bits(),
+            ))
+            .map(|_| ())
+        }
+    }
+
+    ///
     /// Set the host flags.
     ///
     /// This corresponds to [`X509_VERIFY_PARAM_set_hostflags`].
@@ -135,35 +171,5 @@ impl X509VerifyParamRef {
     /// ```
     pub fn set_time(&mut self, unix_time: time_t) {
         unsafe { ffi::X509_VERIFY_PARAM_set_time(self.as_ptr(), unix_time) }
-    }
-
-    /// Set the verify flags by OR-ing them with `flags`
-    ///
-    /// This corresponds to [`X509_VERIFY_PARAM_set_flags`].
-    ///
-    /// [`X509_VERIFY_PARAM_set_flags`]: https://www.openssl.org/docs/man1.1.1/man3/X509_VERIFY_PARAM_set_flags.html
-    pub fn set_flags(&mut self, flags: X509VerifyFlags) -> Result<(), ErrorStack> {
-        unsafe {
-            cvt(ffi::X509_VERIFY_PARAM_set_flags(
-                self.as_ptr(),
-                flags.bits().into(),
-            ))
-            .map(|_| ())
-        }
-    }
-
-    /// Clears the verify flags in `flags`
-    ///
-    /// This corresponds to [`X509_VERIFY_PARAM_clear_flags`]
-    ///
-    /// [`X509_VERIFY_PARAM_clear_flags`]: https://www.openssl.org/docs/man1.1.1/man3/X509_VERIFY_PARAM_clear_flags.html
-    pub fn clear_flags(&mut self, flags: X509VerifyFlags) -> Result<(), ErrorStack> {
-        unsafe {
-            cvt(ffi::X509_VERIFY_PARAM_clear_flags(
-                self.as_ptr(),
-                flags.bits().into(),
-            ))
-            .map(|_| ())
-        }
     }
 }

@@ -13,7 +13,6 @@
 #![warn(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-use boring::error::ErrorStack;
 use boring::ssl::{
     self, ConnectConfiguration, ErrorCode, MidHandshakeSslStream, ShutdownResult, SslAcceptor,
     SslRef,
@@ -22,24 +21,27 @@ use boring_sys as ffi;
 use std::error::Error;
 use std::fmt;
 use std::future::Future;
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 mod async_callbacks;
 mod bridge;
-mod mut_only;
 
-use self::async_callbacks::TASK_WAKER_INDEX;
-pub use self::async_callbacks::{
-    AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError, BoxGetSessionFinish,
-    BoxGetSessionFuture, BoxPrivateKeyMethodFinish, BoxPrivateKeyMethodFuture, BoxSelectCertFinish,
-    BoxSelectCertFuture, ExDataFuture, SslContextBuilderExt,
-};
 use self::bridge::AsyncStreamBridge;
 
+pub use crate::async_callbacks::SslContextBuilderExt;
+pub use boring::ssl::{
+    AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError, BoxGetSessionFinish,
+    BoxGetSessionFuture, BoxPrivateKeyMethodFinish, BoxPrivateKeyMethodFuture, BoxSelectCertFinish,
+    BoxSelectCertFuture, ExDataFuture,
+};
+
 /// Asynchronously performs a client-side TLS handshake over the provided stream.
+///
+/// This function automatically sets the task waker on the `Ssl` from `config` to
+/// allow to make use of async callbacks provided by the boring crate.
 pub async fn connect<S>(
     config: ConnectConfiguration,
     domain: &str,
@@ -48,27 +50,23 @@ pub async fn connect<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    handshake(|s| config.setup_connect(domain, s), stream).await
+    let mid_handshake = config
+        .setup_connect(domain, AsyncStreamBridge::new(stream))
+        .map_err(|err| HandshakeError(ssl::HandshakeError::SetupFailure(err)))?;
+
+    HandshakeFuture(Some(mid_handshake)).await
 }
 
 /// Asynchronously performs a server-side TLS handshake over the provided stream.
+///
+/// This function automatically sets the task waker on the `Ssl` from `config` to
+/// allow to make use of async callbacks provided by the boring crate.
 pub async fn accept<S>(acceptor: &SslAcceptor, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    handshake(|s| acceptor.setup_accept(s), stream).await
-}
-
-async fn handshake<S>(
-    f: impl FnOnce(
-        AsyncStreamBridge<S>,
-    ) -> Result<MidHandshakeSslStream<AsyncStreamBridge<S>>, ErrorStack>,
-    stream: S,
-) -> Result<SslStream<S>, HandshakeError<S>>
-where
-    S: AsyncRead + AsyncWrite + Unpin,
-{
-    let mid_handshake = f(AsyncStreamBridge::new(stream))
+    let mid_handshake = acceptor
+        .setup_accept(AsyncStreamBridge::new(stream))
         .map_err(|err| HandshakeError(ssl::HandshakeError::SetupFailure(err)))?;
 
     HandshakeFuture(Some(mid_handshake)).await
@@ -79,6 +77,49 @@ fn cvt<T>(r: io::Result<T>) -> Poll<io::Result<T>> {
         Ok(v) => Poll::Ready(Ok(v)),
         Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => Poll::Pending,
         Err(e) => Poll::Ready(Err(e)),
+    }
+}
+
+/// A partially constructed `SslStream`, useful for unusual handshakes.
+pub struct SslStreamBuilder<S> {
+    inner: ssl::SslStreamBuilder<AsyncStreamBridge<S>>,
+}
+
+impl<S> SslStreamBuilder<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    /// Begins creating an `SslStream` atop `stream`.
+    pub fn new(ssl: ssl::Ssl, stream: S) -> Self {
+        Self {
+            inner: ssl::SslStreamBuilder::new(ssl, AsyncStreamBridge::new(stream)),
+        }
+    }
+
+    /// Initiates a client-side TLS handshake.
+    pub async fn accept(self) -> Result<SslStream<S>, HandshakeError<S>> {
+        let mid_handshake = self.inner.setup_accept();
+
+        HandshakeFuture(Some(mid_handshake)).await
+    }
+
+    /// Initiates a server-side TLS handshake.
+    pub async fn connect(self) -> Result<SslStream<S>, HandshakeError<S>> {
+        let mid_handshake = self.inner.setup_connect();
+
+        HandshakeFuture(Some(mid_handshake)).await
+    }
+}
+
+impl<S> SslStreamBuilder<S> {
+    /// Returns a shared reference to the `Ssl` object associated with this builder.
+    pub fn ssl(&self) -> &SslRef {
+        self.inner.ssl()
+    }
+
+    /// Returns a mutable reference to the `Ssl` object associated with this builder.
+    pub fn ssl_mut(&mut self) -> &mut SslRef {
+        self.inner.ssl_mut()
     }
 }
 
@@ -160,13 +201,8 @@ where
         buf: &mut ReadBuf,
     ) -> Poll<io::Result<()>> {
         self.run_in_context(ctx, |s| {
-            // This isn't really "proper", but rust-openssl doesn't currently expose a suitable interface even though
-            // OpenSSL itself doesn't require the buffer to be initialized. So this is good enough for now.
-            let slice = unsafe {
-                let buf = buf.unfilled_mut();
-                std::slice::from_raw_parts_mut(buf.as_mut_ptr().cast::<u8>(), buf.len())
-            };
-            match cvt(s.read(slice))? {
+            // SAFETY: read_uninit does not de-initialize the buffer.
+            match cvt(s.read_uninit(unsafe { buf.unfilled_mut() }))? {
                 Poll::Ready(nread) => {
                     unsafe {
                         buf.assume_init(nread);
@@ -300,18 +336,18 @@ where
         mid_handshake.get_mut().set_waker(Some(ctx));
         mid_handshake
             .ssl_mut()
-            .set_ex_data(*TASK_WAKER_INDEX, Some(ctx.waker().clone()));
+            .set_task_waker(Some(ctx.waker().clone()));
 
         match mid_handshake.handshake() {
             Ok(mut stream) => {
                 stream.get_mut().set_waker(None);
-                stream.ssl_mut().set_ex_data(*TASK_WAKER_INDEX, None);
+                stream.ssl_mut().set_task_waker(None);
 
                 Poll::Ready(Ok(SslStream(stream)))
             }
             Err(ssl::HandshakeError::WouldBlock(mut mid_handshake)) => {
                 mid_handshake.get_mut().set_waker(None);
-                mid_handshake.ssl_mut().set_ex_data(*TASK_WAKER_INDEX, None);
+                mid_handshake.ssl_mut().set_task_waker(None);
 
                 self.0 = Some(mid_handshake);
 

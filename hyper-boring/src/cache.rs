@@ -40,24 +40,32 @@ impl Borrow<[u8]> for HashSession {
 pub struct SessionCache {
     sessions: HashMap<SessionKey, LinkedHashSet<HashSession>>,
     reverse: HashMap<HashSession, SessionKey>,
+    /// Maximum capacity of LinkedHashSet per SessionKey
+    per_key_session_capacity: usize,
 }
 
 impl SessionCache {
-    pub fn new() -> SessionCache {
+    pub fn with_capacity(per_key_session_capacity: usize) -> SessionCache {
         SessionCache {
             sessions: HashMap::new(),
             reverse: HashMap::new(),
+            per_key_session_capacity,
         }
     }
 
     pub fn insert(&mut self, key: SessionKey, session: SslSession) {
         let session = HashSession(session);
 
-        self.sessions
-            .entry(key.clone())
-            .or_default()
-            .insert(session.clone());
+        let sessions = self.sessions.entry(key.clone()).or_default();
 
+        // if sessions exceed capacity, discard oldest
+        if sessions.len() >= self.per_key_session_capacity {
+            if let Some(hash) = sessions.pop_front() {
+                self.reverse.remove(&hash);
+            }
+        }
+
+        sessions.insert(session.clone());
         self.reverse.insert(session, key);
     }
 

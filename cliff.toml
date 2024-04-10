@@ -17,7 +17,9 @@ footer = ""
 [git]
 conventional_commits = false
 commit_parsers = [
-  { message = "^Pull request", skip = true }
+  { message = "^Merge", skip = true },
+  { message = "^Pull request", skip = true },
+  { message = "^Release", skip = true },
 ]
 filter_commits = false
 tag_pattern = "[v0-9]*"

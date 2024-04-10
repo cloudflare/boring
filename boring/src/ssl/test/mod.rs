@@ -18,203 +18,21 @@ use crate::ssl::{
     ExtensionType, ShutdownResult, ShutdownState, Ssl, SslAcceptor, SslAcceptorBuilder,
     SslConnector, SslContext, SslFiletype, SslMethod, SslOptions, SslStream, SslVerifyMode,
 };
-use crate::x509::store::X509StoreBuilder;
 use crate::x509::verify::X509CheckFlags;
 use crate::x509::{X509Name, X509};
 
+#[cfg(not(feature = "fips"))]
+use super::CompliancePolicy;
+
+mod custom_verify;
 mod private_key_method;
 mod server;
 mod session;
+mod verify;
 
 static ROOT_CERT: &[u8] = include_bytes!("../../../test/root-ca.pem");
 static CERT: &[u8] = include_bytes!("../../../test/cert.pem");
 static KEY: &[u8] = include_bytes!("../../../test/key.pem");
-
-#[test]
-fn verify_untrusted() {
-    let mut server = Server::builder();
-    server.should_error();
-    let server = server.build();
-
-    let mut client = server.client();
-    client.ctx().set_verify(SslVerifyMode::PEER);
-
-    client.connect_err();
-}
-
-#[test]
-fn verify_trusted() {
-    let server = Server::builder().build();
-    let client = server.client_with_root_ca();
-
-    client.connect();
-}
-
-#[test]
-fn verify_trusted_with_set_cert() {
-    let server = Server::builder().build();
-
-    let mut store = X509StoreBuilder::new().unwrap();
-    let x509 = X509::from_pem(ROOT_CERT).unwrap();
-    store.add_cert(x509).unwrap();
-
-    let mut client = server.client();
-    client.ctx().set_verify(SslVerifyMode::PEER);
-    client.ctx().set_verify_cert_store(store.build()).unwrap();
-
-    client.connect();
-}
-
-#[test]
-fn verify_untrusted_callback_override_ok() {
-    let server = Server::builder().build();
-
-    let mut client = server.client();
-    client
-        .ctx()
-        .set_verify_callback(SslVerifyMode::PEER, |_, x509| {
-            assert!(x509.current_cert().is_some());
-            true
-        });
-
-    client.connect();
-}
-
-#[test]
-fn verify_untrusted_callback_override_bad() {
-    let mut server = Server::builder();
-    server.should_error();
-    let server = server.build();
-
-    let mut client = server.client();
-    client
-        .ctx()
-        .set_verify_callback(SslVerifyMode::PEER, |_, _| false);
-
-    client.connect_err();
-}
-
-#[test]
-fn verify_trusted_callback_override_ok() {
-    let server = Server::builder().build();
-    let mut client = server.client_with_root_ca();
-
-    client
-        .ctx()
-        .set_verify_callback(SslVerifyMode::PEER, |_, x509| {
-            assert!(x509.current_cert().is_some());
-            true
-        });
-
-    client.connect();
-}
-
-#[test]
-fn verify_trusted_callback_override_bad() {
-    let mut server = Server::builder();
-
-    server.should_error();
-
-    let server = server.build();
-    let mut client = server.client_with_root_ca();
-
-    client
-        .ctx()
-        .set_verify_callback(SslVerifyMode::PEER, |_, _| false);
-
-    client.connect_err();
-}
-
-#[test]
-fn verify_callback_load_certs() {
-    let server = Server::builder().build();
-
-    let mut client = server.client();
-    client
-        .ctx()
-        .set_verify_callback(SslVerifyMode::PEER, |_, x509| {
-            assert!(x509.current_cert().is_some());
-            true
-        });
-
-    client.connect();
-}
-
-#[test]
-fn verify_trusted_get_error_ok() {
-    let server = Server::builder().build();
-    let mut client = server.client_with_root_ca();
-
-    client
-        .ctx()
-        .set_verify_callback(SslVerifyMode::PEER, |_, x509| {
-            assert_eq!(x509.verify_result(), Ok(()));
-            true
-        });
-
-    client.connect();
-}
-
-#[test]
-fn verify_trusted_get_error_err() {
-    let mut server = Server::builder();
-    server.should_error();
-    let server = server.build();
-
-    let mut client = server.client();
-    client
-        .ctx()
-        .set_verify_callback(SslVerifyMode::PEER, |_, x509| {
-            assert!(x509.verify_result().is_err());
-            false
-        });
-
-    client.connect_err();
-}
-
-#[test]
-fn verify_callback() {
-    static CALLED_BACK: AtomicBool = AtomicBool::new(false);
-
-    let server = Server::builder().build();
-
-    let mut client = server.client();
-    let expected = "59172d9313e84459bcff27f967e79e6e9217e584";
-    client
-        .ctx()
-        .set_verify_callback(SslVerifyMode::PEER, move |_, x509| {
-            CALLED_BACK.store(true, Ordering::SeqCst);
-            let cert = x509.current_cert().unwrap();
-            let digest = cert.digest(MessageDigest::sha1()).unwrap();
-            assert_eq!(hex::encode(digest), expected);
-            true
-        });
-
-    client.connect();
-    assert!(CALLED_BACK.load(Ordering::SeqCst));
-}
-
-#[test]
-fn ssl_verify_callback() {
-    static CALLED_BACK: AtomicBool = AtomicBool::new(false);
-
-    let server = Server::builder().build();
-
-    let mut client = server.client().build().builder();
-    let expected = "59172d9313e84459bcff27f967e79e6e9217e584";
-    client
-        .ssl()
-        .set_verify_callback(SslVerifyMode::PEER, move |_, x509| {
-            CALLED_BACK.store(true, Ordering::SeqCst);
-            let cert = x509.current_cert().unwrap();
-            let digest = cert.digest(MessageDigest::sha1()).unwrap();
-            assert_eq!(hex::encode(digest), expected);
-            true
-        });
-
-    client.connect();
-    assert!(CALLED_BACK.load(Ordering::SeqCst));
-}
 
 #[test]
 fn get_ctx_options() {
@@ -689,11 +507,80 @@ fn verify_valid_hostname() {
     client.ctx().set_verify(SslVerifyMode::PEER);
 
     let mut client = client.build().builder();
+
+    client.ssl().param_mut().set_host("foobar.com").unwrap();
+    client.connect();
+}
+
+#[test]
+fn verify_valid_hostname_with_wildcard() {
+    let mut server = Server::builder();
+
+    server
+        .ctx()
+        .set_certificate_chain_file("test/cert-wildcard.pem")
+        .unwrap();
+
+    let server = server.build();
+    let mut client = server.client_with_root_ca();
+
+    client.ctx().set_verify(SslVerifyMode::PEER);
+
+    let mut client = client.build().builder();
+    client.ssl().param_mut().set_host("yes.foobar.com").unwrap();
+    client.connect();
+}
+
+#[test]
+fn verify_reject_underscore_hostname_with_wildcard() {
+    let mut server = Server::builder();
+
+    server.should_error();
+    server
+        .ctx()
+        .set_certificate_chain_file("test/cert-wildcard.pem")
+        .unwrap();
+
+    let server = server.build();
+    let mut client = server.client_with_root_ca();
+
+    client.ctx().set_verify(SslVerifyMode::PEER);
+
+    let mut client = client.build().builder();
     client
         .ssl()
         .param_mut()
-        .set_hostflags(X509CheckFlags::NO_PARTIAL_WILDCARDS);
-    client.ssl().param_mut().set_host("foobar.com").unwrap();
+        .set_host("not_allowed.foobar.com")
+        .unwrap();
+    client.connect_err();
+}
+
+#[cfg(feature = "underscore-wildcards")]
+#[test]
+fn verify_allow_underscore_hostname_with_wildcard() {
+    let mut server = Server::builder();
+
+    server
+        .ctx()
+        .set_certificate_chain_file("test/cert-wildcard.pem")
+        .unwrap();
+
+    let server = server.build();
+    let mut client = server.client_with_root_ca();
+
+    client.ctx().set_verify(SslVerifyMode::PEER);
+
+    let mut client = client.build().builder();
+
+    client
+        .ssl()
+        .param_mut()
+        .set_hostflags(X509CheckFlags::UNDERSCORE_WILDCARDS);
+    client
+        .ssl()
+        .param_mut()
+        .set_host("now_allowed.foobar.com")
+        .unwrap();
     client.connect();
 }
 
@@ -872,18 +759,6 @@ fn client_ca_list() {
 }
 
 #[test]
-fn cert_store() {
-    let server = Server::builder().build();
-
-    let mut client = server.client();
-    let cert = X509::from_pem(ROOT_CERT).unwrap();
-    client.ctx().cert_store_mut().add_cert(cert).unwrap();
-    client.ctx().set_verify(SslVerifyMode::PEER);
-
-    client.connect();
-}
-
-#[test]
 fn keying_export() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
@@ -1043,4 +918,108 @@ fn server_set_default_curves_list() {
 
     // Panics if Kyber768 missing in boringSSL.
     ssl.server_set_default_curves_list();
+}
+
+#[test]
+fn get_curve() {
+    let server = Server::builder().build();
+    let client = server.client_with_root_ca();
+    let client_stream = client.connect();
+    let curve = client_stream.ssl().curve().expect("curve");
+    assert!(curve.name().is_some());
+}
+
+#[test]
+fn test_get_ciphers() {
+    let ctx_builder = SslContext::builder(SslMethod::tls()).unwrap();
+    let ctx_builder_ciphers: Vec<&str> = ctx_builder
+        .ciphers()
+        .unwrap()
+        .into_iter()
+        .map(|v| v.name())
+        .collect();
+    assert!(!(ctx_builder_ciphers.is_empty()));
+
+    let ctx = ctx_builder.build();
+    let ctx_ciphers: Vec<&str> = ctx
+        .ciphers()
+        .unwrap()
+        .into_iter()
+        .map(|v| v.name())
+        .collect();
+    assert!(!(ctx_ciphers.is_empty()));
+
+    assert_eq!(ctx_builder_ciphers.len(), ctx_ciphers.len());
+
+    for (ctx_builder_cipher, ctx_cipher) in ctx_builder_ciphers.into_iter().zip(ctx_ciphers) {
+        assert_eq!(ctx_builder_cipher, ctx_cipher);
+    }
+}
+
+#[test]
+#[cfg(not(feature = "fips"))]
+fn test_set_compliance() {
+    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
+    ctx.set_compliance_policy(CompliancePolicy::FIPS_202205)
+        .unwrap();
+
+    assert_eq!(ctx.max_proto_version().unwrap(), SslVersion::TLS1_3);
+    assert_eq!(ctx.min_proto_version().unwrap(), SslVersion::TLS1_2);
+
+    const FIPS_CIPHERS: [&str; 4] = [
+        "ECDHE-ECDSA-AES128-GCM-SHA256",
+        "ECDHE-RSA-AES128-GCM-SHA256",
+        "ECDHE-ECDSA-AES256-GCM-SHA384",
+        "ECDHE-RSA-AES256-GCM-SHA384",
+    ];
+
+    let ciphers = ctx.ciphers().unwrap();
+    assert_eq!(ciphers.len(), FIPS_CIPHERS.len());
+
+    for cipher in ciphers.into_iter().zip(FIPS_CIPHERS) {
+        assert_eq!(cipher.0.name(), cipher.1)
+    }
+
+    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
+    ctx.set_compliance_policy(CompliancePolicy::WPA3_192_202304)
+        .unwrap();
+
+    assert_eq!(ctx.max_proto_version().unwrap(), SslVersion::TLS1_3);
+    assert_eq!(ctx.min_proto_version().unwrap(), SslVersion::TLS1_2);
+
+    const WPA3_192_CIPHERS: [&str; 2] = [
+        "ECDHE-ECDSA-AES256-GCM-SHA384",
+        "ECDHE-RSA-AES256-GCM-SHA384",
+    ];
+
+    let ciphers = ctx.ciphers().unwrap();
+    assert_eq!(ciphers.len(), WPA3_192_CIPHERS.len());
+
+    for cipher in ciphers.into_iter().zip(WPA3_192_CIPHERS) {
+        assert_eq!(cipher.0.name(), cipher.1)
+    }
+
+    ctx.set_compliance_policy(CompliancePolicy::NONE)
+        .expect_err("Testing expect err if set compliance policy to NONE");
+}
+
+#[test]
+fn drop_ex_data_in_context() {
+    let index = SslContext::new_ex_index::<&'static str>().unwrap();
+    let mut ctx = SslContext::builder(SslMethod::dtls()).unwrap();
+
+    assert_eq!(ctx.replace_ex_data(index, "comté"), None);
+    assert_eq!(ctx.replace_ex_data(index, "camembert"), Some("comté"));
+    assert_eq!(ctx.replace_ex_data(index, "raclette"), Some("camembert"));
+}
+
+#[test]
+fn drop_ex_data_in_ssl() {
+    let index = Ssl::new_ex_index::<&'static str>().unwrap();
+    let ctx = SslContext::builder(SslMethod::dtls()).unwrap().build();
+    let mut ssl = Ssl::new(&ctx).unwrap();
+
+    assert_eq!(ssl.replace_ex_data(index, "comté"), None);
+    assert_eq!(ssl.replace_ex_data(index, "camembert"), Some("comté"));
+    assert_eq!(ssl.replace_ex_data(index, "raclette"), Some("camembert"));
 }

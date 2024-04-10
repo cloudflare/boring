@@ -7,7 +7,8 @@ use antidote::Mutex;
 use boring::error::ErrorStack;
 use boring::ex_data::Index;
 use boring::ssl::{
-    ConnectConfiguration, Ssl, SslConnector, SslConnectorBuilder, SslMethod, SslSessionCacheMode,
+    ConnectConfiguration, Ssl, SslConnector, SslConnectorBuilder, SslMethod, SslRef,
+    SslSessionCacheMode,
 };
 use http::uri::Scheme;
 use hyper::client::connect::{Connected, Connection};
@@ -34,21 +35,23 @@ mod test;
 
 fn key_index() -> Result<Index<Ssl, SessionKey>, ErrorStack> {
     static IDX: OnceCell<Index<Ssl, SessionKey>> = OnceCell::new();
-    IDX.get_or_try_init(Ssl::new_ex_index).map(|v| *v)
+    IDX.get_or_try_init(Ssl::new_ex_index).copied()
 }
 
 #[derive(Clone)]
 struct Inner {
     ssl: SslConnector,
     cache: Arc<Mutex<SessionCache>>,
-    #[allow(clippy::type_complexity)]
-    callback: Option<
-        Arc<dyn Fn(&mut ConnectConfiguration, &Uri) -> Result<(), ErrorStack> + Sync + Send>,
-    >,
+    callback: Option<Callback>,
+    ssl_callback: Option<SslCallback>,
 }
 
+type Callback =
+    Arc<dyn Fn(&mut ConnectConfiguration, &Uri) -> Result<(), ErrorStack> + Sync + Send>;
+type SslCallback = Arc<dyn Fn(&mut SslRef, &Uri) -> Result<(), ErrorStack> + Sync + Send>;
+
 impl Inner {
-    fn setup_ssl(&self, uri: &Uri, host: &str) -> Result<ConnectConfiguration, ErrorStack> {
+    fn setup_ssl(&self, uri: &Uri, host: &str) -> Result<Ssl, ErrorStack> {
         let mut conf = self.ssl.configure()?;
 
         if let Some(ref callback) = self.callback {
@@ -69,13 +72,55 @@ impl Inner {
         let idx = key_index()?;
         conf.set_ex_data(idx, key);
 
-        Ok(conf)
+        let mut ssl = conf.into_ssl(host)?;
+
+        if let Some(ref ssl_callback) = self.ssl_callback {
+            ssl_callback(&mut ssl, uri)?;
+        }
+
+        Ok(ssl)
     }
 }
 
 /// A layer which wraps services in an `HttpsConnector`.
 pub struct HttpsLayer {
     inner: Inner,
+}
+
+/// Settings for [`HttpsLayer`]
+pub struct HttpsLayerSettings {
+    session_cache_capacity: usize,
+}
+
+impl HttpsLayerSettings {
+    /// Constructs an [`HttpsLayerSettingsBuilder`] for configuring settings
+    pub fn builder() -> HttpsLayerSettingsBuilder {
+        HttpsLayerSettingsBuilder(HttpsLayerSettings::default())
+    }
+}
+
+impl Default for HttpsLayerSettings {
+    fn default() -> Self {
+        Self {
+            session_cache_capacity: 8,
+        }
+    }
+}
+
+/// Builder for [`HttpsLayerSettings`]
+pub struct HttpsLayerSettingsBuilder(HttpsLayerSettings);
+
+impl HttpsLayerSettingsBuilder {
+    /// Sets maximum number of sessions to cache. Session capacity is per session key (domain).
+    /// Defaults to 8.
+    pub fn set_session_cache_capacity(&mut self, capacity: usize) {
+        self.0.session_cache_capacity = capacity;
+    }
+
+    /// Consumes the builder, returning a new [`HttpsLayerSettings`]
+    pub fn build(self) -> HttpsLayerSettings {
+        self.0
+    }
 }
 
 impl HttpsLayer {
@@ -93,8 +138,18 @@ impl HttpsLayer {
     /// Creates a new `HttpsLayer`.
     ///
     /// The session cache configuration of `ssl` will be overwritten.
-    pub fn with_connector(mut ssl: SslConnectorBuilder) -> Result<HttpsLayer, ErrorStack> {
-        let cache = Arc::new(Mutex::new(SessionCache::new()));
+    pub fn with_connector(ssl: SslConnectorBuilder) -> Result<HttpsLayer, ErrorStack> {
+        Self::with_connector_and_settings(ssl, Default::default())
+    }
+
+    /// Creates a new `HttpsLayer` with settings
+    pub fn with_connector_and_settings(
+        mut ssl: SslConnectorBuilder,
+        settings: HttpsLayerSettings,
+    ) -> Result<HttpsLayer, ErrorStack> {
+        let cache = Arc::new(Mutex::new(SessionCache::with_capacity(
+            settings.session_cache_capacity,
+        )));
 
         ssl.set_session_cache_mode(SslSessionCacheMode::CLIENT);
 
@@ -107,26 +162,34 @@ impl HttpsLayer {
             }
         });
 
-        ssl.set_remove_session_callback({
-            let cache = cache.clone();
-            move |_, session| cache.lock().remove(session)
-        });
-
         Ok(HttpsLayer {
             inner: Inner {
                 ssl: ssl.build(),
                 cache,
                 callback: None,
+                ssl_callback: None,
             },
         })
     }
 
     /// Registers a callback which can customize the configuration of each connection.
+    ///
+    /// Unsuitable to change verify hostflags (with `config.param_mut().set_hostflags(…)`),
+    /// as they are reset after the callback is executed. Use [`Self::set_ssl_callback`]
+    /// instead.
     pub fn set_callback<F>(&mut self, callback: F)
     where
         F: Fn(&mut ConnectConfiguration, &Uri) -> Result<(), ErrorStack> + 'static + Sync + Send,
     {
         self.inner.callback = Some(Arc::new(callback));
+    }
+
+    /// Registers a callback which can customize the `Ssl` of each connection.
+    pub fn set_ssl_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&mut SslRef, &Uri) -> Result<(), ErrorStack> + 'static + Sync + Send,
+    {
+        self.inner.ssl_callback = Some(Arc::new(callback));
     }
 }
 
@@ -182,11 +245,23 @@ where
     }
 
     /// Registers a callback which can customize the configuration of each connection.
+    ///
+    /// Unsuitable to change verify hostflags (with `config.param_mut().set_hostflags(…)`),
+    /// as they are reset after the callback is executed. Use [`Self::set_ssl_callback`]
+    /// instead.
     pub fn set_callback<F>(&mut self, callback: F)
     where
         F: Fn(&mut ConnectConfiguration, &Uri) -> Result<(), ErrorStack> + 'static + Sync + Send,
     {
         self.inner.callback = Some(Arc::new(callback));
+    }
+
+    /// Registers a callback which can customize the `Ssl` of each connection.
+    pub fn set_ssl_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&mut SslRef, &Uri) -> Result<(), ErrorStack> + 'static + Sync + Send,
+    {
+        self.inner.ssl_callback = Some(Arc::new(callback));
     }
 }
 
@@ -244,8 +319,10 @@ where
                 }
             }
 
-            let config = inner.setup_ssl(&uri, host)?;
-            let stream = tokio_boring::connect(config, host, conn).await?;
+            let ssl = inner.setup_ssl(&uri, host)?;
+            let stream = tokio_boring::SslStreamBuilder::new(ssl, conn)
+                .connect()
+                .await?;
 
             Ok(MaybeHttpsStream::Https(stream))
         };

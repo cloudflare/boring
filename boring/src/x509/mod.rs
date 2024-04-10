@@ -7,7 +7,6 @@
 //! Internet protocols, including SSL/TLS, which is the basis for HTTPS,
 //! the secure protocol for browsing the web.
 
-use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 use libc::{c_int, c_long, c_void};
 use std::convert::TryInto;
@@ -30,6 +29,7 @@ use crate::bio::MemBioSlice;
 use crate::conf::ConfRef;
 use crate::error::ErrorStack;
 use crate::ex_data::Index;
+use crate::ffi;
 use crate::hash::{DigestBytes, MessageDigest};
 use crate::nid::Nid;
 use crate::pkey::{HasPrivate, HasPublic, PKey, PKeyRef, Public};
@@ -38,6 +38,7 @@ use crate::ssl::SslRef;
 use crate::stack::{Stack, StackRef, Stackable};
 use crate::string::OpensslString;
 use crate::x509::crl::X509CRL;
+use crate::x509::verify::X509VerifyParamRef;
 use crate::{cvt, cvt_n, cvt_p};
 
 pub mod crl;
@@ -149,6 +150,15 @@ impl X509StoreContextRef {
             let cleanup = Cleanup(self);
             with_context(cleanup.0)
         }
+    }
+
+    /// Returns a mutable reference to the X509 verification configuration.
+    ///
+    /// This corresponds to [`X509_STORE_CTX_get0_param`].
+    ///
+    /// [`SSL_get0_param`]: https://www.openssl.org/docs/manmaster/man3/X509_STORE_CTX_get0_param.html
+    pub fn verify_param_mut(&mut self) -> &mut X509VerifyParamRef {
+        unsafe { X509VerifyParamRef::from_ptr_mut(ffi::X509_STORE_CTX_get0_param(self.as_ptr())) }
     }
 
     /// Verifies the stored certificate.
@@ -589,7 +599,7 @@ impl X509Ref {
     ///
     /// Returns `true` if verification succeeds.
     ///
-    /// This corresponds to [`X509_verify"].
+    /// This corresponds to [`X509_verify`].
     ///
     /// [`X509_verify`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_verify.html
     pub fn verify<T>(&self, key: &PKeyRef<T>) -> Result<bool, ErrorStack>
@@ -1058,9 +1068,9 @@ impl X509NameBuilder {
     }
 }
 
-#[cfg(not(any(feature = "fips", feature = "fips-link-precompiled")))]
+#[cfg(not(feature = "fips"))]
 type ValueLen = isize;
-#[cfg(any(feature = "fips", feature = "fips-link-precompiled"))]
+#[cfg(feature = "fips")]
 type ValueLen = i32;
 
 foreign_type_and_impl_send_sync! {

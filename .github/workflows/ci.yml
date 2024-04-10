@@ -79,6 +79,7 @@ jobs:
         - aarch64-linux
         - arm64-macos
         - x86_64-macos
+        - x86_64-mingw
         - i686-msvc
         - x86_64-msvc
         include:
@@ -158,6 +159,19 @@ jobs:
           target: x86_64-apple-darwin
           rust: stable
           os: macos-latest
+        - thing: x86_64-mingw
+          target: x86_64-pc-windows-gnu
+          rust: stable
+          os: windows-latest
+          check_only: true # tests are flaky for unclear reasons
+          custom_env:
+            CC: gcc
+            CXX: g++
+            C_INCLUDE_PATH: "C:\\msys64\\usr\\include"
+            CPLUS_INCLUDE_PATH: "C:\\msys64\\usr\\include"
+            LIBRARY_PATH: "C:\\msys64\\usr\\lib"
+          # CI's Windows doesn't have required root certs
+          extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring
         - thing: i686-msvc
           target: i686-pc-windows-msvc
           rust: stable-x86_64-msvc
@@ -199,15 +213,14 @@ jobs:
     - name: Set Android Linker path
       if: endsWith(matrix.thing, '-android')
       run: echo "CARGO_TARGET_$(echo ${{ matrix.target }} | tr \\-a-z _A-Z)_LINKER=$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/$(echo ${{ matrix.target }} | sed s/armv7/armv7a/)21-clang++" >> "$GITHUB_ENV"
+    - name: Build tests
+      # We `build` because we want the linker to verify we are cross-compiling correctly for check-only targets.
+      run: cargo build --target ${{ matrix.target }} --tests ${{ matrix.extra_test_args }}
+      shell: bash
+      env: ${{ matrix.custom_env }}
     - name: Run tests
       if: "!matrix.check_only"
       run: cargo test --target ${{ matrix.target }} ${{ matrix.extra_test_args }}
-      shell: bash
-      env: ${{ matrix.custom_env }}
-    - name: Build tests
-      if: matrix.check_only
-      # We `build` because we want the linker to verify we are cross-compiling correctly.
-      run: cargo build --target ${{ matrix.target }} --tests
       shell: bash
       env: ${{ matrix.custom_env }}
     - name: Test boring-sys cargo publish
@@ -329,7 +342,15 @@ jobs:
       name: Run `rpk` tests
     - run: cargo test --features pq-experimental
       name: Run `pq-experimental` tests
+    - run: cargo test --features underscore-wildcards
+      name: Run `underscore-wildcards` tests
     - run: cargo test --features pq-experimental,rpk
       name: Run `pq-experimental,rpk` tests
     - run: cargo test --features kx-safe-default,pq-experimental
       name: Run `kx-safe-default` tests
+    - run: cargo test --features pq-experimental,underscore-wildcards
+      name: Run `pq-experimental,underscore-wildcards` tests
+    - run: cargo test --features rpk,underscore-wildcards
+      name: Run `rpk,underscore-wildcards` tests
+    - run: cargo test --features pq-experimental,rpk,underscore-wildcards
+      name: Run `pq-experimental,rpk,underscore-wildcards` tests

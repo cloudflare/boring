@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 use tokio::net::TcpStream;
 use tokio::task::yield_now;
-use tokio_boring::{BoxGetSessionFinish, SslContextBuilderExt};
+use tokio_boring::BoxGetSessionFinish;
 
 mod common;
 
@@ -31,9 +31,7 @@ async fn test() {
 
         unsafe {
             builder.set_async_get_session_callback(|_, _| {
-                let Some(der) = SERVER_SESSION_DER.get() else {
-                    return None;
-                };
+                let der = SERVER_SESSION_DER.get()?;
 
                 Some(Box::pin(async move {
                     yield_now().await;
