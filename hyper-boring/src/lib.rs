@@ -35,7 +35,7 @@ mod test;
 
 fn key_index() -> Result<Index<Ssl, SessionKey>, ErrorStack> {
     static IDX: OnceCell<Index<Ssl, SessionKey>> = OnceCell::new();
-    IDX.get_or_try_init(Ssl::new_ex_index).map(|v| *v)
+    IDX.get_or_try_init(Ssl::new_ex_index).copied()
 }
 
 #[derive(Clone)]
@@ -87,6 +87,42 @@ pub struct HttpsLayer {
     inner: Inner,
 }
 
+/// Settings for [`HttpsLayer`]
+pub struct HttpsLayerSettings {
+    session_cache_capacity: usize,
+}
+
+impl HttpsLayerSettings {
+    /// Constructs an [`HttpsLayerSettingsBuilder`] for configuring settings
+    pub fn builder() -> HttpsLayerSettingsBuilder {
+        HttpsLayerSettingsBuilder(HttpsLayerSettings::default())
+    }
+}
+
+impl Default for HttpsLayerSettings {
+    fn default() -> Self {
+        Self {
+            session_cache_capacity: 8,
+        }
+    }
+}
+
+/// Builder for [`HttpsLayerSettings`]
+pub struct HttpsLayerSettingsBuilder(HttpsLayerSettings);
+
+impl HttpsLayerSettingsBuilder {
+    /// Sets maximum number of sessions to cache. Session capacity is per session key (domain).
+    /// Defaults to 8.
+    pub fn set_session_cache_capacity(&mut self, capacity: usize) {
+        self.0.session_cache_capacity = capacity;
+    }
+
+    /// Consumes the builder, returning a new [`HttpsLayerSettings`]
+    pub fn build(self) -> HttpsLayerSettings {
+        self.0
+    }
+}
+
 impl HttpsLayer {
     /// Creates a new `HttpsLayer` with default settings.
     ///
@@ -102,8 +138,18 @@ impl HttpsLayer {
     /// Creates a new `HttpsLayer`.
     ///
     /// The session cache configuration of `ssl` will be overwritten.
-    pub fn with_connector(mut ssl: SslConnectorBuilder) -> Result<HttpsLayer, ErrorStack> {
-        let cache = Arc::new(Mutex::new(SessionCache::new()));
+    pub fn with_connector(ssl: SslConnectorBuilder) -> Result<HttpsLayer, ErrorStack> {
+        Self::with_connector_and_settings(ssl, Default::default())
+    }
+
+    /// Creates a new `HttpsLayer` with settings
+    pub fn with_connector_and_settings(
+        mut ssl: SslConnectorBuilder,
+        settings: HttpsLayerSettings,
+    ) -> Result<HttpsLayer, ErrorStack> {
+        let cache = Arc::new(Mutex::new(SessionCache::with_capacity(
+            settings.session_cache_capacity,
+        )));
 
         ssl.set_session_cache_mode(SslSessionCacheMode::CLIENT);
 
@@ -114,11 +160,6 @@ impl HttpsLayer {
                     cache.lock().insert(key.clone(), session);
                 }
             }
-        });
-
-        ssl.set_remove_session_callback({
-            let cache = cache.clone();
-            move |_, session| cache.lock().remove(session)
         });
 
         Ok(HttpsLayer {

@@ -62,7 +62,6 @@ use foreign_types::{ForeignType, ForeignTypeRef, Opaque};
 use libc::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
 use once_cell::sync::Lazy;
 use std::any::TypeId;
-use std::cmp;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ffi::{CStr, CString};
@@ -70,7 +69,7 @@ use std::fmt;
 use std::io;
 use std::io::prelude::*;
 use std::marker::PhantomData;
-use std::mem::{self, ManuallyDrop};
+use std::mem::{self, ManuallyDrop, MaybeUninit};
 use std::ops::{Deref, DerefMut};
 use std::panic::resume_unwind;
 use std::path::Path;
@@ -89,7 +88,7 @@ use crate::srtp::{SrtpProtectionProfile, SrtpProtectionProfileRef};
 use crate::ssl::bio::BioMethod;
 use crate::ssl::callbacks::*;
 use crate::ssl::error::InnerError;
-use crate::stack::{Stack, StackRef};
+use crate::stack::{Stack, StackRef, Stackable};
 use crate::x509::store::{X509Store, X509StoreBuilderRef, X509StoreRef};
 use crate::x509::verify::X509VerifyParamRef;
 use crate::x509::{
@@ -671,12 +670,10 @@ impl SslSignatureAlgorithm {
 }
 
 /// A TLS Curve.
-#[cfg(not(feature = "kx-safe-default"))]
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SslCurve(c_int);
 
-#[cfg(not(feature = "kx-safe-default"))]
 impl SslCurve {
     pub const SECP224R1: SslCurve = SslCurve(ffi::NID_secp224r1);
 
@@ -699,6 +696,43 @@ impl SslCurve {
 
     #[cfg(feature = "pq-experimental")]
     pub const P256_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::NID_P256Kyber768Draft00);
+
+    /// Returns the curve name
+    ///
+    /// This corresponds to [`SSL_get_curve_name`]
+    ///
+    /// [`SSL_get_curve_name`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_get_curve_name
+    pub fn name(&self) -> Option<&'static str> {
+        unsafe {
+            let ptr = ffi::SSL_get_curve_name(self.0 as u16);
+            if ptr.is_null() {
+                return None;
+            }
+
+            CStr::from_ptr(ptr).to_str().ok()
+        }
+    }
+}
+
+/// A compliance policy.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg(not(feature = "fips"))]
+pub struct CompliancePolicy(ffi::ssl_compliance_policy_t);
+
+#[cfg(not(feature = "fips"))]
+impl CompliancePolicy {
+    /// Does nothing, however setting this does not undo other policies, so trying to set this is an error.
+    pub const NONE: Self = Self(ffi::ssl_compliance_policy_t::ssl_compliance_policy_none);
+
+    /// Configures a TLS connection to try and be compliant with NIST requirements, but does not guarantee success.
+    /// This policy can be called even if Boring is not built with FIPS.
+    pub const FIPS_202205: Self =
+        Self(ffi::ssl_compliance_policy_t::ssl_compliance_policy_fips_202205);
+
+    /// Partially configures a TLS connection to be compliant with WPA3. Callers must enforce certificate chain requirements themselves.
+    /// Use of this policy is less secure than the default and not recommended.
+    pub const WPA3_192_202304: Self =
+        Self(ffi::ssl_compliance_policy_t::ssl_compliance_policy_wpa3_192_202304);
 }
 
 /// A standard implementation of protocol selection for Application Layer Protocol Negotiation
@@ -1262,7 +1296,9 @@ impl SslContextBuilder {
 
     /// Sets the list of supported ciphers for protocols before TLSv1.3.
     ///
-    /// The `set_ciphersuites` method controls the cipher suites for TLSv1.3.
+    /// The `set_ciphersuites` method controls the cipher suites for TLSv1.3 in OpenSSL.
+    /// BoringSSL doesn't implement `set_ciphersuites`.
+    /// See https://github.com/google/boringssl/blob/master/include/openssl/ssl.h#L1542-L1544
     ///
     /// See [`ciphers`] for details on the format.
     ///
@@ -1279,6 +1315,18 @@ impl SslContextBuilder {
             ))
             .map(|_| ())
         }
+    }
+
+    /// Gets the list of supported ciphers for protocols before TLSv1.3.
+    ///
+    /// See [`ciphers`] for details on the format
+    ///
+    /// This corresponds to [`SSL_CTX_get_ciphers`].
+    ///
+    /// [`ciphers`]: https://www.openssl.org/docs/manmaster/man1/ciphers.html
+    /// [`SSL_CTX_set_cipher_list`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_get_ciphers.html
+    pub fn ciphers(&self) -> Option<&StackRef<SslCipher>> {
+        self.ctx.ciphers()
     }
 
     /// Sets the options used by the context, returning the old set.
@@ -1856,6 +1904,17 @@ impl SslContextBuilder {
         }
     }
 
+    /// Sets the context's compliance policy.
+    ///
+    /// This corresponds to [`SSL_CTX_set_compliance_policy`]
+    ///
+    /// [`SSL_CTX_set_compliance_policy`] https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set_compliance_policy
+    /// This feature isn't available in the certified version of BoringSSL.
+    #[cfg(not(feature = "fips"))]
+    pub fn set_compliance_policy(&mut self, policy: CompliancePolicy) -> Result<(), ErrorStack> {
+        unsafe { cvt_0i(ffi::SSL_CTX_set_compliance_policy(self.as_ptr(), policy.0)).map(|_| ()) }
+    }
+
     /// Consumes the builder, returning a new `SslContext`.
     pub fn build(self) -> SslContext {
         self.ctx
@@ -1934,6 +1993,25 @@ impl SslContext {
                 .entry(TypeId::of::<T>())
                 .or_insert_with(|| SslContext::new_ex_index::<T>().unwrap().as_raw());
             Index::from_raw(idx)
+        }
+    }
+
+    /// Gets the list of supported ciphers for protocols before TLSv1.3.
+    ///
+    /// See [`ciphers`] for details on the format
+    ///
+    /// This corresponds to [`SSL_CTX_get_ciphers`].
+    ///
+    /// [`ciphers`]: https://www.openssl.org/docs/manmaster/man1/ciphers.html
+    /// [`SSL_CTX_set_cipher_list`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_get_ciphers.html
+    pub fn ciphers(&self) -> Option<&StackRef<SslCipher>> {
+        unsafe {
+            let ciphers = ffi::SSL_CTX_get_ciphers(self.as_ptr());
+            if ciphers.is_null() {
+                None
+            } else {
+                Some(StackRef::from_ptr(ciphers))
+            }
         }
     }
 }
@@ -2176,10 +2254,24 @@ impl ClientHello<'_> {
     pub fn version_str(&self) -> &'static str {
         self.ssl().version_str()
     }
+
+    /// Returns the raw data of the client hello message
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(self.0.client_hello, self.0.client_hello_len) }
+    }
+
+    /// Returns the client random data
+    pub fn random(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(self.0.random, self.0.random_len) }
+    }
 }
 
 /// Information about a cipher.
 pub struct SslCipher(*mut ffi::SSL_CIPHER);
+
+impl Stackable for SslCipher {
+    type StackType = ffi::stack_st_SSL_CIPHER;
+}
 
 unsafe impl ForeignType for SslCipher {
     type CType = ffi::SSL_CIPHER;
@@ -2625,16 +2717,6 @@ impl SslRef {
         unsafe { ffi::SSL_get_rbio(self.as_ptr()) }
     }
 
-    fn read(&mut self, buf: &mut [u8]) -> c_int {
-        let len = cmp::min(c_int::max_value() as usize, buf.len()) as c_int;
-        unsafe { ffi::SSL_read(self.as_ptr(), buf.as_ptr() as *mut c_void, len) }
-    }
-
-    fn write(&mut self, buf: &[u8]) -> c_int {
-        let len = cmp::min(c_int::max_value() as usize, buf.len()) as c_int;
-        unsafe { ffi::SSL_write(self.as_ptr(), buf.as_ptr() as *const c_void, len) }
-    }
-
     #[cfg(feature = "kx-safe-default")]
     fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
         let curves = CString::new(curves).unwrap();
@@ -2677,6 +2759,19 @@ impl SslRef {
     fn server_set_default_curves_list(&mut self) {
         self.set_curves_list("X25519Kyber768Draft00:P256Kyber768Draft00:X25519:P-256:P-384")
             .expect("invalid default server curves list");
+    }
+
+    /// Returns the [`SslCurve`] used for this `SslRef`.
+    ///
+    /// This corresponds to [`SSL_get_curve_id`]
+    ///
+    /// [`SSL_get_curve_id`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_get_curve_id
+    pub fn curve(&self) -> Option<SslCurve> {
+        let curve_id = unsafe { ffi::SSL_get_curve_id(self.as_ptr()) };
+        if curve_id == 0 {
+            return None;
+        }
+        Some(SslCurve(curve_id.into()))
     }
 
     /// Returns an `ErrorCode` value for the most recent operation on this `SslRef`.
@@ -3494,6 +3589,18 @@ impl SslRef {
 
         Ok(())
     }
+
+    /// Sets the private key.
+    ///
+    /// This corresponds to [`SSL_use_PrivateKey`].
+    ///
+    /// [`SSL_use_PrivateKey`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_use_PrivateKey.html
+    pub fn set_private_key<T>(&mut self, key: &PKeyRef<T>) -> Result<(), ErrorStack>
+    where
+        T: HasPrivate,
+    {
+        unsafe { cvt(ffi::SSL_use_PrivateKey(self.as_ptr(), key.as_ptr())).map(|_| ()) }
+    }
 }
 
 /// An SSL stream midway through the handshake process.
@@ -3627,6 +3734,30 @@ impl<S: Read + Write> SslStream<S> {
         Self::new_base(ssl, stream)
     }
 
+    /// Like `read`, but takes a possibly-uninitialized slice.
+    ///
+    /// # Safety
+    ///
+    /// No portion of `buf` will be de-initialized by this method. If the method returns `Ok(n)`,
+    /// then the first `n` bytes of `buf` are guaranteed to be initialized.
+    pub fn read_uninit(&mut self, buf: &mut [MaybeUninit<u8>]) -> io::Result<usize> {
+        loop {
+            match self.ssl_read_uninit(buf) {
+                Ok(n) => return Ok(n),
+                Err(ref e) if e.code() == ErrorCode::ZERO_RETURN => return Ok(0),
+                Err(ref e) if e.code() == ErrorCode::SYSCALL && e.io_error().is_none() => {
+                    return Ok(0);
+                }
+                Err(ref e) if e.code() == ErrorCode::WANT_READ && e.io_error().is_none() => {}
+                Err(e) => {
+                    return Err(e
+                        .into_io_error()
+                        .unwrap_or_else(|e| io::Error::new(io::ErrorKind::Other, e)));
+                }
+            }
+        }
+    }
+
     /// Like `read`, but returns an `ssl::Error` rather than an `io::Error`.
     ///
     /// It is particularly useful with a nonblocking socket, where the error value will identify if
@@ -3636,16 +3767,28 @@ impl<S: Read + Write> SslStream<S> {
     ///
     /// [`SSL_read`]: https://www.openssl.org/docs/manmaster/man3/SSL_read.html
     pub fn ssl_read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        // The interpretation of the return code here is a little odd with a
-        // zero-length write. OpenSSL will likely correctly report back to us
-        // that it read zero bytes, but zero is also the sentinel for "error".
-        // To avoid that confusion short-circuit that logic and return quickly
-        // if `buf` has a length of zero.
+        // SAFETY: `ssl_read_uninit` does not de-initialize the buffer.
+        unsafe {
+            self.ssl_read_uninit(slice::from_raw_parts_mut(
+                buf.as_mut_ptr().cast::<MaybeUninit<u8>>(),
+                buf.len(),
+            ))
+        }
+    }
+
+    /// Like `read_ssl`, but takes a possibly-uninitialized slice.
+    ///
+    /// # Safety
+    ///
+    /// No portion of `buf` will be de-initialized by this method. If the method returns `Ok(n)`,
+    /// then the first `n` bytes of `buf` are guaranteed to be initialized.
+    pub fn ssl_read_uninit(&mut self, buf: &mut [MaybeUninit<u8>]) -> Result<usize, Error> {
         if buf.is_empty() {
             return Ok(0);
         }
 
-        let ret = self.ssl.read(buf);
+        let len = usize::min(c_int::max_value() as usize, buf.len()) as c_int;
+        let ret = unsafe { ffi::SSL_read(self.ssl().as_ptr(), buf.as_mut_ptr().cast(), len) };
         if ret > 0 {
             Ok(ret as usize)
         } else {
@@ -3662,12 +3805,12 @@ impl<S: Read + Write> SslStream<S> {
     ///
     /// [`SSL_write`]: https://www.openssl.org/docs/manmaster/man3/SSL_write.html
     pub fn ssl_write(&mut self, buf: &[u8]) -> Result<usize, Error> {
-        // See above for why we short-circuit on zero-length buffers
         if buf.is_empty() {
             return Ok(0);
         }
 
-        let ret = self.ssl.write(buf);
+        let len = usize::min(c_int::max_value() as usize, buf.len()) as c_int;
+        let ret = unsafe { ffi::SSL_write(self.ssl().as_ptr(), buf.as_ptr().cast(), len) };
         if ret > 0 {
             Ok(ret as usize)
         } else {
@@ -3838,20 +3981,12 @@ impl<S> SslStream<S> {
 
 impl<S: Read + Write> Read for SslStream<S> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        loop {
-            match self.ssl_read(buf) {
-                Ok(n) => return Ok(n),
-                Err(ref e) if e.code() == ErrorCode::ZERO_RETURN => return Ok(0),
-                Err(ref e) if e.code() == ErrorCode::SYSCALL && e.io_error().is_none() => {
-                    return Ok(0);
-                }
-                Err(ref e) if e.code() == ErrorCode::WANT_READ && e.io_error().is_none() => {}
-                Err(e) => {
-                    return Err(e
-                        .into_io_error()
-                        .unwrap_or_else(|e| io::Error::new(io::ErrorKind::Other, e)));
-                }
-            }
+        // SAFETY: `read_uninit` does not de-initialize the buffer
+        unsafe {
+            self.read_uninit(slice::from_raw_parts_mut(
+                buf.as_mut_ptr().cast::<MaybeUninit<u8>>(),
+                buf.len(),
+            ))
         }
     }
 }
