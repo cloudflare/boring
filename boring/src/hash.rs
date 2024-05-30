@@ -1,5 +1,6 @@
 use crate::ffi;
 use std::convert::TryInto;
+use std::ffi::{c_uint, c_void};
 use std::fmt;
 use std::io;
 use std::io::prelude::*;
@@ -333,6 +334,41 @@ pub fn hash_xof(t: MessageDigest, data: &[u8], buf: &mut [u8]) -> Result<(), Err
     h.finish_xof(buf)
 }
 
+/// Computes HMAC with SHA-256 digest.
+pub fn hmac_sha256(key: &[u8], data: &[u8]) -> Result<[u8; 32], ErrorStack> {
+    hmac(MessageDigest::sha256(), key, data)
+}
+
+/// Computes HMAC with SHA-512 digest.
+pub fn hmac_sha512(key: &[u8], data: &[u8]) -> Result<[u8; 64], ErrorStack> {
+    hmac(MessageDigest::sha512(), key, data)
+}
+
+fn hmac<const N: usize>(
+    digest: MessageDigest,
+    key: &[u8],
+    data: &[u8],
+) -> Result<[u8; N], ErrorStack> {
+    let mut out = [0u8; N];
+    let mut out_len: c_uint = 0;
+
+    cvt_p(unsafe {
+        ffi::HMAC(
+            digest.as_ptr(),
+            key.as_ptr() as *const c_void,
+            key.len(),
+            data.as_ptr(),
+            data.len(),
+            out.as_mut_ptr(),
+            &mut out_len,
+        )
+    })?;
+
+    assert_eq!(out_len as usize, N);
+
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use hex::{self, FromHex};
@@ -370,6 +406,36 @@ mod tests {
             "6f80fb775f27e0a4ce5c2f42fc72c5f1",
         ),
     ];
+
+    #[test]
+    fn test_hmac_sha256() {
+        let hmac = hmac_sha256(b"That's a secret".as_slice(), b"Hello world!".as_slice()).unwrap();
+
+        assert_eq!(
+            hmac,
+            [
+                0x50, 0xbb, 0x7d, 0xd2, 0xb8, 0xd2, 0x51, 0x5d, 0xb4, 0x2b, 0x70, 0xc3, 0x0b, 0xfd,
+                0xf5, 0x4c, 0x38, 0xa7, 0xae, 0x99, 0x07, 0xe5, 0x80, 0x0f, 0x8b, 0xe8, 0x34, 0x83,
+                0x55, 0x5f, 0xd0, 0xd4
+            ]
+        );
+    }
+
+    #[test]
+    fn test_hmac_sha512() {
+        let hmac = hmac_sha512(b"That's a secret".as_slice(), b"Hello world!".as_slice()).unwrap();
+
+        assert_eq!(
+            hmac,
+            [
+                0xc2, 0x7a, 0x7f, 0x7c, 0x17, 0x4c, 0x87, 0x70, 0x7f, 0x8c, 0xb7, 0x90, 0x01, 0xba,
+                0x23, 0x0e, 0xb7, 0xd6, 0x1a, 0xfd, 0x50, 0xea, 0x40, 0x43, 0x5f, 0x03, 0x25, 0x5a,
+                0x22, 0xb7, 0x8d, 0x0e, 0xba, 0x0d, 0x47, 0xb8, 0xef, 0xaa, 0xbf, 0xb1, 0xe7, 0xad,
+                0xc5, 0xd1, 0xe5, 0xba, 0x4d, 0xa5, 0xd1, 0xbb, 0x5e, 0xe3, 0xc7, 0x27, 0x0c, 0x57,
+                0x76, 0xd4, 0x2f, 0xb6, 0x5c, 0x21, 0xb7, 0x3a
+            ]
+        );
+    }
 
     #[test]
     fn test_md5() {
