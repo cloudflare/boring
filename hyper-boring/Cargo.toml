@@ -15,9 +15,7 @@ features = ["pq-experimental"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["runtime"]
-
-runtime = ["hyper/runtime"]
+default = []
 
 # Use a FIPS-validated version of boringssl.
 fips = ["tokio-boring/fips"]
@@ -30,20 +28,24 @@ pq-experimental = ["tokio-boring/pq-experimental"]
 
 [dependencies]
 antidote = { workspace = true }
+boring = { workspace = true }
 http = { workspace = true }
-hyper = { workspace = true, features = ["client"] }
+hyper = { workspace = true }
+hyper-util = { workspace = true, features = ["client-legacy", "client", "tokio"] }
 linked_hash_set = { workspace = true }
 once_cell = { workspace = true }
-boring = { workspace = true }
 tokio = { workspace = true }
 tokio-boring = { workspace = true }
 tower-layer = { workspace = true }
+tower-service = { workspace = true }
 
 [dev-dependencies]
 hyper = { workspace = true, features = [ "full" ] }
 tokio = { workspace = true, features = [ "full" ] }
 tower = { workspace = true, features = ["util"] }
 futures = { workspace = true }
+hyper-util = { workspace = true, features = ["full"] }
+http-body-util = { workspace = true }
 
 [package.metadata.release]
 pre-release-hook = [
