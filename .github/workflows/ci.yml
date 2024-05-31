@@ -249,6 +249,11 @@ jobs:
       with:
         version: "12.0.0"
         directory: ${{ runner.temp }}/llvm
+    - name: Install golang
+      uses: actions/checkout@v4
+      uses: actions/setup-go@v5
+      with:
+        go-version: '>=1.22.0'
     - name: Add clang++-12 link
       working-directory: ${{ runner.temp }}/llvm/bin
       run: ln -s clang clang++-12
