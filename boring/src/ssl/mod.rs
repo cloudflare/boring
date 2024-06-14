@@ -669,6 +669,12 @@ impl SslSignatureAlgorithm {
     pub const ED25519: SslSignatureAlgorithm = SslSignatureAlgorithm(ffi::SSL_SIGN_ED25519 as _);
 }
 
+impl From<u16> for SslSignatureAlgorithm {
+    fn from(value: u16) -> Self {
+        Self(value)
+    }
+}
+
 /// A TLS Curve.
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
