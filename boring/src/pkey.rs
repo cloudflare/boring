@@ -411,7 +411,7 @@ impl PKey<Private> {
     pub fn private_key_from_pkcs8(der: &[u8]) -> Result<PKey<Private>, ErrorStack> {
         unsafe {
             ffi::init();
-            let len = der.len().min(c_long::max_value() as usize) as c_long;
+            let len = der.len().min(c_long::MAX as usize) as c_long;
             let p8inf = cvt_p(ffi::d2i_PKCS8_PRIV_KEY_INFO(
                 ptr::null_mut(),
                 &mut der.as_ptr(),
