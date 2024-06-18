@@ -59,7 +59,7 @@ macro_rules! private_key_to_pem {
         ) -> Result<Vec<u8>, crate::error::ErrorStack> {
             unsafe {
                 let bio = crate::bio::MemBio::new()?;
-                assert!(passphrase.len() <= ::libc::c_int::max_value() as usize);
+                assert!(passphrase.len() <= ::libc::c_int::MAX as usize);
                 cvt($f(bio.as_ptr(),
                         self.as_ptr(),
                         cipher.as_ptr(),
@@ -108,7 +108,7 @@ macro_rules! from_der {
         pub fn $n(der: &[u8]) -> Result<$t, crate::error::ErrorStack> {
             unsafe {
                 crate::ffi::init();
-                let len = ::std::cmp::min(der.len(), <$len_ty>::max_value() as usize) as $len_ty;
+                let len = ::std::cmp::min(der.len(), <$len_ty>::MAX as usize) as $len_ty;
                 crate::cvt_p($f(::std::ptr::null_mut(), &mut der.as_ptr(), len))
                     .map(|p| ::foreign_types::ForeignType::from_ptr(p))
             }

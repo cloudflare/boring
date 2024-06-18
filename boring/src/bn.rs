@@ -159,7 +159,7 @@ impl BigNumRef {
     pub fn div_word(&mut self, w: u32) -> Result<u64, ErrorStack> {
         unsafe {
             let r = ffi::BN_div_word(self.as_ptr(), w.into());
-            if r == ffi::BN_ULONG::max_value() {
+            if r == ffi::BN_ULONG::MAX {
                 Err(ErrorStack::get())
             } else {
                 Ok(r.into())
@@ -176,7 +176,7 @@ impl BigNumRef {
     pub fn mod_word(&self, w: u32) -> Result<u64, ErrorStack> {
         unsafe {
             let r = ffi::BN_mod_word(self.as_ptr(), w.into());
-            if r == ffi::BN_ULONG::max_value() {
+            if r == ffi::BN_ULONG::MAX {
                 Err(ErrorStack::get())
             } else {
                 Ok(r.into())
@@ -987,7 +987,7 @@ impl BigNum {
     pub fn from_slice(n: &[u8]) -> Result<BigNum, ErrorStack> {
         unsafe {
             ffi::init();
-            assert!(n.len() <= c_int::max_value() as usize);
+            assert!(n.len() <= c_int::MAX as usize);
             cvt_p(ffi::BN_bin2bn(
                 n.as_ptr(),
                 n.len() as size_t,

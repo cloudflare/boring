@@ -1174,7 +1174,7 @@ impl SslContextBuilder {
     /// [`SSL_CTX_set_session_id_context`]: https://www.openssl.org/docs/manmaster/man3/SSL_CTX_set_session_id_context.html
     pub fn set_session_id_context(&mut self, sid_ctx: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            assert!(sid_ctx.len() <= c_uint::max_value() as usize);
+            assert!(sid_ctx.len() <= c_uint::MAX as usize);
             cvt(ffi::SSL_CTX_set_session_id_context(
                 self.as_ptr(),
                 sid_ctx.as_ptr(),
@@ -1449,7 +1449,7 @@ impl SslContextBuilder {
         unsafe {
             #[cfg_attr(not(feature = "fips"), allow(clippy::unnecessary_cast))]
             {
-                assert!(protocols.len() <= ProtosLen::max_value() as usize);
+                assert!(protocols.len() <= ProtosLen::MAX as usize);
             }
             let r = ffi::SSL_CTX_set_alpn_protos(
                 self.as_ptr(),
@@ -2951,7 +2951,7 @@ impl SslRef {
         unsafe {
             #[cfg_attr(not(feature = "fips"), allow(clippy::unnecessary_cast))]
             {
-                assert!(protocols.len() <= ProtosLen::max_value() as usize);
+                assert!(protocols.len() <= ProtosLen::MAX as usize);
             }
             let r = ffi::SSL_set_alpn_protos(
                 self.as_ptr(),
@@ -3552,7 +3552,7 @@ impl SslRef {
     /// [`SSL_set_tlsext_status_ocsp_resp`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_set_tlsext_status_type.html
     pub fn set_ocsp_status(&mut self, response: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            assert!(response.len() <= c_int::max_value() as usize);
+            assert!(response.len() <= c_int::MAX as usize);
             let p = cvt_p(ffi::OPENSSL_malloc(response.len() as _))?;
             ptr::copy_nonoverlapping(response.as_ptr(), p as *mut u8, response.len());
             cvt(ffi::SSL_set_tlsext_status_ocsp_resp(
@@ -3933,7 +3933,7 @@ impl<S: Read + Write> SslStream<S> {
             return Ok(0);
         }
 
-        let len = usize::min(c_int::max_value() as usize, buf.len()) as c_int;
+        let len = usize::min(c_int::MAX as usize, buf.len()) as c_int;
         let ret = unsafe { ffi::SSL_read(self.ssl().as_ptr(), buf.as_mut_ptr().cast(), len) };
         if ret > 0 {
             Ok(ret as usize)
@@ -3955,7 +3955,7 @@ impl<S: Read + Write> SslStream<S> {
             return Ok(0);
         }
 
-        let len = usize::min(c_int::max_value() as usize, buf.len()) as c_int;
+        let len = usize::min(c_int::MAX as usize, buf.len()) as c_int;
         let ret = unsafe { ffi::SSL_write(self.ssl().as_ptr(), buf.as_ptr().cast(), len) };
         if ret > 0 {
             Ok(ret as usize)
