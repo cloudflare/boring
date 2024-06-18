@@ -2270,10 +2270,28 @@ impl ClientHello<'_> {
     pub fn random(&self) -> &[u8] {
         unsafe { slice::from_raw_parts(self.0.random, self.0.random_len) }
     }
+
+    /// Returns the raw list of ciphers supported by the client in its Client Hello record.
+    pub fn ciphers(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(self.0.cipher_suites, self.0.cipher_suites_len) }
+    }
 }
 
 /// Information about a cipher.
 pub struct SslCipher(*mut ffi::SSL_CIPHER);
+
+impl SslCipher {
+    pub fn from_value(value: u16) -> Option<Self> {
+        unsafe {
+            let ptr = ffi::SSL_get_cipher_by_value(value);
+            if ptr.is_null() {
+                None
+            } else {
+                Some(Self::from_ptr(ptr as *mut ffi::SSL_CIPHER))
+            }
+        }
+    }
+}
 
 impl Stackable for SslCipher {
     type StackType = ffi::stack_st_SSL_CIPHER;
@@ -2955,6 +2973,18 @@ impl SslRef {
             } else {
                 Err(ErrorStack::get())
             }
+        }
+    }
+
+    /// Returns the stack of available SslCiphers for `SSL`, sorted by preference.
+    ///
+    /// This corresponds to [`SSL_get_ciphers`].
+    ///
+    /// [`SSL_get_ciphers`]: https://www.openssl.org/docs/man1.0.2/man3/SSL_get_ciphers.html
+    pub fn ciphers(&self) -> &StackRef<SslCipher> {
+        unsafe {
+            let cipher_list = ffi::SSL_get_ciphers(self.as_ptr());
+            StackRef::from_ptr(cipher_list)
         }
     }
 
