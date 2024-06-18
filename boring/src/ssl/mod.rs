@@ -1066,16 +1066,14 @@ impl SslContextBuilder {
         }
     }
 
-    /// Sets the mode used by the context, returning the previous mode.
+    /// Sets the mode used by the context, returning the new bit-mask after adding mode.
     ///
     /// This corresponds to [`SSL_CTX_set_mode`].
     ///
-    /// [`SSL_CTX_set_mode`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_CTX_set_mode.html
+    /// [`SSL_CTX_set_mode`]: https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_mode.html
     pub fn set_mode(&mut self, mode: SslMode) -> SslMode {
-        unsafe {
-            let bits = ffi::SSL_CTX_set_mode(self.as_ptr(), mode.bits());
-            SslMode::from_bits_retain(bits)
-        }
+        let bits = unsafe { ffi::SSL_CTX_set_mode(self.as_ptr(), mode.bits()) };
+        SslMode::from_bits_retain(bits)
     }
 
     /// Sets the parameters to be used during ephemeral Diffie-Hellman key exchange.
@@ -3717,6 +3715,28 @@ impl SslRef {
         T: HasPrivate,
     {
         unsafe { cvt(ffi::SSL_use_PrivateKey(self.as_ptr(), key.as_ptr())).map(|_| ()) }
+    }
+
+    /// Enables all modes set in `mode` in `SSL`. Returns a bitmask representing the resulting
+    /// enabled modes.
+    ///
+    /// This corresponds to [`SSL_set_mode`].
+    ///
+    /// [`SSL_set_mode`]: https://www.openssl.org/docs/man1.0.2/ssl/SSL_set_mode.html
+    pub fn set_mode(&mut self, mode: SslMode) -> SslMode {
+        let bits = unsafe { ffi::SSL_set_mode(self.as_ptr(), mode.bits()) };
+        SslMode::from_bits_retain(bits)
+    }
+
+    /// Disables all modes set in `mode` in `SSL`. Returns a bitmask representing the resulting
+    /// enabled modes.
+    ///
+    /// This corresponds to [`SSL_clear_mode`].
+    ///
+    /// [`SSL_clear_mode`]: https://www.openssl.org/docs/man3.1/man3/SSL_clear_mode.html
+    pub fn clear_mode(&mut self, mode: SslMode) -> SslMode {
+        let bits = unsafe { ffi::SSL_clear_mode(self.as_ptr(), mode.bits()) };
+        SslMode::from_bits_retain(bits)
     }
 }
 
