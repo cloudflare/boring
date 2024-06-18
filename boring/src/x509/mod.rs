@@ -592,6 +592,19 @@ impl X509Ref {
         }
     }
 
+    pub fn check_host(&self, host: &str) -> Result<bool, ErrorStack> {
+        unsafe {
+            cvt_n(ffi::X509_check_host(
+                self.as_ptr(),
+                host.as_ptr() as _,
+                host.len(),
+                0,
+                std::ptr::null_mut(),
+            ))
+            .map(|n| n != 0)
+        }
+    }
+
     to_pem! {
         /// Serializes the certificate into a PEM-encoded X509 structure.
         ///
