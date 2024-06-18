@@ -1,7 +1,7 @@
 #![forbid(unsafe_op_in_unsafe_fn)]
 
 use super::{
-    AlpnError, ClientHello, GetSessionPendingError, PrivateKeyMethod, PrivateKeyMethodError,
+    AlpnError, CertificateCompressor, ClientHello, GetSessionPendingError, PrivateKeyMethod, PrivateKeyMethodError,
     SelectCertError, SniError, Ssl, SslAlert, SslContext, SslContextRef, SslInfoCallbackAlert,
     SslInfoCallbackMode, SslInfoCallbackValue, SslRef, SslSession, SslSessionRef,
     SslSignatureAlgorithm, SslVerifyError, SESSION_CTX_INDEX,
@@ -578,4 +578,95 @@ pub(super) unsafe extern "C" fn raw_info_callback<F>(
     };
 
     callback(ssl, SslInfoCallbackMode(mode), value);
+}
+
+pub(super) unsafe extern "C" fn raw_ssl_cert_compress<C>(
+    ssl: *mut ffi::SSL,
+    out: *mut ffi::CBB,
+    input: *const u8,
+    input_len: usize,
+) -> ::std::os::raw::c_int
+where
+    C: CertificateCompressor,
+{
+    // SAFETY: boring provides valid inputs.
+    let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
+
+    let ssl_context = ssl.ssl_context().to_owned();
+    let compressor = ssl_context
+        .ex_data(SslContext::cached_ex_index::<C>())
+        .expect("BUG: certificate compression missed");
+
+    if !compressor.can_compress() {
+        return 0;
+    }
+    let input_slice = unsafe { std::slice::from_raw_parts(input, input_len) };
+    let mut writer = CryptoByteBuilder(out);
+    if compressor.compress(input_slice, &mut writer).is_err() {
+        return 0;
+    }
+
+    return 1;
+}
+
+pub(super) unsafe extern "C" fn raw_ssl_cert_decompress<C>(
+    ssl: *mut ffi::SSL,
+    out: *mut *mut ffi::CRYPTO_BUFFER,
+    uncompressed_len: usize,
+    input: *const u8,
+    input_len: usize,
+) -> ::std::os::raw::c_int
+where
+    C: CertificateCompressor,
+{
+    // SAFETY: boring provides valid inputs.
+    let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
+
+    let ssl_context = ssl.ssl_context().to_owned();
+    let compressor = ssl_context
+        .ex_data(SslContext::cached_ex_index::<C>())
+        .expect("BUG: certificate compression missed");
+
+    let mut data: *mut u8 = std::ptr::null_mut();
+
+    let decompressed = unsafe { boring_sys::CRYPTO_BUFFER_alloc(&mut data, uncompressed_len) };
+
+    if decompressed.is_null() {
+        return 0;
+    }
+
+    let input_slice = unsafe { std::slice::from_raw_parts(input, input_len) };
+
+    let output_slice = unsafe { std::slice::from_raw_parts_mut(data, uncompressed_len) };
+
+    let mut cursor = std::io::Cursor::new(output_slice);
+    if compressor.decompress(input_slice, &mut cursor).is_err() {
+        return 0;
+    }
+    if cursor.position() != uncompressed_len as u64 {
+        return 0;
+    }
+
+    unsafe { *out = decompressed };
+    1
+}
+
+struct CryptoByteBuilder(*mut ffi::CBB);
+
+impl std::io::Write for CryptoByteBuilder {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let success = unsafe { ffi::CBB_add_bytes(self.0, buf.as_ptr(), buf.len()) == 1 };
+        if !success {
+            return Err(std::io::Error::other("CBB_add_bytes failed"));
+        }
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        let success = unsafe { ffi::CBB_flush(self.0) == 1 };
+        if !success {
+            return Err(std::io::Error::other("CBB_flush failed"));
+        }
+        Ok(())
+    }
 }
