@@ -1372,12 +1372,12 @@ impl SslContextBuilder {
 
     /// Sets the minimum supported protocol version.
     ///
-    /// A value of `None` will enable protocol versions down the the lowest version supported by
-    /// OpenSSL.
+    /// If version is `None`, the default minimum version is used. For BoringSSL this defaults to
+    /// TLS 1.0.
     ///
     /// This corresponds to [`SSL_CTX_set_min_proto_version`].
     ///
-    /// [`SSL_CTX_set_min_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_min_proto_version.html
+    /// [`SSL_CTX_set_min_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_min_proto_version.html
     pub fn set_min_proto_version(&mut self, version: Option<SslVersion>) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::SSL_CTX_set_min_proto_version(
@@ -1390,12 +1390,11 @@ impl SslContextBuilder {
 
     /// Sets the maximum supported protocol version.
     ///
-    /// A value of `None` will enable protocol versions down the the highest version supported by
-    /// OpenSSL.
+    /// If version is `None`, the default maximum version is used. For BoringSSL this is TLS 1.3.
     ///
     /// This corresponds to [`SSL_CTX_set_max_proto_version`].
     ///
-    /// [`SSL_CTX_set_max_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_min_proto_version.html
+    /// [`SSL_CTX_set_max_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_max_proto_version.html
     pub fn set_max_proto_version(&mut self, version: Option<SslVersion>) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::SSL_CTX_set_max_proto_version(
@@ -1408,12 +1407,9 @@ impl SslContextBuilder {
 
     /// Gets the minimum supported protocol version.
     ///
-    /// A value of `None` indicates that all versions down the the lowest version supported by
-    /// OpenSSL are enabled.
-    ///
     /// This corresponds to [`SSL_CTX_get_min_proto_version`].
     ///
-    /// [`SSL_CTX_get_min_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_min_proto_version.html
+    /// [`SSL_CTX_get_min_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_get_min_proto_version.html
     pub fn min_proto_version(&mut self) -> Option<SslVersion> {
         unsafe {
             let r = ffi::SSL_CTX_get_min_proto_version(self.as_ptr());
@@ -1427,12 +1423,9 @@ impl SslContextBuilder {
 
     /// Gets the maximum supported protocol version.
     ///
-    /// A value of `None` indicates that all versions down the the highest version supported by
-    /// OpenSSL are enabled.
-    ///
     /// This corresponds to [`SSL_CTX_get_max_proto_version`].
     ///
-    /// [`SSL_CTX_get_max_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_min_proto_version.html
+    /// [`SSL_CTX_get_max_proto_version`]: https://www.openssl.org/docs/man3.1/man3/SSL_CTX_get_max_proto_version.html
     pub fn max_proto_version(&mut self) -> Option<SslVersion> {
         unsafe {
             let r = ffi::SSL_CTX_get_max_proto_version(self.as_ptr());
@@ -3166,6 +3159,71 @@ impl SslRef {
         };
 
         str::from_utf8(version.to_bytes()).unwrap()
+    }
+
+    /// Sets the minimum supported protocol version.
+    ///
+    /// If version is `None`, the default minimum version is used. For BoringSSL this defaults to
+    /// TLS 1.0.
+    ///
+    /// This corresponds to [`SSL_set_min_proto_version`].
+    ///
+    /// [`SSL_set_min_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_min_proto_version.html
+    pub fn set_min_proto_version(&mut self, version: Option<SslVersion>) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt(ffi::SSL_set_min_proto_version(
+                self.as_ptr(),
+                version.map_or(0, |v| v.0 as _),
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Sets the maximum supported protocol version.
+    ///
+    /// If version is `None`, the default maximum version is used. For BoringSSL this is TLS 1.3.
+    ///
+    /// This corresponds to [`SSL_set_max_proto_version`].
+    ///
+    /// [`SSL_set_max_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_max_proto_version.html
+    pub fn set_max_proto_version(&mut self, version: Option<SslVersion>) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt(ffi::SSL_set_max_proto_version(
+                self.as_ptr(),
+                version.map_or(0, |v| v.0 as _),
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Gets the minimum supported protocol version.
+    ///
+    /// This corresponds to [`SSL_get_min_proto_version`].
+    ///
+    /// [`SSL_get_min_proto_version`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_set_min_proto_version.html
+    pub fn min_proto_version(&mut self) -> Option<SslVersion> {
+        unsafe {
+            let r = ffi::SSL_get_min_proto_version(self.as_ptr());
+            if r == 0 {
+                None
+            } else {
+                Some(SslVersion(r))
+            }
+        }
+    }
+
+    /// Gets the maximum supported protocol version.
+    ///
+    /// This corresponds to [`SSL_get_max_proto_version`].
+    ///
+    /// [`SSL_get_max_proto_version`]: https://www.openssl.org/docs/man3.1/man3/SSL_get_max_proto_version.html
+    pub fn max_proto_version(&self) -> Option<SslVersion> {
+        let r = unsafe { ffi::SSL_get_max_proto_version(self.as_ptr()) };
+        if r == 0 {
+            None
+        } else {
+            Some(SslVersion(r))
+        }
     }
 
     /// Returns the protocol selected via Application Layer Protocol Negotiation (ALPN).
