@@ -1050,6 +1050,10 @@ impl Nid {
     pub const AES_128_CBC_HMAC_SHA1: Nid = Nid(ffi::NID_aes_128_cbc_hmac_sha1);
     pub const AES_192_CBC_HMAC_SHA1: Nid = Nid(ffi::NID_aes_192_cbc_hmac_sha1);
     pub const AES_256_CBC_HMAC_SHA1: Nid = Nid(ffi::NID_aes_256_cbc_hmac_sha1);
+    pub const AUTH_RSA: Nid = Nid(ffi::NID_auth_rsa);
+    pub const AUTH_ECDSA: Nid = Nid(ffi::NID_auth_ecdsa);
+    pub const AUTH_PSK: Nid = Nid(ffi::NID_auth_psk);
+    pub const AUTH_ANY: Nid = Nid(ffi::NID_auth_any);
 }
 
 #[cfg(test)]
