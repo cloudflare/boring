@@ -3738,6 +3738,15 @@ impl SslRef {
         let bits = unsafe { ffi::SSL_clear_mode(self.as_ptr(), mode.bits()) };
         SslMode::from_bits_retain(bits)
     }
+
+    /// Appends `cert` to the chain associated with the current certificate of `SSL`.
+    ///
+    /// This corresponds to [`SSL_add1_chain_cert`].
+    ///
+    /// [`SSL_add1_chain_cert`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_add1_chain_cert.html
+    pub fn add_chain_cert(&mut self, cert: &X509Ref) -> Result<(), ErrorStack> {
+        unsafe { cvt(ffi::SSL_add1_chain_cert(self.as_ptr(), cert.as_ptr())).map(|_| ()) }
+    }
 }
 
 /// An SSL stream midway through the handshake process.
