@@ -2391,6 +2391,29 @@ impl SslCipherRef {
         }
     }
 
+    /// Returns one if the cipher uses an AEAD cipher.
+    ///
+    /// This corresponds to [`SSL_CIPHER_is_aead`].
+    ///
+    /// [`SSL_CIPHER_is_aead`]: https://www.openssl.org/docs/manmaster/man3/SSL_CIPHER_is_aead.html
+    pub fn cipher_is_aead(&self) -> bool {
+        unsafe { ffi::SSL_CIPHER_is_aead(self.as_ptr()) != 0 }
+    }
+
+    /// Returns the NID corresponding to the cipher's authentication type.
+    ///
+    /// This corresponds to [`SSL_CIPHER_get_auth_nid`].
+    ///
+    /// [`SSL_CIPHER_get_auth_nid`]: https://www.openssl.org/docs/manmaster/man3/SSL_CIPHER_get_auth_nid.html
+    pub fn cipher_auth_nid(&self) -> Option<Nid> {
+        let n = unsafe { ffi::SSL_CIPHER_get_auth_nid(self.as_ptr()) };
+        if n == 0 {
+            None
+        } else {
+            Some(Nid::from_raw(n))
+        }
+    }
+
     /// Returns the NID corresponding to the cipher.
     ///
     /// This corresponds to [`SSL_CIPHER_get_cipher_nid`].
