@@ -83,6 +83,10 @@
 //! boxes.
 //! - `P256Kyber768Draft00`. Similar again to `X25519Kyber768Draft00`, but uses P256 as classical
 //! part. It uses a non-standard codepoint. Not recommended.
+//! - `IPDWing`. A preliminary version of
+//! [X-Wing](https://datatracker.ietf.org/doc/draft-connolly-cfrg-xwing-kem/02/).
+//! Similar to `X25519Kyber768Draft00Old`, but uses a newer (but not yet final) version of Kyber
+//! called ML-KEM-ipd. Not recommended.
 //!
 //! Presently all these key agreements are deployed by Cloudflare, but we do not guarantee continued
 //! support for them.
