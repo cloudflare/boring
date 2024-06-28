@@ -1,4 +1,16 @@
-4.7.0
+4.8.0
+- 2024-06-28 Expose hmac_sha1 function
+- 2024-06-18 Fix workflows file, pin mac os FIPS crossbuild runner to macos-13
+- 2024-06-18 clippy: *::max_value() -> *::MAX
+- 2024-06-18 Expose X509_check_host
+- 2024-06-18 Expose SSL_add1_chain_cert
+- 2024-06-18 Expose SSL_{set|clear}_mode
+- 2024-06-18 Expose SSL_{get|set}_{max|min}_proto_version
+- 2024-06-18 Add APIs to expose client and server cipher lists
+- 2024-06-18 Expose SSL_CIPHER_is_aead and SSL_CIPHER_auth_nid
+- 2024-06-18 Add NIDs for cipher authentication types
+- 2024-06-14 Impl From for SslSignatureAlgorithm
+- 2024-03-27 Updates license field to valid SPDX format
 - 2024-05-31 Fix crosscompile
 - 2024-05-30 Expose hmac_sha256/512 functions
 
