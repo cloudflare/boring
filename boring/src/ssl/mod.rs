@@ -703,6 +703,9 @@ impl SslCurve {
     #[cfg(feature = "pq-experimental")]
     pub const P256_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::NID_P256Kyber768Draft00);
 
+    #[cfg(feature = "pq-experimental")]
+    pub const IPD_WING: SslCurve = SslCurve(ffi::NID_IPDWing);
+
     /// Returns the curve name
     ///
     /// This corresponds to [`SSL_get_curve_name`]
