@@ -1846,6 +1846,20 @@ impl SslContextBuilder {
         unsafe { ffi::SSL_CTX_set_grease_enabled(self.as_ptr(), enabled as _) }
     }
 
+    /// Configures whether ClientHello extensions should be permuted.
+    ///
+    /// This corresponds to [`SSL_CTX_set_permute_extensions`].
+    ///
+    /// [`SSL_CTX_set_permute_extensions`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set_permute_extensions
+    ///
+    /// Note: This is gated to non-fips because the fips feature builds with a separate
+    /// version of BoringSSL which doesn't yet include these APIs.
+    /// Once the submoduled fips commit is upgraded, these gates can be removed.
+    #[cfg(not(feature = "fips"))]
+    pub fn set_permute_extensions(&mut self, enabled: bool) {
+        unsafe { ffi::SSL_CTX_set_permute_extensions(self.as_ptr(), enabled as _) }
+    }
+
     /// Sets the context's supported signature verification algorithms.
     ///
     /// This corresponds to [`SSL_CTX_set_verify_algorithm_prefs`]
@@ -2942,6 +2956,20 @@ impl SslRef {
     /// [`SslContextBuilder::set_tmp_ecdh`]: struct.SslContextBuilder.html#method.set_tmp_ecdh
     pub fn set_tmp_ecdh(&mut self, key: &EcKeyRef<Params>) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_set_tmp_ecdh(self.as_ptr(), key.as_ptr()) as c_int).map(|_| ()) }
+    }
+
+    /// Configures whether ClientHello extensions should be permuted.
+    ///
+    /// This corresponds to [`SSL_set_permute_extensions`].
+    ///
+    /// [`SSL_set_permute_extensions`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_set_permute_extensions
+    ///
+    /// Note: This is gated to non-fips because the fips feature builds with a separate
+    /// version of BoringSSL which doesn't yet include these APIs.
+    /// Once the submoduled fips commit is upgraded, these gates can be removed.
+    #[cfg(not(feature = "fips"))]
+    pub fn set_permute_extensions(&mut self, enabled: bool) {
+        unsafe { ffi::SSL_set_permute_extensions(self.as_ptr(), enabled as _) }
     }
 
     /// Like [`SslContextBuilder::set_alpn_protos`].
