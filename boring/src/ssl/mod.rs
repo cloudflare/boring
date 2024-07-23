@@ -533,6 +533,10 @@ impl SelectCertError {
 }
 
 /// Extension types, to be used with `ClientHello::get_extension`.
+///
+/// NOTE: The current implementation of `From` is unsound, as it's possible to create an ExtensionType
+/// that is not defined by the impl. `From` will be deprecated in favor of `TryFrom` in the next
+/// major bump of the library.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ExtensionType(u16);
 
@@ -598,6 +602,21 @@ impl SslVersion {
     pub const TLS1_3: SslVersion = SslVersion(ffi::TLS1_3_VERSION as _);
 }
 
+impl TryFrom<u16> for SslVersion {
+    type Error = &'static str;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        match value as i32 {
+            ffi::SSL3_VERSION
+            | ffi::TLS1_VERSION
+            | ffi::TLS1_1_VERSION
+            | ffi::TLS1_2_VERSION
+            | ffi::TLS1_3_VERSION => Ok(Self(value)),
+            _ => Err("Unknown SslVersion"),
+        }
+    }
+}
+
 impl fmt::Debug for SslVersion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match *self {
@@ -625,6 +644,10 @@ impl fmt::Display for SslVersion {
 }
 
 /// A signature verification algorithm.
+///
+/// NOTE: The current implementation of `From` is unsound, as it's possible to create an
+/// SslSignatureAlgorithm that is not defined by the impl. `From` will be deprecated in favor of
+/// `TryFrom` in the next major bump of the library.
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SslSignatureAlgorithm(u16);
