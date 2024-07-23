@@ -322,7 +322,7 @@ jobs:
       working-directory: ${{ runner.temp }}/llvm/bin
       run: ln -s clang clang++-12
     - name: Install ${{ matrix.target }} toolchain
-      run: brew tap messense/macos-cross-toolchains && brew install ${{ matrix.target }}
+      run: brew tap messense/macos-cross-toolchains && brew install --overwrite python@3.11 && brew install ${{ matrix.target }}
     - name: Set BORING_BSSL_FIPS_COMPILER_EXTERNAL_TOOLCHAIN
       run: echo "BORING_BSSL_FIPS_COMPILER_EXTERNAL_TOOLCHAIN=$(brew --prefix ${{ matrix.target }})/toolchain" >> $GITHUB_ENV
       shell: bash
