@@ -601,7 +601,7 @@ impl X509Ref {
                 0,
                 std::ptr::null_mut(),
             ))
-            .map(|n| n != 0)
+            .map(|n| n == 1)
         }
     }
 
