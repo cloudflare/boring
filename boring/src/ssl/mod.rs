@@ -534,9 +534,9 @@ impl SelectCertError {
 
 /// Extension types, to be used with `ClientHello::get_extension`.
 ///
-/// NOTE: The current implementation of `From` is unsound, as it's possible to create an ExtensionType
-/// that is not defined by the impl. `From` will be deprecated in favor of `TryFrom` in the next
-/// major bump of the library.
+/// **WARNING**: The current implementation of `From` is unsound, as it's possible to create an
+/// ExtensionType that is not defined by the impl. `From` will be deprecated in favor of `TryFrom`
+/// in the next major bump of the library.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ExtensionType(u16);
 
@@ -645,7 +645,7 @@ impl fmt::Display for SslVersion {
 
 /// A signature verification algorithm.
 ///
-/// NOTE: The current implementation of `From` is unsound, as it's possible to create an
+/// **WARNING**: The current implementation of `From` is unsound, as it's possible to create an
 /// SslSignatureAlgorithm that is not defined by the impl. `From` will be deprecated in favor of
 /// `TryFrom` in the next major bump of the library.
 #[repr(transparent)]
