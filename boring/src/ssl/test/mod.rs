@@ -469,7 +469,7 @@ fn refcount_ssl_context() {
 
 #[test]
 #[cfg_attr(target_os = "windows", ignore)]
-#[cfg_attr(all(target_os = "macos", feature = "vendored"), ignore)]
+#[cfg_attr(all(target_os = "macos"), ignore)]
 fn default_verify_paths() {
     let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
     ctx.set_default_verify_paths().unwrap();
