@@ -1,12 +1,12 @@
-use super::*;
-use boring::ssl::{SslAcceptor, SslFiletype, SslMethod};
+use boring::ssl::{SslAcceptor, SslConnector, SslFiletype, SslMethod};
 use futures::StreamExt;
-use hyper::client::HttpConnector;
-use hyper::server::conn::Http;
-use hyper::{service, Response};
-use hyper::{Body, Client};
+use hyper_boring::HttpsConnector;
+use hyper_old::client::HttpConnector;
+use hyper_old::server::conn::Http;
+use hyper_old::{service, Response};
+use hyper_old::{Body, Client};
 use std::convert::Infallible;
-use std::iter;
+use std::{io, iter};
 use tokio::net::TcpListener;
 
 #[tokio::test]
@@ -37,10 +37,10 @@ async fn localhost() {
         let mut acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
         acceptor.set_session_id_context(b"test").unwrap();
         acceptor
-            .set_private_key_file("test/key.pem", SslFiletype::PEM)
+            .set_private_key_file("tests/test/key.pem", SslFiletype::PEM)
             .unwrap();
         acceptor
-            .set_certificate_chain_file("test/cert.pem")
+            .set_certificate_chain_file("tests/test/cert.pem")
             .unwrap();
         let acceptor = acceptor.build();
 
@@ -69,7 +69,7 @@ async fn localhost() {
 
     let mut ssl = SslConnector::builder(SslMethod::tls()).unwrap();
 
-    ssl.set_ca_file("test/root-ca.pem").unwrap();
+    ssl.set_ca_file("tests/test/root-ca.pem").unwrap();
 
     use std::fs::File;
     use std::io::Write;
@@ -104,10 +104,10 @@ async fn alpn_h2() {
     let server = async move {
         let mut acceptor = SslAcceptor::mozilla_modern(SslMethod::tls()).unwrap();
         acceptor
-            .set_certificate_chain_file("test/cert.pem")
+            .set_certificate_chain_file("tests/test/cert.pem")
             .unwrap();
         acceptor
-            .set_private_key_file("test/key.pem", SslFiletype::PEM)
+            .set_private_key_file("tests/test/key.pem", SslFiletype::PEM)
             .unwrap();
         acceptor.set_alpn_select_callback(|_, client| {
             ssl::select_next_proto(b"\x02h2", client).ok_or(AlpnError::NOACK)
@@ -138,7 +138,7 @@ async fn alpn_h2() {
 
     let mut ssl = SslConnector::builder(SslMethod::tls()).unwrap();
 
-    ssl.set_ca_file("test/root-ca.pem").unwrap();
+    ssl.set_ca_file("tests/test/root-ca.pem").unwrap();
 
     let mut ssl = HttpsConnector::with_connector(connector, ssl).unwrap();
 
