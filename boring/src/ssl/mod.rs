@@ -750,6 +750,13 @@ impl SslCurve {
 
     // We need to allow dead_code here because `SslRef::set_curves` is conditionally compiled
     // against the absence of the `kx-safe-default` feature and thus this function is never used.
+    //
+    // **NOTE**: This function only exists because the version of boringssl we currently use does
+    // not expose SSL_CTX_set1_group_ids. Because `SslRef::curve()` returns the public SSL_CURVE id
+    // as opposed to the internal NID, but `SslContextBuilder::set_curves()` requires the internal
+    // NID, we need this mapping in place to avoid breaking changes to the public API. Once the
+    // underlying boringssl version is upgraded, this should be removed in favor of the new
+    // SSL_CTX_set1_group_ids API.
     #[allow(dead_code)]
     fn nid(&self) -> Option<c_int> {
         match self.0 {
