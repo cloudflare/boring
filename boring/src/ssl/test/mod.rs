@@ -276,6 +276,13 @@ fn test_alpn_server_select_none() {
 }
 
 #[test]
+fn test_empty_alpn() {
+    assert_eq!(ssl::select_next_proto(b"", b""), None);
+    assert_eq!(ssl::select_next_proto(b"", b"\x08http/1.1"), None);
+    assert_eq!(ssl::select_next_proto(b"\x08http/1.1", b""), None);
+}
+
+#[test]
 fn test_alpn_server_unilateral() {
     let server = Server::builder().build();
 
