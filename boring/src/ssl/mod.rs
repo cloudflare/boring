@@ -704,63 +704,33 @@ impl From<u16> for SslSignatureAlgorithm {
 pub struct SslCurve(c_int);
 
 impl SslCurve {
-    pub const SECP224R1: SslCurve = SslCurve(ffi::NID_secp224r1);
+    pub const SECP224R1: SslCurve = SslCurve(ffi::SSL_CURVE_SECP224R1 as _);
 
-    pub const SECP256R1: SslCurve = SslCurve(ffi::NID_X9_62_prime256v1);
+    pub const SECP256R1: SslCurve = SslCurve(ffi::SSL_CURVE_SECP256R1 as _);
 
-    pub const SECP384R1: SslCurve = SslCurve(ffi::NID_secp384r1);
+    pub const SECP384R1: SslCurve = SslCurve(ffi::SSL_CURVE_SECP384R1 as _);
 
-    pub const SECP521R1: SslCurve = SslCurve(ffi::NID_secp521r1);
+    pub const SECP521R1: SslCurve = SslCurve(ffi::SSL_CURVE_SECP521R1 as _);
 
-    pub const X25519: SslCurve = SslCurve(ffi::NID_X25519);
-
-    #[cfg(not(feature = "fips"))]
-    pub const X25519_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::NID_X25519Kyber768Draft00);
-
-    #[cfg(feature = "pq-experimental")]
-    pub const X25519_KYBER768_DRAFT00_OLD: SslCurve = SslCurve(ffi::NID_X25519Kyber768Draft00Old);
-
-    #[cfg(feature = "pq-experimental")]
-    pub const X25519_KYBER512_DRAFT00: SslCurve = SslCurve(ffi::NID_X25519Kyber512Draft00);
-
-    #[cfg(feature = "pq-experimental")]
-    pub const P256_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::NID_P256Kyber768Draft00);
-}
-
-/// A TLS Curve group ID.
-#[repr(transparent)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct SslCurveId(u16);
-
-impl SslCurveId {
-    pub const SECP224R1: SslCurveId = SslCurveId(ffi::SSL_CURVE_SECP224R1 as _);
-
-    pub const SECP256R1: SslCurveId = SslCurveId(ffi::SSL_CURVE_SECP256R1 as _);
-
-    pub const SECP384R1: SslCurveId = SslCurveId(ffi::SSL_CURVE_SECP384R1 as _);
-
-    pub const SECP521R1: SslCurveId = SslCurveId(ffi::SSL_CURVE_SECP521R1 as _);
-
-    pub const X25519: SslCurveId = SslCurveId(ffi::SSL_CURVE_X25519 as _);
+    pub const X25519: SslCurve = SslCurve(ffi::SSL_CURVE_X25519 as _);
 
     #[cfg(not(feature = "fips"))]
-    pub const X25519_KYBER768_DRAFT00: SslCurveId =
-        SslCurveId(ffi::SSL_CURVE_X25519_KYBER768_DRAFT00 as _);
+    pub const X25519_KYBER768_DRAFT00: SslCurve =
+        SslCurve(ffi::SSL_CURVE_X25519_KYBER768_DRAFT00 as _);
 
     #[cfg(feature = "pq-experimental")]
-    pub const X25519_KYBER768_DRAFT00_OLD: SslCurveId =
-        SslCurveId(ffi::SSL_CURVE_X25519_KYBER768_DRAFT00_OLD as _);
+    pub const X25519_KYBER768_DRAFT00_OLD: SslCurve =
+        SslCurve(ffi::SSL_CURVE_X25519_KYBER768_DRAFT00_OLD as _);
 
     #[cfg(feature = "pq-experimental")]
-    pub const X25519_KYBER512_DRAFT00: SslCurveId =
-        SslCurveId(ffi::SSL_CURVE_X25519_KYBER512_DRAFT00 as _);
+    pub const X25519_KYBER512_DRAFT00: SslCurve =
+        SslCurve(ffi::SSL_CURVE_X25519_KYBER512_DRAFT00 as _);
 
     #[cfg(feature = "pq-experimental")]
-    pub const P256_KYBER768_DRAFT00: SslCurveId =
-        SslCurveId(ffi::SSL_CURVE_P256_KYBER768_DRAFT00 as _);
+    pub const P256_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::SSL_CURVE_P256_KYBER768_DRAFT00 as _);
 
     #[cfg(feature = "pq-experimental")]
-    pub const IPD_WING: SslCurve = SslCurve(ffi::NID_IPDWing);
+    pub const IPD_WING: SslCurve = SslCurve(ffi::SSL_CURVE_IPDWING);
 
     /// Returns the curve name
     ///
@@ -769,12 +739,36 @@ impl SslCurveId {
     /// [`SSL_get_curve_name`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_get_curve_name
     pub fn name(&self) -> Option<&'static str> {
         unsafe {
-            let ptr = ffi::SSL_get_curve_name(self.0);
+            let ptr = ffi::SSL_get_curve_name(self.0 as u16);
             if ptr.is_null() {
                 return None;
             }
 
             CStr::from_ptr(ptr).to_str().ok()
+        }
+    }
+
+    // We need to allow dead_code here because `SslRef::set_curves` is conditionally compiled
+    // against the absence of the `kx-safe-default` feature and thus this function is never used.
+    #[allow(dead_code)]
+    fn nid(&self) -> Option<c_int> {
+        match self.0 {
+            ffi::SSL_CURVE_SECP224R1 => Some(ffi::NID_secp224r1),
+            ffi::SSL_CURVE_SECP256R1 => Some(ffi::NID_X9_62_prime256v1),
+            ffi::SSL_CURVE_SECP384R1 => Some(ffi::NID_secp384r1),
+            ffi::SSL_CURVE_SECP521R1 => Some(ffi::NID_secp521r1),
+            ffi::SSL_CURVE_X25519 => Some(ffi::NID_X25519),
+            #[cfg(not(feature = "fips"))]
+            ffi::SSL_CURVE_X25519_KYBER768_DRAFT00 => Some(ffi::NID_X25519Kyber768Draft00),
+            #[cfg(feature = "pq-experimental")]
+            ffi::SSL_CURVE_X25519_KYBER768_DRAFT00_OLD => Some(ffi::NID_X25519Kyber768Draft00Old),
+            #[cfg(feature = "pq-experimental")]
+            ffi::SSL_CURVE_X25519_KYBER512_DRAFT00 => Some(ffi::NID_X25519Kyber512Draft00),
+            #[cfg(feature = "pq-experimental")]
+            ffi::SSL_CURVE_P256_KYBER768_DRAFT00 => Some(ffi::NID_P256Kyber768Draft00),
+            #[cfg(feature = "pq-experimental")]
+            ffi::SSL_CURVE_IPDWING => Some(ffi::NID_IPDWing),
+            _ => None,
         }
     }
 }
@@ -1964,11 +1958,16 @@ impl SslContextBuilder {
     // when the flags are used, the preferences are set just before connecting or accepting.
     #[cfg(not(feature = "kx-safe-default"))]
     pub fn set_curves(&mut self, curves: &[SslCurve]) -> Result<(), ErrorStack> {
+        let mut nid_curves = Vec::with_capacity(curves.len());
+        for curve in curves {
+            nid_curves.push(curve.nid())
+        }
+
         unsafe {
             cvt_0i(ffi::SSL_CTX_set1_curves(
                 self.as_ptr(),
-                curves.as_ptr() as *const _,
-                curves.len(),
+                nid_curves.as_ptr() as *const _,
+                nid_curves.len(),
             ))
             .map(|_| ())
         }
@@ -2877,12 +2876,12 @@ impl SslRef {
     /// This corresponds to [`SSL_get_curve_id`]
     ///
     /// [`SSL_get_curve_id`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_get_curve_id
-    pub fn curve(&self) -> Option<SslCurveId> {
+    pub fn curve(&self) -> Option<SslCurve> {
         let curve_id = unsafe { ffi::SSL_get_curve_id(self.as_ptr()) };
         if curve_id == 0 {
             return None;
         }
-        Some(SslCurveId(curve_id))
+        Some(SslCurve(curve_id.into()))
     }
 
     /// Returns an `ErrorCode` value for the most recent operation on this `SslRef`.
