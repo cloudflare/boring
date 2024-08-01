@@ -13,7 +13,7 @@ use crate::pkey::PKey;
 use crate::srtp::SrtpProfileId;
 use crate::ssl::test::server::Server;
 use crate::ssl::SslVersion;
-use crate::ssl::{self, SslCurveId};
+use crate::ssl::{self, SslCurve};
 use crate::ssl::{
     ExtensionType, ShutdownResult, ShutdownState, Ssl, SslAcceptor, SslAcceptorBuilder,
     SslConnector, SslContext, SslFiletype, SslMethod, SslOptions, SslStream, SslVerifyMode,
@@ -931,11 +931,11 @@ fn get_curve() {
 
 #[test]
 fn get_curve_name() {
-    assert_eq!(SslCurveId::SECP224R1.name(), Some("P-224"));
-    assert_eq!(SslCurveId::SECP256R1.name(), Some("P-256"));
-    assert_eq!(SslCurveId::SECP384R1.name(), Some("P-384"));
-    assert_eq!(SslCurveId::SECP521R1.name(), Some("P-521"));
-    assert_eq!(SslCurveId::X25519.name(), Some("X25519"));
+    assert_eq!(SslCurve::SECP224R1.name(), Some("P-224"));
+    assert_eq!(SslCurve::SECP256R1.name(), Some("P-256"));
+    assert_eq!(SslCurve::SECP384R1.name(), Some("P-384"));
+    assert_eq!(SslCurve::SECP521R1.name(), Some("P-521"));
+    assert_eq!(SslCurve::X25519.name(), Some("X25519"));
 }
 
 #[test]
