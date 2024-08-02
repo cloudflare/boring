@@ -815,6 +815,10 @@ impl CompliancePolicy {
 /// [`SslContextBuilder::set_alpn_protos`]: struct.SslContextBuilder.html#method.set_alpn_protos
 /// [`SSL_select_next_proto`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_alpn_protos.html
 pub fn select_next_proto<'a>(server: &[u8], client: &'a [u8]) -> Option<&'a [u8]> {
+    if server.is_empty() || client.is_empty() {
+        return None;
+    }
+
     unsafe {
         let mut out = ptr::null_mut();
         let mut outlen = 0;
@@ -826,6 +830,7 @@ pub fn select_next_proto<'a>(server: &[u8], client: &'a [u8]) -> Option<&'a [u8]
             client.as_ptr(),
             client.len() as c_uint,
         );
+
         if r == ffi::OPENSSL_NPN_NEGOTIATED {
             Some(slice::from_raw_parts(out as *const u8, outlen as usize))
         } else {
