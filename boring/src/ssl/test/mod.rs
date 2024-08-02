@@ -11,9 +11,9 @@ use crate::error::ErrorStack;
 use crate::hash::MessageDigest;
 use crate::pkey::PKey;
 use crate::srtp::SrtpProfileId;
-use crate::ssl;
 use crate::ssl::test::server::Server;
 use crate::ssl::SslVersion;
+use crate::ssl::{self, SslCurve};
 use crate::ssl::{
     ExtensionType, ShutdownResult, ShutdownState, Ssl, SslAcceptor, SslAcceptorBuilder,
     SslConnector, SslContext, SslFiletype, SslMethod, SslOptions, SslStream, SslVerifyMode,
@@ -276,6 +276,13 @@ fn test_alpn_server_select_none() {
 }
 
 #[test]
+fn test_empty_alpn() {
+    assert_eq!(ssl::select_next_proto(b"", b""), None);
+    assert_eq!(ssl::select_next_proto(b"", b"\x08http/1.1"), None);
+    assert_eq!(ssl::select_next_proto(b"\x08http/1.1", b""), None);
+}
+
+#[test]
 fn test_alpn_server_unilateral() {
     let server = Server::builder().build();
 
@@ -469,7 +476,7 @@ fn refcount_ssl_context() {
 
 #[test]
 #[cfg_attr(target_os = "windows", ignore)]
-#[cfg_attr(all(target_os = "macos", feature = "vendored"), ignore)]
+#[cfg_attr(all(target_os = "macos"), ignore)]
 fn default_verify_paths() {
     let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
     ctx.set_default_verify_paths().unwrap();
@@ -927,6 +934,15 @@ fn get_curve() {
     let client_stream = client.connect();
     let curve = client_stream.ssl().curve().expect("curve");
     assert!(curve.name().is_some());
+}
+
+#[test]
+fn get_curve_name() {
+    assert_eq!(SslCurve::SECP224R1.name(), Some("P-224"));
+    assert_eq!(SslCurve::SECP256R1.name(), Some("P-256"));
+    assert_eq!(SslCurve::SECP384R1.name(), Some("P-384"));
+    assert_eq!(SslCurve::SECP521R1.name(), Some("P-521"));
+    assert_eq!(SslCurve::X25519.name(), Some("X25519"));
 }
 
 #[test]

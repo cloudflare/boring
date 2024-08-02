@@ -16,7 +16,9 @@ use std::convert::TryInto;
 use std::ffi::c_void;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong};
 
-#[allow(clippy::useless_transmute, clippy::derive_partial_eq_without_eq)]
+#[allow(dead_code)]
+#[allow(clippy::all)]
+#[rustfmt::skip]
 mod generated {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
@@ -27,42 +29,20 @@ pub type BN_ULONG = u64;
 #[cfg(target_pointer_width = "32")]
 pub type BN_ULONG = u32;
 
-#[cfg(const_fn)]
-macro_rules! const_fn {
-    ($(pub const fn $name:ident($($arg:ident: $t:ty),*) -> $ret:ty $b:block)*) => {
-        $(
-            pub const fn $name($($arg: $t),*) -> $ret $b
-        )*
-    }
+pub const fn ERR_PACK(l: c_int, f: c_int, r: c_int) -> c_ulong {
+    ((l as c_ulong & 0x0FF) << 24) | ((f as c_ulong & 0xFFF) << 12) | (r as c_ulong & 0xFFF)
 }
 
-#[cfg(not(const_fn))]
-macro_rules! const_fn {
-    ($(pub const fn $name:ident($($arg:ident: $t:ty),*) -> $ret:ty $b:block)*) => {
-        $(
-            pub fn $name($($arg: $t),*) -> $ret $b
-        )*
-    }
+pub const fn ERR_GET_LIB(l: c_uint) -> c_int {
+    ((l >> 24) & 0x0FF) as c_int
 }
 
-const_fn! {
-    pub const fn ERR_PACK(l: c_int, f: c_int, r: c_int) -> c_ulong {
-        ((l as c_ulong & 0x0FF) << 24) |
-        ((f as c_ulong & 0xFFF) << 12) |
-        (r as c_ulong & 0xFFF)
-    }
+pub const fn ERR_GET_FUNC(l: c_uint) -> c_int {
+    ((l >> 12) & 0xFFF) as c_int
+}
 
-    pub const fn ERR_GET_LIB(l: c_uint) -> c_int {
-        ((l >> 24) & 0x0FF) as c_int
-    }
-
-    pub const fn ERR_GET_FUNC(l: c_uint) -> c_int {
-        ((l >> 12) & 0xFFF) as c_int
-    }
-
-    pub const fn ERR_GET_REASON(l: c_uint) -> c_int {
-        (l & 0xFFF) as c_int
-    }
+pub const fn ERR_GET_REASON(l: c_uint) -> c_int {
+    (l & 0xFFF) as c_int
 }
 
 pub fn init() {

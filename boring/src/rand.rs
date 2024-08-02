@@ -35,7 +35,7 @@ use crate::error::ErrorStack;
 pub fn rand_bytes(buf: &mut [u8]) -> Result<(), ErrorStack> {
     unsafe {
         ffi::init();
-        assert!(buf.len() <= c_int::max_value() as usize);
+        assert!(buf.len() <= c_int::MAX as usize);
         cvt(ffi::RAND_bytes(buf.as_mut_ptr(), buf.len())).map(|_| ())
     }
 }

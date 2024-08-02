@@ -19,7 +19,7 @@ jobs:
     name: rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install Rust
         run: rustup update stable && rustup default stable
       - name: Check formatting
@@ -29,7 +29,7 @@ jobs:
     name: clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
       - name: Install Rust
@@ -186,7 +186,7 @@ jobs:
           extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)
@@ -240,7 +240,7 @@ jobs:
     name: Test FIPS integration
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)
@@ -251,6 +251,10 @@ jobs:
       with:
         version: "12.0.0"
         directory: ${{ runner.temp }}/llvm
+    - name: Install golang
+      uses: actions/setup-go@v5
+      with:
+        go-version: '>=1.22.0'
     - name: Add clang++-12 link
       working-directory: ${{ runner.temp }}/llvm/bin
       run: ln -s clang clang++-12
@@ -277,7 +281,7 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)
@@ -295,18 +299,22 @@ jobs:
 
   cross-build-fips:
     name: Cross build from macOS to Linux (FIPS)
-    runs-on: macos-latest
+    runs-on: macos-13 # Need an Intel (x86_64) runner for Clang 12.0.0
     strategy:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)
       run: rustup update stable --no-self-update && rustup default stable && rustup target add ${{ matrix.target }}
       shell: bash
+    - name: Install golang
+      uses: actions/setup-go@v5
+      with:
+        go-version: '>=1.22.0'
     - name: Install Clang-12
       uses: KyleMayes/install-llvm-action@v1
       with:
@@ -316,7 +324,7 @@ jobs:
       working-directory: ${{ runner.temp }}/llvm/bin
       run: ln -s clang clang++-12
     - name: Install ${{ matrix.target }} toolchain
-      run: brew tap messense/macos-cross-toolchains && brew install ${{ matrix.target }}
+      run: brew tap messense/macos-cross-toolchains && brew install --overwrite python@3.11 && brew install ${{ matrix.target }}
     - name: Set BORING_BSSL_FIPS_COMPILER_EXTERNAL_TOOLCHAIN
       run: echo "BORING_BSSL_FIPS_COMPILER_EXTERNAL_TOOLCHAIN=$(brew --prefix ${{ matrix.target }})/toolchain" >> $GITHUB_ENV
       shell: bash
@@ -332,7 +340,7 @@ jobs:
     name: Test features
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)

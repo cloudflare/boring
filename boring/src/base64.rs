@@ -14,7 +14,7 @@ use libc::c_int;
 ///
 /// [`EVP_EncodeBlock`]: https://www.openssl.org/docs/man1.1.1/man3/EVP_DecodeBlock.html
 pub fn encode_block(src: &[u8]) -> String {
-    assert!(src.len() <= c_int::max_value() as usize);
+    assert!(src.len() <= c_int::MAX as usize);
     let src_len = src.len();
 
     let len = encoded_len(src_len).unwrap();
@@ -48,7 +48,7 @@ pub fn decode_block(src: &str) -> Result<Vec<u8>, ErrorStack> {
         return Ok(vec![]);
     }
 
-    assert!(src.len() <= c_int::max_value() as usize);
+    assert!(src.len() <= c_int::MAX as usize);
     let src_len = src.len();
 
     let len = decoded_len(src_len).unwrap();

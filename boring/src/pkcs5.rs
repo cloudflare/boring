@@ -32,7 +32,7 @@ pub fn bytes_to_key(
     count: u32,
 ) -> Result<KeyIvPair, ErrorStack> {
     unsafe {
-        assert!(data.len() <= c_int::max_value() as usize);
+        assert!(data.len() <= c_int::MAX as usize);
         let salt_ptr = match salt {
             Some(salt) => {
                 pub const PKCS5_SALT_LEN: c_int = 8;
@@ -90,9 +90,9 @@ pub fn pbkdf2_hmac(
     key: &mut [u8],
 ) -> Result<(), ErrorStack> {
     unsafe {
-        assert!(pass.len() <= c_int::max_value() as usize);
-        assert!(salt.len() <= c_int::max_value() as usize);
-        assert!(key.len() <= c_int::max_value() as usize);
+        assert!(pass.len() <= c_int::MAX as usize);
+        assert!(salt.len() <= c_int::MAX as usize);
+        assert!(key.len() <= c_int::MAX as usize);
 
         ffi::init();
         cvt(ffi::PKCS5_PBKDF2_HMAC(

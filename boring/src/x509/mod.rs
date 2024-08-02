@@ -637,6 +637,19 @@ impl X509Ref {
         }
     }
 
+    pub fn check_host(&self, host: &str) -> Result<bool, ErrorStack> {
+        unsafe {
+            cvt_n(ffi::X509_check_host(
+                self.as_ptr(),
+                host.as_ptr() as _,
+                host.len(),
+                0,
+                std::ptr::null_mut(),
+            ))
+            .map(|n| n == 1)
+        }
+    }
+
     to_pem! {
         /// Serializes the certificate into a PEM-encoded X509 structure.
         ///
@@ -971,7 +984,7 @@ impl X509NameBuilder {
     pub fn append_entry_by_text(&mut self, field: &str, value: &str) -> Result<(), ErrorStack> {
         unsafe {
             let field = CString::new(field).unwrap();
-            assert!(value.len() <= ValueLen::max_value() as usize);
+            assert!(value.len() <= ValueLen::MAX as usize);
             cvt(ffi::X509_NAME_add_entry_by_txt(
                 self.0.as_ptr(),
                 field.as_ptr() as *mut _,
@@ -998,7 +1011,7 @@ impl X509NameBuilder {
     ) -> Result<(), ErrorStack> {
         unsafe {
             let field = CString::new(field).unwrap();
-            assert!(value.len() <= ValueLen::max_value() as usize);
+            assert!(value.len() <= ValueLen::MAX as usize);
             cvt(ffi::X509_NAME_add_entry_by_txt(
                 self.0.as_ptr(),
                 field.as_ptr() as *mut _,
@@ -1019,7 +1032,7 @@ impl X509NameBuilder {
     /// [`X509_NAME_add_entry_by_NID`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_NAME_add_entry_by_NID.html
     pub fn append_entry_by_nid(&mut self, field: Nid, value: &str) -> Result<(), ErrorStack> {
         unsafe {
-            assert!(value.len() <= ValueLen::max_value() as usize);
+            assert!(value.len() <= ValueLen::MAX as usize);
             cvt(ffi::X509_NAME_add_entry_by_NID(
                 self.0.as_ptr(),
                 field.as_raw(),
@@ -1045,7 +1058,7 @@ impl X509NameBuilder {
         ty: Asn1Type,
     ) -> Result<(), ErrorStack> {
         unsafe {
-            assert!(value.len() <= ValueLen::max_value() as usize);
+            assert!(value.len() <= ValueLen::MAX as usize);
             cvt(ffi::X509_NAME_add_entry_by_NID(
                 self.0.as_ptr(),
                 field.as_raw(),

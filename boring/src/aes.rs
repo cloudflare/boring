@@ -58,7 +58,7 @@ impl AesKey {
     #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
     pub fn new_encrypt(key: &[u8]) -> Result<AesKey, KeyError> {
         unsafe {
-            assert!(key.len() <= c_int::max_value() as usize / 8);
+            assert!(key.len() <= c_int::MAX as usize / 8);
 
             let mut aes_key = MaybeUninit::uninit();
             let r = ffi::AES_set_encrypt_key(
@@ -82,7 +82,7 @@ impl AesKey {
     #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
     pub fn new_decrypt(key: &[u8]) -> Result<AesKey, KeyError> {
         unsafe {
-            assert!(key.len() <= c_int::max_value() as usize / 8);
+            assert!(key.len() <= c_int::MAX as usize / 8);
 
             let mut aes_key = MaybeUninit::uninit();
             let r = ffi::AES_set_decrypt_key(
