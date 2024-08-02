@@ -3,12 +3,10 @@ name: CI
 on:
   pull_request:
     branches:
-      - master
-      - libsignal
+      - main
   push:
     branches:
-      - master
-      - libsignal
+      - main
 
 env:
   RUSTFLAGS: -Dwarnings
