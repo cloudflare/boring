@@ -945,6 +945,19 @@ fn get_curve_name() {
     assert_eq!(SslCurve::X25519.name(), Some("X25519"));
 }
 
+#[cfg(not(feature = "kx-safe-default"))]
+#[test]
+fn set_curves() {
+    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
+    ctx.set_curves(&[
+        SslCurve::SECP224R1,
+        SslCurve::SECP256R1,
+        SslCurve::SECP384R1,
+        SslCurve::X25519,
+    ])
+    .expect("Failed to set curves");
+}
+
 #[test]
 fn test_get_ciphers() {
     let ctx_builder = SslContext::builder(SslMethod::tls()).unwrap();

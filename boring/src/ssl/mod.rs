@@ -1970,16 +1970,13 @@ impl SslContextBuilder {
     // when the flags are used, the preferences are set just before connecting or accepting.
     #[cfg(not(feature = "kx-safe-default"))]
     pub fn set_curves(&mut self, curves: &[SslCurve]) -> Result<(), ErrorStack> {
-        let mut nid_curves = Vec::with_capacity(curves.len());
-        for curve in curves {
-            nid_curves.push(curve.nid())
-        }
+        let curves: Vec<i32> = curves.iter().filter_map(|curve| curve.nid()).collect();
 
         unsafe {
             cvt_0i(ffi::SSL_CTX_set1_curves(
                 self.as_ptr(),
-                nid_curves.as_ptr() as *const _,
-                nid_curves.len(),
+                curves.as_ptr() as *const _,
+                curves.len(),
             ))
             .map(|_| ())
         }
