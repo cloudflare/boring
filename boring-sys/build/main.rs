@@ -504,8 +504,7 @@ fn apply_patch(config: &Config, patch_name: &str) -> io::Result<()> {
     let cmd_path = config
         .manifest_dir
         .join("patches")
-        .join(patch_name)
-        .canonicalize()?;
+        .join(patch_name);
 
     let mut args = vec!["apply", "-v", "--whitespace=fix"];
 
