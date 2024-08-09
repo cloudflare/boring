@@ -2918,6 +2918,25 @@ impl SslRef {
         unsafe { ffi::SSL_set_verify(self.as_ptr(), mode.bits() as c_int, None) }
     }
 
+    /// Sets the certificate verification depth.
+    ///
+    /// If the peer's certificate chain is longer than this value, verification will fail.
+    ///
+    /// This corresponds to [`SSL_set_verify_depth`].
+    ///
+    /// [`SSL_set_verify_depth`]: https://docs.openssl.org/1.1.1/man3/SSL_CTX_set_verify/
+    pub fn set_verify_depth(&mut self, depth: u32) {
+        #[cfg(feature = "rpk")]
+        assert!(
+            !self.ssl_context().is_rpk(),
+            "This API is not supported for RPK"
+        );
+
+        unsafe {
+            ffi::SSL_set_verify_depth(self.as_ptr(), depth as c_int);
+        }
+    }
+
     /// Returns the verify mode that was set using `set_verify`.
     ///
     /// This corresponds to [`SSL_get_verify_mode`].
@@ -2972,6 +2991,25 @@ impl SslRef {
                 mode.bits() as c_int,
                 Some(ssl_raw_verify::<F>),
             );
+        }
+    }
+
+    /// Sets a custom certificate store for verifying peer certificates.
+    ///
+    /// This corresponds to [`SSL_CTX_set0_verify_cert_store`].
+    ///
+    /// [`SSL_set0_verify_cert_store`]: https://docs.openssl.org/1.0.2/man3/SSL_CTX_set1_verify_cert_store/
+    pub fn set_verify_cert_store(&mut self, cert_store: X509Store) -> Result<(), ErrorStack> {
+        #[cfg(feature = "rpk")]
+        assert!(
+            !self.ssl_context().is_rpk(),
+            "This API is not supported for RPK"
+        );
+
+        unsafe {
+            cvt(ffi::SSL_set0_verify_cert_store(self.as_ptr(), cert_store.as_ptr()) as c_int)?;
+            mem::forget(cert_store);
+            Ok(())
         }
     }
 
@@ -3798,6 +3836,25 @@ impl SslRef {
         }
 
         Ok(())
+    }
+
+    /// Sets the list of CA names sent to the client.
+    ///
+    /// The CA certificates must still be added to the trust root - they are not automatically set
+    /// as trusted by this method.
+    ///
+    /// This corresponds to [`SSL_set_client_CA_list`].
+    ///
+    /// [`SSL_set_client_CA_list`]: https://docs.openssl.org/1.1.1/man3/SSL_CTX_set0_CA_list/
+    pub fn set_client_ca_list(&mut self, list: Stack<X509Name>) {
+        #[cfg(feature = "rpk")]
+        assert!(
+            !self.ssl_context().is_rpk(),
+            "This API is not supported for RPK"
+        );
+
+        unsafe { ffi::SSL_set_client_CA_list(self.as_ptr(), list.as_ptr()) }
+        mem::forget(list);
     }
 
     /// Sets the private key.
