@@ -474,6 +474,30 @@ impl X509Ref {
         }
     }
 
+    /// Returns this certificate's subject key id.
+    ///
+    /// This corresponds to [`X509_get0_subject_key_id`].
+    ///
+    /// [`X509_get0_subject_key_id`]: https://docs.openssl.org/1.1.1/man3/X509_get_extension_flags/
+    pub fn subject_key_id(&self) -> &Asn1StringRef {
+        unsafe {
+            let name = ffi::X509_get0_subject_key_id(self.as_ptr());
+            Asn1StringRef::from_ptr(name as _)
+        }
+    }
+
+    /// Returns this certificate's authority key id.
+    ///
+    /// This corresponds to [`X509_get0_authority_key_id`].
+    ///
+    /// [`X509_get0_authority_key_id`]: https://docs.openssl.org/1.1.1/man3/X509_get_extension_flags/
+    pub fn authority_key_id(&self) -> &Asn1StringRef {
+        unsafe {
+            let name = ffi::X509_get0_authority_key_id(self.as_ptr());
+            Asn1StringRef::from_ptr(name as _)
+        }
+    }
+
     pub fn public_key(&self) -> Result<PKey<Public>, ErrorStack> {
         unsafe {
             let pkey = cvt_p(ffi::X509_get_pubkey(self.as_ptr()))?;
