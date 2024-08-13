@@ -69,6 +69,7 @@ kx-client-nist-required = ["kx-safe-default"]
 bitflags = { workspace = true }
 foreign-types = { workspace = true }
 once_cell = { workspace = true }
+openssl-macros = { workspace = true }
 libc = { workspace = true }
 boring-sys = { workspace = true }
 

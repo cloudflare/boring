@@ -9,6 +9,7 @@
 
 use foreign_types::{ForeignType, ForeignTypeRef};
 use libc::{c_int, c_long, c_void};
+use openssl_macros::corresponds;
 use std::convert::TryInto;
 use std::error::Error;
 use std::ffi::{CStr, CString};
@@ -58,15 +59,13 @@ foreign_type_and_impl_send_sync! {
 impl X509StoreContext {
     /// Returns the index which can be used to obtain a reference to the `Ssl` associated with a
     /// context.
+    #[corresponds(SSL_get_ex_data_X509_STORE_CTX_idx)]
     pub fn ssl_idx() -> Result<Index<X509StoreContext, SslRef>, ErrorStack> {
         unsafe { cvt_n(ffi::SSL_get_ex_data_X509_STORE_CTX_idx()).map(|idx| Index::from_raw(idx)) }
     }
 
     /// Creates a new `X509StoreContext` instance.
-    ///
-    /// This corresponds to [`X509_STORE_CTX_new`].
-    ///
-    /// [`X509_STORE_CTX_new`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_STORE_CTX_new.html
+    #[corresponds(X509_STORE_CTX_new)]
     pub fn new() -> Result<X509StoreContext, ErrorStack> {
         unsafe {
             ffi::init();
@@ -77,10 +76,7 @@ impl X509StoreContext {
 
 impl X509StoreContextRef {
     /// Returns application data pertaining to an `X509` store context.
-    ///
-    /// This corresponds to [`X509_STORE_CTX_get_ex_data`].
-    ///
-    /// [`X509_STORE_CTX_get_ex_data`]: https://www.openssl.org/docs/man1.0.2/crypto/X509_STORE_CTX_get_ex_data.html
+    #[corresponds(X509_STORE_CTX_get_ex_data)]
     pub fn ex_data<T>(&self, index: Index<X509StoreContext, T>) -> Option<&T> {
         unsafe {
             let data = ffi::X509_STORE_CTX_get_ex_data(self.as_ptr(), index.as_raw());
@@ -93,10 +89,7 @@ impl X509StoreContextRef {
     }
 
     /// Returns the verify result of the context.
-    ///
-    /// This corresponds to [`X509_STORE_CTX_get_error`].
-    ///
-    /// [`X509_STORE_CTX_get_error`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_STORE_CTX_get_error.html
+    #[corresponds(X509_STORE_CTX_get_error)]
     pub fn verify_result(&self) -> X509VerifyResult {
         unsafe { X509VerifyError::from_raw(ffi::X509_STORE_CTX_get_error(self.as_ptr())) }
     }
@@ -150,10 +143,7 @@ impl X509StoreContextRef {
     }
 
     /// Returns a mutable reference to the X509 verification configuration.
-    ///
-    /// This corresponds to [`X509_STORE_CTX_get0_param`].
-    ///
-    /// [`SSL_get0_param`]: https://www.openssl.org/docs/manmaster/man3/X509_STORE_CTX_get0_param.html
+    #[corresponds(X509_STORE_CTX_get0_param)]
     pub fn verify_param_mut(&mut self) -> &mut X509VerifyParamRef {
         unsafe { X509VerifyParamRef::from_ptr_mut(ffi::X509_STORE_CTX_get0_param(self.as_ptr())) }
     }
@@ -164,19 +154,13 @@ impl X509StoreContextRef {
     /// validation error if the certificate was not valid.
     ///
     /// This will only work inside of a call to `init`.
-    ///
-    /// This corresponds to [`X509_verify_cert`].
-    ///
-    /// [`X509_verify_cert`]:  https://www.openssl.org/docs/man1.0.2/crypto/X509_verify_cert.html
+    #[corresponds(X509_verify_cert)]
     pub fn verify_cert(&mut self) -> Result<bool, ErrorStack> {
         unsafe { cvt_n(ffi::X509_verify_cert(self.as_ptr())).map(|n| n != 0) }
     }
 
     /// Set the verify result of the context.
-    ///
-    /// This corresponds to [`X509_STORE_CTX_set_error`].
-    ///
-    /// [`X509_STORE_CTX_set_error`]:  https://www.openssl.org/docs/man1.1.0/crypto/X509_STORE_CTX_set_error.html
+    #[corresponds(X509_STORE_CTX_set_error)]
     pub fn set_error(&mut self, result: X509VerifyResult) {
         unsafe {
             ffi::X509_STORE_CTX_set_error(
@@ -191,10 +175,7 @@ impl X509StoreContextRef {
 
     /// Returns a reference to the certificate which caused the error or None if
     /// no certificate is relevant to the error.
-    ///
-    /// This corresponds to [`X509_STORE_CTX_get_current_cert`].
-    ///
-    /// [`X509_STORE_CTX_get_current_cert`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_STORE_CTX_get_current_cert.html
+    #[corresponds(X509_STORE_CTX_get_current_cert)]
     pub fn current_cert(&self) -> Option<&X509Ref> {
         unsafe {
             let ptr = ffi::X509_STORE_CTX_get_current_cert(self.as_ptr());
@@ -210,19 +191,13 @@ impl X509StoreContextRef {
     /// chain where the error occurred. If it is zero it occurred in the end
     /// entity certificate, one if it is the certificate which signed the end
     /// entity certificate and so on.
-    ///
-    /// This corresponds to [`X509_STORE_CTX_get_error_depth`].
-    ///
-    /// [`X509_STORE_CTX_get_error_depth`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_STORE_CTX_get_error_depth.html
+    #[corresponds(X509_STORE_CTX_get_error_depth)]
     pub fn error_depth(&self) -> u32 {
         unsafe { ffi::X509_STORE_CTX_get_error_depth(self.as_ptr()) as u32 }
     }
 
     /// Returns a reference to a complete valid `X509` certificate chain.
-    ///
-    /// This corresponds to [`X509_STORE_CTX_get0_chain`].
-    ///
-    /// [`X509_STORE_CTX_get0_chain`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_STORE_CTX_get0_chain.html
+    #[corresponds(X509_STORE_CTX_get0_chain)]
     pub fn chain(&self) -> Option<&StackRef<X509>> {
         unsafe {
             let chain = X509_STORE_CTX_get0_chain(self.as_ptr());
@@ -241,6 +216,7 @@ pub struct X509Builder(X509);
 
 impl X509Builder {
     /// Creates a new builder.
+    #[corresponds(X509_new)]
     pub fn new() -> Result<X509Builder, ErrorStack> {
         unsafe {
             ffi::init();
@@ -249,11 +225,13 @@ impl X509Builder {
     }
 
     /// Sets the notAfter constraint on the certificate.
+    #[corresponds(X509_set1_notAfter)]
     pub fn set_not_after(&mut self, not_after: &Asn1TimeRef) -> Result<(), ErrorStack> {
         unsafe { cvt(X509_set1_notAfter(self.0.as_ptr(), not_after.as_ptr())).map(|_| ()) }
     }
 
     /// Sets the notBefore constraint on the certificate.
+    #[corresponds(X509_set1_notBefore)]
     pub fn set_not_before(&mut self, not_before: &Asn1TimeRef) -> Result<(), ErrorStack> {
         unsafe { cvt(X509_set1_notBefore(self.0.as_ptr(), not_before.as_ptr())).map(|_| ()) }
     }
@@ -262,11 +240,13 @@ impl X509Builder {
     ///
     /// Note that the version is zero-indexed; that is, a certificate corresponding to version 3 of
     /// the X.509 standard should pass `2` to this method.
+    #[corresponds(X509_set_version)]
     pub fn set_version(&mut self, version: i32) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::X509_set_version(self.0.as_ptr(), version.into())).map(|_| ()) }
     }
 
     /// Sets the serial number of the certificate.
+    #[corresponds(X509_set_serialNumber)]
     pub fn set_serial_number(&mut self, serial_number: &Asn1IntegerRef) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::X509_set_serialNumber(
@@ -278,6 +258,7 @@ impl X509Builder {
     }
 
     /// Sets the issuer name of the certificate.
+    #[corresponds(X509_set_issuer_name)]
     pub fn set_issuer_name(&mut self, issuer_name: &X509NameRef) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::X509_set_issuer_name(
@@ -306,6 +287,7 @@ impl X509Builder {
     /// let mut x509 = boring::x509::X509::builder().unwrap();
     /// x509.set_subject_name(&x509_name).unwrap();
     /// ```
+    #[corresponds(X509_set_subject_name)]
     pub fn set_subject_name(&mut self, subject_name: &X509NameRef) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::X509_set_subject_name(
@@ -317,6 +299,7 @@ impl X509Builder {
     }
 
     /// Sets the public key associated with the certificate.
+    #[corresponds(X509_set_pubkey)]
     pub fn set_pubkey<T>(&mut self, key: &PKeyRef<T>) -> Result<(), ErrorStack>
     where
         T: HasPublic,
@@ -327,6 +310,7 @@ impl X509Builder {
     /// Returns a context object which is needed to create certain X509 extension values.
     ///
     /// Set `issuer` to `None` if the certificate will be self-signed.
+    #[corresponds(X509V3_set_ctx)]
     pub fn x509v3_context<'a>(
         &'a self,
         issuer: Option<&'a X509Ref>,
@@ -366,10 +350,7 @@ impl X509Builder {
     }
 
     /// Adds an X509 extension value to the certificate.
-    ///
-    /// This corresponds to [`X509_add_ext`].
-    ///
-    /// [`X509_add_ext`]: https://www.openssl.org/docs/man1.1.0/man3/X509_get_ext.html
+    #[corresponds(X509_add_ext)]
     pub fn append_extension2(&mut self, extension: &X509ExtensionRef) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::X509_add_ext(self.0.as_ptr(), extension.as_ptr(), -1))?;
@@ -378,6 +359,7 @@ impl X509Builder {
     }
 
     /// Signs the certificate with a private key.
+    #[corresponds(X509_sign)]
     pub fn sign<T>(&mut self, key: &PKeyRef<T>, hash: MessageDigest) -> Result<(), ErrorStack>
     where
         T: HasPrivate,
@@ -401,10 +383,7 @@ foreign_type_and_impl_send_sync! {
 
 impl X509Ref {
     /// Returns this certificate's subject name.
-    ///
-    /// This corresponds to [`X509_get_subject_name`].
-    ///
-    /// [`X509_get_subject_name`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_get_subject_name.html
+    #[corresponds(X509_get_subject_name)]
     pub fn subject_name(&self) -> &X509NameRef {
         unsafe {
             let name = ffi::X509_get_subject_name(self.as_ptr());
@@ -413,17 +392,13 @@ impl X509Ref {
     }
 
     /// Returns the hash of the certificates subject
-    ///
-    /// This corresponds to `X509_subject_name_hash`.
+    #[corresponds(X509_subject_name_hash)]
     pub fn subject_name_hash(&self) -> u32 {
         unsafe { ffi::X509_subject_name_hash(self.as_ptr()) as u32 }
     }
 
     /// Returns this certificate's subject alternative name entries, if they exist.
-    ///
-    /// This corresponds to [`X509_get_ext_d2i`] called with `NID_subject_alt_name`.
-    ///
-    /// [`X509_get_ext_d2i`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_get_ext_d2i.html
+    #[corresponds(X509_get_ext_d2i)]
     pub fn subject_alt_names(&self) -> Option<Stack<GeneralName>> {
         unsafe {
             let stack = ffi::X509_get_ext_d2i(
@@ -450,10 +425,7 @@ impl X509Ref {
     }
 
     /// Returns this certificate's issuer alternative name entries, if they exist.
-    ///
-    /// This corresponds to [`X509_get_ext_d2i`] called with `NID_issuer_alt_name`.
-    ///
-    /// [`X509_get_ext_d2i`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_get_ext_d2i.html
+    #[corresponds(X509_get_ext_d2i)]
     pub fn issuer_alt_names(&self) -> Option<Stack<GeneralName>> {
         unsafe {
             let stack = ffi::X509_get_ext_d2i(
@@ -471,6 +443,7 @@ impl X509Ref {
     }
 
     /// Returns this certificate's subject key id, if it exists.
+    #[corresponds(X509_get0_subject_key_id)]
     pub fn subject_key_id(&self) -> Option<&Asn1StringRef> {
         unsafe {
             let data = ffi::X509_get0_subject_key_id(self.as_ptr());
@@ -479,6 +452,7 @@ impl X509Ref {
     }
 
     /// Returns this certificate's authority key id, if it exists.
+    #[corresponds(X509_get0_authority_key_id)]
     pub fn authority_key_id(&self) -> Option<&Asn1StringRef> {
         unsafe {
             let data = ffi::X509_get0_authority_key_id(self.as_ptr());
