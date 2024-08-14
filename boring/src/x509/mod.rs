@@ -36,6 +36,7 @@ use crate::pkey::{HasPrivate, HasPublic, PKey, PKeyRef, Public};
 use crate::ssl::SslRef;
 use crate::stack::{Stack, StackRef, Stackable};
 use crate::string::OpensslString;
+use crate::util::ForeignTypeRefExt;
 use crate::x509::verify::X509VerifyParamRef;
 use crate::{cvt, cvt_n, cvt_p};
 
@@ -407,8 +408,7 @@ impl X509Ref {
     pub fn subject_name(&self) -> &X509NameRef {
         unsafe {
             let name = ffi::X509_get_subject_name(self.as_ptr());
-            assert!(!name.is_null());
-            X509NameRef::from_ptr(name)
+            X509NameRef::from_const_ptr_opt(name).expect("issuer name must not be null")
         }
     }
 
@@ -417,19 +417,6 @@ impl X509Ref {
     /// This corresponds to `X509_subject_name_hash`.
     pub fn subject_name_hash(&self) -> u32 {
         unsafe { ffi::X509_subject_name_hash(self.as_ptr()) as u32 }
-    }
-
-    /// Returns this certificate's issuer name.
-    ///
-    /// This corresponds to [`X509_get_issuer_name`].
-    ///
-    /// [`X509_get_issuer_name`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_get_subject_name.html
-    pub fn issuer_name(&self) -> &X509NameRef {
-        unsafe {
-            let name = ffi::X509_get_issuer_name(self.as_ptr());
-            assert!(!name.is_null());
-            X509NameRef::from_ptr(name)
-        }
     }
 
     /// Returns this certificate's subject alternative name entries, if they exist.
@@ -450,6 +437,15 @@ impl X509Ref {
             } else {
                 Some(Stack::from_ptr(stack as *mut _))
             }
+        }
+    }
+
+    /// Returns this certificate's issuer name.
+    #[corresponds(X509_get_issuer_name)]
+    pub fn issuer_name(&self) -> &X509NameRef {
+        unsafe {
+            let name = ffi::X509_get_issuer_name(self.as_ptr());
+            X509NameRef::from_const_ptr_opt(name).expect("issuer name must not be null")
         }
     }
 
@@ -474,27 +470,19 @@ impl X509Ref {
         }
     }
 
-    /// Returns this certificate's subject key id.
-    ///
-    /// This corresponds to [`X509_get0_subject_key_id`].
-    ///
-    /// [`X509_get0_subject_key_id`]: https://docs.openssl.org/1.1.1/man3/X509_get_extension_flags/
-    pub fn subject_key_id(&self) -> &Asn1StringRef {
+    /// Returns this certificate's subject key id, if it exists.
+    pub fn subject_key_id(&self) -> Option<&Asn1StringRef> {
         unsafe {
-            let name = ffi::X509_get0_subject_key_id(self.as_ptr());
-            Asn1StringRef::from_ptr(name as _)
+            let data = ffi::X509_get0_subject_key_id(self.as_ptr());
+            Asn1StringRef::from_const_ptr_opt(data)
         }
     }
 
-    /// Returns this certificate's authority key id.
-    ///
-    /// This corresponds to [`X509_get0_authority_key_id`].
-    ///
-    /// [`X509_get0_authority_key_id`]: https://docs.openssl.org/1.1.1/man3/X509_get_extension_flags/
-    pub fn authority_key_id(&self) -> &Asn1StringRef {
+    /// Returns this certificate's authority key id, if it exists.
+    pub fn authority_key_id(&self) -> Option<&Asn1StringRef> {
         unsafe {
-            let name = ffi::X509_get0_authority_key_id(self.as_ptr());
-            Asn1StringRef::from_ptr(name as _)
+            let data = ffi::X509_get0_authority_key_id(self.as_ptr());
+            Asn1StringRef::from_const_ptr_opt(data)
         }
     }
 
