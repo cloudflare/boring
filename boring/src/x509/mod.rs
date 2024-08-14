@@ -26,7 +26,7 @@ use crate::asn1::{
     Asn1BitStringRef, Asn1IntegerRef, Asn1Object, Asn1ObjectRef, Asn1StringRef, Asn1TimeRef,
     Asn1Type,
 };
-use crate::bio::MemBioSlice;
+use crate::bio::{MemBio, MemBioSlice};
 use crate::conf::ConfRef;
 use crate::error::ErrorStack;
 use crate::ex_data::Index;
@@ -1041,6 +1041,20 @@ impl X509NameRef {
             name: self,
             nid: None,
             loc: -1,
+        }
+    }
+
+    /// Returns an owned String representing the X509 name configurable via incoming flags.
+    ///
+    /// This function will return `None` if the underlying string contains invalid utf-8.
+    #[corresponds(X509_NAME_print_ex)]
+    pub fn print_ex(&self, flags: i32) -> Option<String> {
+        unsafe {
+            let bio = MemBio::new().ok()?;
+            ffi::X509_NAME_print_ex(bio.as_ptr(), self.as_ptr(), 0, flags as _);
+            let buf = bio.get_buf().to_vec();
+            let res = String::from_utf8(buf);
+            res.ok()
         }
     }
 
