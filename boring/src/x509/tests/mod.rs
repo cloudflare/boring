@@ -180,6 +180,49 @@ fn test_subject_alt_name_iter() {
 }
 
 #[test]
+fn test_subject_key_id() {
+    // nid_test_cert_pem has SKI, but no AKI
+    let cert = include_bytes!("../../../test/nid_test_cert.pem");
+    let cert = X509::from_pem(cert).unwrap();
+
+    let ski = cert.subject_key_id().expect("unable to extract SKI");
+    assert_eq!(
+        ski.as_slice(),
+        [
+            80, 107, 158, 237, 95, 61, 235, 100, 212, 115, 249, 244, 219, 163, 124, 55, 141, 2, 76,
+            5
+        ]
+    );
+
+    let aki = cert.authority_key_id();
+    assert!(aki.is_none());
+}
+
+#[test]
+fn test_x509_name_print_ex() {
+    let cert = include_bytes!("../../../test/cert.pem");
+    let cert = X509::from_pem(cert).unwrap();
+
+    let name_no_flags = cert
+        .subject_name()
+        .print_ex(0)
+        .expect("failed to print cert subject name");
+    assert_eq!(
+        name_no_flags,
+        "C=AU, ST=Some-State, O=Internet Widgits Pty Ltd, CN=foobar.com"
+    );
+
+    let name_rfc2253 = cert
+        .subject_name()
+        .print_ex(ffi::XN_FLAG_RFC2253)
+        .expect("failed to print cert subject name");
+    assert_eq!(
+        name_rfc2253,
+        "CN=foobar.com,O=Internet Widgits Pty Ltd,ST=Some-State,C=AU"
+    );
+}
+
+#[test]
 fn x509_builder() {
     let pkey = pkey();
 
