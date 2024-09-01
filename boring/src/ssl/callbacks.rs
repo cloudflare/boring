@@ -2,8 +2,9 @@
 
 use super::{
     AlpnError, ClientHello, GetSessionPendingError, PrivateKeyMethod, PrivateKeyMethodError,
-    SelectCertError, SniError, Ssl, SslAlert, SslContext, SslContextRef, SslRef, SslSession,
-    SslSessionRef, SslSignatureAlgorithm, SslVerifyError, SESSION_CTX_INDEX,
+    SelectCertError, SniError, Ssl, SslAlert, SslContext, SslContextRef, SslInfoCallbackAlert,
+    SslInfoCallbackMode, SslInfoCallbackValue, SslRef, SslSession, SslSessionRef,
+    SslSignatureAlgorithm, SslVerifyError, SESSION_CTX_INDEX,
 };
 use crate::error::ErrorStack;
 use crate::ffi;
@@ -520,4 +521,33 @@ where
         }
         Err(err) => err.0,
     }
+}
+
+pub(super) unsafe extern "C" fn raw_info_callback<F>(
+    ssl: *const ffi::SSL,
+    mode: c_int,
+    value: c_int,
+) where
+    F: Fn(&SslRef, SslInfoCallbackMode, SslInfoCallbackValue) + Send + Sync + 'static,
+{
+    // Due to FFI signature requirements we have to pass a *const SSL into this function, but
+    // foreign-types requires a *mut SSL to get the Rust SslRef
+    let mut_ref = ssl as *mut ffi::SSL;
+
+    // SAFETY: boring provides valid inputs.
+    let ssl = unsafe { SslRef::from_ptr(mut_ref) };
+    let ssl_context = ssl.ssl_context();
+
+    let callback = ssl_context
+        .ex_data(SslContext::cached_ex_index::<F>())
+        .expect("BUG: info callback missing");
+
+    let value = match mode {
+        ffi::SSL_CB_READ_ALERT | ffi::SSL_CB_WRITE_ALERT => {
+            SslInfoCallbackValue::Alert(SslInfoCallbackAlert(value))
+        }
+        _ => SslInfoCallbackValue::Unit,
+    };
+
+    callback(ssl, SslInfoCallbackMode(mode), value);
 }
