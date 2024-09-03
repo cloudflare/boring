@@ -1068,9 +1068,9 @@ impl SslContextBuilder {
         assert!(!self.is_rpk, "This API is not supported for RPK");
 
         unsafe {
-            let ptr = cert_store.as_ptr();
-            cvt(ffi::SSL_CTX_set0_verify_cert_store(self.as_ptr(), ptr) as c_int)?;
-            mem::forget(cert_store);
+            cvt(
+                ffi::SSL_CTX_set0_verify_cert_store(self.as_ptr(), cert_store.into_ptr()) as c_int,
+            )?;
 
             Ok(())
         }
@@ -1083,8 +1083,7 @@ impl SslContextBuilder {
         assert!(!self.is_rpk, "This API is not supported for RPK");
 
         unsafe {
-            ffi::SSL_CTX_set_cert_store(self.as_ptr(), cert_store.as_ptr());
-            mem::forget(cert_store);
+            ffi::SSL_CTX_set_cert_store(self.as_ptr(), cert_store.into_ptr());
         }
     }
 
@@ -1260,8 +1259,7 @@ impl SslContextBuilder {
         assert!(!self.is_rpk, "This API is not supported for RPK");
 
         unsafe {
-            cvt(ffi::SSL_CTX_add_extra_chain_cert(self.as_ptr(), cert.as_ptr()) as c_int)?;
-            mem::forget(cert);
+            cvt(ffi::SSL_CTX_add_extra_chain_cert(self.as_ptr(), cert.into_ptr()) as c_int)?;
             Ok(())
         }
     }
@@ -2742,8 +2740,7 @@ impl SslRef {
         );
 
         unsafe {
-            cvt(ffi::SSL_set0_verify_cert_store(self.as_ptr(), cert_store.as_ptr()) as c_int)?;
-            mem::forget(cert_store);
+            cvt(ffi::SSL_set0_verify_cert_store(self.as_ptr(), cert_store.into_ptr()) as c_int)?;
             Ok(())
         }
     }

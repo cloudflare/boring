@@ -1584,9 +1584,7 @@ impl GeneralName {
             ffi::init();
             let gn = cvt_p(ffi::GENERAL_NAME_new())?;
             (*gn).type_ = ffi::GEN_RID;
-            (*gn).d.registeredID = oid.as_ptr();
-
-            mem::forget(oid);
+            (*gn).d.registeredID = oid.into_ptr();
 
             Ok(GeneralName::from_ptr(gn))
         }

@@ -280,8 +280,7 @@ impl Dsa<Public> {
             let dsa = Dsa::from_ptr(cvt_p(ffi::DSA_new())?);
             cvt(DSA_set0_pqg(dsa.0, p.as_ptr(), q.as_ptr(), g.as_ptr()))?;
             mem::forget((p, q, g));
-            cvt(DSA_set0_key(dsa.0, pub_key.as_ptr(), ptr::null_mut()))?;
-            mem::forget(pub_key);
+            cvt(DSA_set0_key(dsa.0, pub_key.into_ptr(), ptr::null_mut()))?;
             Ok(dsa)
         }
     }
