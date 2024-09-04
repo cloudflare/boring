@@ -638,6 +638,9 @@ fn link_in_precompiled_bcm_o(config: &Config) {
 
 fn main() {
     let config = Config::from_env();
+
+    config.debug_print_to_out_dir();
+
     let bssl_dir = built_boring_source_path(&config);
     let build_path = get_boringssl_platform_output_path(&config);
 

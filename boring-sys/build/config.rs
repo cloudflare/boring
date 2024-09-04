@@ -1,7 +1,9 @@
 use std::env;
 use std::ffi::OsString;
+use std::fs;
 use std::path::PathBuf;
 
+#[derive(Debug)]
 pub(crate) struct Config {
     pub(crate) manifest_dir: PathBuf,
     pub(crate) out_dir: PathBuf,
@@ -14,6 +16,7 @@ pub(crate) struct Config {
     pub(crate) env: Env,
 }
 
+#[derive(Debug)]
 pub(crate) struct Features {
     pub(crate) fips: bool,
     pub(crate) fips_link_precompiled: bool,
@@ -22,6 +25,7 @@ pub(crate) struct Features {
     pub(crate) underscore_wildcards: bool,
 }
 
+#[derive(Debug)]
 pub(crate) struct Env {
     pub(crate) path: Option<PathBuf>,
     pub(crate) include_path: Option<PathBuf>,
@@ -100,6 +104,14 @@ impl Config {
         if is_precompiled_native_lib && build_from_sources_required {
             panic!("precompiled BoringSSL was provided, so FIPS configuration or optional patches can't be applied");
         }
+    }
+
+    pub(crate) fn debug_print_to_out_dir(&self) {
+        let mut file_path = self.out_dir.clone();
+
+        file_path.push("build-config.txt");
+
+        fs::write(file_path, format!("{:#?}", self)).unwrap();
     }
 }
 
