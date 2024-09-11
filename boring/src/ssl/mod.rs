@@ -834,6 +834,66 @@ pub fn select_next_proto<'a>(server: &[u8], client: &'a [u8]) -> Option<&'a [u8]
     }
 }
 
+/// Options controlling the behavior of the info callback.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
+pub struct SslInfoCallbackMode(i32);
+
+impl SslInfoCallbackMode {
+    /// Signaled for each alert received, warning or fatal.
+    pub const READ_ALERT: Self = Self(ffi::SSL_CB_READ_ALERT);
+
+    /// Signaled for each alert sent, warning or fatal.
+    pub const WRITE_ALERT: Self = Self(ffi::SSL_CB_WRITE_ALERT);
+
+    /// Signaled when a handshake begins.
+    pub const HANDSHAKE_START: Self = Self(ffi::SSL_CB_HANDSHAKE_START);
+
+    /// Signaled when a handshake completes successfully.
+    pub const HANDSHAKE_DONE: Self = Self(ffi::SSL_CB_HANDSHAKE_DONE);
+
+    /// Signaled when a handshake progresses to a new state.
+    pub const ACCEPT_LOOP: Self = Self(ffi::SSL_CB_ACCEPT_LOOP);
+}
+
+/// The `value` argument to an info callback. The most-significant byte is the alert level, while
+/// the least significant byte is the alert itself.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
+pub enum SslInfoCallbackValue {
+    /// The unit value (1). Some BoringSSL info callback modes, like ACCEPT_LOOP, always call the
+    /// callback with `value` set to the unit value. If the [`SslInfoCallbackValue`] is a
+    /// `Unit`, it can safely be disregarded.
+    Unit,
+    /// An alert. See [`SslInfoCallbackAlert`] for details on how to manipulate the alert. This
+    /// variant should only be present if the info callback was called with a `READ_ALERT` or
+    /// `WRITE_ALERT` mode.
+    Alert(SslInfoCallbackAlert),
+}
+
+#[derive(Hash, Copy, Clone, PartialOrd, Ord, Eq, PartialEq, Debug)]
+pub struct SslInfoCallbackAlert(c_int);
+
+impl SslInfoCallbackAlert {
+    /// The level of the SSL alert.
+    pub fn alert_level(&self) -> Ssl3AlertLevel {
+        let value = self.0 >> 8;
+        Ssl3AlertLevel(value)
+    }
+
+    /// The value of the SSL alert.
+    pub fn alert(&self) -> SslAlert {
+        let value = self.0 & (u8::MAX as i32);
+        SslAlert(value)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Ssl3AlertLevel(c_int);
+
+impl Ssl3AlertLevel {
+    pub const WARNING: Ssl3AlertLevel = Self(ffi::SSL3_AL_WARNING);
+    pub const FATAL: Ssl3AlertLevel = Self(ffi::SSL3_AL_FATAL);
+}
+
 #[cfg(feature = "rpk")]
 extern "C" fn rpk_verify_failure_callback(
     _ssl: *mut ffi::SSL,
@@ -1816,6 +1876,18 @@ impl SslContextBuilder {
     #[cfg(not(feature = "fips"))]
     pub fn set_compliance_policy(&mut self, policy: CompliancePolicy) -> Result<(), ErrorStack> {
         unsafe { cvt_0i(ffi::SSL_CTX_set_compliance_policy(self.as_ptr(), policy.0)).map(|_| ()) }
+    }
+
+    /// Sets the context's info callback.
+    #[corresponds(SSL_CTX_set_info_callback)]
+    pub fn set_info_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&SslRef, SslInfoCallbackMode, SslInfoCallbackValue) + Send + Sync + 'static,
+    {
+        unsafe {
+            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+            ffi::SSL_CTX_set_info_callback(self.as_ptr(), Some(callbacks::raw_info_callback::<F>));
+        }
     }
 
     /// Consumes the builder, returning a new `SslContext`.

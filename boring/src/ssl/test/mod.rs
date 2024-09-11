@@ -1052,3 +1052,17 @@ fn drop_ex_data_in_ssl() {
     assert_eq!(ssl.replace_ex_data(index, "camembert"), Some("comté"));
     assert_eq!(ssl.replace_ex_data(index, "raclette"), Some("camembert"));
 }
+
+#[test]
+fn test_info_callback() {
+    static CALLED_BACK: AtomicBool = AtomicBool::new(false);
+
+    let server = Server::builder().build();
+    let mut client = server.client();
+    client.ctx().set_info_callback(move |_, _, _| {
+        CALLED_BACK.store(true, Ordering::Relaxed);
+    });
+
+    client.connect();
+    assert!(CALLED_BACK.load(Ordering::Relaxed));
+}
