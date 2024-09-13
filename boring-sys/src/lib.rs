@@ -16,9 +16,11 @@ use std::convert::TryInto;
 use std::ffi::c_void;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong};
 
-#[allow(dead_code)]
-#[allow(clippy::all)]
-#[rustfmt::skip]
+#[allow(
+    clippy::useless_transmute,
+    clippy::derive_partial_eq_without_eq,
+    dead_code
+)]
 mod generated {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
