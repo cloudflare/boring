@@ -1794,6 +1794,24 @@ impl SslContextBuilder {
     // If the "kx-*" flags are used to set key exchange preference, then don't allow the user to
     // set them here. This ensures we don't override the user's preference without telling them:
     // when the flags are used, the preferences are set just before connecting or accepting.
+    #[cfg(not(feature = "kx-safe-default"))]
+    #[corresponds(SSL_CTX_set1_curves_list)]
+    pub fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
+        let curves = CString::new(curves).unwrap();
+        unsafe {
+            cvt_0i(ffi::SSL_CTX_set1_curves_list(
+                self.as_ptr(),
+                curves.as_ptr() as *const _,
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Sets the context's supported curves.
+    //
+    // If the "kx-*" flags are used to set key exchange preference, then don't allow the user to
+    // set them here. This ensures we don't override the user's preference without telling them:
+    // when the flags are used, the preferences are set just before connecting or accepting.
     #[corresponds(SSL_CTX_set1_curves)]
     #[cfg(not(feature = "kx-safe-default"))]
     pub fn set_curves(&mut self, curves: &[SslCurve]) -> Result<(), ErrorStack> {
@@ -2589,11 +2607,10 @@ impl SslRef {
     }
 
     #[corresponds(SSL_set1_curves_list)]
-    #[cfg(feature = "kx-safe-default")]
-    fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
+    pub fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
         let curves = CString::new(curves).unwrap();
         unsafe {
-            cvt(ffi::SSL_set1_curves_list(
+            cvt_0i(ffi::SSL_set1_curves_list(
                 self.as_ptr(),
                 curves.as_ptr() as *const _,
             ))
