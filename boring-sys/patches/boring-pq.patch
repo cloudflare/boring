@@ -1,59 +1,71 @@
-From 4cba2164726c8d2647e38548a266a70c4942d567 Mon Sep 17 00:00:00 2001
+From b98d803dbecc9d6848d8cbffa62b5c943fb75f70 Mon Sep 17 00:00:00 2001
 From: Bas Westerbaan <bas@cloudflare.com>
 Date: Fri, 22 Jul 2022 16:43:48 +0200
-Subject: [PATCH] Add temporary post-quantum key agreements
+Subject: [PATCH] Add additional post-quantum key agreements
 
-BoringSSL upstream support X25519Kyber768Draft00 already under
-codepoint 0x6399, which is the recommended post-quantum key
-agreement to use
+BoringSSL upstream has supported the temporary post-quantum
+key agreement X25519Kyber768Draft00 (0x6399) for a while.
+At the time of writing X25519Kyber768Draft00 is widely deployed by browsers.
+
+Recent BoringSSL adds support for X25519MLKEM768 (0x11ec),
+which will be the long term post-quantum key agreement of choice,
+and many browsers are expected to switch to it before the end of 2024.
 
 This patch adds:
 
-1. Supports for P256Kyber768Draft00 under 0xfe32, which we temporarily
+1. Support for MLKEM768X25519 under the codepoint 0x11ec. The version
+   of BoringSSL we patch against did not support it yet.
+
+2. Supports for P256Kyber768Draft00 under 0xfe32, which we temporarily
    need for compliance reasons.  (Note that this is not the codepoint
    allocated for that exchange in the IANA table.)
    It also enables it in FIPS mode.
 
-2. Support for X25519Kyber768Draft00 under the old codepoint 0xfe31.
+3. Support for X25519Kyber768Draft00 under the old codepoint 0xfe31.
 
-3. Support for X25519Kyber512Draft00 under the codepoint 0xfe30. This
+4. Support for X25519Kyber512Draft00 under the codepoint 0xfe30. This
    key agreement should only be used for testing: to see if the smaller
    keyshare makes a difference.
 
 The patch also replaces Google's implementation of Kyber, by the
 portable reference implementation, so as to support Kyber512.
 
-Cf RTG-2076 RTG-2051 RTG-2508 RTG-2707 RTG-2607
+Cf RTG-2076 RTG-2051 RTG-2508 RTG-2707 RTG-2607 RTG-3239
 ---
  BUILD.generated.bzl               |    5 +-
  BUILD.generated_tests.bzl         |    4 -
  CMakeLists.txt                    |    4 +-
+ crypto_test_data.cc               |    4 -
  sources.json                      |    9 +-
  src/crypto/CMakeLists.txt         |    5 +-
  src/crypto/kyber/internal.h       |   91 -
  src/crypto/kyber/keccak.c         |  204 --
- src/crypto/kyber/kyber.c          | 2865 ++++++++++++++++++++-------
+ src/crypto/kyber/keccak_tests.txt | 3071 -----------------------------
+ src/crypto/kyber/kyber.c          | 3011 +++++++++++++++++++++-------
  src/crypto/kyber/kyber512.c       |    5 +
  src/crypto/kyber/kyber768.c       |    4 +
  src/crypto/kyber/kyber_test.cc    |  229 ---
- src/crypto/obj/obj_dat.h          |   14 +-
- src/crypto/obj/obj_mac.num        |    3 +
- src/crypto/obj/objects.txt        |    5 +-
- src/include/openssl/kyber.h       |  199 +-
- src/include/openssl/nid.h         |    9 +
- src/include/openssl/ssl.h         |    3 +
+ src/crypto/kyber/kyber_tests.txt  |  905 ---------
+ src/crypto/obj/obj_dat.h          |   17 +-
+ src/crypto/obj/obj_mac.num        |    4 +
+ src/crypto/obj/objects.txt        |    6 +-
+ src/include/openssl/kyber.h       |  203 +-
+ src/include/openssl/nid.h         |   12 +
+ src/include/openssl/ssl.h         |    4 +
  src/sources.cmake                 |    2 -
- src/ssl/extensions.cc             |    3 +
- src/ssl/ssl_key_share.cc          |  412 +++-
+ src/ssl/extensions.cc             |    4 +
+ src/ssl/ssl_key_share.cc          |  525 ++++-
  src/ssl/ssl_lib.cc                |    2 +-
- src/ssl/ssl_test.cc               |   25 +-
+ src/ssl/ssl_test.cc               |   29 +-
  src/tool/speed.cc                 |  162 +-
- 26 files changed, 2797 insertions(+), 5447 deletions(-)
+ 26 files changed, 3088 insertions(+), 5433 deletions(-)
  delete mode 100644 src/crypto/kyber/internal.h
  delete mode 100644 src/crypto/kyber/keccak.c
+ delete mode 100644 src/crypto/kyber/keccak_tests.txt
  create mode 100644 src/crypto/kyber/kyber512.c
  create mode 100644 src/crypto/kyber/kyber768.c
  delete mode 100644 src/crypto/kyber/kyber_test.cc
+ delete mode 100644 src/crypto/kyber/kyber_tests.txt
 
 diff --git a/BUILD.generated.bzl b/BUILD.generated.bzl
 index 738e1055f..9466757a2 100644
@@ -122,6 +134,28 @@ index faed2befa..931c0e3a8 100644
    src/crypto/lhash/lhash.c
    src/crypto/mem.c
    src/crypto/obj/obj.c
+diff --git a/crypto_test_data.cc b/crypto_test_data.cc
+index 2268533f8..19b344af1 100644
+--- a/crypto_test_data.cc
++++ b/crypto_test_data.cc
+@@ -74,7 +74,6 @@
+  *       crypto/fipsmodule/rand/ctrdrbg_vectors.txt \
+  *       crypto/hmac_extra/hmac_tests.txt \
+  *       crypto/hpke/hpke_test_vectors.txt \
+- *       crypto/kyber/keccak_tests.txt \
+  *       crypto/kyber/kyber_tests.txt \
+  *       crypto/pkcs8/test/empty_password.p12 \
+  *       crypto/pkcs8/test/no_encryption.p12 \
+@@ -5269,9 +5268,6 @@ std::string GetTestData(const char *path) {
+   if (strcmp(path, "crypto/hpke/hpke_test_vectors.txt") == 0) {
+     return AssembleString(kData59, kLen59);
+   }
+-  if (strcmp(path, "crypto/kyber/keccak_tests.txt") == 0) {
+-    return AssembleString(kData60, kLen60);
+-  }
+   if (strcmp(path, "crypto/kyber/kyber_tests.txt") == 0) {
+     return AssembleString(kData61, kLen61);
+   }
 diff --git a/sources.json b/sources.json
 index 4c0048e1d..f6ea5c40f 100644
 --- a/sources.json
@@ -492,10 +526,10 @@ index f1c012d11..000000000
 -  }
 -}
 diff --git a/src/crypto/kyber/kyber.c b/src/crypto/kyber/kyber.c
-index 776c085f9..346d4daec 100644
+index 776c085f9..ccb5b3d9b 100644
 --- a/src/crypto/kyber/kyber.c
 +++ b/src/crypto/kyber/kyber.c
-@@ -1,833 +1,2252 @@
+@@ -1,833 +1,2426 @@
 -/* Copyright (c) 2023, Google Inc.
 - *
 - * Permission to use, copy, modify, and/or distribute this software for any
@@ -520,6 +554,8 @@ index 776c085f9..346d4daec 100644
 +//   - Removed 90s version.
 +//   - Seeds are passed as paramters.
 +//   - Changed the API to be more BoringSSL-like
++//   - Mitigated timing sidechannels (Kyberslash 1 and 2).
++//     (Note that these do not affect ephemeral usage as in TLS.)
 +//
 +//  TODO
 +//
@@ -534,21 +570,24 @@ index 776c085f9..346d4daec 100644
 +//     implementation or https://github.com/cloudflare/circl/tree/main/pke/kyber
 +//
 +//   - Option to keep A stored in private key.
-+
+ 
+-#include <openssl/kyber.h>
 +#ifndef KYBER_K
 +#error "Don't compile this file direcly"
 +#endif
  
- #include <openssl/kyber.h>
-+#include <openssl/base.h>
- 
 -#include <assert.h>
 -#include <stdlib.h>
--
++#include <openssl/kyber.h>
++#include <openssl/base.h>
+ 
 -#include <openssl/bytestring.h>
 -#include <openssl/rand.h>
--
--#include "../internal.h"
++#include <stddef.h>
++#include <stdint.h>
++#include <string.h>
+ 
+ #include "../internal.h"
 -#include "./internal.h"
 -
 -
@@ -612,9 +651,6 @@ index 776c085f9..346d4daec 100644
 -    2099, 561,  2466, 2594, 2804, 1092, 403,  1026, 1143, 2150, 2775, 886,
 -    1722, 1212, 1874, 1029, 2110, 2935, 885,  2154,
 -};
-+#include <stddef.h>
-+#include <stdint.h>
-+#include <string.h>
  
 -// kInverseNTTRoots = [pow(17, -bitreverse(i), p) for i in range(128)]
 -static const uint16_t kInverseNTTRoots[128] = {
@@ -844,7 +880,7 @@ index 776c085f9..346d4daec 100644
 +                    uint8_t sk[KYBER_INDCPA_SECRETKEYBYTES],
 +                    const uint8_t seed[KYBER_SYMBYTES]);
 +
-+static void indcpa_enc(uint8_t c[KYBER_INDCPA_BYTES],
++static int indcpa_enc(uint8_t c[KYBER_INDCPA_BYTES],
 +                const uint8_t m[KYBER_INDCPA_MSGBYTES],
 +                const uint8_t pk[KYBER_INDCPA_PUBLICKEYBYTES],
 +                const uint8_t coins[KYBER_SYMBYTES]);
@@ -873,6 +909,9 @@ index 776c085f9..346d4daec 100644
 +static void shake256_squeeze(uint8_t *out, size_t outlen, keccak_state *state);
 +static void shake256_absorb_once(keccak_state *state, const uint8_t *in, size_t inlen);
 +static void shake256_squeezeblocks(uint8_t *out, size_t nblocks,  keccak_state *state);
++static void shake256_absorb(keccak_state *state, const uint8_t *in, size_t inlen);
++static void shake256_finalize(keccak_state *state);
++static void shake256_init(keccak_state *state);
 +
 +static void shake256(uint8_t *out, size_t outlen, const uint8_t *in, size_t inlen);
 +static void sha3_256(uint8_t h[32], const uint8_t *in, size_t inlen);
@@ -1064,13 +1103,10 @@ index 776c085f9..346d4daec 100644
 +      a = (d >> (4*j+0)) & 0x3;
 +      b = (d >> (4*j+2)) & 0x3;
 +      r->coeffs[8*i+j] = a - b;
-     }
-   }
- }
- 
--static void vector_ntt(vector *a) {
--  for (int i = 0; i < RANK; i++) {
--    scalar_ntt(&a->v[i]);
++    }
++  }
++}
++
 +/*************************************************
 +* Name:        cbd3
 +*
@@ -1099,7 +1135,7 @@ index 776c085f9..346d4daec 100644
 +      a = (d >> (6*j+0)) & 0x7;
 +      b = (d >> (6*j+3)) & 0x7;
 +      r->coeffs[4*i+j] = a - b;
-+    }
+     }
    }
  }
 +#endif
@@ -1115,25 +1151,9 @@ index 776c085f9..346d4daec 100644
 +#endif
 +}
  
--// In place inverse number theoretic transform of a given scalar, with pairs of
--// entries of s->v being interpreted as elements of GF(3329^2). Just as with the
--// number theoretic transform, this leaves off the first step of the normal iFFT
--// to account for the fact that 3329 does not have a 512th root of unity, using
--// the precomputed 128 roots of unity stored in |kInverseNTTRoots|.
--static void scalar_inverse_ntt(scalar *s) {
--  int step = DEGREE / 2;
--  // `int` is used here because using `size_t` throughout caused a ~5% slowdown
--  // with Clang 14 on Aarch64.
--  for (int offset = 2; offset < DEGREE; offset <<= 1) {
--    step >>= 1;
--    int k = 0;
--    for (int i = 0; i < step; i++) {
--      uint32_t step_root = kInverseNTTRoots[i + step];
--      for (int j = k; j < k + offset; j++) {
--        uint16_t odd = s->c[j + offset];
--        uint16_t even = s->c[j];
--        s->c[j] = reduce_once(odd + even);
--        s->c[j + offset] = reduce(step_root * (even - odd + kPrime));
+-static void vector_ntt(vector *a) {
+-  for (int i = 0; i < RANK; i++) {
+-    scalar_ntt(&a->v[i]);
 +static void poly_cbd_eta2(poly *r, const uint8_t buf[KYBER_ETA2*KYBER_N/4])
 +{
 +#if KYBER_ETA2 == 2
@@ -1176,8 +1196,8 @@ index 776c085f9..346d4daec 100644
 +      zetas[i] -= KYBER_Q;
 +    if(zetas[i] < -KYBER_Q/2)
 +      zetas[i] += KYBER_Q;
-+  }
-+}
+   }
+ }
 +*/
 +
 +static const int16_t zetas[128] = {
@@ -1212,7 +1232,26 @@ index 776c085f9..346d4daec 100644
 +static int16_t fqmul(int16_t a, int16_t b) {
 +  return montgomery_reduce((int32_t)a*b);
 +}
-+
+ 
+-// In place inverse number theoretic transform of a given scalar, with pairs of
+-// entries of s->v being interpreted as elements of GF(3329^2). Just as with the
+-// number theoretic transform, this leaves off the first step of the normal iFFT
+-// to account for the fact that 3329 does not have a 512th root of unity, using
+-// the precomputed 128 roots of unity stored in |kInverseNTTRoots|.
+-static void scalar_inverse_ntt(scalar *s) {
+-  int step = DEGREE / 2;
+-  // `int` is used here because using `size_t` throughout caused a ~5% slowdown
+-  // with Clang 14 on Aarch64.
+-  for (int offset = 2; offset < DEGREE; offset <<= 1) {
+-    step >>= 1;
+-    int k = 0;
+-    for (int i = 0; i < step; i++) {
+-      uint32_t step_root = kInverseNTTRoots[i + step];
+-      for (int j = k; j < k + offset; j++) {
+-        uint16_t odd = s->c[j + offset];
+-        uint16_t even = s->c[j];
+-        s->c[j] = reduce_once(odd + even);
+-        s->c[j + offset] = reduce(step_root * (even - odd + kPrime));
 +/*************************************************
 +* Name:        ntt
 +*
@@ -1316,6 +1355,7 @@ index 776c085f9..346d4daec 100644
 +{
 +  unsigned int i,j;
 +  int16_t u;
++  uint32_t d0;
 +  uint8_t t[8];
 +
 +#if (KYBER_POLYCOMPRESSEDBYTES == 128)
@@ -1324,7 +1364,11 @@ index 776c085f9..346d4daec 100644
 +      // map to positive standard representatives
 +      u  = a->coeffs[8*i+j];
 +      u += (u >> 15) & KYBER_Q;
-+      t[j] = ((((uint16_t)u << 4) + KYBER_Q/2)/KYBER_Q) & 15;
++      d0 = u << 4;
++      d0 += 1665;
++      d0 *= 80635;
++      d0 >>= 28;
++      t[j] = d0 & 0xf;
 +    }
 +
 +    r[0] = t[0] | (t[1] << 4);
@@ -1339,7 +1383,11 @@ index 776c085f9..346d4daec 100644
 +      // map to positive standard representatives
 +      u  = a->coeffs[8*i+j];
 +      u += (u >> 15) & KYBER_Q;
-+      t[j] = ((((uint32_t)u << 5) + KYBER_Q/2)/KYBER_Q) & 31;
++      d0 = u << 5;
++      d0 += 1664;
++      d0 *= 40318;
++      d0 >>= 27;
++      t[j] = d0 & 0x1f;
 +    }
 +
 +    r[0] = (t[0] >> 0) | (t[1] << 5);
@@ -1490,7 +1538,7 @@ index 776c085f9..346d4daec 100644
 +
 +  for(i=0;i<KYBER_N/8;i++) {
 +    for(j=0;j<8;j++) {
-+      mask = -(int16_t)((msg[i] >> j)&1);
++      mask = -(int16_t)value_barrier_u32((msg[i] >> j)&1);
 +      r->coeffs[8*i+j] = mask & ((KYBER_Q+1)/2);
      }
    }
@@ -1515,14 +1563,17 @@ index 776c085f9..346d4daec 100644
 +static void poly_tomsg(uint8_t msg[KYBER_INDCPA_MSGBYTES], const poly *a)
 +{
 +  unsigned int i,j;
-+  uint16_t t;
++  uint32_t t;
 +
 +  for(i=0;i<KYBER_N/8;i++) {
 +    msg[i] = 0;
 +    for(j=0;j<8;j++) {
 +      t  = a->coeffs[8*i+j];
-+      t += ((int16_t)t >> 15) & KYBER_Q;
-+      t  = (((t << 1) + KYBER_Q/2)/KYBER_Q) & 1;
++      t <<= 1;
++      t += 1665;
++      t *= 80635;
++      t >>= 28;
++      t &= 1;
 +      msg[i] |= t << j;
      }
    }
@@ -1801,6 +1852,7 @@ index 776c085f9..346d4daec 100644
 +static void polyvec_compress(uint8_t r[KYBER_POLYVECCOMPRESSEDBYTES], const polyvec *a)
 +{
 +  unsigned int i,j,k;
++  uint64_t d0;
 +
 +#if (KYBER_POLYVECCOMPRESSEDBYTES == (KYBER_K * 352))
 +  uint16_t t[8];
@@ -1809,7 +1861,12 @@ index 776c085f9..346d4daec 100644
 +      for(k=0;k<8;k++) {
 +        t[k]  = a->vec[i].coeffs[8*j+k];
 +        t[k] += ((int16_t)t[k] >> 15) & KYBER_Q;
-+        t[k]  = ((((uint32_t)t[k] << 11) + KYBER_Q/2)/KYBER_Q) & 0x7ff;
++        d0 = t[k];
++        d0 <<= 11;
++        d0 += 1664;
++        d0 *= 645084;
++        d0 >>= 31;
++        t[k] = d0 & 0x7ff;
        }
  
 -      element_bits_done += chunk_bits;
@@ -1835,7 +1892,12 @@ index 776c085f9..346d4daec 100644
 +      for(k=0;k<4;k++) {
 +        t[k]  = a->vec[i].coeffs[4*j+k];
 +        t[k] += ((int16_t)t[k] >> 15) & KYBER_Q;
-+        t[k]  = ((((uint32_t)t[k] << 10) + KYBER_Q/2)/ KYBER_Q) & 0x3ff;
++        d0 = t[k];
++        d0 <<= 10;
++        d0 += 1665;
++        d0 *= 1290167;
++        d0 >>= 32;
++        t[k] = d0 & 0x3ff;
 +      }
  
 -  if (out_byte_bits > 0) {
@@ -1910,8 +1972,15 @@ index 776c085f9..346d4daec 100644
 +#else
 +#error "KYBER_POLYVECCOMPRESSEDBYTES needs to be in {320*KYBER_K, 352*KYBER_K}"
 +#endif
-+}
-+
+ }
+ 
+-// Encodes an entire vector into 32*|RANK|*|bits| bytes. Note that since 256
+-// (DEGREE) is divisible by 8, the individual vector entries will always fill a
+-// whole number of bytes, so we do not need to worry about bit packing here.
+-static void vector_encode(uint8_t *out, const vector *a, int bits) {
+-  for (int i = 0; i < RANK; i++) {
+-    scalar_encode(out + i * bits * DEGREE / 8, &a->v[i], bits);
+-  }
 +/*************************************************
 +* Name:        polyvec_tobytes
 +*
@@ -1926,8 +1995,13 @@ index 776c085f9..346d4daec 100644
 +  unsigned int i;
 +  for(i=0;i<KYBER_K;i++)
 +    poly_tobytes(r+i*KYBER_POLYBYTES, &a->vec[i]);
-+}
-+
+ }
+ 
+-// scalar_decode parses |DEGREE * bits| bits from |in| into |DEGREE| values in
+-// |out|. It returns one on success and zero if any parsed value is >=
+-// |kPrime|.
+-static int scalar_decode(scalar *out, const uint8_t *in, int bits) {
+-  assert(bits <= (int)sizeof(*out->c) * 8 && bits != 1);
 +/*************************************************
 +* Name:        polyvec_frombytes
 +*
@@ -1943,14 +2017,10 @@ index 776c085f9..346d4daec 100644
 +  unsigned int i;
 +  for(i=0;i<KYBER_K;i++)
 +    poly_frombytes(&r->vec[i], a+i*KYBER_POLYBYTES);
- }
++}
  
--// Encodes an entire vector into 32*|RANK|*|bits| bytes. Note that since 256
--// (DEGREE) is divisible by 8, the individual vector entries will always fill a
--// whole number of bytes, so we do not need to worry about bit packing here.
--static void vector_encode(uint8_t *out, const vector *a, int bits) {
--  for (int i = 0; i < RANK; i++) {
--    scalar_encode(out + i * bits * DEGREE / 8, &a->v[i], bits);
+-  uint8_t in_byte = 0;
+-  int in_byte_bits_left = 0;
 +/*************************************************
 +* Name:        polyvec_ntt
 +*
@@ -1964,7 +2034,10 @@ index 776c085f9..346d4daec 100644
 +  for(i=0;i<KYBER_K;i++)
 +    poly_ntt(&r->vec[i]);
 +}
-+
+ 
+-  for (int i = 0; i < DEGREE; i++) {
+-    uint16_t element = 0;
+-    int element_bits_done = 0;
 +/*************************************************
 +* Name:        polyvec_invntt_tomont
 +*
@@ -1979,7 +2052,13 @@ index 776c085f9..346d4daec 100644
 +  for(i=0;i<KYBER_K;i++)
 +    poly_invntt_tomont(&r->vec[i]);
 +}
-+
+ 
+-    while (element_bits_done < bits) {
+-      if (in_byte_bits_left == 0) {
+-        in_byte = *in;
+-        in++;
+-        in_byte_bits_left = 8;
+-      }
 +/*************************************************
 +* Name:        polyvec_basemul_acc_montgomery
 +*
@@ -1999,16 +2078,18 @@ index 776c085f9..346d4daec 100644
 +  for(i=1;i<KYBER_K;i++) {
 +    poly_basemul_montgomery(&t, &a->vec[i], &b->vec[i]);
 +    poly_add(r, r, &t);
-   }
-+
-+  poly_reduce(r);
- }
++  }
  
--// scalar_decode parses |DEGREE * bits| bits from |in| into |DEGREE| values in
--// |out|. It returns one on success and zero if any parsed value is >=
--// |kPrime|.
--static int scalar_decode(scalar *out, const uint8_t *in, int bits) {
--  assert(bits <= (int)sizeof(*out->c) * 8 && bits != 1);
+-      int chunk_bits = bits - element_bits_done;
+-      if (chunk_bits > in_byte_bits_left) {
+-        chunk_bits = in_byte_bits_left;
+-      }
++  poly_reduce(r);
++}
+ 
+-      element |= (in_byte & kMasks[chunk_bits - 1]) << element_bits_done;
+-      in_byte_bits_left -= chunk_bits;
+-      in_byte >>= chunk_bits;
 +/*************************************************
 +* Name:        polyvec_reduce
 +*
@@ -2025,8 +2106,8 @@ index 776c085f9..346d4daec 100644
 +    poly_reduce(&r->vec[i]);
 +}
  
--  uint8_t in_byte = 0;
--  int in_byte_bits_left = 0;
+-      element_bits_done += chunk_bits;
+-    }
 +/*************************************************
 +* Name:        polyvec_add
 +*
@@ -2043,19 +2124,15 @@ index 776c085f9..346d4daec 100644
 +    poly_add(&r->vec[i], &a->vec[i], &b->vec[i]);
 +}
  
--  for (int i = 0; i < DEGREE; i++) {
--    uint16_t element = 0;
--    int element_bits_done = 0;
+-    if (element >= kPrime) {
+-      return 0;
+-    }
+-    out->c[i] = element;
+-  }
 +//
 +// indcpa.c
 +//
- 
--    while (element_bits_done < bits) {
--      if (in_byte_bits_left == 0) {
--        in_byte = *in;
--        in++;
--        in_byte_bits_left = 8;
--      }
++
 +/*************************************************
 +* Name:        pack_pk
 +*
@@ -2076,11 +2153,7 @@ index 776c085f9..346d4daec 100644
 +  for(i=0;i<KYBER_SYMBYTES;i++)
 +    r[i+KYBER_POLYVECBYTES] = seed[i];
 +}
- 
--      int chunk_bits = bits - element_bits_done;
--      if (chunk_bits > in_byte_bits_left) {
--        chunk_bits = in_byte_bits_left;
--      }
++
 +/*************************************************
 +* Name:        unpack_pk
 +*
@@ -2091,19 +2164,34 @@ index 776c085f9..346d4daec 100644
 +*              - uint8_t *seed: pointer to output seed to generate matrix A
 +*              - const uint8_t *packedpk: pointer to input serialized public key
 +**************************************************/
-+static void unpack_pk(polyvec *pk,
++static int unpack_pk(polyvec *pk,
 +                      uint8_t seed[KYBER_SYMBYTES],
 +                      const uint8_t packedpk[KYBER_INDCPA_PUBLICKEYBYTES])
 +{
 +  size_t i;
 +  polyvec_frombytes(pk, packedpk);
++
++  // FIPS 203 encapsulation key check. We'll perform it even for Kyber.
++  uint8_t repacked[KYBER_POLYVECBYTES];
++  polyvec_tobytes(repacked, pk);
++
++  if(verify(repacked, packedpk, KYBER_POLYVECBYTES) != 0)
++    return 0;
+ 
 +  for(i=0;i<KYBER_SYMBYTES;i++)
 +    seed[i] = packedpk[i+KYBER_POLYVECBYTES];
-+}
+   return 1;
+ }
  
--      element |= (in_byte & kMasks[chunk_bits - 1]) << element_bits_done;
--      in_byte_bits_left -= chunk_bits;
--      in_byte >>= chunk_bits;
+-// scalar_decode_1 is |scalar_decode| specialised for |bits| == 1.
+-static void scalar_decode_1(scalar *out, const uint8_t in[32]) {
+-  for (int i = 0; i < DEGREE; i += 8) {
+-    uint8_t in_byte = *in;
+-    in++;
+-    for (int j = 0; j < 8; j++) {
+-      out->c[i + j] = in_byte & 1;
+-      in_byte >>= 1;
+-    }
 +/*************************************************
 +* Name:        pack_sk
 +*
@@ -2116,9 +2204,7 @@ index 776c085f9..346d4daec 100644
 +{
 +  polyvec_tobytes(r, sk);
 +}
- 
--      element_bits_done += chunk_bits;
--    }
++
 +/*************************************************
 +* Name:        unpack_sk
 +*
@@ -2131,12 +2217,7 @@ index 776c085f9..346d4daec 100644
 +{
 +  polyvec_frombytes(sk, packedsk);
 +}
- 
--    if (element >= kPrime) {
--      return 0;
--    }
--    out->c[i] = element;
--  }
++
 +/*************************************************
 +* Name:        pack_ciphertext
 +*
@@ -2153,8 +2234,7 @@ index 776c085f9..346d4daec 100644
 +  polyvec_compress(r, b);
 +  poly_compress(r+KYBER_POLYVECCOMPRESSEDBYTES, v);
 +}
- 
--  return 1;
++
 +/*************************************************
 +* Name:        unpack_ciphertext
 +*
@@ -2169,17 +2249,8 @@ index 776c085f9..346d4daec 100644
 +{
 +  polyvec_decompress(b, c);
 +  poly_decompress(v, c+KYBER_POLYVECCOMPRESSEDBYTES);
- }
- 
--// scalar_decode_1 is |scalar_decode| specialised for |bits| == 1.
--static void scalar_decode_1(scalar *out, const uint8_t in[32]) {
--  for (int i = 0; i < DEGREE; i += 8) {
--    uint8_t in_byte = *in;
--    in++;
--    for (int j = 0; j < 8; j++) {
--      out->c[i + j] = in_byte & 1;
--      in_byte >>= 1;
--    }
++}
++
 +/*************************************************
 +* Name:        rej_uniform
 +*
@@ -2268,8 +2339,8 @@ index 776c085f9..346d4daec 100644
      }
    }
 -  return 1;
--}
--
+ }
+ 
 -// Compresses (lossily) an input |x| mod 3329 into |bits| many bits by grouping
 -// numbers close to each other together. The formula used is
 -// round(2^|bits|/kPrime*x) mod 2^|bits|.
@@ -2311,12 +2382,6 @@ index 776c085f9..346d4daec 100644
 -static void scalar_compress(scalar *s, int bits) {
 -  for (int i = 0; i < DEGREE; i++) {
 -    s->c[i] = compress(s->c[i], bits);
--  }
- }
- 
--static void scalar_decompress(scalar *s, int bits) {
--  for (int i = 0; i < DEGREE; i++) {
--    s->c[i] = decompress(s->c[i], bits);
 +/*************************************************
 +* Name:        indcpa_keypair
 +*
@@ -2365,9 +2430,9 @@ index 776c085f9..346d4daec 100644
 +  pack_pk(pk, &pkpv, publicseed);
  }
  
--static void vector_compress(vector *a, int bits) {
--  for (int i = 0; i < RANK; i++) {
--    scalar_compress(&a->v[i], bits);
+-static void scalar_decompress(scalar *s, int bits) {
+-  for (int i = 0; i < DEGREE; i++) {
+-    s->c[i] = decompress(s->c[i], bits);
 -  }
 +/*************************************************
 +* Name:        indcpa_enc
@@ -2385,7 +2450,7 @@ index 776c085f9..346d4daec 100644
 +*                                      (of length KYBER_SYMBYTES) to deterministically
 +*                                      generate all randomness
 +**************************************************/
-+static void indcpa_enc(uint8_t c[KYBER_INDCPA_BYTES],
++static int indcpa_enc(uint8_t c[KYBER_INDCPA_BYTES],
 +                const uint8_t m[KYBER_INDCPA_MSGBYTES],
 +                const uint8_t pk[KYBER_INDCPA_PUBLICKEYBYTES],
 +                const uint8_t coins[KYBER_SYMBYTES])
@@ -2396,7 +2461,9 @@ index 776c085f9..346d4daec 100644
 +  polyvec sp, pkpv, ep, at[KYBER_K], b;
 +  poly v, k, epp;
 +
-+  unpack_pk(&pkpv, seed, pk);
++  if (!unpack_pk(&pkpv, seed, pk))
++    return 0;
++
 +  poly_frommsg(&k, m);
 +  gen_at(at, seed);
 +
@@ -2424,11 +2491,12 @@ index 776c085f9..346d4daec 100644
 +  poly_reduce(&v);
 +
 +  pack_ciphertext(c, &b, &v);
++  return 1;
  }
  
--static void vector_decompress(vector *a, int bits) {
+-static void vector_compress(vector *a, int bits) {
 -  for (int i = 0; i < RANK; i++) {
--    scalar_decompress(&a->v[i], bits);
+-    scalar_compress(&a->v[i], bits);
 -  }
 +/*************************************************
 +* Name:        indcpa_dec
@@ -2463,12 +2531,10 @@ index 776c085f9..346d4daec 100644
 +  poly_tomsg(m, &mp);
  }
  
--struct public_key {
--  vector t;
--  uint8_t rho[32];
--  uint8_t public_key_hash[32];
--  matrix m;
--};
+-static void vector_decompress(vector *a, int bits) {
+-  for (int i = 0; i < RANK; i++) {
+-    scalar_decompress(&a->v[i], bits);
+-  }
 +//
 +// fips202.c
 +//
@@ -2498,15 +2564,13 @@ index 776c085f9..346d4daec 100644
 +    r |= (uint64_t)x[i] << 8*i;
 +
 +  return r;
-+}
+ }
  
--static struct public_key *public_key_from_external(
--    const struct KYBER_public_key *external) {
--  static_assert(sizeof(struct KYBER_public_key) >= sizeof(struct public_key),
--                "Kyber public key is too small");
--  static_assert(alignof(struct KYBER_public_key) >= alignof(struct public_key),
--                "Kyber public key align incorrect");
--  return (struct public_key *)external;
+-struct public_key {
+-  vector t;
+-  uint8_t rho[32];
+-  uint8_t public_key_hash[32];
+-  matrix m;
 +/*************************************************
 +* Name:        store64
 +*
@@ -2520,12 +2584,8 @@ index 776c085f9..346d4daec 100644
 +
 +  for(i=0;i<8;i++)
 +    x[i] = u >> 8*i;
- }
- 
--struct private_key {
--  struct public_key pub;
--  vector s;
--  uint8_t fo_failure_secret[32];
++}
++
 +/* Keccak round constants */
 +static const uint64_t KeccakF_RoundConstants[NROUNDS] = {
 +  (uint64_t)0x0000000000000001ULL,
@@ -2554,34 +2614,13 @@ index 776c085f9..346d4daec 100644
 +  (uint64_t)0x8000000080008008ULL
  };
  
--static struct private_key *private_key_from_external(
--    const struct KYBER_private_key *external) {
--  static_assert(sizeof(struct KYBER_private_key) >= sizeof(struct private_key),
--                "Kyber private key too small");
--  static_assert(
--      alignof(struct KYBER_private_key) >= alignof(struct private_key),
--      "Kyber private key align incorrect");
--  return (struct private_key *)external;
--}
--
--// Calls |KYBER_generate_key_external_entropy| with random bytes from
--// |RAND_bytes|.
--void KYBER_generate_key(uint8_t out_encoded_public_key[KYBER_PUBLIC_KEY_BYTES],
--                        struct KYBER_private_key *out_private_key) {
--  uint8_t entropy[KYBER_GENERATE_KEY_ENTROPY];
--  RAND_bytes(entropy, sizeof(entropy));
--  KYBER_generate_key_external_entropy(out_encoded_public_key, out_private_key,
--                                      entropy);
--}
--
--static int kyber_marshal_public_key(CBB *out, const struct public_key *pub) {
--  uint8_t *vector_output;
--  if (!CBB_add_space(out, &vector_output, kEncodedVectorSize)) {
--    return 0;
--  }
--  vector_encode(vector_output, &pub->t, kLog2Prime);
--  if (!CBB_add_bytes(out, pub->rho, sizeof(pub->rho))) {
--    return 0;
+-static struct public_key *public_key_from_external(
+-    const struct KYBER_public_key *external) {
+-  static_assert(sizeof(struct KYBER_public_key) >= sizeof(struct public_key),
+-                "Kyber public key is too small");
+-  static_assert(alignof(struct KYBER_public_key) >= alignof(struct public_key),
+-                "Kyber public key align incorrect");
+-  return (struct public_key *)external;
 +/*************************************************
 +* Name:        KeccakF1600_StatePermute
 +*
@@ -2851,9 +2890,38 @@ index 776c085f9..346d4daec 100644
 +        state[22] = Asi;
 +        state[23] = Aso;
 +        state[24] = Asu;
-+}
-+
-+
+ }
+ 
+-struct private_key {
+-  struct public_key pub;
+-  vector s;
+-  uint8_t fo_failure_secret[32];
+-};
+ 
+-static struct private_key *private_key_from_external(
+-    const struct KYBER_private_key *external) {
+-  static_assert(sizeof(struct KYBER_private_key) >= sizeof(struct private_key),
+-                "Kyber private key too small");
+-  static_assert(
+-      alignof(struct KYBER_private_key) >= alignof(struct private_key),
+-      "Kyber private key align incorrect");
+-  return (struct private_key *)external;
+-}
+-
+-// Calls |KYBER_generate_key_external_entropy| with random bytes from
+-// |RAND_bytes|.
+-void KYBER_generate_key(uint8_t out_encoded_public_key[KYBER_PUBLIC_KEY_BYTES],
+-                        struct KYBER_private_key *out_private_key) {
+-  uint8_t entropy[KYBER_GENERATE_KEY_ENTROPY];
+-  RAND_bytes(entropy, sizeof(entropy));
+-  KYBER_generate_key_external_entropy(out_encoded_public_key, out_private_key,
+-                                      entropy);
+-}
+-
+-static int kyber_marshal_public_key(CBB *out, const struct public_key *pub) {
+-  uint8_t *vector_output;
+-  if (!CBB_add_space(out, &vector_output, kEncodedVectorSize)) {
+-    return 0;
 +/*************************************************
 +* Name:        keccak_squeeze
 +*
@@ -2887,9 +2955,65 @@ index 776c085f9..346d4daec 100644
 +    outlen -= i-pos;
 +    pos = i;
    }
+-  vector_encode(vector_output, &pub->t, kLog2Prime);
+-  if (!CBB_add_bytes(out, pub->rho, sizeof(pub->rho))) {
+-    return 0;
++
++  return pos;
++}
++
++/*************************************************
++* Name:        keccak_absorb
++*
++* Description: Absorb step of Keccak; incremental.
++*
++* Arguments:   - uint64_t *s: pointer to Keccak state
++*              - unsigned int pos: position in current block to be absorbed
++*              - unsigned int r: rate in bytes (e.g., 168 for SHAKE128)
++*              - const uint8_t *in: pointer to input to be absorbed into s
++*              - size_t inlen: length of input in bytes
++*
++* Returns new position pos in current block
++**************************************************/
++static unsigned int keccak_absorb(uint64_t s[25],
++                                  unsigned int pos,
++                                  unsigned int r,
++                                  const uint8_t *in,
++                                  size_t inlen)
++{
++  unsigned int i;
++
++  while(pos+inlen >= r) {
++    for(i=pos;i<r;i++)
++      s[i/8] ^= (uint64_t)*in++ << 8*(i%8);
++    inlen -= r-pos;
++    KeccakF1600_StatePermute(s);
++    pos = 0;
+   }
 -  return 1;
--}
--
++
++  for(i=pos;i<pos+inlen;i++)
++    s[i/8] ^= (uint64_t)*in++ << 8*(i%8);
++
++  return i;
++}
++
++/*************************************************
++* Name:        keccak_finalize
++*
++* Description: Finalize absorb step.
++*
++* Arguments:   - uint64_t *s: pointer to Keccak state
++*              - unsigned int pos: position in current block to be absorbed
++*              - unsigned int r: rate in bytes (e.g., 168 for SHAKE128)
++*              - uint8_t p: domain separation byte
++**************************************************/
++static void keccak_finalize(uint64_t s[25], unsigned int pos, unsigned int r, uint8_t p)
++{
++  s[pos/8] ^= (uint64_t)p << 8*(pos%8);
++  s[r/8-1] ^= 1ULL << 63;
+ }
+ 
 -// Algorithms 4 and 7 of the Kyber spec. Algorithms are combined since key
 -// generation is not part of the FO transform, and the spec uses Algorithm 7 to
 -// specify the actual key format.
@@ -2917,10 +3041,6 @@ index 776c085f9..346d4daec 100644
 -  CBB_init_fixed(&cbb, out_encoded_public_key, KYBER_PUBLIC_KEY_BYTES);
 -  if (!kyber_marshal_public_key(&cbb, &priv->pub)) {
 -    abort();
-+
-+  return pos;
-+}
-+
 +
 +/*************************************************
 +* Name:        keccak_absorb_once
@@ -3168,18 +3288,8 @@ index 776c085f9..346d4daec 100644
 +static void shake128_squeezeblocks(uint8_t *out, size_t nblocks, keccak_state *state)
 +{
 +  keccak_squeezeblocks(out, nblocks, state->s, SHAKE128_RATE);
- }
- 
--int KYBER_parse_public_key(struct KYBER_public_key *public_key, CBS *in) {
--  struct public_key *pub = public_key_from_external(public_key);
--  CBS orig_in = *in;
--  if (!kyber_parse_public_key_no_hash(pub, in) ||  //
--      CBS_len(in) != 0) {
--    return 0;
--  }
--  BORINGSSL_keccak(pub->public_key_hash, sizeof(pub->public_key_hash),
--                   CBS_data(&orig_in), CBS_len(&orig_in), boringssl_sha3_256);
--  return 1;
++}
++
 +/*************************************************
 +* Name:        shake256_squeeze
 +*
@@ -3193,40 +3303,8 @@ index 776c085f9..346d4daec 100644
 +static void shake256_squeeze(uint8_t *out, size_t outlen, keccak_state *state)
 +{
 +  state->pos = keccak_squeeze(out, outlen, state->s, state->pos, SHAKE256_RATE);
- }
- 
--int KYBER_marshal_private_key(CBB *out,
--                              const struct KYBER_private_key *private_key) {
--  const struct private_key *const priv = private_key_from_external(private_key);
--  uint8_t *s_output;
--  if (!CBB_add_space(out, &s_output, kEncodedVectorSize)) {
--    return 0;
--  }
--  vector_encode(s_output, &priv->s, kLog2Prime);
--  if (!kyber_marshal_public_key(out, &priv->pub) ||
--      !CBB_add_bytes(out, priv->pub.public_key_hash,
--                     sizeof(priv->pub.public_key_hash)) ||
--      !CBB_add_bytes(out, priv->fo_failure_secret,
--                     sizeof(priv->fo_failure_secret))) {
--    return 0;
--  }
--  return 1;
--}
--
--int KYBER_parse_private_key(struct KYBER_private_key *out_private_key,
--                            CBS *in) {
--  struct private_key *const priv = private_key_from_external(out_private_key);
--
--  CBS s_bytes;
--  if (!CBS_get_bytes(in, &s_bytes, kEncodedVectorSize) ||
--      !vector_decode(&priv->s, CBS_data(&s_bytes), kLog2Prime) ||
--      !kyber_parse_public_key_no_hash(&priv->pub, in) ||
--      !CBS_copy_bytes(in, priv->pub.public_key_hash,
--                      sizeof(priv->pub.public_key_hash)) ||
--      !CBS_copy_bytes(in, priv->fo_failure_secret,
--                      sizeof(priv->fo_failure_secret)) ||
--      CBS_len(in) != 0) {
--    return 0;
++}
++
 +/*************************************************
 +* Name:        shake256_absorb_once
 +*
@@ -3258,6 +3336,61 @@ index 776c085f9..346d4daec 100644
 +{
 +  keccak_squeezeblocks(out, nblocks, state->s, SHAKE256_RATE);
 +}
++
++/*************************************************
++* Name:        shake256_absorb
++*
++* Description: Absorb step of the SHAKE256 XOF; incremental.
++*
++* Arguments:   - keccak_state *state: pointer to (initialized) output Keccak state
++*              - const uint8_t *in: pointer to input to be absorbed into s
++*              - size_t inlen: length of input in bytes
++**************************************************/
++static void shake256_absorb(keccak_state *state, const uint8_t *in, size_t inlen)
++{
++  state->pos = keccak_absorb(state->s, state->pos, SHAKE256_RATE, in, inlen);
++}
++
++/*************************************************
++* Name:        shake256_finalize
++*
++* Description: Finalize absorb step of the SHAKE256 XOF.
++*
++* Arguments:   - keccak_state *state: pointer to Keccak state
++**************************************************/
++static void shake256_finalize(keccak_state *state)
++{
++  keccak_finalize(state->s, state->pos, SHAKE256_RATE, 0x1F);
++  state->pos = SHAKE256_RATE;
++}
++
++/*************************************************
++* Name:        keccak_init
++*
++* Description: Initializes the Keccak state.
++*
++* Arguments:   - uint64_t *s: pointer to Keccak state
++**************************************************/
++static void keccak_init(uint64_t s[25])
++{
++  unsigned int i;
++  for(i=0;i<25;i++)
++    s[i] = 0;
++}
++
++/*************************************************
++* Name:        shake256_init
++*
++* Description: Initilizes Keccak state for use as SHAKE256 XOF
++*
++* Arguments:   - keccak_state *state: pointer to (uninitialized) Keccak state
++**************************************************/
++static void shake256_init(keccak_state *state)
++{
++  keccak_init(state->s);
++  state->pos = 0;
++}
++
 +
 +/*************************************************
 +* Name:        shake256
@@ -3348,8 +3481,13 @@ index 776c085f9..346d4daec 100644
 +  extseed[KYBER_SYMBYTES+1] = y;
 +
 +  shake128_absorb_once(state, extseed, sizeof(extseed));
-+}
-+
+ }
+ 
+-int KYBER_parse_public_key(struct KYBER_public_key *public_key, CBS *in) {
+-  struct public_key *pub = public_key_from_external(public_key);
+-  CBS orig_in = *in;
+-  if (!kyber_parse_public_key_no_hash(pub, in) ||  //
+-      CBS_len(in) != 0) {
 +/*************************************************
 +* Name:        kyber_shake256_prf
 +*
@@ -3392,10 +3530,10 @@ index 776c085f9..346d4daec 100644
 +}
 +
 +// Modified crypto_kem_enc to BoringSSL style API
-+void encap(uint8_t out_ciphertext[KYBER_CIPHERTEXTBYTES],
++int encap(uint8_t out_ciphertext[KYBER_CIPHERTEXTBYTES],
 +        uint8_t ss[KYBER_KEY_BYTES],
 +        const struct public_key *in_pub,
-+        const uint8_t seed[KYBER_ENCAP_BYTES])
++        const uint8_t seed[KYBER_ENCAP_BYTES], int mlkem)
 +{
 +  const uint8_t *pk = &in_pub->opaque[0];
 +  uint8_t *ct = out_ciphertext;
@@ -3405,6 +3543,7 @@ index 776c085f9..346d4daec 100644
 +  uint8_t kr[2*KYBER_SYMBYTES];
 +
 +  memcpy(buf, seed, KYBER_SYMBYTES);
++
 +  /* Don't release system RNG output */
 +  hash_h(buf, buf, KYBER_SYMBYTES);
 +
@@ -3413,18 +3552,32 @@ index 776c085f9..346d4daec 100644
 +  hash_g(kr, buf, 2*KYBER_SYMBYTES);
 +
 +  /* coins are in kr+KYBER_SYMBYTES */
-+  indcpa_enc(ct, buf, pk, kr+KYBER_SYMBYTES);
++  if(!indcpa_enc(ct, buf, pk, kr+KYBER_SYMBYTES))
+     return 0;
 +
-+  /* overwrite coins in kr with H(c) */
-+  hash_h(kr+KYBER_SYMBYTES, ct, KYBER_CIPHERTEXTBYTES);
-+  /* hash concatenation of pre-k and H(c) to k */
-+  kdf(ss, kr, 2*KYBER_SYMBYTES);
-+}
-+
++  if (mlkem == 1) {
++    memcpy(ss, kr, KYBER_SYMBYTES);
++  } else {
++    /* overwrite coins in kr with H(c) */
++    hash_h(kr+KYBER_SYMBYTES, ct, KYBER_CIPHERTEXTBYTES);
++    /* hash concatenation of pre-k and H(c) to k */
++    kdf(ss, kr, 2*KYBER_SYMBYTES);
+   }
+-  BORINGSSL_keccak(pub->public_key_hash, sizeof(pub->public_key_hash),
+-                   CBS_data(&orig_in), CBS_len(&orig_in), boringssl_sha3_256);
+   return 1;
+ }
+ 
+-int KYBER_marshal_private_key(CBB *out,
+-                              const struct KYBER_private_key *private_key) {
+-  const struct private_key *const priv = private_key_from_external(private_key);
+-  uint8_t *s_output;
+-  if (!CBB_add_space(out, &s_output, kEncodedVectorSize)) {
+-    return 0;
 +// Modified crypto_kem_decap to BoringSSL style API
 +void decap(uint8_t out_shared_key[KYBER_SSBYTES],
 +           const struct private_key *in_priv,
-+           const uint8_t *ct, size_t ciphertext_len)
++           const uint8_t *ct, size_t ciphertext_len, int mlkem)
 +{
 +  uint8_t *ss = out_shared_key;
 +  const uint8_t *sk = &in_priv->opaque[0];
@@ -3450,23 +3603,64 @@ index 776c085f9..346d4daec 100644
 +
 +    fail = verify(ct, cmp, KYBER_CIPHERTEXTBYTES);
    }
+-  vector_encode(s_output, &priv->s, kLog2Prime);
+-  if (!kyber_marshal_public_key(out, &priv->pub) ||
+-      !CBB_add_bytes(out, priv->pub.public_key_hash,
+-                     sizeof(priv->pub.public_key_hash)) ||
+-      !CBB_add_bytes(out, priv->fo_failure_secret,
+-                     sizeof(priv->fo_failure_secret))) {
+-    return 0;
++
++  if (mlkem == 1) {
++    /* Compute shared secret in case of rejection: ss2 = PRF(z || c). */
++    uint8_t ss2[KYBER_SYMBYTES];
++    keccak_state ks;
++    shake256_init(&ks);
++    shake256_absorb(
++      &ks,
++      sk + KYBER_SECRETKEYBYTES - KYBER_SYMBYTES,
++      KYBER_SYMBYTES
++    );
++    shake256_absorb(&ks, ct, ciphertext_len);
++    shake256_finalize(&ks);
++    shake256_squeeze(ss2, KYBER_SYMBYTES, &ks);
++
++    /* Set ss2 to the real shared secret if c = c' */
++    cmov(ss2, kr, KYBER_SYMBYTES, 1-fail);
++    memcpy(ss, ss2, KYBER_SYMBYTES);
++  } else {
++    /* overwrite coins in kr with H(c) */
++    hash_h(kr+KYBER_SYMBYTES, ct, ciphertext_len);
++
++    /* Overwrite pre-k with z on re-encryption failure */
++    cmov(kr, sk+KYBER_SECRETKEYBYTES-KYBER_SYMBYTES, KYBER_SYMBYTES, fail);
++
++    /* hash concatenation of pre-k and H(c) to k */
++    kdf(ss, kr, 2*KYBER_SYMBYTES);
+   }
 -  return 1;
-+
-+  /* overwrite coins in kr with H(c) */
-+  hash_h(kr+KYBER_SYMBYTES, ct, ciphertext_len);
-+
-+  /* Overwrite pre-k with z on re-encryption failure */
-+  cmov(kr, sk+KYBER_SECRETKEYBYTES-KYBER_SYMBYTES, KYBER_SYMBYTES, fail);
-+
-+  /* hash concatenation of pre-k and H(c) to k */
-+  kdf(ss, kr, 2*KYBER_SYMBYTES);
-+}
-+
+ }
+ 
+-int KYBER_parse_private_key(struct KYBER_private_key *out_private_key,
+-                            CBS *in) {
+-  struct private_key *const priv = private_key_from_external(out_private_key);
 +void marshal_public_key(uint8_t out[KYBER_PUBLICKEYBYTES],
 +        const struct public_key *in_pub) {
 +    memcpy(out, &in_pub->opaque, KYBER_PUBLICKEYBYTES);
 +}
-+
+ 
+-  CBS s_bytes;
+-  if (!CBS_get_bytes(in, &s_bytes, kEncodedVectorSize) ||
+-      !vector_decode(&priv->s, CBS_data(&s_bytes), kLog2Prime) ||
+-      !kyber_parse_public_key_no_hash(&priv->pub, in) ||
+-      !CBS_copy_bytes(in, priv->pub.public_key_hash,
+-                      sizeof(priv->pub.public_key_hash)) ||
+-      !CBS_copy_bytes(in, priv->fo_failure_secret,
+-                      sizeof(priv->fo_failure_secret)) ||
+-      CBS_len(in) != 0) {
+-    return 0;
+-  }
+-  return 1;
 +void parse_public_key(struct public_key *out,
 +        const uint8_t in[KYBER_PUBLICKEYBYTES]) {
 +    memcpy(&out->opaque, in, KYBER_PUBLICKEYBYTES);
@@ -3728,7 +3922,7 @@ index eb76b5bd7..000000000
 -  FileTestGTest("crypto/kyber/kyber_tests.txt", KyberFileTest);
 -}
 diff --git a/src/crypto/obj/obj_dat.h b/src/crypto/obj/obj_dat.h
-index 654b3c08e..06f80f971 100644
+index 654b3c08e..6cef2c079 100644
 --- a/src/crypto/obj/obj_dat.h
 +++ b/src/crypto/obj/obj_dat.h
 @@ -57,7 +57,7 @@
@@ -3736,11 +3930,11 @@ index 654b3c08e..06f80f971 100644
  
  
 -#define NUM_NID 965
-+#define NUM_NID 968
++#define NUM_NID 969
  
  static const uint8_t kObjectData[] = {
      /* NID_rsadsi */
-@@ -8784,6 +8784,12 @@ static const ASN1_OBJECT kObjects[NUM_NID] = {
+@@ -8784,6 +8784,13 @@ static const ASN1_OBJECT kObjects[NUM_NID] = {
      {"HKDF", "hkdf", NID_hkdf, 0, NULL, 0},
      {"X25519Kyber768Draft00", "X25519Kyber768Draft00",
       NID_X25519Kyber768Draft00, 0, NULL, 0},
@@ -3750,10 +3944,11 @@ index 654b3c08e..06f80f971 100644
 +     NULL, 0},
 +    {"X25519Kyber768Draft00Old", "X25519Kyber768Draft00Old",
 +     NID_X25519Kyber768Draft00Old, 0, NULL, 0},
++    {"X25519MLKEM768", "X25519MLKEM768", NID_X25519MLKEM768, 0, NULL, 0},
  };
  
  static const uint16_t kNIDsInShortNameOrder[] = {
-@@ -8916,6 +8922,7 @@ static const uint16_t kNIDsInShortNameOrder[] = {
+@@ -8916,6 +8923,7 @@ static const uint16_t kNIDsInShortNameOrder[] = {
      18 /* OU */,
      749 /* Oakley-EC2N-3 */,
      750 /* Oakley-EC2N-4 */,
@@ -3761,17 +3956,18 @@ index 654b3c08e..06f80f971 100644
      9 /* PBE-MD2-DES */,
      168 /* PBE-MD2-RC2-64 */,
      10 /* PBE-MD5-DES */,
-@@ -8982,7 +8989,9 @@ static const uint16_t kNIDsInShortNameOrder[] = {
+@@ -8982,7 +8990,10 @@ static const uint16_t kNIDsInShortNameOrder[] = {
      458 /* UID */,
      0 /* UNDEF */,
      948 /* X25519 */,
 +    965 /* X25519Kyber512Draft00 */,
      964 /* X25519Kyber768Draft00 */,
 +    967 /* X25519Kyber768Draft00Old */,
++    968 /* X25519MLKEM768 */,
      961 /* X448 */,
      11 /* X500 */,
      378 /* X500algorithms */,
-@@ -9829,6 +9838,7 @@ static const uint16_t kNIDsInLongNameOrder[] = {
+@@ -9829,6 +9840,7 @@ static const uint16_t kNIDsInLongNameOrder[] = {
      366 /* OCSP Nonce */,
      371 /* OCSP Service Locator */,
      180 /* OCSP Signing */,
@@ -3779,32 +3975,34 @@ index 654b3c08e..06f80f971 100644
      161 /* PBES2 */,
      69 /* PBKDF2 */,
      162 /* PBMAC1 */,
-@@ -9853,7 +9863,9 @@ static const uint16_t kNIDsInLongNameOrder[] = {
+@@ -9853,7 +9865,10 @@ static const uint16_t kNIDsInLongNameOrder[] = {
      133 /* Time Stamping */,
      375 /* Trust Root */,
      948 /* X25519 */,
 +    965 /* X25519Kyber512Draft00 */,
      964 /* X25519Kyber768Draft00 */,
 +    967 /* X25519Kyber768Draft00Old */,
++    968 /* X25519MLKEM768 */,
      961 /* X448 */,
      12 /* X509 */,
      402 /* X509v3 AC Targeting */,
 diff --git a/src/crypto/obj/obj_mac.num b/src/crypto/obj/obj_mac.num
-index a0519acee..caeb5eaed 100644
+index a0519acee..2a46adfe8 100644
 --- a/src/crypto/obj/obj_mac.num
 +++ b/src/crypto/obj/obj_mac.num
-@@ -952,3 +952,6 @@ X448		961
+@@ -952,3 +952,7 @@ X448		961
  sha512_256		962
  hkdf		963
  X25519Kyber768Draft00		964
 +X25519Kyber512Draft00		965
 +P256Kyber768Draft00		966
 +X25519Kyber768Draft00Old		967
++X25519MLKEM768		968
 diff --git a/src/crypto/obj/objects.txt b/src/crypto/obj/objects.txt
-index 3ad32ea3d..aa1404d83 100644
+index 3ad32ea3d..347fc556a 100644
 --- a/src/crypto/obj/objects.txt
 +++ b/src/crypto/obj/objects.txt
-@@ -1332,8 +1332,11 @@ secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
+@@ -1332,8 +1332,12 @@ secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
                   : dh-std-kdf
                   : dh-cofactor-kdf
  
@@ -3814,11 +4012,12 @@ index 3ad32ea3d..aa1404d83 100644
   : X25519Kyber768Draft00
 + : P256Kyber768Draft00
 + : X25519Kyber768Draft00Old
++ : X25519MLKEM768
  
  # See RFC 8410.
  1 3 101 110 : X25519
 diff --git a/src/include/openssl/kyber.h b/src/include/openssl/kyber.h
-index cafae9d17..074ac5906 100644
+index cafae9d17..a05eb8957 100644
 --- a/src/include/openssl/kyber.h
 +++ b/src/include/openssl/kyber.h
 @@ -1,17 +1,3 @@
@@ -3839,7 +4038,7 @@ index cafae9d17..074ac5906 100644
  #ifndef OPENSSL_HEADER_KYBER_H
  #define OPENSSL_HEADER_KYBER_H
  
-@@ -21,105 +7,100 @@
+@@ -21,105 +7,104 @@
  extern "C" {
  #endif
  
@@ -3983,39 +4182,43 @@ index cafae9d17..074ac5906 100644
 +
 +// KYBER512_encap is a deterministic function the generates and encrypts a random
 +// session key from the given entropy, writing those values to |out_shared_key|
-+// and |out_ciphertext|, respectively.
-+OPENSSL_EXPORT void KYBER512_encap(uint8_t out_ciphertext[KYBER512_CIPHERTEXT_BYTES],
++// and |out_ciphertext|, respectively. If |mlkem| is 1, will use ML-KEM-512.
++OPENSSL_EXPORT int KYBER512_encap(uint8_t out_ciphertext[KYBER512_CIPHERTEXT_BYTES],
 +                              uint8_t out_shared_key[KYBER_KEY_BYTES],
 +                              const struct KYBER512_public_key *in_pub,
-+                              const uint8_t in[KYBER_ENCAP_BYTES]);
++                              const uint8_t in[KYBER_ENCAP_BYTES],
++                              int mlkem);
 +
 +// KYBER768_encap is a deterministic function the generates and encrypts a random
 +// session key from the given entropy, writing those values to |out_shared_key|
-+// and |out_ciphertext|, respectively.
-+OPENSSL_EXPORT void KYBER768_encap(uint8_t out_ciphertext[KYBER768_CIPHERTEXT_BYTES],
++// and |out_ciphertext|, respectively. If |mlkem| is 1, will use ML-KEM-768.
++OPENSSL_EXPORT int KYBER768_encap(uint8_t out_ciphertext[KYBER768_CIPHERTEXT_BYTES],
 +                              uint8_t out_shared_key[KYBER_KEY_BYTES],
 +                              const struct KYBER768_public_key *in_pub,
-+                              const uint8_t in[KYBER_ENCAP_BYTES]);
++                              const uint8_t in[KYBER_ENCAP_BYTES],
++                              int mlkem);
 +
 +// KYBER_decap decrypts a session key from |ciphertext_len| bytes of
 +// |ciphertext|. If the ciphertext is valid, the decrypted key is written to
 +// |out_shared_key|. Otherwise a key dervied from |ciphertext| and a secret key (kept
 +// in |in_priv|) is written. If the ciphertext is the wrong length then it will
 +// leak which was done via side-channels. Otherwise it should perform either
-+// action in constant-time.
++// action in constant-time. If |mlkem| is 1, will use ML-KEM-512.
 +OPENSSL_EXPORT void KYBER512_decap(uint8_t out_shared_key[KYBER_KEY_BYTES],
 +                              const struct KYBER512_private_key *in_priv,
-+                              const uint8_t *ciphertext, size_t ciphertext_len);
++                              const uint8_t *ciphertext, size_t ciphertext_len,
++                              int mlkem);
 +
 +// KYBER_decap decrypts a session key from |ciphertext_len| bytes of
 +// |ciphertext|. If the ciphertext is valid, the decrypted key is written to
 +// |out_shared_key|. Otherwise a key dervied from |ciphertext| and a secret key (kept
 +// in |in_priv|) is written. If the ciphertext is the wrong length then it will
 +// leak which was done via side-channels. Otherwise it should perform either
-+// action in constant-time.
++// action in constant-time. If |mlkem| is 1, will use ML-KEM-768.
 +OPENSSL_EXPORT void KYBER768_decap(uint8_t out_shared_key[KYBER_KEY_BYTES],
 +                              const struct KYBER768_private_key *in_priv,
-+                              const uint8_t *ciphertext, size_t ciphertext_len);
++                              const uint8_t *ciphertext, size_t ciphertext_len,
++                              int mlkem);
 +
 +// KYBER512_marshal_public_key serialises |in_pub| to |out|.
 +OPENSSL_EXPORT void KYBER512_marshal_public_key(
@@ -4036,10 +4239,10 @@ index cafae9d17..074ac5906 100644
  #if defined(__cplusplus)
  }  // extern C
 diff --git a/src/include/openssl/nid.h b/src/include/openssl/nid.h
-index 4dd8841b1..8237efb74 100644
+index 4dd8841b1..5b102c610 100644
 --- a/src/include/openssl/nid.h
 +++ b/src/include/openssl/nid.h
-@@ -4255,6 +4255,15 @@ extern "C" {
+@@ -4255,6 +4255,18 @@ extern "C" {
  #define SN_X25519Kyber768Draft00 "X25519Kyber768Draft00"
  #define NID_X25519Kyber768Draft00 964
  
@@ -4052,20 +4255,24 @@ index 4dd8841b1..8237efb74 100644
 +#define SN_X25519Kyber768Draft00Old "X25519Kyber768Draft00Old"
 +#define NID_X25519Kyber768Draft00Old 967
 +
++#define SN_X25519MLKEM768 "X25519MLKEM768"
++#define NID_X25519MLKEM768 968
++
  
  #if defined(__cplusplus)
  } /* extern C */
 diff --git a/src/include/openssl/ssl.h b/src/include/openssl/ssl.h
-index 53aa9b453..8233ad210 100644
+index 53aa9b453..f9683f4cf 100644
 --- a/src/include/openssl/ssl.h
 +++ b/src/include/openssl/ssl.h
-@@ -2378,6 +2378,9 @@ OPENSSL_EXPORT int SSL_set1_curves_list(SSL *ssl, const char *curves);
+@@ -2378,6 +2378,10 @@ OPENSSL_EXPORT int SSL_set1_curves_list(SSL *ssl, const char *curves);
  #define SSL_CURVE_SECP521R1 25
  #define SSL_CURVE_X25519 29
  #define SSL_CURVE_X25519_KYBER768_DRAFT00 0x6399
 +#define SSL_CURVE_X25519_KYBER512_DRAFT00 0xfe30
 +#define SSL_CURVE_X25519_KYBER768_DRAFT00_OLD 0xfe31
 +#define SSL_CURVE_P256_KYBER768_DRAFT00 0xfe32
++#define SSL_CURVE_X25519_MLKEM768 0x11ec
  
  // SSL_get_curve_id returns the ID of the curve used by |ssl|'s most recently
  // completed handshake or 0 if not applicable.
@@ -4083,21 +4290,22 @@ index 5c7e881bf..3c0770cf3 100644
    crypto/pkcs8/test/no_encryption.p12
    crypto/pkcs8/test/nss.p12
 diff --git a/src/ssl/extensions.cc b/src/ssl/extensions.cc
-index 5ee280221..0a706c411 100644
+index 5ee280221..aae3e6a7f 100644
 --- a/src/ssl/extensions.cc
 +++ b/src/ssl/extensions.cc
-@@ -207,6 +207,9 @@ static bool tls1_check_duplicate_extensions(const CBS *cbs) {
+@@ -207,6 +207,10 @@ static bool tls1_check_duplicate_extensions(const CBS *cbs) {
  static bool is_post_quantum_group(uint16_t id) {
    switch (id) {
      case SSL_CURVE_X25519_KYBER768_DRAFT00:
 +    case SSL_CURVE_X25519_KYBER768_DRAFT00_OLD:
 +    case SSL_CURVE_X25519_KYBER512_DRAFT00:
 +    case SSL_CURVE_P256_KYBER768_DRAFT00:
++    case SSL_CURVE_X25519_MLKEM768:
        return true;
      default:
        return false;
 diff --git a/src/ssl/ssl_key_share.cc b/src/ssl/ssl_key_share.cc
-index 09a9ad380..f7d2226e3 100644
+index 09a9ad380..d7a8f0a80 100644
 --- a/src/ssl/ssl_key_share.cc
 +++ b/src/ssl/ssl_key_share.cc
 @@ -26,6 +26,7 @@
@@ -4108,13 +4316,14 @@ index 09a9ad380..f7d2226e3 100644
  #include <openssl/mem.h>
  #include <openssl/nid.h>
  #include <openssl/rand.h>
-@@ -193,63 +194,384 @@ class X25519KeyShare : public SSLKeyShare {
+@@ -193,63 +194,292 @@ class X25519KeyShare : public SSLKeyShare {
    uint8_t private_key_[32];
  };
  
 -class X25519Kyber768KeyShare : public SSLKeyShare {
 +class P256Kyber768Draft00KeyShare : public SSLKeyShare {
-+ public:
+  public:
+-  X25519Kyber768KeyShare() {}
 +  P256Kyber768Draft00KeyShare() {}
 +
 +  uint16_t GroupID() const override { return SSL_CURVE_P256_KYBER768_DRAFT00; }
@@ -4159,15 +4368,17 @@ index 09a9ad380..f7d2226e3 100644
 +
 +    uint8_t kyber_public_key_bytes[KYBER768_PUBLIC_KEY_BYTES];
 +    KYBER768_marshal_public_key(kyber_public_key_bytes, &kyber_public_key);
-+
+ 
+-  uint16_t GroupID() const override {
+-    return SSL_CURVE_X25519_KYBER768_DRAFT00;
 +    if (!CBB_add_bytes(out, kyber_public_key_bytes,
 +                       sizeof(kyber_public_key_bytes))) {
 +      return false;
 +    }
 +
 +    return true;
-+  }
-+
+   }
+ 
 +  bool Encap(CBB *out_public_key, Array<uint8_t> *out_secret,
 +              uint8_t *out_alert, Span<const uint8_t> peer_key) override {
 +    assert(!p256_private_key_);
@@ -4247,7 +4458,10 @@ index 09a9ad380..f7d2226e3 100644
 +    uint8_t entropy[KYBER_ENCAP_BYTES];
 +    RAND_bytes(entropy, sizeof(entropy));
 +
-+    KYBER768_encap(ciphertext, secret.data() + 32, &peer_public_key, entropy);
++    if(!KYBER768_encap(ciphertext, secret.data() + 32, &peer_public_key, entropy, 0)) {
++      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
++      return false;
++    }
 +    if(!CBB_add_bytes(out_public_key, ciphertext, sizeof(ciphertext))) {
 +      return false;
 +    }
@@ -4318,7 +4532,7 @@ index 09a9ad380..f7d2226e3 100644
 +    }
 +
 +    KYBER768_decap(secret.data() + 32, &kyber_private_key_,
-+                    peer_key.data() + 65, peer_key.size() - 65);
++                    peer_key.data() + 65, peer_key.size() - 65, 0);
 +
 +    *out_secret = std::move(secret);
 +    return true;
@@ -4330,114 +4544,13 @@ index 09a9ad380..f7d2226e3 100644
 +};
 +
 +class X25519Kyber768Draft00KeyShare : public SSLKeyShare {
-  public:
--  X25519Kyber768KeyShare() {}
++ public:
 +  X25519Kyber768Draft00KeyShare(uint16_t group_id) : group_id_(group_id) {
 +    assert(group_id == SSL_CURVE_X25519_KYBER768_DRAFT00
 +            || group_id == SSL_CURVE_X25519_KYBER768_DRAFT00_OLD);
 +  }
 +
 +  uint16_t GroupID() const override { return group_id_; }
-+
-+  bool Generate(CBB *out) override {
-+    uint8_t x25519_public_key[32];
-+    X25519_keypair(x25519_public_key, x25519_private_key_);
-+
-+    uint8_t kyber_entropy[KYBER_GENERATE_KEY_BYTES];
-+    KYBER768_public_key kyber_public_key;
-+    RAND_bytes(kyber_entropy, sizeof(kyber_entropy));
-+    KYBER768_generate_key(&kyber_public_key, &kyber_private_key_, kyber_entropy);
-+
-+    uint8_t kyber_public_key_bytes[KYBER768_PUBLIC_KEY_BYTES];
-+    KYBER768_marshal_public_key(kyber_public_key_bytes, &kyber_public_key);
-+
-+    if (!CBB_add_bytes(out, x25519_public_key, sizeof(x25519_public_key)) ||
-+        !CBB_add_bytes(out, kyber_public_key_bytes,
-+                       sizeof(kyber_public_key_bytes))) {
-+      return false;
-+    }
-+
-+    return true;
-+  }
-+
-+  bool Encap(CBB *out_public_key, Array<uint8_t> *out_secret,
-+              uint8_t *out_alert, Span<const uint8_t> peer_key) override {
-+    Array<uint8_t> secret;
-+    if (!secret.Init(32 + KYBER_KEY_BYTES)) {
-+      OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
-+      return false;
-+    }
-+
-+    uint8_t x25519_public_key[32];
-+    X25519_keypair(x25519_public_key, x25519_private_key_);
-+
-+    KYBER768_public_key peer_public_key;
-+    if (peer_key.size() != 32 + KYBER768_PUBLIC_KEY_BYTES) {
-+      *out_alert = SSL_AD_DECODE_ERROR;
-+      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
-+      return false;
-+    }
-+
-+    KYBER768_parse_public_key(&peer_public_key, peer_key.data() + 32);
-+
-+    if (!X25519(secret.data(), x25519_private_key_, peer_key.data())) {
-+      *out_alert = SSL_AD_DECODE_ERROR;
-+      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
-+      return false;
-+    }
-+
-+    uint8_t ciphertext[KYBER768_CIPHERTEXT_BYTES];
-+    uint8_t entropy[KYBER_ENCAP_BYTES];
-+    RAND_bytes(entropy, sizeof(entropy));
-+
-+    KYBER768_encap(ciphertext, secret.data() + 32, &peer_public_key, entropy);
-+    if(!CBB_add_bytes(out_public_key, x25519_public_key,
-+                       sizeof(x25519_public_key)) ||
-+        !CBB_add_bytes(out_public_key, ciphertext, sizeof(ciphertext))) {
-+      return false;
-+    }
-+
-+    *out_secret = std::move(secret);
-+    return true;
-+  }
-+
-+  bool Decap(Array<uint8_t> *out_secret, uint8_t *out_alert,
-+              Span<const uint8_t> peer_key) override {
-+    *out_alert = SSL_AD_INTERNAL_ERROR;
-+
-+    Array<uint8_t> secret;
-+    if (!secret.Init(32 + KYBER_KEY_BYTES)) {
-+      OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
-+      return false;
-+    }
-+
-+    if (peer_key.size() != 32 + KYBER768_CIPHERTEXT_BYTES ||
-+        !X25519(secret.data(), x25519_private_key_, peer_key.data())) {
-+      *out_alert = SSL_AD_DECODE_ERROR;
-+      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
-+      return false;
-+    }
-+
-+    KYBER768_decap(secret.data() + 32, &kyber_private_key_,
-+                    peer_key.data() + 32, peer_key.size() - 32);
- 
--  uint16_t GroupID() const override {
--    return SSL_CURVE_X25519_KYBER768_DRAFT00;
-+    *out_secret = std::move(secret);
-+    return true;
-   }
- 
-+ private:
-+  uint8_t x25519_private_key_[32];
-+  KYBER768_private_key kyber_private_key_;
-+  uint16_t group_id_;
-+};
-+
-+class X25519Kyber512Draft00KeyShare : public SSLKeyShare {
-+ public:
-+  X25519Kyber512Draft00KeyShare() {}
-+
-+  uint16_t GroupID() const override { return SSL_CURVE_X25519_KYBER512_DRAFT00; }
 +
    bool Generate(CBB *out) override {
      uint8_t x25519_public_key[32];
@@ -4446,12 +4559,12 @@ index 09a9ad380..f7d2226e3 100644
 -    uint8_t kyber_public_key[KYBER_PUBLIC_KEY_BYTES];
 -    KYBER_generate_key(kyber_public_key, &kyber_private_key_);
 +    uint8_t kyber_entropy[KYBER_GENERATE_KEY_BYTES];
-+    KYBER512_public_key kyber_public_key;
++    KYBER768_public_key kyber_public_key;
 +    RAND_bytes(kyber_entropy, sizeof(kyber_entropy));
-+    KYBER512_generate_key(&kyber_public_key, &kyber_private_key_, kyber_entropy);
++    KYBER768_generate_key(&kyber_public_key, &kyber_private_key_, kyber_entropy);
 +
-+    uint8_t kyber_public_key_bytes[KYBER512_PUBLIC_KEY_BYTES];
-+    KYBER512_marshal_public_key(kyber_public_key_bytes, &kyber_public_key);
++    uint8_t kyber_public_key_bytes[KYBER768_PUBLIC_KEY_BYTES];
++    KYBER768_marshal_public_key(kyber_public_key_bytes, &kyber_public_key);
  
      if (!CBB_add_bytes(out, x25519_public_key, sizeof(x25519_public_key)) ||
 -        !CBB_add_bytes(out, kyber_public_key, sizeof(kyber_public_key))) {
@@ -4489,14 +4602,14 @@ index 09a9ad380..f7d2226e3 100644
 -                CBS_data(&peer_x25519_cbs)) ||
 -        !KYBER_parse_public_key(&peer_kyber_pub, &peer_kyber_cbs)) {
 +
-+    KYBER512_public_key peer_public_key;
-+    if (peer_key.size() != 32 + KYBER512_PUBLIC_KEY_BYTES) {
++    KYBER768_public_key peer_public_key;
++    if (peer_key.size() != 32 + KYBER768_PUBLIC_KEY_BYTES) {
 +      *out_alert = SSL_AD_DECODE_ERROR;
 +      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
 +      return false;
 +    }
 +
-+    KYBER512_parse_public_key(&peer_public_key, peer_key.data() + 32);
++    KYBER768_parse_public_key(&peer_public_key, peer_key.data() + 32);
 +
 +    if (!X25519(secret.data(), x25519_private_key_, peer_key.data())) {
        *out_alert = SSL_AD_DECODE_ERROR;
@@ -4507,12 +4620,15 @@ index 09a9ad380..f7d2226e3 100644
 -    uint8_t kyber_ciphertext[KYBER_CIPHERTEXT_BYTES];
 -    KYBER_encap(kyber_ciphertext, secret.data() + 32, secret.size() - 32,
 -                &peer_kyber_pub);
-+    uint8_t ciphertext[KYBER512_CIPHERTEXT_BYTES];
++    uint8_t ciphertext[KYBER768_CIPHERTEXT_BYTES];
 +    uint8_t entropy[KYBER_ENCAP_BYTES];
 +    RAND_bytes(entropy, sizeof(entropy));
  
 -    if (!CBB_add_bytes(out_ciphertext, x25519_public_key,
-+    KYBER512_encap(ciphertext, secret.data() + 32, &peer_public_key, entropy);
++    if(!KYBER768_encap(ciphertext, secret.data() + 32, &peer_public_key, entropy, 0)) {
++      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
++      return false;
++    }
 +    if(!CBB_add_bytes(out_public_key, x25519_public_key,
                         sizeof(x25519_public_key)) ||
 -        !CBB_add_bytes(out_ciphertext, kyber_ciphertext,
@@ -4521,11 +4637,111 @@ index 09a9ad380..f7d2226e3 100644
        return false;
      }
  
-@@ -258,30 +580,32 @@ class X25519Kyber768KeyShare : public SSLKeyShare {
+@@ -258,30 +488,233 @@ class X25519Kyber768KeyShare : public SSLKeyShare {
    }
  
    bool Decap(Array<uint8_t> *out_secret, uint8_t *out_alert,
 -             Span<const uint8_t> ciphertext) override {
++              Span<const uint8_t> peer_key) override {
++    *out_alert = SSL_AD_INTERNAL_ERROR;
++
++    Array<uint8_t> secret;
++    if (!secret.Init(32 + KYBER_KEY_BYTES)) {
++      OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
++      return false;
++    }
++
++    if (peer_key.size() != 32 + KYBER768_CIPHERTEXT_BYTES ||
++        !X25519(secret.data(), x25519_private_key_, peer_key.data())) {
++      *out_alert = SSL_AD_DECODE_ERROR;
++      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
++      return false;
++    }
++
++    KYBER768_decap(secret.data() + 32, &kyber_private_key_,
++                    peer_key.data() + 32, peer_key.size() - 32, 0);
++
++    *out_secret = std::move(secret);
++    return true;
++  }
++
++ private:
++  uint8_t x25519_private_key_[32];
++  KYBER768_private_key kyber_private_key_;
++  uint16_t group_id_;
++};
++
++class X25519MLKEM768KeyShare : public SSLKeyShare {
++ public:
++  X25519MLKEM768KeyShare() {}
++
++  uint16_t GroupID() const override { return SSL_CURVE_X25519_MLKEM768; }
++
++  bool Generate(CBB *out) override {
++    uint8_t x25519_public_key[32];
++    X25519_keypair(x25519_public_key, x25519_private_key_);
++
++    uint8_t kyber_entropy[KYBER_GENERATE_KEY_BYTES];
++    KYBER768_public_key kyber_public_key;
++    RAND_bytes(kyber_entropy, sizeof(kyber_entropy));
++    KYBER768_generate_key(&kyber_public_key, &kyber_private_key_, kyber_entropy);
++
++    uint8_t kyber_public_key_bytes[KYBER768_PUBLIC_KEY_BYTES];
++    KYBER768_marshal_public_key(kyber_public_key_bytes, &kyber_public_key);
++
++    if (!CBB_add_bytes(out, kyber_public_key_bytes, sizeof(kyber_public_key_bytes)) ||
++        !CBB_add_bytes(out, x25519_public_key, sizeof(x25519_public_key))) {
++      return false;
++    }
++
++    return true;
++  }
++
++  bool Encap(CBB *out_public_key, Array<uint8_t> *out_secret,
++              uint8_t *out_alert, Span<const uint8_t> peer_key) override {
++    Array<uint8_t> secret;
++    if (!secret.Init(32 + KYBER_KEY_BYTES)) {
++      OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
++      return false;
++    }
++
++    uint8_t x25519_public_key[32];
++    X25519_keypair(x25519_public_key, x25519_private_key_);
++
++    KYBER768_public_key peer_public_key;
++    if (peer_key.size() != KYBER768_PUBLIC_KEY_BYTES + 32) {
++      *out_alert = SSL_AD_DECODE_ERROR;
++      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
++      return false;
++    }
++
++    KYBER768_parse_public_key(&peer_public_key, peer_key.data());
++
++    if (!X25519(secret.data() + 32, x25519_private_key_,
++                peer_key.data() + KYBER768_PUBLIC_KEY_BYTES)) {
++      *out_alert = SSL_AD_DECODE_ERROR;
++      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
++      return false;
++    }
++
++    uint8_t ciphertext[KYBER768_CIPHERTEXT_BYTES];
++    uint8_t entropy[KYBER_ENCAP_BYTES];
++    RAND_bytes(entropy, sizeof(entropy));
++
++    if(!KYBER768_encap(ciphertext, secret.data(), &peer_public_key, entropy, 1)) {
++      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
++      return false;
++    }
++    if(!CBB_add_bytes(out_public_key, ciphertext, sizeof(ciphertext)) ||
++       !CBB_add_bytes(out_public_key, x25519_public_key, sizeof(x25519_public_key))) {
++      return false;
++    }
++
++    *out_secret = std::move(secret);
++    return true;
++  }
++
++  bool Decap(Array<uint8_t> *out_secret, uint8_t *out_alert,
 +              Span<const uint8_t> peer_key) override {
      *out_alert = SSL_AD_INTERNAL_ERROR;
  
@@ -4538,8 +4754,9 @@ index 09a9ad380..f7d2226e3 100644
  
 -    if (ciphertext.size() != 32 + KYBER_CIPHERTEXT_BYTES ||
 -        !X25519(secret.data(), x25519_private_key_, ciphertext.data())) {
-+    if (peer_key.size() != 32 + KYBER512_CIPHERTEXT_BYTES ||
-+        !X25519(secret.data(), x25519_private_key_, peer_key.data())) {
++    if (peer_key.size() != KYBER768_CIPHERTEXT_BYTES + 32 ||
++        !X25519(secret.data() + 32, x25519_private_key_,
++            peer_key.data() + KYBER768_CIPHERTEXT_BYTES )) {
        *out_alert = SSL_AD_DECODE_ERROR;
        OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
        return false;
@@ -4547,8 +4764,108 @@ index 09a9ad380..f7d2226e3 100644
  
 -    KYBER_decap(secret.data() + 32, secret.size() - 32, ciphertext.data() + 32,
 -                &kyber_private_key_);
++    KYBER768_decap(secret.data(), &kyber_private_key_,
++                    peer_key.data(), peer_key.size() - 32, 1);
++
++    *out_secret = std::move(secret);
++    return true;
++  }
++
++ private:
++  uint8_t x25519_private_key_[32];
++  KYBER768_private_key kyber_private_key_;
++};
++
++class X25519Kyber512Draft00KeyShare : public SSLKeyShare {
++ public:
++  X25519Kyber512Draft00KeyShare() {}
++
++  uint16_t GroupID() const override { return SSL_CURVE_X25519_KYBER512_DRAFT00; }
++
++  bool Generate(CBB *out) override {
++    uint8_t x25519_public_key[32];
++    X25519_keypair(x25519_public_key, x25519_private_key_);
++
++    uint8_t kyber_entropy[KYBER_GENERATE_KEY_BYTES];
++    KYBER512_public_key kyber_public_key;
++    RAND_bytes(kyber_entropy, sizeof(kyber_entropy));
++    KYBER512_generate_key(&kyber_public_key, &kyber_private_key_, kyber_entropy);
++
++    uint8_t kyber_public_key_bytes[KYBER512_PUBLIC_KEY_BYTES];
++    KYBER512_marshal_public_key(kyber_public_key_bytes, &kyber_public_key);
++
++    if (!CBB_add_bytes(out, x25519_public_key, sizeof(x25519_public_key)) ||
++        !CBB_add_bytes(out, kyber_public_key_bytes,
++                       sizeof(kyber_public_key_bytes))) {
++      return false;
++    }
++
++    return true;
++  }
++
++  bool Encap(CBB *out_public_key, Array<uint8_t> *out_secret,
++              uint8_t *out_alert, Span<const uint8_t> peer_key) override {
++    Array<uint8_t> secret;
++    if (!secret.Init(32 + KYBER_KEY_BYTES)) {
++      OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
++      return false;
++    }
++
++    uint8_t x25519_public_key[32];
++    X25519_keypair(x25519_public_key, x25519_private_key_);
++
++    KYBER512_public_key peer_public_key;
++    if (peer_key.size() != 32 + KYBER512_PUBLIC_KEY_BYTES) {
++      *out_alert = SSL_AD_DECODE_ERROR;
++      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
++      return false;
++    }
++
++    KYBER512_parse_public_key(&peer_public_key, peer_key.data() + 32);
++
++    if (!X25519(secret.data(), x25519_private_key_, peer_key.data())) {
++      *out_alert = SSL_AD_DECODE_ERROR;
++      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
++      return false;
++    }
++
++    uint8_t ciphertext[KYBER512_CIPHERTEXT_BYTES];
++    uint8_t entropy[KYBER_ENCAP_BYTES];
++    RAND_bytes(entropy, sizeof(entropy));
++
++    if(!KYBER512_encap(ciphertext, secret.data() + 32, &peer_public_key, entropy, 0)) {
++      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
++      return false;
++    }
++    if(!CBB_add_bytes(out_public_key, x25519_public_key,
++                       sizeof(x25519_public_key)) ||
++        !CBB_add_bytes(out_public_key, ciphertext, sizeof(ciphertext))) {
++      return false;
++    }
++
++    *out_secret = std::move(secret);
++    return true;
++  }
++
++  bool Decap(Array<uint8_t> *out_secret, uint8_t *out_alert,
++              Span<const uint8_t> peer_key) override {
++    *out_alert = SSL_AD_INTERNAL_ERROR;
++
++    Array<uint8_t> secret;
++    if (!secret.Init(32 + KYBER_KEY_BYTES)) {
++      OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
++      return false;
++    }
++
++    if (peer_key.size() != 32 + KYBER512_CIPHERTEXT_BYTES ||
++        !X25519(secret.data(), x25519_private_key_, peer_key.data())) {
++      *out_alert = SSL_AD_DECODE_ERROR;
++      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
++      return false;
++    }
++
 +    KYBER512_decap(secret.data() + 32, &kyber_private_key_,
-+                    peer_key.data() + 32, peer_key.size() - 32);
++                    peer_key.data() + 32, peer_key.size() - 32, 0);
 +
      *out_secret = std::move(secret);
      return true;
@@ -4561,7 +4878,7 @@ index 09a9ad380..f7d2226e3 100644
  };
  
  constexpr NamedGroup kNamedGroups[] = {
-@@ -290,8 +614,14 @@ constexpr NamedGroup kNamedGroups[] = {
+@@ -290,8 +723,16 @@ constexpr NamedGroup kNamedGroups[] = {
      {NID_secp384r1, SSL_CURVE_SECP384R1, "P-384", "secp384r1"},
      {NID_secp521r1, SSL_CURVE_SECP521R1, "P-521", "secp521r1"},
      {NID_X25519, SSL_CURVE_X25519, "X25519", "x25519"},
@@ -4573,11 +4890,13 @@ index 09a9ad380..f7d2226e3 100644
 +    {NID_X25519Kyber768Draft00Old, SSL_CURVE_X25519_KYBER768_DRAFT00_OLD,
 +        "X25519Kyber768Draft00Old", "Xyber768D00Old"},
 +    {NID_P256Kyber768Draft00, SSL_CURVE_P256_KYBER768_DRAFT00,
-+        "P256Kyber768Draft00", "P256Kyber768D00"}
++        "P256Kyber768Draft00", "P256Kyber768D00"},
++    {NID_X25519MLKEM768, SSL_CURVE_X25519_MLKEM768,
++        "X25519MLKEM768", "X25519MLKEM768"}
  };
  
  }  // namespace
-@@ -312,8 +642,16 @@ UniquePtr<SSLKeyShare> SSLKeyShare::Create(uint16_t group_id) {
+@@ -312,8 +753,18 @@ UniquePtr<SSLKeyShare> SSLKeyShare::Create(uint16_t group_id) {
        return MakeUnique<ECKeyShare>(NID_secp521r1, SSL_CURVE_SECP521R1);
      case SSL_CURVE_X25519:
        return MakeUnique<X25519KeyShare>();
@@ -4592,6 +4911,8 @@ index 09a9ad380..f7d2226e3 100644
 +                  group_id));
 +    case SSL_CURVE_P256_KYBER768_DRAFT00:
 +      return UniquePtr<SSLKeyShare>(New<P256Kyber768Draft00KeyShare>());
++    case SSL_CURVE_X25519_MLKEM768:
++      return UniquePtr<SSLKeyShare>(New<X25519MLKEM768KeyShare>());
      default:
        return nullptr;
    }
@@ -4609,10 +4930,10 @@ index 838761af5..9eb201d37 100644
  static const uint16_t kSigAlgs[] = {
      SSL_SIGN_RSA_PKCS1_SHA256,
 diff --git a/src/ssl/ssl_test.cc b/src/ssl/ssl_test.cc
-index ef43a9e98..9756fd2a0 100644
+index ef43a9e98..22178b5f6 100644
 --- a/src/ssl/ssl_test.cc
 +++ b/src/ssl/ssl_test.cc
-@@ -409,7 +409,30 @@ static const CurveTest kCurveTests[] = {
+@@ -409,7 +409,34 @@ static const CurveTest kCurveTests[] = {
      "P-256:X25519Kyber768Draft00",
      { SSL_CURVE_SECP256R1, SSL_CURVE_X25519_KYBER768_DRAFT00 },
    },
@@ -4638,6 +4959,10 @@ index ef43a9e98..9756fd2a0 100644
 +    { SSL_CURVE_P256_KYBER768_DRAFT00 },
 +  },
 +  {
++  "X25519MLKEM768",
++    { SSL_CURVE_X25519_MLKEM768 },
++  },
++  {
 +  "P-256:P256Kyber768D00",
 +    { SSL_CURVE_SECP256R1, SSL_CURVE_P256_KYBER768_DRAFT00 },
 +  },
@@ -4645,7 +4970,7 @@ index ef43a9e98..9756fd2a0 100644
      "P-256:P-384:P-521:X25519",
      {
 diff --git a/src/tool/speed.cc b/src/tool/speed.cc
-index 5b0205953..831875514 100644
+index 5b0205953..6b3c67dab 100644
 --- a/src/tool/speed.cc
 +++ b/src/tool/speed.cc
 @@ -904,6 +904,116 @@ static bool SpeedScrypt(const std::string &selected) {
@@ -4684,7 +5009,7 @@ index 5b0205953..831875514 100644
 +        uint8_t entropy[KYBER_ENCAP_BYTES];
 +        uint8_t shared_key[KYBER_KEY_BYTES];
 +        RAND_bytes(entropy, sizeof(entropy));
-+        KYBER768_encap(ciphertext, shared_key, &pub, entropy);
++        KYBER768_encap(ciphertext, shared_key, &pub, entropy, 0);
 +        return true;
 +      })) {
 +    fprintf(stderr, "Failed to time KYBER768_encap.\n");
@@ -4695,7 +5020,7 @@ index 5b0205953..831875514 100644
 +
 +  if (!TimeFunction(&results, [&priv, &ciphertext]() -> bool {
 +        uint8_t shared_key[KYBER_KEY_BYTES];
-+        KYBER768_decap(shared_key, &priv, ciphertext, sizeof(ciphertext));
++        KYBER768_decap(shared_key, &priv, ciphertext, sizeof(ciphertext), 0);
 +        return true;
 +      })) {
 +    fprintf(stderr, "Failed to time KYBER768_decap.\n");
@@ -4739,7 +5064,7 @@ index 5b0205953..831875514 100644
 +        uint8_t entropy[KYBER_ENCAP_BYTES];
 +        uint8_t shared_key[KYBER_KEY_BYTES];
 +        RAND_bytes(entropy, sizeof(entropy));
-+        KYBER512_encap(ciphertext, shared_key, &pub, entropy);
++        KYBER512_encap(ciphertext, shared_key, &pub, entropy, 0);
 +        return true;
 +      })) {
 +    fprintf(stderr, "Failed to time KYBER512_encap.\n");
@@ -4750,7 +5075,7 @@ index 5b0205953..831875514 100644
 +
 +  if (!TimeFunction(&results, [&priv, &ciphertext]() -> bool {
 +        uint8_t shared_key[KYBER_KEY_BYTES];
-+        KYBER512_decap(shared_key, &priv, ciphertext, sizeof(ciphertext));
++        KYBER512_decap(shared_key, &priv, ciphertext, sizeof(ciphertext), 0);
 +        return true;
 +      })) {
 +    fprintf(stderr, "Failed to time KYBER512_decap.\n");
@@ -4832,5 +5157,5 @@ index 5b0205953..831875514 100644
        !SpeedTrustToken("TrustToken-Exp1-Batch1", TRUST_TOKEN_experiment_v1(), 1,
                         selected) ||
 -- 
-2.41.0
+2.46.0
 
