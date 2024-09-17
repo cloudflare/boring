@@ -765,6 +765,8 @@ impl SslCurve {
             ffi::SSL_CURVE_X25519_KYBER512_DRAFT00 => Some(ffi::NID_X25519Kyber512Draft00),
             #[cfg(feature = "pq-experimental")]
             ffi::SSL_CURVE_P256_KYBER768_DRAFT00 => Some(ffi::NID_P256Kyber768Draft00),
+            #[cfg(feature = "pq-experimental")]
+            ffi::SSL_CURVE_X25519_MLKEM768 => Some(ffi::NID_X25519MLKEM768),
             _ => None,
         }
     }
@@ -2602,13 +2604,13 @@ impl SslRef {
             if cfg!(feature = "kx-client-nist-required") {
                 "P256Kyber768Draft00:P-256:P-384:P-521"
             } else {
-                "X25519Kyber768Draft00:X25519:P256Kyber768Draft00:P-256:P-384:P-521"
+                "X25519Kyber768Draft00:X25519MLKEM768:X25519:P256Kyber768Draft00:P-256:P-384:P-521"
             }
         } else if cfg!(feature = "kx-client-pq-supported") {
             if cfg!(feature = "kx-client-nist-required") {
                 "P-256:P-384:P-521:P256Kyber768Draft00"
             } else {
-                "X25519:P-256:P-384:P-521:X25519Kyber768Draft00:P256Kyber768Draft00"
+                "X25519:P-256:P-384:P-521:X25519MLKEM768:X25519Kyber768Draft00:P256Kyber768Draft00"
             }
         } else {
             if cfg!(feature = "kx-client-nist-required") {
@@ -2624,8 +2626,10 @@ impl SslRef {
 
     #[cfg(feature = "kx-safe-default")]
     fn server_set_default_curves_list(&mut self) {
-        self.set_curves_list("X25519Kyber768Draft00:P256Kyber768Draft00:X25519:P-256:P-384")
-            .expect("invalid default server curves list");
+        self.set_curves_list(
+            "X25519Kyber768Draft00:X25519MLKEM768:P256Kyber768Draft00:X25519:P-256:P-384",
+        )
+        .expect("invalid default server curves list");
     }
 
     /// Returns the [`SslCurve`] used for this `SslRef`.
