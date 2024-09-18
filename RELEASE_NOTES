@@ -1,3 +1,19 @@
+4.10.0
+- 2024-09-18 Implement optional Hyper 1 support in hyper-boring (#246)
+- 2024-09-17 Add post-quantum key agreement X25519MLKEM768
+- 2024-09-10 Revert "PQ: fix timing sidechannels and add IPDWing"
+- 2024-09-17 Update bindgen to 0.70.1
+- 2024-09-17 Expose SSL(_CTX)_set1_curves_list (#270)
+- 2024-09-11 Expose SSL_CTX_set_info_callback (#266)
+- 2024-09-03 Use ForeignType::into_ptr wherever applicable
+- 2024-08-19 Expose RSAPSS public key Id type
+- 2024-08-15 Fix macos FIPS crossbuild
+- 2024-08-15 Add tests for X509Ref::subject_key_id, X509Ref::authority_key_id, and X509NameRef::print_ex
+- 2024-08-14 Expose X509NameRef::print_ex
+- 2024-08-13 Introduce `corresponds` macro from openssl-macros
+- 2024-08-14 Introduce ForeignTypeExt and ForeignTypeRefExt
+- 2024-08-09 Expose mTLS related APIs
+- 2024-08-14 chore(boring-sys): Fix git apply patch on Windows (#261)
 
 4.9.1
 - 2024-08-04 Properly handle `Option<i32>` in `SslRef::set_curves`
