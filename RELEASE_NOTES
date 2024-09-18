@@ -1,3 +1,6 @@
+4.10.2
+- 2024-09-18 boring-pq.patch Fix by not updating crypto_test_data.cc
+
 4.10.1
 - 2024-09-18 Don't support X25519MLKEM768 by default (yet)
 
