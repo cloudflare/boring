@@ -35,7 +35,6 @@ Cf RTG-2076 RTG-2051 RTG-2508 RTG-2707 RTG-2607 RTG-3239
  BUILD.generated.bzl               |    5 +-
  BUILD.generated_tests.bzl         |    4 -
  CMakeLists.txt                    |    4 +-
- crypto_test_data.cc               |    4 -
  sources.json                      |    9 +-
  src/crypto/CMakeLists.txt         |    5 +-
  src/crypto/kyber/internal.h       |   91 -
@@ -134,28 +133,6 @@ index faed2befa..931c0e3a8 100644
    src/crypto/lhash/lhash.c
    src/crypto/mem.c
    src/crypto/obj/obj.c
-diff --git a/crypto_test_data.cc b/crypto_test_data.cc
-index 2268533f8..19b344af1 100644
---- a/crypto_test_data.cc
-+++ b/crypto_test_data.cc
-@@ -74,7 +74,6 @@
-  *       crypto/fipsmodule/rand/ctrdrbg_vectors.txt \
-  *       crypto/hmac_extra/hmac_tests.txt \
-  *       crypto/hpke/hpke_test_vectors.txt \
-- *       crypto/kyber/keccak_tests.txt \
-  *       crypto/kyber/kyber_tests.txt \
-  *       crypto/pkcs8/test/empty_password.p12 \
-  *       crypto/pkcs8/test/no_encryption.p12 \
-@@ -5269,9 +5268,6 @@ std::string GetTestData(const char *path) {
-   if (strcmp(path, "crypto/hpke/hpke_test_vectors.txt") == 0) {
-     return AssembleString(kData59, kLen59);
-   }
--  if (strcmp(path, "crypto/kyber/keccak_tests.txt") == 0) {
--    return AssembleString(kData60, kLen60);
--  }
-   if (strcmp(path, "crypto/kyber/kyber_tests.txt") == 0) {
-     return AssembleString(kData61, kLen61);
-   }
 diff --git a/sources.json b/sources.json
 index 4c0048e1d..f6ea5c40f 100644
 --- a/sources.json
