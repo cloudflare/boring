@@ -1,3 +1,6 @@
+4.10.1
+- 2024-09-18 Don't support X25519MLKEM768 by default (yet)
+
 4.10.0
 - 2024-09-18 Implement optional Hyper 1 support in hyper-boring (#246)
 - 2024-09-17 Add post-quantum key agreement X25519MLKEM768
