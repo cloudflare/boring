@@ -688,6 +688,7 @@ fn main() {
     });
 
     let mut builder = bindgen::Builder::default()
+        .rust_target(bindgen::RustTarget::Stable_1_68) // bindgen MSRV is 1.70, so this is enough
         .derive_copy(true)
         .derive_debug(true)
         .derive_default(true)
