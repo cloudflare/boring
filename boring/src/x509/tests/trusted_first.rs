@@ -15,7 +15,7 @@ fn test_verify_cert() {
 
     assert_eq!(Ok(()), verify(&leaf, &[&root1], &[&intermediate], |_| {}));
 
-    #[cfg(not(feature = "fips"))]
+    #[cfg(not(feature = "fips-compat"))]
     assert_eq!(
         Ok(()),
         verify(
@@ -26,7 +26,7 @@ fn test_verify_cert() {
         )
     );
 
-    #[cfg(feature = "fips")]
+    #[cfg(feature = "fips-compat")]
     assert_eq!(
         Err(X509VerifyError::CERT_HAS_EXPIRED),
         verify(
