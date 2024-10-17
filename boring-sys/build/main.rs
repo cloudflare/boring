@@ -728,6 +728,8 @@ fn main() {
         "des.h",
         "dtls1.h",
         "hkdf.h",
+        #[cfg(not(feature = "fips"))]
+        "hpke.h",
         "hmac.h",
         "hrss.h",
         "md4.h",
