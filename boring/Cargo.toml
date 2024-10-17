@@ -19,7 +19,12 @@ rustdoc-args = ["--cfg", "docsrs"]
 # Controlling the build
 
 # Use a FIPS-validated version of boringssl.
-fips = ["boring-sys/fips"]
+fips = ["fips-compat", "boring-sys/fips"]
+
+# Build with compatibility for the BoringSSL FIPS version, without enabling the
+# `fips` feature itself (useful e.g. if `fips-link-precompiled` is used with an
+# older BoringSSL version).
+fips-compat = []
 
 # Link with precompiled FIPS-validated `bcm.o` module.
 fips-link-precompiled = ["boring-sys/fips-link-precompiled"]
