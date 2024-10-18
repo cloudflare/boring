@@ -1000,6 +1000,49 @@ impl SslContextBuilder {
         self.ctx.as_ptr()
     }
 
+    /// Registers a certificate verification callback that replaces the default verification
+    /// process.
+    ///
+    /// The callback returns true if the certificate chain is valid, and false if not.
+    /// A viable verification result value (either `Ok(())` or an `Err(X509VerifyError)`) must be
+    /// reflected in the error member of `X509StoreContextRef`, which can be done by calling
+    /// `X509StoreContextRef::set_error`. However, the callback's return value determines
+    /// whether the chain is accepted or not.
+    ///
+    /// *Warning*: Providing a complete verification procedure is a complex task. See
+    /// https://docs.openssl.org/master/man3/SSL_CTX_set_cert_verify_callback/#notes for more
+    /// information.
+    ///
+    /// TODO: Add the ability to unset the callback by either adding a new function or wrapping the
+    /// callback in an `Option`.
+    ///
+    /// # Panics
+    ///
+    /// This method panics if this `SslContext` is associated with a RPK context.
+    #[corresponds(SSL_CTX_set_cert_verify_callback)]
+    pub fn set_cert_verify_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&mut X509StoreContextRef) -> bool + 'static + Sync + Send,
+    {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
+        // NOTE(jlarisch): Q: Why don't we wrap the callback in an Arc, since
+        // `set_verify_callback` does?
+        // A: I don't think that Arc is necessary, and I don't think one is necessary here.
+        // There's no way to get a mutable reference to the `Ssl` or `SslContext`, which
+        // is what you need to register a new callback.
+        // See the NOTE in `ssl_raw_verify` for confirmation.
+        self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+        unsafe {
+            ffi::SSL_CTX_set_cert_verify_callback(
+                self.as_ptr(),
+                Some(raw_cert_verify::<F>),
+                ptr::null_mut(),
+            );
+        }
+    }
+
     /// Configures the certificate verification method for new connections.
     #[corresponds(SSL_CTX_set_verify)]
     pub fn set_verify(&mut self, mode: SslVerifyMode) {

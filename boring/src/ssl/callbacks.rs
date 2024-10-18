@@ -64,6 +64,34 @@ where
     unsafe { raw_custom_verify_callback(ssl, out_alert, callback) }
 }
 
+pub(super) unsafe extern "C" fn raw_cert_verify<F>(
+    x509_ctx: *mut ffi::X509_STORE_CTX,
+    _arg: *mut c_void,
+) -> c_int
+where
+    F: Fn(&mut X509StoreContextRef) -> bool + 'static + Sync + Send,
+{
+    // SAFETY: boring provides valid inputs.
+    let ctx = unsafe { X509StoreContextRef::from_ptr_mut(x509_ctx) };
+
+    let ssl_idx = X509StoreContext::ssl_idx().expect("BUG: store context ssl index missing");
+    let verify_idx = SslContext::cached_ex_index::<F>();
+
+    let verify = ctx
+        .ex_data(ssl_idx)
+        .expect("BUG: store context missing ssl")
+        .ssl_context()
+        .ex_data(verify_idx)
+        .expect("BUG: verify callback missing");
+
+    // SAFETY: The callback won't outlive the context it's associated with
+    // because there is no way to get a mutable reference to the `SslContext`,
+    // so the callback can't replace itself.
+    let verify = unsafe { &*(verify as *const F) };
+
+    verify(ctx) as c_int
+}
+
 pub(super) unsafe extern "C" fn ssl_raw_custom_verify<F>(
     ssl: *mut ffi::SSL,
     out_alert: *mut u8,

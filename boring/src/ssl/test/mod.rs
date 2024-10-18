@@ -24,6 +24,7 @@ use crate::x509::{X509Name, X509};
 #[cfg(not(feature = "fips"))]
 use super::CompliancePolicy;
 
+mod cert_verify;
 mod custom_verify;
 mod private_key_method;
 mod server;
