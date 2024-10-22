@@ -77,6 +77,7 @@ pq-experimental = []
 underscore-wildcards = []
 
 [build-dependencies]
+autocfg = { workspace = true }
 bindgen = { workspace = true }
 cmake = { workspace = true }
 fs_extra = { workspace = true }
