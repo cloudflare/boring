@@ -313,6 +313,8 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '>=1.22.0'
+    - name: Install ${{ matrix.target }} toolchain
+      run: brew tap messense/macos-cross-toolchains && brew install ${{ matrix.target }} && brew link x86_64-unknown-linux-gnu
     - name: Install Clang-12
       uses: KyleMayes/install-llvm-action@v1
       with:
@@ -320,10 +322,7 @@ jobs:
         directory: ${{ runner.temp }}/llvm
     - name: Add clang++-12 link
       working-directory: ${{ runner.temp }}/llvm/bin
-      run: ln -s clang clang++-12
-    - name: Install ${{ matrix.target }} toolchain
-      # TODO(rmehra): find a better way to overwrite the python3 version without specifying version
-      run: brew tap messense/macos-cross-toolchains && brew install --overwrite python@3.12 && brew install ${{ matrix.target }}
+      run: ln -s clang++ clang++-12
     - name: Set BORING_BSSL_FIPS_COMPILER_EXTERNAL_TOOLCHAIN
       run: echo "BORING_BSSL_FIPS_COMPILER_EXTERNAL_TOOLCHAIN=$(brew --prefix ${{ matrix.target }})/toolchain" >> $GITHUB_ENV
       shell: bash
