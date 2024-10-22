@@ -687,6 +687,10 @@ fn main() {
         }
     });
 
+    // bindgen 0.70 replaced the run-time layout tests with compile-time ones,
+    // but they depend on std::mem::offset_of, stabilized in 1.77.
+    let supports_layout_tests = autocfg::new().probe_rustc_version(1, 77);
+
     let mut builder = bindgen::Builder::default()
         .derive_copy(true)
         .derive_debug(true)
@@ -700,7 +704,7 @@ fn main() {
         .generate_comments(true)
         .fit_macro_constants(false)
         .size_t_is_usize(true)
-        .layout_tests(true)
+        .layout_tests(supports_layout_tests)
         .prepend_enum_name(true)
         .blocklist_type("max_align_t") // Not supported by bindgen on all targets, not used by BoringSSL
         .clang_args(get_extra_clang_args_for_bindgen(&config))
