@@ -1,4 +1,5 @@
 use crate::ffi;
+use crate::x509::X509VerifyError;
 use libc::c_int;
 use std::error;
 use std::error::Error as StdError;
@@ -206,7 +207,9 @@ fn fmt_mid_handshake_error(
     }
 
     match s.ssl().verify_result() {
-        Ok(()) => write!(f, "{}", prefix)?,
+        // INVALID_CALL is returned if no verification took place,
+        // such as before a cert is sent.
+        Ok(()) | Err(X509VerifyError::INVALID_CALL) => write!(f, "{}", prefix)?,
         Err(verify) => write!(f, "{}: cert verification failed - {}", prefix, verify)?,
     }
 
