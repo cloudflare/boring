@@ -850,6 +850,12 @@ impl SslInfoCallbackMode {
 
     /// Signaled when a handshake progresses to a new state.
     pub const ACCEPT_LOOP: Self = Self(ffi::SSL_CB_ACCEPT_LOOP);
+
+    /// Signaled when the current iteration of the server-side handshake state machine completes.
+    pub const ACCEPT_EXIT: Self = Self(ffi::SSL_CB_ACCEPT_EXIT);
+
+    /// Signaled when the current iteration of the client-side handshake state machine completes.
+    pub const CONNECT_EXIT: Self = Self(ffi::SSL_CB_CONNECT_EXIT);
 }
 
 /// The `value` argument to an info callback. The most-significant byte is the alert level, while
