@@ -39,9 +39,9 @@
 //!
 use crate::ffi;
 use libc::{c_int, c_uint, size_t};
+use openssl_macros::corresponds;
 use std::mem::MaybeUninit;
 use std::ptr;
-use openssl_macros::corresponds;
 
 /// Provides Error handling for parsing keys.
 #[derive(Debug)]
