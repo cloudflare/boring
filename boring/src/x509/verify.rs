@@ -1,8 +1,8 @@
 use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 use libc::{c_int, c_uint, c_ulong, time_t};
-use std::net::IpAddr;
 use openssl_macros::corresponds;
+use std::net::IpAddr;
 
 use crate::error::ErrorStack;
 use crate::{cvt, cvt_p};
@@ -81,7 +81,11 @@ impl X509VerifyParamRef {
     #[corresponds(X509_VERIFY_PARAM_set_flags)]
     pub fn set_flags(&mut self, flags: X509VerifyFlags) {
         unsafe {
-            cvt(ffi::X509_VERIFY_PARAM_set_flags(self.as_ptr(), flags.bits())).unwrap();
+            cvt(ffi::X509_VERIFY_PARAM_set_flags(
+                self.as_ptr(),
+                flags.bits(),
+            ))
+            .unwrap();
         }
     }
 
@@ -89,7 +93,11 @@ impl X509VerifyParamRef {
     #[corresponds(X509_VERIFY_PARAM_clear_flags)]
     pub fn clear_flags(&mut self, flags: X509VerifyFlags) {
         unsafe {
-            cvt(ffi::X509_VERIFY_PARAM_clear_flags(self.as_ptr(), flags.bits())).unwrap();
+            cvt(ffi::X509_VERIFY_PARAM_clear_flags(
+                self.as_ptr(),
+                flags.bits(),
+            ))
+            .unwrap();
         }
     }
 

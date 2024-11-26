@@ -43,12 +43,12 @@
 use crate::error::ErrorStack;
 use crate::ffi;
 use crate::stack::StackRef;
-use crate::x509::verify::{X509Flags, X509VerifyParamRef};
+use crate::x509::verify::{X509VerifyFlags, X509VerifyParamRef};
 use crate::x509::{X509Object, X509};
 use crate::{cvt, cvt_p};
 use foreign_types::{ForeignType, ForeignTypeRef};
-use std::mem;
 use openssl_macros::corresponds;
+use std::mem;
 
 foreign_type_and_impl_send_sync! {
     type CType = ffi::X509_STORE;
@@ -96,15 +96,11 @@ impl X509StoreBuilderRef {
         unsafe { cvt(ffi::X509_STORE_set_default_paths(self.as_ptr())).map(|_| ()) }
     }
 
-    /// Sets verify flags.
-    ///
-    /// This corresponds to [`X509_STORE_set_flags`].
-    ///
-    /// [`X509_STORE_set_flags`]: https://www.openssl.org/docs/manmaster/man3/X509_STORE_set_flags.html
+    /// Sets certificate chain validation related flags.
     #[corresponds(X509_STORE_set_flags)]
-    pub fn set_flags(&mut self, flags: X509Flags) {
+    pub fn set_flags(&mut self, flags: X509VerifyFlags) {
         unsafe {
-            ffi::X509_STORE_set_flags(self.as_ptr(), flags.bits());
+            cvt(ffi::X509_STORE_set_flags(self.as_ptr(), flags.bits())).unwrap();
         }
     }
 
@@ -115,6 +111,12 @@ impl X509StoreBuilderRef {
     /// [`SSL_get0_param`]: https://www.openssl.org/docs/manmaster/man3/X509_STORE_get0_param.html
     pub fn verify_param_mut(&mut self) -> &mut X509VerifyParamRef {
         unsafe { X509VerifyParamRef::from_ptr_mut(ffi::X509_STORE_get0_param(self.as_ptr())) }
+    }
+
+    /// Sets certificate chain validation related parameters.
+    #[corresponds(X509_STORE_set1_param)]
+    pub fn set_param(&mut self, param: &X509VerifyParamRef) -> Result<(), ErrorStack> {
+        unsafe { cvt(ffi::X509_STORE_set1_param(self.as_ptr(), param.as_ptr())).map(|_| ()) }
     }
 }
 
@@ -127,9 +129,24 @@ foreign_type_and_impl_send_sync! {
 }
 
 impl X509StoreRef {
+    /// **Warning: this method is unsound**
+    ///
     /// Get a reference to the cache of certificates in this store.
+    ///
+    /// # Safety
+    /// References may be invalidated by any access to the shared cache.
+    #[deprecated(
+        note = "This method is unsound https://github.com/sfackler/rust-openssl/issues/2096"
+    )]
     #[corresponds(X509_STORE_get0_objects)]
     pub fn objects(&self) -> &StackRef<X509Object> {
         unsafe { StackRef::from_ptr(ffi::X509_STORE_get0_objects(self.as_ptr())) }
+    }
+
+    /// For testing only, where it doesn't have to expose an unsafe pointer
+    #[cfg(test)]
+    #[allow(deprecated)]
+    pub fn objects_len(&self) -> usize {
+        self.objects().len()
     }
 }
