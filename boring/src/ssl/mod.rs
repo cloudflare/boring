@@ -708,7 +708,7 @@ impl SslCurve {
 
     pub const X25519: SslCurve = SslCurve(ffi::SSL_CURVE_X25519 as _);
 
-    #[cfg(not(feature = "fips"))]
+    #[cfg(not(feature = "fips-compat"))]
     pub const X25519_KYBER768_DRAFT00: SslCurve =
         SslCurve(ffi::SSL_CURVE_X25519_KYBER768_DRAFT00 as _);
 
@@ -757,7 +757,7 @@ impl SslCurve {
             ffi::SSL_CURVE_SECP384R1 => Some(ffi::NID_secp384r1),
             ffi::SSL_CURVE_SECP521R1 => Some(ffi::NID_secp521r1),
             ffi::SSL_CURVE_X25519 => Some(ffi::NID_X25519),
-            #[cfg(not(feature = "fips"))]
+            #[cfg(not(feature = "fips-compat"))]
             ffi::SSL_CURVE_X25519_KYBER768_DRAFT00 => Some(ffi::NID_X25519Kyber768Draft00),
             #[cfg(feature = "pq-experimental")]
             ffi::SSL_CURVE_X25519_KYBER768_DRAFT00_OLD => Some(ffi::NID_X25519Kyber768Draft00Old),
@@ -1522,10 +1522,11 @@ impl SslContextBuilder {
             {
                 assert!(protocols.len() <= ProtosLen::MAX as usize);
             }
+            #[allow(clippy::useless_conversion)]
             let r = ffi::SSL_CTX_set_alpn_protos(
                 self.as_ptr(),
                 protocols.as_ptr(),
-                protocols.len() as ProtosLen,
+                protocols.len().try_into().unwrap(),
             );
             // fun fact, SSL_CTX_set_alpn_protos has a reversed return code D:
             if r == 0 {
@@ -2209,9 +2210,9 @@ impl SslContextRef {
 #[derive(Debug)]
 pub struct GetSessionPendingError;
 
-#[cfg(not(feature = "fips-compat"))]
+#[cfg(not(feature = "fips"))]
 type ProtosLen = usize;
-#[cfg(feature = "fips-compat")]
+#[cfg(feature = "fips")]
 type ProtosLen = libc::c_uint;
 
 /// Information about the state of a cipher.
@@ -2947,10 +2948,11 @@ impl SslRef {
             {
                 assert!(protocols.len() <= ProtosLen::MAX as usize);
             }
+            #[allow(clippy::useless_conversion)]
             let r = ffi::SSL_set_alpn_protos(
                 self.as_ptr(),
                 protocols.as_ptr(),
-                protocols.len() as ProtosLen,
+                protocols.len().try_into().unwrap(),
             );
             // fun fact, SSL_set_alpn_protos has a reversed return code D:
             if r == 0 {
@@ -3445,7 +3447,8 @@ impl SslRef {
     pub fn set_ocsp_status(&mut self, response: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
             assert!(response.len() <= c_int::MAX as usize);
-            let p = cvt_p(ffi::OPENSSL_malloc(response.len() as _))?;
+            #[allow(clippy::useless_conversion)]
+            let p = cvt_p(ffi::OPENSSL_malloc(response.len().try_into().unwrap()))?;
             ptr::copy_nonoverlapping(response.as_ptr(), p as *mut u8, response.len());
             cvt(ffi::SSL_set_tlsext_status_ocsp_resp(
                 self.as_ptr(),

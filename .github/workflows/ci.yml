@@ -256,8 +256,10 @@ jobs:
     - name: Add clang++-12 link
       working-directory: ${{ runner.temp }}/llvm/bin
       run: ln -s clang clang++-12
-    - name: Run tests
+    - name: Run FIPS tests
       run: cargo test --features fips
+    - name: Check fips-compat
+      run: cargo check --features fips-compat --all-targets
     - name: Test boring-sys cargo publish (FIPS)
       # Running `cargo publish --dry-run` tests two things:
       #

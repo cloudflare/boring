@@ -19,18 +19,19 @@ impl<'a> Drop for MemBioSlice<'a> {
 
 impl<'a> MemBioSlice<'a> {
     pub fn new(buf: &'a [u8]) -> Result<MemBioSlice<'a>, ErrorStack> {
-        #[cfg(not(feature = "fips-compat"))]
+        #[cfg(not(feature = "fips"))]
         type BufLen = isize;
-        #[cfg(feature = "fips-compat")]
+        #[cfg(feature = "fips")]
         type BufLen = libc::c_int;
 
         ffi::init();
 
         assert!(buf.len() <= BufLen::MAX as usize);
         let bio = unsafe {
+            #[allow(clippy::useless_conversion)]
             cvt_p(BIO_new_mem_buf(
                 buf.as_ptr() as *const _,
-                buf.len() as BufLen,
+                buf.len().try_into().unwrap(),
             ))?
         };
 
