@@ -182,6 +182,12 @@ impl Error {
         }
     }
 
+    /// Returns the raw OpenSSL error constant for the library reporting the
+    /// error.
+    pub fn library_code(&self) -> libc::c_int {
+        ffi::ERR_GET_LIB(self.code)
+    }
+
     /// Returns the name of the function reporting the error.
     pub fn function(&self) -> Option<&'static str> {
         unsafe {
@@ -204,6 +210,11 @@ impl Error {
             let bytes = CStr::from_ptr(cstr as *const _).to_bytes();
             Some(str::from_utf8(bytes).unwrap())
         }
+    }
+
+    /// Returns the raw OpenSSL error constant for the reason for the error.
+    pub fn reason_code(&self) -> libc::c_int {
+        ffi::ERR_GET_REASON(self.code)
     }
 
     /// Returns the name of the source file which encountered the error.
@@ -235,12 +246,14 @@ impl fmt::Debug for Error {
         if let Some(library) = self.library() {
             builder.field("library", &library);
         }
+        builder.field("library_code", &self.library_code());
         if let Some(function) = self.function() {
             builder.field("function", &function);
         }
         if let Some(reason) = self.reason() {
             builder.field("reason", &reason);
         }
+        builder.field("reason_code", &self.reason_code());
         builder.field("file", &self.file());
         builder.field("line", &self.line());
         if let Some(data) = self.data() {
