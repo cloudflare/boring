@@ -113,16 +113,22 @@ jobs:
           target: aarch64-apple-ios
           os: macos-latest
           check_only: true
+          custom_env:
+            IPHONEOS_DEPLOYMENT_TARGET: 17.5
           # It's... theoretically possible to run tests on iPhone Simulator,
           # but for now, make sure that BoringSSL only builds.
         - thing: aarch64-ios-sim
           target: aarch64-apple-ios-sim
           os: macos-latest
           check_only: true
+          custom_env:
+            IPHONEOS_DEPLOYMENT_TARGET: 17.5
         - thing: x86_64-ios
           target: x86_64-apple-ios
           os: macos-latest
           check_only: true
+          custom_env:
+            IPHONEOS_DEPLOYMENT_TARGET: 17.5
         - thing: i686-linux
           target: i686-unknown-linux-gnu
           rust: stable
