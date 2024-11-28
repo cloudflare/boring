@@ -219,7 +219,7 @@ struct BIO_METHOD(*mut ffi::BIO_METHOD);
 impl BIO_METHOD {
     fn new<S: Read + Write>() -> BIO_METHOD {
         unsafe {
-            let ptr = ffi::BIO_meth_new(ffi::BIO_TYPE_NONE, b"rust\0".as_ptr() as *const _);
+            let ptr = ffi::BIO_meth_new(ffi::BIO_TYPE_NONE, b"rust\0".as_ptr().cast());
             assert!(!ptr.is_null());
             let ret = BIO_METHOD(ptr);
             assert!(ffi::BIO_meth_set_write(ptr, Some(bwrite::<S>)) != 0);

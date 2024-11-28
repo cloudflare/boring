@@ -10,6 +10,7 @@ readme = "README.md"
 keywords = ["crypto", "tls", "ssl", "dtls"]
 categories = ["cryptography", "api-bindings"]
 edition = { workspace = true }
+rust-version = "1.70"
 
 [package.metadata.docs.rs]
 features = ["rpk", "pq-experimental", "underscore-wildcards"]
