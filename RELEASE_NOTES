@@ -1,3 +1,11 @@
+4.13.0
+- 2024-11-26 Sync X509StoreBuilder with openssl
+- 2024-11-26 Sync X509VerifyFlags with openssl
+- 2021-11-21 More corresponds from openssl
+- 2024-11-28 Work around Rust settings inconsistent iOS SDK version
+- 2024-11-28 Clippy
+- 2024-03-11 Fix Windows build
+
 4.12.0 
 - 2024-11-20 Add bindings for SSL_CB_ACCEPT_EXIT and SSL_CB_CONNECT_EXIT
 - 2024-10-22 (ci): brew link x86 toolchain for macos13 runner
