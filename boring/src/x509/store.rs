@@ -105,10 +105,7 @@ impl X509StoreBuilderRef {
     }
 
     /// Returns a mutable reference to the X509 verification configuration.
-    ///
-    /// This corresponds to [`X509_STORE_get0_param`].
-    ///
-    /// [`SSL_get0_param`]: https://www.openssl.org/docs/manmaster/man3/X509_STORE_get0_param.html
+    #[corresponds(X509_STORE_get0_param)]
     pub fn verify_param_mut(&mut self) -> &mut X509VerifyParamRef {
         unsafe { X509VerifyParamRef::from_ptr_mut(ffi::X509_STORE_get0_param(self.as_ptr())) }
     }
