@@ -724,10 +724,6 @@ impl SslCurve {
     pub const P256_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::SSL_CURVE_P256_KYBER768_DRAFT00 as _);
 
     /// Returns the curve name
-    ///
-    /// This corresponds to [`SSL_get_curve_name`]
-    ///
-    /// [`SSL_get_curve_name`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_get_curve_name
     #[corresponds(SSL_get_curve_name)]
     pub fn name(&self) -> Option<&'static str> {
         unsafe {
@@ -802,10 +798,8 @@ impl CompliancePolicy {
 ///
 /// It will select the first protocol supported by the server which is also supported by the client.
 ///
-/// This corresponds to [`SSL_select_next_proto`].
-///
 /// [`SslContextBuilder::set_alpn_protos`]: struct.SslContextBuilder.html#method.set_alpn_protos
-/// [`SSL_select_next_proto`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_alpn_protos.html
+#[corresponds(SSL_select_next_proto)]
 pub fn select_next_proto<'a>(server: &[u8], client: &'a [u8]) -> Option<&'a [u8]> {
     if server.is_empty() || client.is_empty() {
         return None;
@@ -2228,10 +2222,7 @@ pub struct ClientHello<'ssl>(&'ssl ffi::SSL_CLIENT_HELLO);
 
 impl ClientHello<'_> {
     /// Returns the data of a given extension, if present.
-    ///
-    /// This corresponds to [`SSL_early_callback_ctx_extension_get`].
-    ///
-    /// [`SSL_early_callback_ctx_extension_get`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_early_callback_ctx_extension_get
+    #[corresponds(SSL_early_callback_ctx_extension_get)]
     pub fn get_extension(&self, ext_type: ExtensionType) -> Option<&[u8]> {
         unsafe {
             let mut ptr = ptr::null();
@@ -2450,10 +2441,7 @@ impl Clone for SslSession {
 impl SslSession {
     from_der! {
         /// Deserializes a DER-encoded session structure.
-        ///
-        /// This corresponds to [`d2i_SSL_SESSION`].
-        ///
-        /// [`d2i_SSL_SESSION`]: https://www.openssl.org/docs/man1.0.2/ssl/d2i_SSL_SESSION.html
+        #[corresponds(d2i_SSL_SESSION)]
         from_der,
         SslSession,
         ffi::d2i_SSL_SESSION,
@@ -2524,10 +2512,7 @@ impl SslSessionRef {
 
     to_der! {
         /// Serializes the session into a DER-encoded structure.
-        ///
-        /// This corresponds to [`i2d_SSL_SESSION`].
-        ///
-        /// [`i2d_SSL_SESSION`]: https://www.openssl.org/docs/man1.0.2/ssl/i2d_SSL_SESSION.html
+        #[corresponds(i2d_SSL_SESSION)]
         to_der,
         ffi::i2d_SSL_SESSION
     }
@@ -2924,10 +2909,7 @@ impl SslRef {
     }
 
     /// Configures whether ClientHello extensions should be permuted.
-    ///
-    /// This corresponds to [`SSL_set_permute_extensions`].
-    ///
-    /// [`SSL_set_permute_extensions`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_set_permute_extensions
+    #[corresponds(SSL_set_permute_extensions)]
     ///
     /// Note: This is gated to non-fips because the fips feature builds with a separate
     /// version of BoringSSL which doesn't yet include these APIs.
@@ -3670,10 +3652,7 @@ impl<S> MidHandshakeSslStream<S> {
     }
 
     /// Restarts the handshake process.
-    ///
-    /// This corresponds to [`SSL_do_handshake`].
-    ///
-    /// [`SSL_do_handshake`]: https://www.openssl.org/docs/manmaster/man3/SSL_do_handshake.html
+    #[corresponds(SSL_do_handshake)]
     pub fn handshake(mut self) -> Result<SslStream<S>, HandshakeError<S>> {
         let ret = unsafe { ffi::SSL_do_handshake(self.stream.ssl.as_ptr()) };
         if ret > 0 {

@@ -1,4 +1,5 @@
 use crate::ffi;
+use openssl_macros::corresponds;
 use std::convert::TryInto;
 use std::ffi::{c_uint, c_void};
 use std::fmt;
@@ -26,10 +27,7 @@ impl MessageDigest {
     }
 
     /// Returns the `MessageDigest` corresponding to an `Nid`.
-    ///
-    /// This corresponds to [`EVP_get_digestbynid`].
-    ///
-    /// [`EVP_get_digestbynid`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_DigestInit.html
+    #[corresponds(EVP_get_digestbynid)]
     pub fn from_nid(type_: Nid) -> Option<MessageDigest> {
         unsafe {
             let ptr = ffi::EVP_get_digestbynid(type_.as_raw());
