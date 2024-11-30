@@ -37,6 +37,7 @@
 use crate::ffi;
 use foreign_types::ForeignTypeRef;
 use libc::c_int;
+use openssl_macros::corresponds;
 use std::io::{self, Write};
 use std::marker::PhantomData;
 use std::ptr;
@@ -96,10 +97,7 @@ impl<'a> Signer<'a> {
     ///
     /// This cannot be used with Ed25519 or Ed448 keys. Please refer to
     /// `new_without_digest`.
-    ///
-    /// OpenSSL documentation at [`EVP_DigestSignInit`].
-    ///
-    /// [`EVP_DigestSignInit`]: https://www.openssl.org/docs/manmaster/man3/EVP_DigestSignInit.html
+    #[corresponds(EVP_DigestSignInit)]
     pub fn new<T>(type_: MessageDigest, pkey: &'a PKeyRef<T>) -> Result<Signer<'a>, ErrorStack>
     where
         T: HasPrivate,
@@ -111,10 +109,7 @@ impl<'a> Signer<'a> {
     ///
     /// This is the only way to create a `Verifier` for Ed25519 or Ed448 keys.
     /// It can also be used to create a CMAC.
-    ///
-    /// OpenSSL documentation at [`EVP_DigestSignInit`].
-    ///
-    /// [`EVP_DigestSignInit`]: https://www.openssl.org/docs/manmaster/man3/EVP_DigestSignInit.html
+    #[corresponds(EVP_DigestSignInit)]
     pub fn new_without_digest<T>(pkey: &'a PKeyRef<T>) -> Result<Signer<'a>, ErrorStack>
     where
         T: HasPrivate,
@@ -159,8 +154,7 @@ impl<'a> Signer<'a> {
     /// Returns the RSA padding mode in use.
     ///
     /// This is only useful for RSA keys.
-    ///
-    /// This corresponds to `EVP_PKEY_CTX_get_rsa_padding`.
+    #[corresponds(EVP_PKEY_CTX_get_rsa_padding)]
     pub fn rsa_padding(&self) -> Result<Padding, ErrorStack> {
         unsafe {
             let mut pad = 0;
@@ -172,10 +166,7 @@ impl<'a> Signer<'a> {
     /// Sets the RSA padding mode.
     ///
     /// This is only useful for RSA keys.
-    ///
-    /// This corresponds to [`EVP_PKEY_CTX_set_rsa_padding`].
-    ///
-    /// [`EVP_PKEY_CTX_set_rsa_padding`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_PKEY_CTX_set_rsa_padding.html
+    #[corresponds(EVP_PKEY_CTX_set_rsa_padding)]
     pub fn set_rsa_padding(&mut self, padding: Padding) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::EVP_PKEY_CTX_set_rsa_padding(
@@ -189,10 +180,7 @@ impl<'a> Signer<'a> {
     /// Sets the RSA PSS salt length.
     ///
     /// This is only useful for RSA keys.
-    ///
-    /// This corresponds to [`EVP_PKEY_CTX_set_rsa_pss_saltlen`].
-    ///
-    /// [`EVP_PKEY_CTX_set_rsa_pss_saltlen`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_PKEY_CTX_set_rsa_pss_saltlen.html
+    #[corresponds(EVP_PKEY_CTX_set_rsa_pss_saltlen)]
     pub fn set_rsa_pss_saltlen(&mut self, len: RsaPssSaltlen) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::EVP_PKEY_CTX_set_rsa_pss_saltlen(
@@ -206,10 +194,7 @@ impl<'a> Signer<'a> {
     /// Sets the RSA MGF1 algorithm.
     ///
     /// This is only useful for RSA keys.
-    ///
-    /// This corresponds to [`EVP_PKEY_CTX_set_rsa_mgf1_md`].
-    ///
-    /// [`EVP_PKEY_CTX_set_rsa_mgf1_md`]: https://www.openssl.org/docs/manmaster/man7/RSA-PSS.html
+    #[corresponds(EVP_PKEY_CTX_set_rsa_mgf1_md)]
     pub fn set_rsa_mgf1_md(&mut self, md: MessageDigest) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::EVP_PKEY_CTX_set_rsa_mgf1_md(
@@ -224,10 +209,7 @@ impl<'a> Signer<'a> {
     ///
     /// Please note that PureEdDSA (Ed25519 and Ed448 keys) do not support streaming.
     /// Use `sign_oneshot` instead.
-    ///
-    /// OpenSSL documentation at [`EVP_DigestUpdate`].
-    ///
-    /// [`EVP_DigestUpdate`]: https://www.openssl.org/docs/manmaster/man3/EVP_DigestInit.html
+    #[corresponds(EVP_DigestUpdate)]
     pub fn update(&mut self, buf: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::EVP_DigestUpdate(
@@ -243,10 +225,7 @@ impl<'a> Signer<'a> {
     ///
     /// The actual signature may be shorter than this value. Check the return value of
     /// `sign` to get the exact length.
-    ///
-    /// OpenSSL documentation at [`EVP_DigestSignFinal`].
-    ///
-    /// [`EVP_DigestSignFinal`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_DigestSignFinal.html
+    #[corresponds(EVP_DigestSignFinal)]
     pub fn len(&self) -> Result<usize, ErrorStack> {
         self.len_intern()
     }
@@ -269,10 +248,7 @@ impl<'a> Signer<'a> {
     ///
     /// This method will fail if the buffer is not large enough for the signature. Use the `len`
     /// method to get an upper bound on the required size.
-    ///
-    /// OpenSSL documentation at [`EVP_DigestSignFinal`].
-    ///
-    /// [`EVP_DigestSignFinal`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_DigestSignFinal.html
+    #[corresponds(EVP_DigestSignFinal)]
     pub fn sign(&self, buf: &mut [u8]) -> Result<usize, ErrorStack> {
         unsafe {
             let mut len = buf.len();
@@ -303,10 +279,7 @@ impl<'a> Signer<'a> {
     ///
     /// This method will fail if the buffer is not large enough for the signature. Use the `len`
     /// method to get an upper bound on the required size.
-    ///
-    /// OpenSSL documentation at [`EVP_DigestSign`].
-    ///
-    /// [`EVP_DigestSign`]: https://www.openssl.org/docs/man1.1.1/man3/EVP_DigestSign.html
+    #[corresponds(EVP_DigestSign)]
     pub fn sign_oneshot(
         &mut self,
         sig_buf: &mut [u8],
@@ -372,10 +345,7 @@ impl<'a> Verifier<'a> {
     ///
     /// This cannot be used with Ed25519 or Ed448 keys. Please refer to
     /// `new_without_digest`.
-    ///
-    /// OpenSSL documentation at [`EVP_DigestVerifyInit`].
-    ///
-    /// [`EVP_DigestVerifyInit`]: https://www.openssl.org/docs/manmaster/man3/EVP_DigestVerifyInit.html
+    #[corresponds(EVP_DigestVerifyInit)]
     pub fn new<T>(type_: MessageDigest, pkey: &'a PKeyRef<T>) -> Result<Verifier<'a>, ErrorStack>
     where
         T: HasPublic,
@@ -386,10 +356,7 @@ impl<'a> Verifier<'a> {
     /// Creates a new `Verifier` without a digest.
     ///
     /// This is the only way to create a `Verifier` for Ed25519 or Ed448 keys.
-    ///
-    /// OpenSSL documentation at [`EVP_DigestVerifyInit`].
-    ///
-    /// [`EVP_DigestVerifyInit`]: https://www.openssl.org/docs/manmaster/man3/EVP_DigestVerifyInit.html
+    #[corresponds(EVP_DigestVerifyInit)]
     pub fn new_without_digest<T>(pkey: &'a PKeyRef<T>) -> Result<Verifier<'a>, ErrorStack>
     where
         T: HasPublic,
@@ -434,8 +401,7 @@ impl<'a> Verifier<'a> {
     /// Returns the RSA padding mode in use.
     ///
     /// This is only useful for RSA keys.
-    ///
-    /// This corresponds to `EVP_PKEY_CTX_get_rsa_padding`.
+    #[corresponds(EVP_PKEY_CTX_get_rsa_padding)]
     pub fn rsa_padding(&self) -> Result<Padding, ErrorStack> {
         unsafe {
             let mut pad = 0;
@@ -447,10 +413,7 @@ impl<'a> Verifier<'a> {
     /// Sets the RSA padding mode.
     ///
     /// This is only useful for RSA keys.
-    ///
-    /// This corresponds to [`EVP_PKEY_CTX_set_rsa_padding`].
-    ///
-    /// [`EVP_PKEY_CTX_set_rsa_padding`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_PKEY_CTX_set_rsa_padding.html
+    #[corresponds(EVP_PKEY_CTX_set_rsa_padding)]
     pub fn set_rsa_padding(&mut self, padding: Padding) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::EVP_PKEY_CTX_set_rsa_padding(
@@ -464,10 +427,7 @@ impl<'a> Verifier<'a> {
     /// Sets the RSA PSS salt length.
     ///
     /// This is only useful for RSA keys.
-    ///
-    /// This corresponds to [`EVP_PKEY_CTX_set_rsa_pss_saltlen`].
-    ///
-    /// [`EVP_PKEY_CTX_set_rsa_pss_saltlen`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_PKEY_CTX_set_rsa_pss_saltlen.html
+    #[corresponds(EVP_PKEY_CTX_set_rsa_pss_saltlen)]
     pub fn set_rsa_pss_saltlen(&mut self, len: RsaPssSaltlen) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::EVP_PKEY_CTX_set_rsa_pss_saltlen(
@@ -481,10 +441,7 @@ impl<'a> Verifier<'a> {
     /// Sets the RSA MGF1 algorithm.
     ///
     /// This is only useful for RSA keys.
-    ///
-    /// This corresponds to [`EVP_PKEY_CTX_set_rsa_mgf1_md`].
-    ///
-    /// [`EVP_PKEY_CTX_set_rsa_mgf1_md`]: https://www.openssl.org/docs/manmaster/man7/RSA-PSS.html
+    #[corresponds(EVP_PKEY_CTX_set_rsa_mgf1_md)]
     pub fn set_rsa_mgf1_md(&mut self, md: MessageDigest) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::EVP_PKEY_CTX_set_rsa_mgf1_md(
@@ -499,10 +456,7 @@ impl<'a> Verifier<'a> {
     ///
     /// Please note that PureEdDSA (Ed25519 and Ed448 keys) do not support streaming.
     /// Use `verify_oneshot` instead.
-    ///
-    /// OpenSSL documentation at [`EVP_DigestUpdate`].
-    ///
-    /// [`EVP_DigestUpdate`]: https://www.openssl.org/docs/manmaster/man3/EVP_DigestInit.html
+    #[corresponds(EVP_DigestUpdate)]
     pub fn update(&mut self, buf: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::EVP_DigestUpdate(
@@ -515,10 +469,7 @@ impl<'a> Verifier<'a> {
     }
 
     /// Determines if the data fed into the `Verifier` matches the provided signature.
-    ///
-    /// OpenSSL documentation at [`EVP_DigestVerifyFinal`].
-    ///
-    /// [`EVP_DigestVerifyFinal`]: https://www.openssl.org/docs/manmaster/man3/EVP_DigestVerifyFinal.html
+    #[corresponds(EVP_DigestVerifyFinal)]
     pub fn verify(&self, signature: &[u8]) -> Result<bool, ErrorStack> {
         unsafe {
             let r =
@@ -535,10 +486,7 @@ impl<'a> Verifier<'a> {
     }
 
     /// Determines if the data given in buf matches the provided signature.
-    ///
-    /// OpenSSL documentation at [`EVP_DigestVerify`].
-    ///
-    /// [`EVP_DigestVerify`]: https://www.openssl.org/docs/man1.1.1/man3/EVP_DigestVerify.html
+    #[corresponds(EVP_DigestVerify)]
     pub fn verify_oneshot(&mut self, signature: &[u8], buf: &[u8]) -> Result<bool, ErrorStack> {
         unsafe {
             let r = ffi::EVP_DigestVerify(

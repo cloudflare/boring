@@ -8,6 +8,7 @@
 use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 use libc::c_uint;
+use openssl_macros::corresponds;
 use std::fmt;
 use std::mem;
 use std::ptr;
@@ -84,20 +85,14 @@ where
         /// Serialies the public key into a PEM-encoded SubjectPublicKeyInfo structure.
         ///
         /// The output will have a header of `-----BEGIN PUBLIC KEY-----`.
-        ///
-        /// This corresponds to [`PEM_write_bio_DSA_PUBKEY`].
-        ///
-        /// [`PEM_write_bio_DSA_PUBKEY`]: https://www.openssl.org/docs/man1.1.0/crypto/PEM_write_bio_DSA_PUBKEY.html
+        #[corresponds(PEM_write_bio_DSA_PUBKEY)]
         public_key_to_pem,
         ffi::PEM_write_bio_DSA_PUBKEY
     }
 
     to_der! {
         /// Serializes the public key into a DER-encoded SubjectPublicKeyInfo structure.
-        ///
-        /// This corresponds to [`i2d_DSA_PUBKEY`].
-        ///
-        /// [`i2d_DSA_PUBKEY`]: https://www.openssl.org/docs/man1.1.0/crypto/i2d_DSA_PUBKEY.html
+        #[corresponds(i2d_DSA_PUBKEY)]
         public_key_to_der,
         ffi::i2d_DSA_PUBKEY
     }
@@ -120,18 +115,12 @@ where
         /// Serializes the private key to a PEM-encoded DSAPrivateKey structure.
         ///
         /// The output will have a header of `-----BEGIN DSA PRIVATE KEY-----`.
-        ///
-        /// This corresponds to [`PEM_write_bio_DSAPrivateKey`].
-        ///
-        /// [`PEM_write_bio_DSAPrivateKey`]: https://www.openssl.org/docs/man1.1.0/crypto/PEM_write_bio_DSAPrivateKey.html
+        #[corresponds(PEM_write_bio_DSAPrivateKey)]
         private_key_to_pem,
         /// Serializes the private key to a PEM-encoded encrypted DSAPrivateKey structure.
         ///
         /// The output will have a header of `-----BEGIN DSA PRIVATE KEY-----`.
-        ///
-        /// This corresponds to [`PEM_write_bio_DSAPrivateKey`].
-        ///
-        /// [`PEM_write_bio_DSAPrivateKey`]: https://www.openssl.org/docs/man1.1.0/crypto/PEM_write_bio_DSAPrivateKey.html
+        #[corresponds(PEM_write_bio_DSAPrivateKey)]
         private_key_to_pem_passphrase,
         ffi::PEM_write_bio_DSAPrivateKey
     }
@@ -151,10 +140,7 @@ where
     T: HasParams,
 {
     /// Returns the maximum size of the signature output by `self` in bytes.
-    ///
-    /// OpenSSL documentation at [`DSA_size`]
-    ///
-    /// [`DSA_size`]: https://www.openssl.org/docs/man1.1.0/crypto/DSA_size.html
+    #[corresponds(DSA_size)]
     pub fn size(&self) -> u32 {
         unsafe { ffi::DSA_size(self.as_ptr()) as u32 }
     }
@@ -244,10 +230,7 @@ impl Dsa<Public> {
         /// Decodes a PEM-encoded SubjectPublicKeyInfo structure containing a DSA key.
         ///
         /// The input should have a header of `-----BEGIN PUBLIC KEY-----`.
-        ///
-        /// This corresponds to [`PEM_read_bio_DSA_PUBKEY`].
-        ///
-        /// [`PEM_read_bio_DSA_PUBKEY`]: https://www.openssl.org/docs/man1.0.2/crypto/PEM_read_bio_DSA_PUBKEY.html
+        #[corresponds(PEM_read_bio_DSA_PUBKEY)]
         public_key_from_pem,
         Dsa<Public>,
         ffi::PEM_read_bio_DSA_PUBKEY
@@ -255,10 +238,7 @@ impl Dsa<Public> {
 
     from_der! {
         /// Decodes a DER-encoded SubjectPublicKeyInfo structure containing a DSA key.
-        ///
-        /// This corresponds to [`d2i_DSA_PUBKEY`].
-        ///
-        /// [`d2i_DSA_PUBKEY`]: https://www.openssl.org/docs/man1.0.2/crypto/d2i_DSA_PUBKEY.html
+        #[corresponds(d2i_DSA_PUBKEY)]
         public_key_from_der,
         Dsa<Public>,
         ffi::d2i_DSA_PUBKEY,

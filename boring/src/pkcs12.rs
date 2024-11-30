@@ -3,6 +3,7 @@
 use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 use libc::c_int;
+use openssl_macros::corresponds;
 use std::ffi::CString;
 use std::ptr;
 
@@ -25,10 +26,7 @@ foreign_type_and_impl_send_sync! {
 impl Pkcs12Ref {
     to_der! {
         /// Serializes the `Pkcs12` to its standard DER encoding.
-        ///
-        /// This corresponds to [`i2d_PKCS12`].
-        ///
-        /// [`i2d_PKCS12`]: https://www.openssl.org/docs/manmaster/man3/i2d_PKCS12.html
+        #[corresponds(i2d_PKCS12)]
         to_der,
         ffi::i2d_PKCS12
     }
@@ -67,10 +65,7 @@ impl Pkcs12Ref {
 impl Pkcs12 {
     from_der! {
         /// Deserializes a DER-encoded PKCS#12 archive.
-        ///
-        /// This corresponds to [`d2i_PKCS12`].
-        ///
-        /// [`d2i_PKCS12`]: https://www.openssl.org/docs/man1.1.0/crypto/d2i_PKCS12.html
+        #[corresponds(d2i_PKCS12)]
         from_der,
         Pkcs12,
         ffi::d2i_PKCS12,

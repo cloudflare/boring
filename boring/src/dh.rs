@@ -1,6 +1,7 @@
 use crate::error::ErrorStack;
 use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
+use openssl_macros::corresponds;
 use std::mem;
 use std::ptr;
 
@@ -25,20 +26,14 @@ where
         /// Serializes the parameters into a PEM-encoded PKCS#3 DHparameter structure.
         ///
         /// The output will have a header of `-----BEGIN DH PARAMETERS-----`.
-        ///
-        /// This corresponds to [`PEM_write_bio_DHparams`].
-        ///
-        /// [`PEM_write_bio_DHparams`]: https://www.openssl.org/docs/manmaster/man3/PEM_write_bio_DHparams.html
+        #[corresponds(PEM_write_bio_DHparams)]
         params_to_pem,
         ffi::PEM_write_bio_DHparams
     }
 
     to_der! {
         /// Serializes the parameters into a DER-encoded PKCS#3 DHparameter structure.
-        ///
-        /// This corresponds to [`i2d_DHparams`].
-        ///
-        /// [`i2d_DHparams`]: https://www.openssl.org/docs/man1.1.0/crypto/i2d_DHparams.html
+        #[corresponds(i2d_DHparams)]
         params_to_der,
         ffi::i2d_DHparams
     }
@@ -58,10 +53,7 @@ impl Dh<Params> {
         /// Deserializes a PEM-encoded PKCS#3 DHpararameters structure.
         ///
         /// The input should have a header of `-----BEGIN DH PARAMETERS-----`.
-        ///
-        /// This corresponds to [`PEM_read_bio_DHparams`].
-        ///
-        /// [`PEM_read_bio_DHparams`]: https://www.openssl.org/docs/man1.0.2/crypto/PEM_read_bio_DHparams.html
+        #[corresponds(PEM_read_bio_DHparams)]
         params_from_pem,
         Dh<Params>,
         ffi::PEM_read_bio_DHparams
@@ -69,10 +61,7 @@ impl Dh<Params> {
 
     from_der! {
         /// Deserializes a DER-encoded PKCS#3 DHparameters structure.
-        ///
-        /// This corresponds to [`d2i_DHparams`].
-        ///
-        /// [`d2i_DHparams`]: https://www.openssl.org/docs/man1.1.0/crypto/d2i_DHparams.html
+        #[corresponds(d2i_DHparams)]
         params_from_der,
         Dh<Params>,
         ffi::d2i_DHparams,
