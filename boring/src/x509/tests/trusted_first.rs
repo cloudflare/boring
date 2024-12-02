@@ -93,12 +93,12 @@ fn verify(
 
     let mut store_ctx = X509StoreContext::new().unwrap();
 
-    let _ = store_ctx.init(&trusted, cert, &untrusted, |ctx| {
-        configure(ctx.verify_param_mut());
-        ctx.verify_cert().unwrap();
+    store_ctx
+        .init(&trusted, cert, &untrusted, |ctx| {
+            configure(ctx.verify_param_mut());
+            ctx.verify_cert().unwrap();
 
-        Ok(())
-    });
-
-    store_ctx.verify_result()
+            Ok(ctx.verify_result())
+        })
+        .expect("failed to obtain X509VerifyResult")
 }

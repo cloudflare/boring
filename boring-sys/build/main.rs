@@ -1,4 +1,5 @@
 use fslock::LockFile;
+use std::env;
 use std::ffi::OsString;
 use std::fs;
 use std::io;
@@ -636,6 +637,22 @@ fn link_in_precompiled_bcm_o(config: &Config) {
     .unwrap();
 }
 
+fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
+    if let Some(ref cpp_lib) = config.env.cpp_runtime_lib {
+        return cpp_lib.clone().into_string().ok();
+    }
+
+    // TODO(rmehra): figure out how to do this for windows
+    if env::var_os("CARGO_CFG_UNIX").is_some() {
+        match env::var("CARGO_CFG_TARGET_OS").unwrap().as_ref() {
+            "macos" | "ios" => Some("c++".into()),
+            _ => Some("stdc++".into()),
+        }
+    } else {
+        None
+    }
+}
+
 fn main() {
     let config = Config::from_env();
     let bssl_dir = built_boring_source_path(&config);
@@ -673,6 +690,9 @@ fn main() {
         link_in_precompiled_bcm_o(&config);
     }
 
+    if let Some(cpp_lib) = get_cpp_runtime_lib(&config) {
+        println!("cargo:rustc-link-lib={}", cpp_lib);
+    }
     println!("cargo:rustc-link-lib=static=crypto");
     println!("cargo:rustc-link-lib=static=ssl");
 
