@@ -82,3 +82,4 @@ boring-sys = { workspace = true }
 [dev-dependencies]
 hex = { workspace = true }
 rusty-hook = { workspace = true }
+brotli = { workspace = true }
