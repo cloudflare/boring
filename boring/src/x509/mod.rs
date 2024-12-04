@@ -34,7 +34,6 @@ use crate::ffi;
 use crate::hash::{DigestBytes, MessageDigest};
 use crate::nid::Nid;
 use crate::pkey::{HasPrivate, HasPublic, PKey, PKeyRef, Public};
-#[cfg(feature = "ssl")]
 use crate::ssl::SslRef;
 use crate::stack::{Stack, StackRef, Stackable};
 use crate::string::OpensslString;
@@ -62,7 +61,6 @@ foreign_type_and_impl_send_sync! {
 impl X509StoreContext {
     /// Returns the index which can be used to obtain a reference to the `Ssl` associated with a
     /// context.
-    #[cfg(feature = "ssl")]
     #[corresponds(SSL_get_ex_data_X509_STORE_CTX_idx)]
     pub fn ssl_idx() -> Result<Index<X509StoreContext, SslRef>, ErrorStack> {
         unsafe { cvt_n(ffi::SSL_get_ex_data_X509_STORE_CTX_idx()).map(|idx| Index::from_raw(idx)) }

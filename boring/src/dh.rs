@@ -82,7 +82,6 @@ impl Dh<Params> {
 
 use crate::ffi::DH_set0_pqg;
 
-#[cfg(feature = "ssl")] // Many of these tests use SslContext to verify the result.
 #[cfg(test)]
 mod tests {
     use crate::bn::BigNum;

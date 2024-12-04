@@ -17,9 +17,6 @@ features = ["rpk", "pq-experimental", "underscore-wildcards"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["ssl"]
-ssl = ["boring-sys/ssl"]
-
 # Controlling the build
 
 # Use a FIPS-validated version of boringssl.
