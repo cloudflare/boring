@@ -10,6 +10,7 @@ readme = "README.md"
 keywords = ["crypto", "tls", "ssl", "dtls"]
 categories = ["cryptography", "api-bindings"]
 edition = { workspace = true }
+rust-version = "1.70"
 
 [package.metadata.docs.rs]
 features = ["rpk", "pq-experimental", "underscore-wildcards"]
@@ -22,7 +23,12 @@ ssl = ["boring-sys/ssl"]
 # Controlling the build
 
 # Use a FIPS-validated version of boringssl.
-fips = ["boring-sys/fips"]
+fips = ["fips-compat", "boring-sys/fips"]
+
+# Build with compatibility for the BoringSSL FIPS version, without enabling the
+# `fips` feature itself (useful e.g. if `fips-link-precompiled` is used with an
+# older BoringSSL version).
+fips-compat = []
 
 # Link with precompiled FIPS-validated `bcm.o` module.
 fips-link-precompiled = ["boring-sys/fips-link-precompiled"]
@@ -72,6 +78,7 @@ kx-client-nist-required = ["kx-safe-default"]
 bitflags = { workspace = true }
 foreign-types = { workspace = true }
 once_cell = { workspace = true }
+openssl-macros = { workspace = true }
 libc = { workspace = true }
 boring-sys = { workspace = true }
 

@@ -501,11 +501,15 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
 
 fn apply_patch(config: &Config, patch_name: &str) -> io::Result<()> {
     let src_path = get_boringssl_source_path(config);
+    #[cfg(not(windows))]
     let cmd_path = config
         .manifest_dir
         .join("patches")
         .join(patch_name)
         .canonicalize()?;
+
+    #[cfg(windows)]
+    let cmd_path = config.manifest_dir.join("patches").join(patch_name);
 
     let mut args = vec!["apply", "-v", "--whitespace=fix"];
 
@@ -661,6 +665,10 @@ fn main() {
             bssl_dir.display(),
             build_path
         );
+        println!(
+            "cargo:rustc-link-search=native={}/build",
+            bssl_dir.display(),
+        );
     }
 
     if config.features.fips_link_precompiled {
@@ -692,6 +700,7 @@ fn main() {
     let supports_layout_tests = autocfg::new().probe_rustc_version(1, 77);
 
     let mut builder = bindgen::Builder::default()
+        .rust_target(bindgen::RustTarget::Stable_1_68) // bindgen MSRV is 1.70, so this is enough
         .derive_copy(true)
         .derive_debug(true)
         .derive_default(true)
@@ -731,6 +740,8 @@ fn main() {
         "des.h",
         "dtls1.h",
         "hkdf.h",
+        #[cfg(not(feature = "fips"))]
+        "hpke.h",
         "hmac.h",
         "hrss.h",
         "md4.h",

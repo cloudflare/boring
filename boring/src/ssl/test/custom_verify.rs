@@ -64,7 +64,7 @@ fn untrusted_with_set_cert() {
             let cert = ssl.peer_certificate().unwrap();
             let cert_chain = ssl.peer_cert_chain().unwrap();
 
-            assert_eq!(store.objects().len(), 0);
+            assert_eq!(store.objects_len(), 0);
 
             X509StoreContext::new()
                 .unwrap()
@@ -94,7 +94,7 @@ fn trusted_with_set_cert() {
             let cert = ssl.peer_certificate().unwrap();
             let cert_chain = ssl.peer_cert_chain().unwrap();
 
-            assert_eq!(store.objects().len(), 1);
+            assert_eq!(store.objects_len(), 1);
 
             X509StoreContext::new()
                 .unwrap()

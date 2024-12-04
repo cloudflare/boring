@@ -35,6 +35,7 @@ use crate::error::ErrorStack;
 use crate::ffi::BN_is_negative;
 use crate::string::OpensslString;
 use crate::{cvt, cvt_n, cvt_p};
+use openssl_macros::corresponds;
 
 /// Options for the most significant bits of a randomly generated `BigNum`.
 pub struct MsbOption(c_int);
@@ -69,10 +70,7 @@ foreign_type_and_impl_send_sync! {
 
 impl BigNumContext {
     /// Returns a new `BigNumContext`.
-    ///
-    /// See OpenSSL documentation at [`BN_CTX_new`].
-    ///
-    /// [`BN_CTX_new`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_CTX_new.html
+    #[corresponds(BN_CTX_new)]
     pub fn new() -> Result<BigNumContext, ErrorStack> {
         unsafe {
             ffi::init();
@@ -115,46 +113,31 @@ impl BigNumRef {
     /// Erases the memory used by this `BigNum`, resetting its value to 0.
     ///
     /// This can be used to destroy sensitive data such as keys when they are no longer needed.
-    ///
-    /// OpenSSL documentation at [`BN_clear`]
-    ///
-    /// [`BN_clear`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_clear.html
+    #[corresponds(BN_clear)]
     pub fn clear(&mut self) {
         unsafe { ffi::BN_clear(self.as_ptr()) }
     }
 
     /// Adds a `u32` to `self`.
-    ///
-    /// OpenSSL documentation at [`BN_add_word`]
-    ///
-    /// [`BN_add_word`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_add_word.html
+    #[corresponds(BN_add_word)]
     pub fn add_word(&mut self, w: u32) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::BN_add_word(self.as_ptr(), w as ffi::BN_ULONG)).map(|_| ()) }
     }
 
     /// Subtracts a `u32` from `self`.
-    ///
-    /// OpenSSL documentation at [`BN_sub_word`]
-    ///
-    /// [`BN_sub_word`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_sub_word.html
+    #[corresponds(BN_sub_word)]
     pub fn sub_word(&mut self, w: u32) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::BN_sub_word(self.as_ptr(), w as ffi::BN_ULONG)).map(|_| ()) }
     }
 
     /// Multiplies a `u32` by `self`.
-    ///
-    /// OpenSSL documentation at [`BN_mul_word`]
-    ///
-    /// [`BN_mul_word`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_mul_word.html
+    #[corresponds(BN_mul_word)]
     pub fn mul_word(&mut self, w: u32) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::BN_mul_word(self.as_ptr(), w as ffi::BN_ULONG)).map(|_| ()) }
     }
 
     /// Divides `self` by a `u32`, returning the remainder.
-    ///
-    /// OpenSSL documentation at [`BN_div_word`]
-    ///
-    /// [`BN_div_word`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_div_word.html
+    #[corresponds(BN_div_word)]
     #[allow(clippy::useless_conversion)]
     pub fn div_word(&mut self, w: u32) -> Result<u64, ErrorStack> {
         unsafe {
@@ -168,10 +151,7 @@ impl BigNumRef {
     }
 
     /// Returns the result of `self` modulo `w`.
-    ///
-    /// OpenSSL documentation at [`BN_mod_word`]
-    ///
-    /// [`BN_mod_word`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_mod_word.html
+    #[corresponds(BN_mod_word)]
     #[allow(clippy::useless_conversion)]
     pub fn mod_word(&self, w: u32) -> Result<u64, ErrorStack> {
         unsafe {
@@ -186,19 +166,13 @@ impl BigNumRef {
 
     /// Places a cryptographically-secure pseudo-random nonnegative
     /// number less than `self` in `rnd`.
-    ///
-    /// OpenSSL documentation at [`BN_rand_range`]
-    ///
-    /// [`BN_rand_range`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_rand_range.html
+    #[corresponds(BN_rand_range)]
     pub fn rand_range(&self, rnd: &mut BigNumRef) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::BN_rand_range(rnd.as_ptr(), self.as_ptr())).map(|_| ()) }
     }
 
     /// The cryptographically weak counterpart to `rand_in_range`.
-    ///
-    /// OpenSSL documentation at [`BN_pseudo_rand_range`]
-    ///
-    /// [`BN_pseudo_rand_range`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_pseudo_rand_range.html
+    #[corresponds(BN_pseudo_rand_range)]
     pub fn pseudo_rand_range(&self, rnd: &mut BigNumRef) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::BN_pseudo_rand_range(rnd.as_ptr(), self.as_ptr())).map(|_| ()) }
     }
@@ -206,10 +180,7 @@ impl BigNumRef {
     /// Sets bit `n`. Equivalent to `self |= (1 << n)`.
     ///
     /// When setting a bit outside of `self`, it is expanded.
-    ///
-    /// OpenSSL documentation at [`BN_set_bit`]
-    ///
-    /// [`BN_set_bit`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_set_bit.html
+    #[corresponds(BN_set_bit)]
     #[allow(clippy::useless_conversion)]
     pub fn set_bit(&mut self, n: i32) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::BN_set_bit(self.as_ptr(), n.into())).map(|_| ()) }
@@ -218,20 +189,14 @@ impl BigNumRef {
     /// Clears bit `n`, setting it to 0. Equivalent to `self &= ~(1 << n)`.
     ///
     /// When clearing a bit outside of `self`, an error is returned.
-    ///
-    /// OpenSSL documentation at [`BN_clear_bit`]
-    ///
-    /// [`BN_clear_bit`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_clear_bit.html
+    #[corresponds(BN_clear_bit)]
     #[allow(clippy::useless_conversion)]
     pub fn clear_bit(&mut self, n: i32) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::BN_clear_bit(self.as_ptr(), n.into())).map(|_| ()) }
     }
 
     /// Returns `true` if the `n`th bit of `self` is set to 1, `false` otherwise.
-    ///
-    /// OpenSSL documentation at [`BN_is_bit_set`]
-    ///
-    /// [`BN_is_bit_set`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_is_bit_set.html
+    #[corresponds(BN_is_bit_set)]
     #[allow(clippy::useless_conversion)]
     pub fn is_bit_set(&self, n: i32) -> bool {
         unsafe { ffi::BN_is_bit_set(self.as_ptr(), n.into()) == 1 }
@@ -240,93 +205,68 @@ impl BigNumRef {
     /// Truncates `self` to the lowest `n` bits.
     ///
     /// An error occurs if `self` is already shorter than `n` bits.
-    ///
-    /// OpenSSL documentation at [`BN_mask_bits`]
-    ///
-    /// [`BN_mask_bits`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_mask_bits.html
+    #[corresponds(BN_mask_bits)]
     #[allow(clippy::useless_conversion)]
     pub fn mask_bits(&mut self, n: i32) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::BN_mask_bits(self.as_ptr(), n.into())).map(|_| ()) }
     }
 
     /// Places `a << 1` in `self`.  Equivalent to `self * 2`.
-    ///
-    /// OpenSSL documentation at [`BN_lshift1`]
-    ///
-    /// [`BN_lshift1`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_lshift1.html
+    #[corresponds(BN_lshift1)]
     pub fn lshift1(&mut self, a: &BigNumRef) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::BN_lshift1(self.as_ptr(), a.as_ptr())).map(|_| ()) }
     }
 
     /// Places `a >> 1` in `self`. Equivalent to `self / 2`.
-    ///
-    /// OpenSSL documentation at [`BN_rshift1`]
-    ///
-    /// [`BN_rshift1`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_rshift1.html
+    #[corresponds(BN_rshift1)]
     pub fn rshift1(&mut self, a: &BigNumRef) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::BN_rshift1(self.as_ptr(), a.as_ptr())).map(|_| ()) }
     }
 
     /// Places `a + b` in `self`.  [`core::ops::Add`] is also implemented for `BigNumRef`.
     ///
-    /// OpenSSL documentation at [`BN_add`]
-    ///
     /// [`core::ops::Add`]: struct.BigNumRef.html#method.add
-    /// [`BN_add`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_add.html
+    #[corresponds(BN_add)]
     pub fn checked_add(&mut self, a: &BigNumRef, b: &BigNumRef) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::BN_add(self.as_ptr(), a.as_ptr(), b.as_ptr())).map(|_| ()) }
     }
 
     /// Places `a - b` in `self`. [`core::ops::Sub`] is also implemented for `BigNumRef`.
     ///
-    /// OpenSSL documentation at [`BN_sub`]
-    ///
     /// [`core::ops::Sub`]: struct.BigNumRef.html#method.sub
-    /// [`BN_sub`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_sub.html
+    #[corresponds(BN_sub)]
     pub fn checked_sub(&mut self, a: &BigNumRef, b: &BigNumRef) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::BN_sub(self.as_ptr(), a.as_ptr(), b.as_ptr())).map(|_| ()) }
     }
 
     /// Places `a << n` in `self`.  Equivalent to `a * 2 ^ n`.
-    ///
-    /// OpenSSL documentation at [`BN_lshift`]
-    ///
-    /// [`BN_lshift`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_lshift.html
+    #[corresponds(BN_lshift)]
     #[allow(clippy::useless_conversion)]
     pub fn lshift(&mut self, a: &BigNumRef, n: i32) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::BN_lshift(self.as_ptr(), a.as_ptr(), n.into())).map(|_| ()) }
     }
 
     /// Places `a >> n` in `self`. Equivalent to `a / 2 ^ n`.
-    ///
-    /// OpenSSL documentation at [`BN_rshift`]
-    ///
-    /// [`BN_rshift`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_rshift.html
+    #[corresponds(BN_rshift)]
     #[allow(clippy::useless_conversion)]
     pub fn rshift(&mut self, a: &BigNumRef, n: i32) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::BN_rshift(self.as_ptr(), a.as_ptr(), n.into())).map(|_| ()) }
     }
 
     /// Creates a new BigNum with the same value.
-    ///
-    /// OpenSSL documentation at [`BN_dup`]
-    ///
-    /// [`BN_dup`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_dup.html
+    #[corresponds(BN_dup)]
     pub fn to_owned(&self) -> Result<BigNum, ErrorStack> {
         unsafe { cvt_p(ffi::BN_dup(self.as_ptr())).map(|b| BigNum::from_ptr(b)) }
     }
 
     /// Sets the sign of `self`.  Pass true to set `self` to a negative.  False sets
     /// `self` positive.
+    #[corresponds(BN_set_negative)]
     pub fn set_negative(&mut self, negative: bool) {
         unsafe { ffi::BN_set_negative(self.as_ptr(), negative as c_int) }
     }
 
     /// Compare the absolute values of `self` and `oth`.
-    ///
-    /// OpenSSL documentation at [`BN_ucmp`]
-    ///
-    /// [`BN_ucmp`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_ucmp.html
     ///
     /// # Examples
     ///
@@ -338,20 +278,19 @@ impl BigNumRef {
     ///
     /// assert_eq!(s.ucmp(&o), Ordering::Equal);
     /// ```
+    #[corresponds(BN_ucmp)]
     pub fn ucmp(&self, oth: &BigNumRef) -> Ordering {
         unsafe { ffi::BN_ucmp(self.as_ptr(), oth.as_ptr()).cmp(&0) }
     }
 
     /// Returns `true` if `self` is negative.
+    #[corresponds(BN_is_negative)]
     pub fn is_negative(&self) -> bool {
         unsafe { BN_is_negative(self.as_ptr()) == 1 }
     }
 
     /// Returns the number of significant bits in `self`.
-    ///
-    /// OpenSSL documentation at [`BN_num_bits`]
-    ///
-    /// [`BN_num_bits`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_num_bits.html
+    #[corresponds(BN_num_bits)]
     pub fn num_bits(&self) -> i32 {
         unsafe { ffi::BN_num_bits(self.as_ptr()) as i32 }
     }
@@ -384,10 +323,8 @@ impl BigNumRef {
     /// }
     /// ```
     ///
-    /// OpenSSL documentation at [`BN_rand`]
-    ///
     /// [`constants`]: index.html#constants
-    /// [`BN_rand`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_rand.html
+    #[corresponds(BN_rand)]
     #[allow(clippy::useless_conversion)]
     pub fn rand(&mut self, bits: i32, msb: MsbOption, odd: bool) -> Result<(), ErrorStack> {
         unsafe {
@@ -402,10 +339,7 @@ impl BigNumRef {
     }
 
     /// The cryptographically weak counterpart to `rand`.  Not suitable for key generation.
-    ///
-    /// OpenSSL documentation at [`BN_pseudo_rand`]
-    ///
-    /// [`BN_pseudo_rand`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_pseudo_rand.html
+    #[corresponds(BN_pseudo_rand)]
     #[allow(clippy::useless_conversion)]
     pub fn pseudo_rand(&mut self, bits: i32, msb: MsbOption, odd: bool) -> Result<(), ErrorStack> {
         unsafe {
@@ -442,10 +376,7 @@ impl BigNumRef {
     ///    Ok((big))
     /// }
     /// ```
-    ///
-    /// OpenSSL documentation at [`BN_generate_prime_ex`]
-    ///
-    /// [`BN_generate_prime_ex`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_generate_prime_ex.html
+    #[corresponds(BN_generate_prime_ex)]
     pub fn generate_prime(
         &mut self,
         bits: i32,
@@ -469,10 +400,8 @@ impl BigNumRef {
     /// Places the result of `a * b` in `self`.
     /// [`core::ops::Mul`] is also implemented for `BigNumRef`.
     ///
-    /// OpenSSL documentation at [`BN_mul`]
-    ///
     /// [`core::ops::Mul`]: struct.BigNumRef.html#method.mul
-    /// [`BN_mul`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_mul.html
+    #[corresponds(BN_mul)]
     pub fn checked_mul(
         &mut self,
         a: &BigNumRef,
@@ -493,10 +422,8 @@ impl BigNumRef {
     /// Places the result of `a / b` in `self`. The remainder is discarded.
     /// [`core::ops::Div`] is also implemented for `BigNumRef`.
     ///
-    /// OpenSSL documentation at [`BN_div`]
-    ///
     /// [`core::ops::Div`]: struct.BigNumRef.html#method.div
-    /// [`BN_div`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_div.html
+    #[corresponds(BN_div)]
     pub fn checked_div(
         &mut self,
         a: &BigNumRef,
@@ -516,10 +443,7 @@ impl BigNumRef {
     }
 
     /// Places the result of `a % b` in `self`.
-    ///
-    /// OpenSSL documentation at [`BN_div`]
-    ///
-    /// [`BN_div`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_div.html
+    #[corresponds(BN_div)]
     pub fn checked_rem(
         &mut self,
         a: &BigNumRef,
@@ -539,10 +463,7 @@ impl BigNumRef {
     }
 
     /// Places the result of `a / b` in `self` and `a % b` in `rem`.
-    ///
-    /// OpenSSL documentation at [`BN_div`]
-    ///
-    /// [`BN_div`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_div.html
+    #[corresponds(BN_div)]
     pub fn div_rem(
         &mut self,
         rem: &mut BigNumRef,
@@ -563,20 +484,14 @@ impl BigNumRef {
     }
 
     /// Places the result of `a²` in `self`.
-    ///
-    /// OpenSSL documentation at [`BN_sqr`]
-    ///
-    /// [`BN_sqr`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_sqr.html
+    #[corresponds(BN_sqr)]
     pub fn sqr(&mut self, a: &BigNumRef, ctx: &mut BigNumContextRef) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::BN_sqr(self.as_ptr(), a.as_ptr(), ctx.as_ptr())).map(|_| ()) }
     }
 
     /// Places the result of `a mod m` in `self`.  As opposed to `div_rem`
     /// the result is non-negative.
-    ///
-    /// OpenSSL documentation at [`BN_nnmod`]
-    ///
-    /// [`BN_nnmod`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_nnmod.html
+    #[corresponds(BN_nnmod)]
     pub fn nnmod(
         &mut self,
         a: &BigNumRef,
@@ -595,10 +510,7 @@ impl BigNumRef {
     }
 
     /// Places the result of `(a + b) mod m` in `self`.
-    ///
-    /// OpenSSL documentation at [`BN_mod_add`]
-    ///
-    /// [`BN_mod_add`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_mod_add.html
+    #[corresponds(BN_mod_add)]
     pub fn mod_add(
         &mut self,
         a: &BigNumRef,
@@ -619,10 +531,7 @@ impl BigNumRef {
     }
 
     /// Places the result of `(a - b) mod m` in `self`.
-    ///
-    /// OpenSSL documentation at [`BN_mod_sub`]
-    ///
-    /// [`BN_mod_sub`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_mod_sub.html
+    #[corresponds(BN_mod_sub)]
     pub fn mod_sub(
         &mut self,
         a: &BigNumRef,
@@ -643,10 +552,7 @@ impl BigNumRef {
     }
 
     /// Places the result of `(a * b) mod m` in `self`.
-    ///
-    /// OpenSSL documentation at [`BN_mod_mul`]
-    ///
-    /// [`BN_mod_mul`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_mod_mul.html
+    #[corresponds(BN_mod_mul)]
     pub fn mod_mul(
         &mut self,
         a: &BigNumRef,
@@ -667,10 +573,7 @@ impl BigNumRef {
     }
 
     /// Places the result of `a² mod m` in `self`.
-    ///
-    /// OpenSSL documentation at [`BN_mod_sqr`]
-    ///
-    /// [`BN_mod_sqr`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_mod_sqr.html
+    #[corresponds(BN_mod_sqr)]
     pub fn mod_sqr(
         &mut self,
         a: &BigNumRef,
@@ -689,10 +592,7 @@ impl BigNumRef {
     }
 
     /// Places the result of `a^p` in `self`.
-    ///
-    /// OpenSSL documentation at [`BN_exp`]
-    ///
-    /// [`BN_exp`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_exp.html
+    #[corresponds(BN_exp)]
     pub fn exp(
         &mut self,
         a: &BigNumRef,
@@ -711,10 +611,7 @@ impl BigNumRef {
     }
 
     /// Places the result of `a^p mod m` in `self`.
-    ///
-    /// OpenSSL documentation at [`BN_mod_exp`]
-    ///
-    /// [`BN_mod_exp`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_mod_exp.html
+    #[corresponds(BN_mod_exp)]
     pub fn mod_exp(
         &mut self,
         a: &BigNumRef,
@@ -735,6 +632,7 @@ impl BigNumRef {
     }
 
     /// Places the inverse of `a` modulo `n` in `self`.
+    #[corresponds(BN_mod_inverse)]
     pub fn mod_inverse(
         &mut self,
         a: &BigNumRef,
@@ -753,10 +651,7 @@ impl BigNumRef {
     }
 
     /// Places the greatest common denominator of `a` and `b` in `self`.
-    ///
-    /// OpenSSL documentation at [`BN_gcd`]
-    ///
-    /// [`BN_gcd`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_gcd.html
+    #[corresponds(BN_gcd)]
     pub fn gcd(
         &mut self,
         a: &BigNumRef,
@@ -778,13 +673,10 @@ impl BigNumRef {
     ///
     /// Performs a Miller-Rabin probabilistic primality test with `checks` iterations.
     ///
-    /// OpenSSL documentation at [`BN_is_prime_ex`]
-    ///
-    /// [`BN_is_prime_ex`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_is_prime_ex.html
-    ///
     /// # Return Value
     ///
     /// Returns `true` if `self` is prime with an error probability of less than `0.25 ^ checks`.
+    #[corresponds(BN_is_prime_ex)]
     #[allow(clippy::useless_conversion)]
     pub fn is_prime(&self, checks: i32, ctx: &mut BigNumContextRef) -> Result<bool, ErrorStack> {
         unsafe {
@@ -804,13 +696,10 @@ impl BigNumRef {
     /// Then, like `is_prime`, performs a Miller-Rabin probabilistic primality test with `checks`
     /// iterations.
     ///
-    /// OpenSSL documentation at [`BN_is_prime_fasttest_ex`]
-    ///
-    /// [`BN_is_prime_fasttest_ex`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_is_prime_fasttest_ex.html
-    ///
     /// # Return Value
     ///
     /// Returns `true` if `self` is prime with an error probability of less than `0.25 ^ checks`.
+    #[corresponds(BN_is_prime_fasttest_ex)]
     #[allow(clippy::useless_conversion)]
     pub fn is_prime_fasttest(
         &self,
@@ -842,6 +731,7 @@ impl BigNumRef {
     /// let s_vec = s.to_vec();
     /// assert_eq!(BigNum::from_slice(&s_vec).unwrap(), r);
     /// ```
+    #[corresponds(BN_bn2bin)]
     pub fn to_vec(&self) -> Vec<u8> {
         let size = self.num_bytes() as usize;
         let mut v = Vec::with_capacity(size);
@@ -890,6 +780,7 @@ impl BigNumRef {
     ///
     /// assert_eq!(&**s.to_dec_str().unwrap(), "-12345");
     /// ```
+    #[corresponds(BN_bn2dec)]
     pub fn to_dec_str(&self) -> Result<OpensslString, ErrorStack> {
         unsafe {
             let buf = cvt_p(ffi::BN_bn2dec(self.as_ptr()))?;
@@ -905,6 +796,7 @@ impl BigNumRef {
     ///
     /// assert_eq!(&**s.to_hex_str().unwrap(), "-99ff");
     /// ```
+    #[corresponds(BN_bn2hex)]
     pub fn to_hex_str(&self) -> Result<OpensslString, ErrorStack> {
         unsafe {
             let buf = cvt_p(ffi::BN_bn2hex(self.as_ptr()))?;
@@ -913,6 +805,7 @@ impl BigNumRef {
     }
 
     /// Returns an `Asn1Integer` containing the value of `self`.
+    #[corresponds(BN_to_ASN1_INTEGER)]
     pub fn to_asn1_integer(&self) -> Result<Asn1Integer, ErrorStack> {
         unsafe {
             cvt_p(ffi::BN_to_ASN1_INTEGER(self.as_ptr(), ptr::null_mut()))
@@ -923,6 +816,7 @@ impl BigNumRef {
 
 impl BigNum {
     /// Creates a new `BigNum` with the value 0.
+    #[corresponds(BN_new)]
     pub fn new() -> Result<BigNum, ErrorStack> {
         unsafe {
             ffi::init();
@@ -932,10 +826,7 @@ impl BigNum {
     }
 
     /// Creates a new `BigNum` with the given value.
-    ///
-    /// OpenSSL documentation at [`BN_set_word`]
-    ///
-    /// [`BN_set_word`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_set_word.html
+    #[corresponds(BN_set_word)]
     pub fn from_u32(n: u32) -> Result<BigNum, ErrorStack> {
         BigNum::new().and_then(|v| unsafe {
             cvt(ffi::BN_set_word(v.as_ptr(), n as ffi::BN_ULONG)).map(|_| v)
@@ -943,10 +834,7 @@ impl BigNum {
     }
 
     /// Creates a `BigNum` from a decimal string.
-    ///
-    /// OpenSSL documentation at [`BN_dec2bn`]
-    ///
-    /// [`BN_dec2bn`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_dec2bn.html
+    #[corresponds(BN_dec2bn)]
     pub fn from_dec_str(s: &str) -> Result<BigNum, ErrorStack> {
         unsafe {
             ffi::init();
@@ -958,10 +846,7 @@ impl BigNum {
     }
 
     /// Creates a `BigNum` from a hexadecimal string.
-    ///
-    /// OpenSSL documentation at [`BN_hex2bn`]
-    ///
-    /// [`BN_hex2bn`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_hex2bn.html
+    #[corresponds(BN_hex2bn)]
     pub fn from_hex_str(s: &str) -> Result<BigNum, ErrorStack> {
         unsafe {
             ffi::init();
@@ -984,6 +869,7 @@ impl BigNum {
     ///
     /// assert_eq!(bignum, BigNum::from_u32(0x120034).unwrap());
     /// ```
+    #[corresponds(BN_bin2bn)]
     pub fn from_slice(n: &[u8]) -> Result<BigNum, ErrorStack> {
         unsafe {
             ffi::init();
@@ -1126,7 +1012,7 @@ macro_rules! delegate {
     };
 }
 
-impl<'a, 'b> Add<&'b BigNumRef> for &'a BigNumRef {
+impl Add<&BigNumRef> for &BigNumRef {
     type Output = BigNum;
 
     fn add(self, oth: &BigNumRef) -> BigNum {
@@ -1138,7 +1024,7 @@ impl<'a, 'b> Add<&'b BigNumRef> for &'a BigNumRef {
 
 delegate!(Add, add);
 
-impl<'a, 'b> Sub<&'b BigNumRef> for &'a BigNumRef {
+impl Sub<&BigNumRef> for &BigNumRef {
     type Output = BigNum;
 
     fn sub(self, oth: &BigNumRef) -> BigNum {
@@ -1150,7 +1036,7 @@ impl<'a, 'b> Sub<&'b BigNumRef> for &'a BigNumRef {
 
 delegate!(Sub, sub);
 
-impl<'a, 'b> Mul<&'b BigNumRef> for &'a BigNumRef {
+impl Mul<&BigNumRef> for &BigNumRef {
     type Output = BigNum;
 
     fn mul(self, oth: &BigNumRef) -> BigNum {
@@ -1163,7 +1049,7 @@ impl<'a, 'b> Mul<&'b BigNumRef> for &'a BigNumRef {
 
 delegate!(Mul, mul);
 
-impl<'a, 'b> Div<&'b BigNumRef> for &'a BigNumRef {
+impl<'b> Div<&'b BigNumRef> for &BigNumRef {
     type Output = BigNum;
 
     fn div(self, oth: &'b BigNumRef) -> BigNum {
@@ -1176,7 +1062,7 @@ impl<'a, 'b> Div<&'b BigNumRef> for &'a BigNumRef {
 
 delegate!(Div, div);
 
-impl<'a, 'b> Rem<&'b BigNumRef> for &'a BigNumRef {
+impl<'b> Rem<&'b BigNumRef> for &BigNumRef {
     type Output = BigNum;
 
     fn rem(self, oth: &'b BigNumRef) -> BigNum {
@@ -1189,7 +1075,7 @@ impl<'a, 'b> Rem<&'b BigNumRef> for &'a BigNumRef {
 
 delegate!(Rem, rem);
 
-impl<'a> Shl<i32> for &'a BigNumRef {
+impl Shl<i32> for &BigNumRef {
     type Output = BigNum;
 
     fn shl(self, n: i32) -> BigNum {
@@ -1199,7 +1085,7 @@ impl<'a> Shl<i32> for &'a BigNumRef {
     }
 }
 
-impl<'a> Shl<i32> for &'a BigNum {
+impl Shl<i32> for &BigNum {
     type Output = BigNum;
 
     fn shl(self, n: i32) -> BigNum {
@@ -1207,7 +1093,7 @@ impl<'a> Shl<i32> for &'a BigNum {
     }
 }
 
-impl<'a> Shr<i32> for &'a BigNumRef {
+impl Shr<i32> for &BigNumRef {
     type Output = BigNum;
 
     fn shr(self, n: i32) -> BigNum {
@@ -1217,7 +1103,7 @@ impl<'a> Shr<i32> for &'a BigNumRef {
     }
 }
 
-impl<'a> Shr<i32> for &'a BigNum {
+impl Shr<i32> for &BigNum {
     type Output = BigNum;
 
     fn shr(self, n: i32) -> BigNum {
@@ -1225,7 +1111,7 @@ impl<'a> Shr<i32> for &'a BigNum {
     }
 }
 
-impl<'a> Neg for &'a BigNumRef {
+impl Neg for &BigNumRef {
     type Output = BigNum;
 
     fn neg(self) -> BigNum {
@@ -1233,7 +1119,7 @@ impl<'a> Neg for &'a BigNumRef {
     }
 }
 
-impl<'a> Neg for &'a BigNum {
+impl Neg for &BigNum {
     type Output = BigNum;
 
     fn neg(self) -> BigNum {

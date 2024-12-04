@@ -9,7 +9,7 @@ use crate::error::ErrorStack;
 
 pub struct MemBioSlice<'a>(*mut ffi::BIO, PhantomData<&'a [u8]>);
 
-impl<'a> Drop for MemBioSlice<'a> {
+impl Drop for MemBioSlice<'_> {
     fn drop(&mut self) {
         unsafe {
             ffi::BIO_free_all(self.0);
@@ -19,9 +19,9 @@ impl<'a> Drop for MemBioSlice<'a> {
 
 impl<'a> MemBioSlice<'a> {
     pub fn new(buf: &'a [u8]) -> Result<MemBioSlice<'a>, ErrorStack> {
-        #[cfg(not(feature = "fips"))]
+        #[cfg(not(feature = "fips-compat"))]
         type BufLen = isize;
-        #[cfg(feature = "fips")]
+        #[cfg(feature = "fips-compat")]
         type BufLen = libc::c_int;
 
         ffi::init();

@@ -35,7 +35,7 @@
 //!    store_builder.add_crl(builder.build())?;
 //!    store_builder
 //!        .param_mut()
-//!        .set_flags(X509VerifyFlags::CRL_CHECK | X509VerifyFlags::CRL_CHECK_ALL)?;
+//!        .set_flags(X509VerifyFlags::CRL_CHECK | X509VerifyFlags::CRL_CHECK_ALL);
 //!     Ok(store_builder.build())
 //! }
 //! ```

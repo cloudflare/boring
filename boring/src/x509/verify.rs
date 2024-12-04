@@ -1,14 +1,16 @@
 use crate::ffi;
-use foreign_types::ForeignTypeRef;
-use libc::{c_uint, c_ulong, time_t};
+use foreign_types::{ForeignType, ForeignTypeRef};
+use libc::{c_int, c_uint, c_ulong, time_t};
+use openssl_macros::corresponds;
 use std::net::IpAddr;
 
-use crate::cvt;
 use crate::error::ErrorStack;
+use crate::{cvt, cvt_p};
 
 bitflags! {
     /// Flags used to check an `X509` certificate.
     #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
+    #[repr(transparent)]
     pub struct X509CheckFlags: c_uint {
         const ALWAYS_CHECK_SUBJECT = ffi::X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT as _;
         const NO_WILDCARDS = ffi::X509_CHECK_FLAG_NO_WILDCARDS as _;
@@ -24,9 +26,14 @@ bitflags! {
     }
 }
 
+#[doc(hidden)]
+#[deprecated(note = "X509Flags renamed to X509VerifyFlags")]
+pub use X509VerifyFlags as X509Flags;
+
 bitflags! {
     /// Flags used to configure verification of an `X509` certificate
     #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
+    #[repr(transparent)]
     pub struct X509VerifyFlags: c_ulong {
         const CB_ISSUER_CHECK = ffi::X509_V_FLAG_CB_ISSUER_CHECK as _;
         const USE_CHECK_TIME = ffi::X509_V_FLAG_USE_CHECK_TIME as _;
@@ -41,7 +48,7 @@ bitflags! {
         const INHIBIT_MAP = ffi::X509_V_FLAG_INHIBIT_MAP as _;
         const NOTIFY_POLICY = ffi::X509_V_FLAG_NOTIFY_POLICY as _;
         const EXTENDED_CRL_SUPPORT = ffi::X509_V_FLAG_EXTENDED_CRL_SUPPORT as _;
-        const FLAG_USE_DELTAS = ffi::X509_V_FLAG_USE_DELTAS as _;
+        const USE_DELTAS = ffi::X509_V_FLAG_USE_DELTAS as _;
         const CHECK_SS_SIGNATURE = ffi::X509_V_FLAG_CHECK_SS_SIGNATURE as _;
         const TRUSTED_FIRST = ffi::X509_V_FLAG_TRUSTED_FIRST as _;
         const PARTIAL_CHAIN = ffi::X509_V_FLAG_PARTIAL_CHAIN as _;
@@ -57,72 +64,91 @@ foreign_type_and_impl_send_sync! {
     pub struct X509VerifyParam;
 }
 
+impl X509VerifyParam {
+    /// Create an X509VerifyParam
+    #[corresponds(X509_VERIFY_PARAM_new)]
+    pub fn new() -> Result<Self, ErrorStack> {
+        unsafe {
+            ffi::init();
+            let handle = cvt_p(ffi::X509_VERIFY_PARAM_new())?;
+            Ok(Self::from_ptr(handle))
+        }
+    }
+}
+
 impl X509VerifyParamRef {
-    /// Set the verify flags by OR-ing them with `flags`
-    ///
-    /// This corresponds to [`X509_VERIFY_PARAM_set_flags`].
-    ///
-    /// [`X509_VERIFY_PARAM_set_flags`]: https://www.openssl.org/docs/man3.2/man3/X509_VERIFY_PARAM_set_flags.html
-    pub fn set_flags(&mut self, flags: X509VerifyFlags) -> Result<(), ErrorStack> {
+    /// Set verification flags.
+    #[corresponds(X509_VERIFY_PARAM_set_flags)]
+    pub fn set_flags(&mut self, flags: X509VerifyFlags) {
         unsafe {
             cvt(ffi::X509_VERIFY_PARAM_set_flags(
                 self.as_ptr(),
                 flags.bits(),
             ))
-            .map(|_| ())
+            .unwrap();
         }
     }
 
-    /// Clears the verify flags in `flags`
-    ///
-    /// Useful to clear out default flags, such as `X509VerifyFlags::TRUSTED_FIRST` when the fips feature is off.
-    ///
-    /// This corresponds to [`X509_VERIFY_PARAM_clear_flags`].
-    ///
-    /// [`X509_VERIFY_PARAM_clear_flags`]: https://www.openssl.org/docs/man3.2/man3/X509_VERIFY_PARAM_clear_flags.html
-    pub fn clear_flags(&mut self, flags: X509VerifyFlags) -> Result<(), ErrorStack> {
+    /// Clear verification flags.
+    #[corresponds(X509_VERIFY_PARAM_clear_flags)]
+    pub fn clear_flags(&mut self, flags: X509VerifyFlags) {
         unsafe {
             cvt(ffi::X509_VERIFY_PARAM_clear_flags(
                 self.as_ptr(),
                 flags.bits(),
             ))
-            .map(|_| ())
+            .unwrap();
         }
     }
 
     ///
     /// Set the host flags.
-    ///
-    /// This corresponds to [`X509_VERIFY_PARAM_set_hostflags`].
-    ///
-    /// [`X509_VERIFY_PARAM_set_hostflags`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_VERIFY_PARAM_set_hostflags.html
+    #[corresponds(X509_VERIFY_PARAM_set_hostflags)]
     pub fn set_hostflags(&mut self, hostflags: X509CheckFlags) {
         unsafe {
             ffi::X509_VERIFY_PARAM_set_hostflags(self.as_ptr(), hostflags.bits());
         }
     }
 
+    /// Gets verification flags.
+    #[corresponds(X509_VERIFY_PARAM_get_flags)]
+    pub fn flags(&self) -> X509VerifyFlags {
+        let bits = unsafe { ffi::X509_VERIFY_PARAM_get_flags(self.as_ptr()) };
+        X509VerifyFlags::from_bits_retain(bits)
+    }
+
     /// Set the expected DNS hostname.
-    ///
-    /// This corresponds to [`X509_VERIFY_PARAM_set1_host`].
-    ///
-    /// [`X509_VERIFY_PARAM_set1_host`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_VERIFY_PARAM_set1_host.html
+    #[corresponds(X509_VERIFY_PARAM_set1_host)]
     pub fn set_host(&mut self, host: &str) -> Result<(), ErrorStack> {
         unsafe {
+            // len == 0 means "run strlen" :(
+            let raw_host = if host.is_empty() { "\0" } else { host };
             cvt(ffi::X509_VERIFY_PARAM_set1_host(
                 self.as_ptr(),
-                host.as_ptr() as *const _,
+                raw_host.as_ptr() as *const _,
                 host.len(),
             ))
             .map(|_| ())
         }
     }
 
+    /// Set the expected email address.
+    #[corresponds(X509_VERIFY_PARAM_set1_email)]
+    pub fn set_email(&mut self, email: &str) -> Result<(), ErrorStack> {
+        unsafe {
+            // len == 0 means "run strlen" :(
+            let raw_email = if email.is_empty() { "\0" } else { email };
+            cvt(ffi::X509_VERIFY_PARAM_set1_email(
+                self.as_ptr(),
+                raw_email.as_ptr() as *const _,
+                email.len(),
+            ))
+            .map(|_| ())
+        }
+    }
+
     /// Set the expected IPv4 or IPv6 address.
-    ///
-    /// This corresponds to [`X509_VERIFY_PARAM_set1_ip`].
-    ///
-    /// [`X509_VERIFY_PARAM_set1_ip`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_VERIFY_PARAM_set1_ip.html
+    #[corresponds(X509_VERIFY_PARAM_set1_ip)]
     pub fn set_ip(&mut self, ip: IpAddr) -> Result<(), ErrorStack> {
         unsafe {
             let mut buf = [0; 16];
@@ -145,31 +171,15 @@ impl X509VerifyParamRef {
         }
     }
 
-    /// Sets the time to check certificates and CRLs against.
-    ///
-    /// If unset, uses the current time.
-    ///
-    /// This corresponds to [`X509_VERIFY_PARAM_set_time`]. Note that BoringSSL does not support
-    /// the OpenSSL `NO_CHECK_TIME` option.
-    ///
-    /// [`X509_VERIFY_PARAM_set_time`]: https://www.openssl.org/docs/man1.1.1/man3/X509_VERIFY_PARAM_set_time.html
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use boring::x509::store::X509StoreBuilder;
-    /// use std::convert::TryInto;
-    /// use std::time::SystemTime;
-    ///
-    /// let mut store_builder = X509StoreBuilder::new().expect("can create a new builder");
-    /// let duration_since_epoch = SystemTime::UNIX_EPOCH.elapsed().expect("it's after 1970");
-    /// let seconds_since_epoch: libc::time_t = duration_since_epoch
-    ///     .as_secs()
-    ///     .try_into()
-    ///     .expect("time_t is large enough to represent this time");
-    /// store_builder.param_mut().set_time(seconds_since_epoch);
-    /// ```
-    pub fn set_time(&mut self, unix_time: time_t) {
-        unsafe { ffi::X509_VERIFY_PARAM_set_time(self.as_ptr(), unix_time) }
+    /// Set the verification time, where time is of type time_t, traditionaly defined as seconds since the epoch
+    #[corresponds(X509_VERIFY_PARAM_set_time)]
+    pub fn set_time(&mut self, time: time_t) {
+        unsafe { ffi::X509_VERIFY_PARAM_set_time(self.as_ptr(), time) }
+    }
+
+    /// Set the verification depth
+    #[corresponds(X509_VERIFY_PARAM_set_depth)]
+    pub fn set_depth(&mut self, depth: c_int) {
+        unsafe { ffi::X509_VERIFY_PARAM_set_depth(self.as_ptr(), depth) }
     }
 }

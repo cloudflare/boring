@@ -85,3 +85,6 @@ bindgen = { workspace = true }
 cmake = { workspace = true }
 fs_extra = { workspace = true }
 fslock = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(const_fn)'] }

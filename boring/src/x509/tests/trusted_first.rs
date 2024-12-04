@@ -15,7 +15,7 @@ fn test_verify_cert() {
 
     assert_eq!(Ok(()), verify(&leaf, &[&root1], &[&intermediate], |_| {}));
 
-    #[cfg(not(feature = "fips"))]
+    #[cfg(not(feature = "fips-compat"))]
     assert_eq!(
         Ok(()),
         verify(
@@ -26,7 +26,7 @@ fn test_verify_cert() {
         )
     );
 
-    #[cfg(feature = "fips")]
+    #[cfg(feature = "fips-compat")]
     assert_eq!(
         Err(X509VerifyError::CERT_HAS_EXPIRED),
         verify(
@@ -43,7 +43,7 @@ fn test_verify_cert() {
             &leaf,
             &[&root1, &root2],
             &[&intermediate, &root1_cross],
-            |param| param.set_flags(X509VerifyFlags::TRUSTED_FIRST).unwrap(),
+            |param| param.set_flags(X509VerifyFlags::TRUSTED_FIRST),
         )
     );
 
@@ -53,14 +53,14 @@ fn test_verify_cert() {
             &leaf,
             &[&root1, &root2],
             &[&intermediate, &root1_cross],
-            |param| param.clear_flags(X509VerifyFlags::TRUSTED_FIRST).unwrap(),
+            |param| param.clear_flags(X509VerifyFlags::TRUSTED_FIRST),
         )
     );
 
     assert_eq!(
         Ok(()),
         verify(&leaf, &[&root1], &[&intermediate, &root1_cross], |param| {
-            param.clear_flags(X509VerifyFlags::TRUSTED_FIRST).unwrap()
+            param.clear_flags(X509VerifyFlags::TRUSTED_FIRST)
         },)
     );
 }

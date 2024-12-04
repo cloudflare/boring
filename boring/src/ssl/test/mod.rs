@@ -24,6 +24,7 @@ use crate::x509::{X509Name, X509};
 #[cfg(not(feature = "fips"))]
 use super::CompliancePolicy;
 
+mod cert_verify;
 mod custom_verify;
 mod private_key_method;
 mod server;
@@ -945,6 +946,19 @@ fn get_curve_name() {
     assert_eq!(SslCurve::X25519.name(), Some("X25519"));
 }
 
+#[cfg(not(feature = "kx-safe-default"))]
+#[test]
+fn set_curves() {
+    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
+    ctx.set_curves(&[
+        SslCurve::SECP224R1,
+        SslCurve::SECP256R1,
+        SslCurve::SECP384R1,
+        SslCurve::X25519,
+    ])
+    .expect("Failed to set curves");
+}
+
 #[test]
 fn test_get_ciphers() {
     let ctx_builder = SslContext::builder(SslMethod::tls()).unwrap();
@@ -1038,4 +1052,18 @@ fn drop_ex_data_in_ssl() {
     assert_eq!(ssl.replace_ex_data(index, "comté"), None);
     assert_eq!(ssl.replace_ex_data(index, "camembert"), Some("comté"));
     assert_eq!(ssl.replace_ex_data(index, "raclette"), Some("camembert"));
+}
+
+#[test]
+fn test_info_callback() {
+    static CALLED_BACK: AtomicBool = AtomicBool::new(false);
+
+    let server = Server::builder().build();
+    let mut client = server.client();
+    client.ctx().set_info_callback(move |_, _, _| {
+        CALLED_BACK.store(true, Ordering::Relaxed);
+    });
+
+    client.connect();
+    assert!(CALLED_BACK.load(Ordering::Relaxed));
 }

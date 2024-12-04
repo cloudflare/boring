@@ -39,6 +39,7 @@
 //!
 use crate::ffi;
 use libc::{c_int, c_uint, size_t};
+use openssl_macros::corresponds;
 use std::mem::MaybeUninit;
 use std::ptr;
 
@@ -55,7 +56,7 @@ impl AesKey {
     /// # Failure
     ///
     /// Returns an error if the key is not 128, 192, or 256 bits.
-    #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+    #[corresponds(AES_set_encrypt_key)]
     pub fn new_encrypt(key: &[u8]) -> Result<AesKey, KeyError> {
         unsafe {
             assert!(key.len() <= c_int::MAX as usize / 8);
@@ -79,7 +80,7 @@ impl AesKey {
     /// # Failure
     ///
     /// Returns an error if the key is not 128, 192, or 256 bits.
-    #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+    #[corresponds(AES_set_decrypt_key)]
     pub fn new_decrypt(key: &[u8]) -> Result<AesKey, KeyError> {
         unsafe {
             assert!(key.len() <= c_int::MAX as usize / 8);
@@ -113,6 +114,7 @@ impl AesKey {
 ///
 /// Panics if either `out` or `in_` do not have sizes that are a multiple of 8, or if
 /// `out` is not 8 bytes longer than `in_`
+#[corresponds(AES_wrap_key)]
 pub fn wrap_key(
     key: &AesKey,
     iv: Option<[u8; 8]>,
@@ -151,6 +153,7 @@ pub fn wrap_key(
 ///
 /// Panics if either `out` or `in_` do not have sizes that are a multiple of 8, or
 /// if `in_` is not 8 bytes longer than `out`
+#[corresponds(AES_unwrap_key)]
 pub fn unwrap_key(
     key: &AesKey,
     iv: Option<[u8; 8]>,

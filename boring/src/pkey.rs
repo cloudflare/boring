@@ -72,6 +72,7 @@ pub struct Id(c_int);
 
 impl Id {
     pub const RSA: Id = Id(ffi::EVP_PKEY_RSA);
+    pub const RSAPSS: Id = Id(ffi::EVP_PKEY_RSA_PSS);
     pub const DSA: Id = Id(ffi::EVP_PKEY_DSA);
     pub const DH: Id = Id(ffi::EVP_PKEY_DH);
     pub const EC: Id = Id(ffi::EVP_PKEY_EC);
@@ -303,6 +304,7 @@ impl<T> fmt::Debug for PKey<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let alg = match self.id() {
             Id::RSA => "RSA",
+            Id::RSAPSS => "RSAPSS",
             Id::DSA => "DSA",
             Id::DH => "DH",
             Id::EC => "EC",
