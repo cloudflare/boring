@@ -6,11 +6,11 @@ use boring::ssl::{
     ConnectConfiguration, Ssl, SslConnector, SslConnectorBuilder, SslMethod, SslRef,
     SslSessionCacheMode,
 };
-use http_old::uri::Scheme;
-use hyper_old::client::connect::{Connected, Connection};
-use hyper_old::client::HttpConnector;
-use hyper_old::service::Service;
-use hyper_old::Uri;
+use http0::uri::Scheme;
+use hyper0::client::connect::{Connected, Connection};
+use hyper0::client::HttpConnector;
+use hyper0::service::Service;
+use hyper0::Uri;
 use std::error::Error;
 use std::future::Future;
 use std::net;

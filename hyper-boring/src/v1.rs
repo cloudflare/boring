@@ -6,9 +6,9 @@ use boring::ssl::{
     ConnectConfiguration, Ssl, SslConnector, SslConnectorBuilder, SslMethod, SslRef,
     SslSessionCacheMode,
 };
-use http::uri::Scheme;
-use http::Uri;
-use hyper::rt::{Read, ReadBufCursor, Write};
+use http1::uri::Scheme;
+use http1::Uri;
+use hyper1::rt::{Read, ReadBufCursor, Write};
 use hyper_util::client::legacy::connect::{Connected, Connection, HttpConnector};
 use hyper_util::rt::TokioIo;
 use std::error::Error;
@@ -20,9 +20,9 @@ use std::task::{Context, Poll};
 use std::{io, net};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
-#[cfg(feature = "runtime")]
+#[cfg(all(feature = "runtime", feature = "hyper1-runtime"))]
 use tower::util::MapResponse;
-#[cfg(feature = "runtime")]
+#[cfg(all(feature = "runtime", feature = "hyper1-runtime"))]
 use tower::ServiceExt;
 use tower_layer::Layer;
 use tower_service::Service;
@@ -39,7 +39,7 @@ pub struct HttpsConnector<T> {
 pub type TokioHttpConnector =
     MapResponse<HttpConnector, fn(TokioIo<TcpStream>) -> TokioIo<TokioIo<TcpStream>>>;
 
-#[cfg(feature = "runtime")]
+#[cfg(all(feature = "runtime", feature = "hyper1-runtime"))]
 impl HttpsConnector<TokioHttpConnector> {
     /// Creates a a new `HttpsConnector` using default settings.
     ///
