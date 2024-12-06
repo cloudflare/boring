@@ -11,12 +11,14 @@ use std::fmt;
 use tokio_boring::SslStream;
 
 mod cache;
-mod v0;
-/// Hyper 1 support.
+/// Hyper 0 support.
+#[cfg(feature = "hyper0")]
+pub mod v0;
 #[cfg(feature = "hyper1")]
-pub mod v1;
+mod v1;
 
-pub use self::v0::*;
+#[cfg(feature = "hyper1")]
+pub use self::v1::*;
 
 fn key_index() -> Result<Index<Ssl, SessionKey>, ErrorStack> {
     static IDX: OnceCell<Index<Ssl, SessionKey>> = OnceCell::new();

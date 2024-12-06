@@ -1,10 +1,12 @@
+#![cfg(feature = "hyper0")]
+
 use boring::ssl::{SslAcceptor, SslConnector, SslFiletype, SslMethod};
 use futures::StreamExt;
-use hyper_boring::HttpsConnector;
-use hyper_old::client::HttpConnector;
-use hyper_old::server::conn::Http;
-use hyper_old::{service, Response};
-use hyper_old::{Body, Client};
+use hyper0::client::HttpConnector;
+use hyper0::server::conn::Http;
+use hyper0::{service, Response};
+use hyper0::{Body, Client};
+use hyper_boring::v0::HttpsConnector;
 use std::convert::Infallible;
 use std::{io, iter};
 use tokio::net::TcpListener;
