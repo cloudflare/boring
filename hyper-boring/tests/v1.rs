@@ -12,6 +12,7 @@ use hyper_util::rt::{TokioExecutor, TokioIo};
 use std::convert::Infallible;
 use std::{io, iter};
 use tokio::net::TcpListener;
+use tower::ServiceExt;
 
 #[tokio::test]
 async fn google() {
@@ -83,7 +84,7 @@ async fn localhost() {
         let _ = writeln!(&file, "{}", line);
     });
 
-    let ssl = HttpsConnector::with_connector(connector, ssl).unwrap();
+    let ssl = HttpsConnector::with_connector(connector.map_response(TokioIo::new), ssl).unwrap();
     let client = Client::builder(TokioExecutor::new()).build::<_, Empty<Bytes>>(ssl);
 
     for _ in 0..3 {
@@ -144,7 +145,8 @@ async fn alpn_h2() {
 
     ssl.set_ca_file("tests/test/root-ca.pem").unwrap();
 
-    let mut ssl = HttpsConnector::with_connector(connector, ssl).unwrap();
+    let mut ssl =
+        HttpsConnector::with_connector(connector.map_response(TokioIo::new), ssl).unwrap();
 
     ssl.set_ssl_callback(|ssl, _| ssl.set_alpn_protos(b"\x02h2\x08http/1.1"));
 
