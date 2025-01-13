@@ -1,6 +1,7 @@
 //! Shared secret derivation.
 use crate::ffi;
 use foreign_types::ForeignTypeRef;
+use openssl_macros::corresponds;
 use std::marker::PhantomData;
 use std::ptr;
 
@@ -25,10 +26,7 @@ impl Drop for Deriver<'_> {
 #[allow(clippy::len_without_is_empty)]
 impl<'a> Deriver<'a> {
     /// Creates a new `Deriver` using the provided private key.
-    ///
-    /// This corresponds to [`EVP_PKEY_derive_init`].
-    ///
-    /// [`EVP_PKEY_derive_init`]: https://www.openssl.org/docs/man1.0.2/crypto/EVP_PKEY_derive_init.html
+    #[corresponds(EVP_PKEY_derive_init)]
     pub fn new<T>(key: &'a PKeyRef<T>) -> Result<Deriver<'a>, ErrorStack>
     where
         T: HasPrivate,
@@ -41,10 +39,7 @@ impl<'a> Deriver<'a> {
     }
 
     /// Sets the peer key used for secret derivation.
-    ///
-    /// This corresponds to [`EVP_PKEY_derive_set_peer`]:
-    ///
-    /// [`EVP_PKEY_derive_set_peer`]: https://www.openssl.org/docs/man1.0.2/crypto/EVP_PKEY_derive_init.html
+    #[corresponds(EVP_PKEY_derive_set_peer)]
     pub fn set_peer<T>(&mut self, key: &'a PKeyRef<T>) -> Result<(), ErrorStack>
     where
         T: HasPublic,
@@ -55,10 +50,7 @@ impl<'a> Deriver<'a> {
     /// Returns the size of the shared secret.
     ///
     /// It can be used to size the buffer passed to [`Deriver::derive`].
-    ///
-    /// This corresponds to [`EVP_PKEY_derive`].
-    ///
-    /// [`Deriver::derive`]: #method.derive
+    #[corresponds(EVP_PKEY_derive)]
     /// [`EVP_PKEY_derive`]: https://www.openssl.org/docs/man1.0.2/crypto/EVP_PKEY_derive_init.html
     pub fn len(&mut self) -> Result<usize, ErrorStack> {
         unsafe {
@@ -70,10 +62,7 @@ impl<'a> Deriver<'a> {
     /// Derives a shared secret between the two keys, writing it into the buffer.
     ///
     /// Returns the number of bytes written.
-    ///
-    /// This corresponds to [`EVP_PKEY_derive`].
-    ///
-    /// [`EVP_PKEY_derive`]: https://www.openssl.org/docs/man1.0.2/crypto/EVP_PKEY_derive_init.html
+    #[corresponds(EVP_PKEY_derive)]
     pub fn derive(&mut self, buf: &mut [u8]) -> Result<usize, ErrorStack> {
         let mut len = buf.len();
         unsafe {
