@@ -1,5 +1,3 @@
-use once_cell::sync::OnceCell;
-
 use super::server::{Builder, Server};
 use super::KEY;
 use crate::hash::MessageDigest;
@@ -12,7 +10,7 @@ use crate::ssl::{
 };
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 #[allow(clippy::type_complexity)]
 pub(super) struct Method {
@@ -233,7 +231,7 @@ fn test_sign_ok() {
 
 #[test]
 fn test_sign_retry_complete_ok() {
-    let input_cell = Arc::new(OnceCell::new());
+    let input_cell = Arc::new(OnceLock::new());
     let input_cell_clone = input_cell.clone();
 
     let mut builder = builder_with_private_key_method(

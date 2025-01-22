@@ -59,7 +59,6 @@
 //! ```
 use foreign_types::{ForeignType, ForeignTypeRef, Opaque};
 use libc::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
-use once_cell::sync::Lazy;
 use openssl_macros::corresponds;
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -76,7 +75,7 @@ use std::path::Path;
 use std::ptr::{self, NonNull};
 use std::slice;
 use std::str;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 
 use crate::dh::DhRef;
 use crate::ec::EcKeyRef;
@@ -426,12 +425,15 @@ impl NameType {
     }
 }
 
-static INDEXES: Lazy<Mutex<HashMap<TypeId, c_int>>> = Lazy::new(|| Mutex::new(HashMap::new()));
-static SSL_INDEXES: Lazy<Mutex<HashMap<TypeId, c_int>>> = Lazy::new(|| Mutex::new(HashMap::new()));
-static SESSION_CTX_INDEX: Lazy<Index<Ssl, SslContext>> = Lazy::new(|| Ssl::new_ex_index().unwrap());
+static INDEXES: LazyLock<Mutex<HashMap<TypeId, c_int>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+static SSL_INDEXES: LazyLock<Mutex<HashMap<TypeId, c_int>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+static SESSION_CTX_INDEX: LazyLock<Index<Ssl, SslContext>> =
+    LazyLock::new(|| Ssl::new_ex_index().unwrap());
 #[cfg(feature = "rpk")]
-static RPK_FLAG_INDEX: Lazy<Index<SslContext, bool>> =
-    Lazy::new(|| SslContext::new_ex_index().unwrap());
+static RPK_FLAG_INDEX: LazyLock<Index<SslContext, bool>> =
+    LazyLock::new(|| SslContext::new_ex_index().unwrap());
 
 unsafe extern "C" fn free_data_box<T>(
     _parent: *mut c_void,

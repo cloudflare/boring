@@ -9,6 +9,7 @@ repository = { workspace = true }
 documentation = "https://docs.rs/hyper-boring"
 readme = "README.md"
 exclude = ["test/*"]
+rust-version = "1.80"
 
 [package.metadata.docs.rs]
 features = ["pq-experimental"]
@@ -45,7 +46,6 @@ hyper1 = { workspace = true, optional = true }
 hyper-util = { workspace = true, optional = true, features = ["client", "client-legacy"] }
 hyper0 = { workspace = true, optional = true, features = ["client"] }
 linked_hash_set = { workspace = true }
-once_cell = { workspace = true }
 boring = { workspace = true }
 tokio = { workspace = true }
 tokio-boring = { workspace = true }
