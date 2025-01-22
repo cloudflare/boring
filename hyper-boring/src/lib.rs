@@ -6,8 +6,8 @@ use crate::cache::SessionKey;
 use boring::error::ErrorStack;
 use boring::ex_data::Index;
 use boring::ssl::Ssl;
-use once_cell::sync::OnceCell;
 use std::fmt;
+use std::sync::LazyLock;
 use tokio_boring::SslStream;
 
 mod cache;
@@ -21,8 +21,8 @@ mod v1;
 pub use self::v1::*;
 
 fn key_index() -> Result<Index<Ssl, SessionKey>, ErrorStack> {
-    static IDX: OnceCell<Index<Ssl, SessionKey>> = OnceCell::new();
-    IDX.get_or_try_init(Ssl::new_ex_index).copied()
+    static IDX: LazyLock<Index<Ssl, SessionKey>> = LazyLock::new(|| Ssl::new_ex_index().unwrap());
+    Ok(*IDX)
 }
 
 /// Settings for [`HttpsLayer`]
