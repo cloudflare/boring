@@ -3492,7 +3492,7 @@ impl SslRef {
     /// This can be used to provide data to callbacks registered with the context. Use the
     /// `Ssl::new_ex_index` method to create an `Index`.
     ///
-    /// Any previous value will be dropped and replaced by the new one.
+    /// The previous value, if any, will be returned.
     #[corresponds(SSL_set_ex_data)]
     pub fn replace_ex_data<T>(&mut self, index: Index<Ssl, T>, data: T) -> Option<T> {
         if let Some(old) = self.ex_data_mut(index) {
