@@ -87,6 +87,8 @@ use crate::pkey::{HasPrivate, PKeyRef, Params, Private};
 use crate::srtp::{SrtpProtectionProfile, SrtpProtectionProfileRef};
 use crate::ssl::bio::BioMethod;
 use crate::ssl::callbacks::*;
+#[cfg(not(feature = "fips"))]
+use crate::ssl::ech::SslEchKeys;
 use crate::ssl::error::InnerError;
 use crate::stack::{Stack, StackRef, Stackable};
 use crate::x509::store::{X509Store, X509StoreBuilderRef, X509StoreRef};
@@ -110,6 +112,8 @@ mod async_callbacks;
 mod bio;
 mod callbacks;
 mod connector;
+#[cfg(not(feature = "fips"))]
+mod ech;
 mod error;
 mod mut_only;
 #[cfg(test)]
@@ -1956,6 +1960,16 @@ impl SslContextBuilder {
         }
     }
 
+    /// Registers a list of ECH keys on the context. This list should contain new and old
+    /// ECHConfigs to allow stale DNS caches to update. Unlike most `SSL_CTX` APIs, this function
+    /// is safe to call even after the `SSL_CTX` has been associated with connections on various
+    /// threads.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_CTX_set1_ech_keys)]
+    pub fn set_ech_keys(&mut self, keys: SslEchKeys) -> Result<(), ErrorStack> {
+        unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())).map(|_| ()) }
+    }
+
     /// Consumes the builder, returning a new `SslContext`.
     pub fn build(self) -> SslContext {
         self.ctx
@@ -3622,6 +3636,77 @@ impl SslRef {
     #[corresponds(SSL_add1_chain_cert)]
     pub fn add_chain_cert(&mut self, cert: &X509Ref) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_add1_chain_cert(self.as_ptr(), cert.as_ptr())).map(|_| ()) }
+    }
+
+    /// Configures `ech_config_list` on `SSL` for offering ECH during handshakes. If the server
+    /// cannot decrypt the encrypted ClientHello, `SSL` will instead handshake using
+    /// the cleartext parameters of the ClientHelloOuter.
+    ///
+    /// Clients should use `get_ech_name_override` to verify the server certificate in case of ECH
+    /// rejection, and follow up with `get_ech_retry_configs` to retry the connection with a fresh
+    /// set of ECHConfigs. If the retry also fails, clients should report a connection failure.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set1_ech_config_list)]
+    pub fn set_ech_config_list(&mut self, ech_config_list: &[u8]) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_set1_ech_config_list(
+                self.as_ptr(),
+                ech_config_list.as_ptr(),
+                ech_config_list.len(),
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// This function returns a serialized `ECHConfigList` as provided by the
+    /// server, if one exists.
+    ///
+    /// Clients should call this function when handling an `SSL_R_ECH_REJECTED` error code to
+    /// recover from potential key mismatches. If the result is `Some`, the client should retry the
+    /// connection using the returned `ECHConfigList`.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_get0_ech_retry_configs)]
+    pub fn get_ech_retry_configs(&self) -> Option<&[u8]> {
+        unsafe {
+            let mut data = ptr::null();
+            let mut len: usize = 0;
+            ffi::SSL_get0_ech_retry_configs(self.as_ptr(), &mut data, &mut len);
+
+            if data.is_null() {
+                None
+            } else {
+                Some(slice::from_raw_parts(data, len))
+            }
+        }
+    }
+
+    /// If `SSL` is a client and the server rejects ECH, this function returns the public name
+    /// associated with the ECHConfig that was used to attempt ECH.
+    ///
+    /// Clients should call this function during the certificate verification callback to
+    /// ensure the server's certificate is valid for the public name, which is required to
+    /// authenticate retry configs.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_get0_ech_name_override)]
+    pub fn get_ech_name_override(&self) -> Option<&[u8]> {
+        unsafe {
+            let mut data: *const c_char = ptr::null();
+            let mut len: usize = 0;
+            ffi::SSL_get0_ech_name_override(self.as_ptr(), &mut data, &mut len);
+
+            if data.is_null() {
+                None
+            } else {
+                Some(slice::from_raw_parts(data as *const u8, len))
+            }
+        }
+    }
+
+    // Whether or not `SSL` negotiated ECH.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_ech_accepted)]
+    pub fn ech_accepted(&self) -> bool {
+        unsafe { ffi::SSL_ech_accepted(self.as_ptr()) != 0 }
     }
 }
 
