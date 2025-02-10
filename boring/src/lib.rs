@@ -128,6 +128,7 @@ pub mod error;
 pub mod ex_data;
 pub mod fips;
 pub mod hash;
+#[cfg(not(feature = "fips"))]
 pub mod hpke;
 pub mod memcmp;
 pub mod nid;

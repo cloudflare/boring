@@ -26,6 +26,8 @@ use super::CompliancePolicy;
 
 mod cert_verify;
 mod custom_verify;
+#[cfg(not(feature = "fips"))]
+mod ech;
 mod private_key_method;
 mod server;
 mod session;
