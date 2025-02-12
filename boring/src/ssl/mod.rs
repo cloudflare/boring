@@ -3708,6 +3708,17 @@ impl SslRef {
     pub fn ech_accepted(&self) -> bool {
         unsafe { ffi::SSL_ech_accepted(self.as_ptr()) != 0 }
     }
+
+    // Whether or not to enable ECH grease on `SSL`.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set_enable_ech_grease)]
+    pub fn set_enable_ech_grease(&self, enable: bool) {
+        let enable = if enable { 1 } else { 0 };
+
+        unsafe {
+            ffi::SSL_set_enable_ech_grease(self.as_ptr(), enable);
+        }
+    }
 }
 
 /// An SSL stream midway through the handshake process.
