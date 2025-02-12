@@ -58,3 +58,15 @@ fn ech_rejection() {
     assert!(failed_ssl_stream.ssl().get_ech_retry_configs().is_some());
     assert!(!failed_ssl_stream.ssl().ech_accepted())
 }
+
+#[test]
+fn ech_grease() {
+    let server = Server::builder().build();
+
+    let mut client = server.client_with_root_ca().build().builder();
+    // Verified with a pcap locally that the ECH extension gets sent due to GREASE
+    client.ssl().set_enable_ech_grease(true);
+
+    let ssl_stream = client.connect();
+    assert!(!ssl_stream.ssl().ech_accepted())
+}
