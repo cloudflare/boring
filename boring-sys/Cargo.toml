@@ -18,8 +18,8 @@ include = [
     "/*.toml",
     "/LICENSE-MIT",
     "/cmake/*.cmake",
-    "/deps/boringssl/src/util/32-bit-toolchain.cmake",
     # boringssl (non-FIPS)
+    "/deps/boringssl/src/util/32-bit-toolchain.cmake",
     "/deps/boringssl/**/*.[chS]",
     "/deps/boringssl/**/*.asm",
     "/deps/boringssl/sources.json",
@@ -31,6 +31,7 @@ include = [
     "/deps/boringssl/**/sources.cmake",
     "/deps/boringssl/LICENSE",
     # boringssl (FIPS)
+    "/deps/boringssl-fips/src/util/32-bit-toolchain.cmake",
     "/deps/boringssl-fips/**/*.[chS]",
     "/deps/boringssl-fips/**/*.asm",
     "/deps/boringssl-fips/**/*.pl",
