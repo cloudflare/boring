@@ -197,6 +197,8 @@ jobs:
       run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
       shell: bash
     - run: rustup target add ${{ matrix.target }}
+    - name: Rustup show
+      run: rustup show
     - name: Install target-specific APT dependencies
       if: "matrix.apt_packages != ''"
       run: sudo apt update && sudo apt install -y ${{ matrix.apt_packages }}
