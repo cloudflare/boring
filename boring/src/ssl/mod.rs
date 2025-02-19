@@ -2749,32 +2749,13 @@ impl Ssl {
         }
     }
 
-    /// Creates a new `Ssl`.
-    ///
-    // FIXME should take &SslContextRef
-    #[corresponds(SSL_new)]
-    pub fn new(ctx: &SslContext) -> Result<Ssl, ErrorStack> {
-        unsafe {
-            let ptr = cvt_p(ffi::SSL_new(ctx.as_ptr()))?;
-            let mut ssl = Ssl::from_ptr(ptr);
-            ssl.set_ex_data(*SESSION_CTX_INDEX, ctx.clone());
-
-            Ok(ssl)
-        }
-    }
-
     /// Creates a new [`Ssl`].
-    ///
-    /// This function does the same as [`Self:new`] except that it takes &[SslContextRef].
-    // Both functions exist for backward compatibility (no breaking API).
     #[corresponds(SSL_new)]
-    pub fn new_from_ref(ctx: &SslContextRef) -> Result<Ssl, ErrorStack> {
+    pub fn new(ctx: &SslContextRef) -> Result<Ssl, ErrorStack> {
         unsafe {
             let ptr = cvt_p(ffi::SSL_new(ctx.as_ptr()))?;
             let mut ssl = Ssl::from_ptr(ptr);
-            SSL_CTX_up_ref(ctx.as_ptr());
-            let ctx_owned = SslContext::from_ptr(ctx.as_ptr());
-            ssl.set_ex_data(*SESSION_CTX_INDEX, ctx_owned);
+            ssl.set_ex_data(*SESSION_CTX_INDEX, ctx.to_owned());
 
             Ok(ssl)
         }
