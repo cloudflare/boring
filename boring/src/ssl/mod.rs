@@ -4040,26 +4040,23 @@ where
 }
 
 impl<S: Read + Write> SslStream<S> {
-    fn new_base(ssl: Ssl, stream: S) -> Self {
-        unsafe {
-            let (bio, method) = bio::new(stream).unwrap();
-            ffi::SSL_set_bio(ssl.as_ptr(), bio, bio);
-
-            SslStream {
-                ssl: ManuallyDrop::new(ssl),
-                method: ManuallyDrop::new(method),
-                _p: PhantomData,
-            }
-        }
-    }
-
     /// Creates a new `SslStream`.
     ///
     /// This function performs no IO; the stream will not have performed any part of the handshake
     /// with the peer. The `connect` and `accept` methods can be used to
     /// explicitly perform the handshake.
     pub fn new(ssl: Ssl, stream: S) -> Result<Self, ErrorStack> {
-        Ok(Self::new_base(ssl, stream))
+        let (bio, method) = bio::new(stream)?;
+
+        unsafe {
+            ffi::SSL_set_bio(ssl.as_ptr(), bio, bio);
+        }
+
+        Ok(SslStream {
+            ssl: ManuallyDrop::new(ssl),
+            method: ManuallyDrop::new(method),
+            _p: PhantomData,
+        })
     }
 
     /// Constructs an `SslStream` from a pointer to the underlying OpenSSL `SSL` struct.
@@ -4071,7 +4068,7 @@ impl<S: Read + Write> SslStream<S> {
     /// The caller must ensure the pointer is valid.
     pub unsafe fn from_raw_parts(ssl: *mut ffi::SSL, stream: S) -> Self {
         let ssl = Ssl::from_ptr(ssl);
-        Self::new_base(ssl, stream)
+        Self::new(ssl, stream).unwrap()
     }
 
     /// Like `read`, but takes a possibly-uninitialized slice.
@@ -4338,7 +4335,7 @@ where
     /// Begin creating an `SslStream` atop `stream`
     pub fn new(ssl: Ssl, stream: S) -> Self {
         Self {
-            inner: SslStream::new_base(ssl, stream),
+            inner: SslStream::new(ssl, stream).unwrap(),
         }
     }
 
