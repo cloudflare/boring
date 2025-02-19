@@ -1,3 +1,25 @@
+
+4.14.0
+- 2024-01-27 Set CMAKE_BUILD_PARALLEL_LEVEL to available_parallelism
+- 2025-02-14 build: Fix the build for 32-bit Linux platform (#312)
+- 2024-11-30 Use corresponds macro
+- 2025-02-12 Expose SSL_set_enable_ech_grease
+- 2025-02-12 Clean up ECH tests
+- 2025-02-10 Expose client/server-side ECH
+- 2025-02-10 Expose EVP_HPKE_KEY
+- 2025-02-10 Clean up boring_sys::init()
+- 2024-11-27 Detailed error codes
+- 2025-02-04 chore: Fix docs on SslRef::replace_ex_data
+- 2025-01-22 fix manual_c_str_literals clippy warning
+- 2025-01-22 replace once_cell with LazyLock
+- 2025-01-13 RTG-3333 Support X25519MLKEM768 by default, but don't sent it as client
+- 2024-07-31 Allow dead_code instead of disabling clippy entirely for bindgen
+- 2024-11-12 Remove INVALID_CALL from mid-handshake error message
+- 2024-08-16 Fix bug with accessing memzero'd X509StoreContext in tests
+- 2024-08-16 Support linking with a runtime cpp library
+- 2024-12-06 Refactor!: Introduce a Cargo feature for optional Hyper 0 support
+- 2024-12-06 Refactor!: Remove strict `TokioIo` response requirement from `hyper_boring::v1::HttpsConnector`
+
 4.13.0
 - 2024-11-26 Sync X509StoreBuilder with openssl
 - 2024-11-26 Sync X509VerifyFlags with openssl
@@ -6,7 +28,7 @@
 - 2024-11-28 Clippy
 - 2024-03-11 Fix Windows build
 
-4.12.0 
+4.12.0
 - 2024-11-20 Add bindings for SSL_CB_ACCEPT_EXIT and SSL_CB_CONNECT_EXIT
 - 2024-10-22 (ci): brew link x86 toolchain for macos13 runner
 - 2024-10-22 Skip bindgen 0.70's layout tests before Rust 1.77
@@ -14,7 +36,7 @@
 
 4.11.0
 - 2024-10-17 boring-sys: include HPKE header file for bindgen
-- 2024-10-17 Add "fips-compat" feature
+- 2024-10-17 Add "fips-compat" feature (#286)
 - 2024-09-25 Create semgrep.yml
 
 4.10.3
@@ -47,6 +69,7 @@
 - 2024-08-04 Properly handle `Option<i32>` in `SslRef::set_curves`
 
 4.9.0
+- 2024-08-02 Actually Release 4.9.0
 - 2024-08-02 Guard against empty strings given to select_next_proto (#252)
 - 2024-08-01 Document `SslCurve::nid()`
 - 2024-08-01 Add SslCurve::to_nid() and remove SslCurveId
