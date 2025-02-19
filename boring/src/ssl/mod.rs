@@ -1960,7 +1960,7 @@ impl SslContextBuilder {
     /// threads.
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_CTX_set1_ech_keys)]
-    pub fn set_ech_keys(&mut self, keys: SslEchKeys) -> Result<(), ErrorStack> {
+    pub fn set_ech_keys(&self, keys: SslEchKeys) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())).map(|_| ()) }
     }
 
@@ -2209,6 +2209,16 @@ impl SslContextRef {
     #[cfg(feature = "rpk")]
     pub fn is_rpk(&self) -> bool {
         self.ex_data(*RPK_FLAG_INDEX).copied().unwrap_or_default()
+    }
+
+    /// Registers a list of ECH keys on the context. This list should contain new and old
+    /// ECHConfigs to allow stale DNS caches to update. Unlike most `SSL_CTX` APIs, this function
+    /// is safe to call even after the `SSL_CTX` has been associated with connections on various
+    /// threads.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_CTX_set1_ech_keys)]
+    pub fn set_ech_keys(&self, keys: SslEchKeys) -> Result<(), ErrorStack> {
+        unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())).map(|_| ()) }
     }
 }
 
