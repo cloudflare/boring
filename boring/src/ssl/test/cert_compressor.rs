@@ -17,17 +17,12 @@ impl Default for BrotliCompressor {
 }
 
 impl CertificateCompressor for BrotliCompressor {
-    fn algorithm(&self) -> crate::ssl::CertificateCompressionAlgorithm {
-        crate::ssl::CertificateCompressionAlgorithm(1234)
-    }
+    const ALGORITHM: crate::ssl::CertificateCompressionAlgorithm =
+        crate::ssl::CertificateCompressionAlgorithm(1234);
 
-    fn can_compress(&self) -> bool {
-        true
-    }
+    const CAN_COMPRESS: bool = true;
 
-    fn can_decompress(&self) -> bool {
-        true
-    }
+    const CAN_DECOMPRESS: bool = true;
 
     fn compress<W>(&self, input: &[u8], output: &mut W) -> std::io::Result<()>
     where
