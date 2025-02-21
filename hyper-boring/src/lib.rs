@@ -11,14 +11,12 @@ use std::sync::LazyLock;
 use tokio_boring::SslStream;
 
 mod cache;
-/// Hyper 0 support.
-#[cfg(feature = "hyper0")]
-pub mod v0;
+mod v0;
+/// Hyper 1 support.
 #[cfg(feature = "hyper1")]
-mod v1;
+pub mod v1;
 
-#[cfg(feature = "hyper1")]
-pub use self::v1::*;
+pub use self::v0::*;
 
 fn key_index() -> Result<Index<Ssl, SessionKey>, ErrorStack> {
     static IDX: LazyLock<Index<Ssl, SessionKey>> = LazyLock::new(|| Ssl::new_ex_index().unwrap());

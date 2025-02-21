@@ -37,12 +37,12 @@ futures = "0.3"
 tokio = "1"
 anyhow = "1"
 antidote = "1.0.0"
-http1 = { package = "http", version = "1" }
+http = "1"
 http-body-util = "0.1.2"
-http0 = { package = "http", version = "0.2" }
-hyper1 = { package = "hyper", version = "1" }
+http_old = { package = "http", version = "0.2" }
+hyper = "1"
 hyper-util = "0.1.6"
-hyper0 = { package = "hyper", version = "0.14", default-features = false }
+hyper_old = { package = "hyper", version = "0.14", default-features = false }
 linked_hash_set = "0.1"
 openssl-macros = "0.1.1"
 tower = { version = "0.4", default-features = false, features = ["util"] }

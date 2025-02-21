@@ -366,7 +366,5 @@ jobs:
       name: Run `rpk,underscore-wildcards` tests
     - run: cargo test --features pq-experimental,rpk,underscore-wildcards
       name: Run `pq-experimental,rpk,underscore-wildcards` tests
-    - run: cargo test -p hyper-boring --features hyper1-runtime
+    - run: cargo test -p hyper-boring --features hyper1
       name: Run hyper 1.0 tests for hyper-boring
-    - run: cargo test -p hyper-boring --features hyper0-runtime
-      name: Run hyper 0. tests for hyper-boring
