@@ -4,8 +4,8 @@ use boring::ssl::{SslAcceptor, SslConnector, SslFiletype, SslMethod};
 use bytes::Bytes;
 use futures::StreamExt;
 use http_body_util::{BodyStream, Empty};
-use hyper1::{service, Response};
-use hyper_boring::HttpsConnector;
+use hyper::{service, Response};
+use hyper_boring::v1::HttpsConnector;
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::{TokioExecutor, TokioIo};
@@ -56,7 +56,7 @@ async fn localhost() {
                 Ok::<_, io::Error>(Response::new(<Empty<Bytes>>::new()))
             });
 
-            hyper1::server::conn::http1::Builder::new()
+            hyper::server::conn::http1::Builder::new()
                 .keep_alive(false)
                 .serve_connection(TokioIo::new(stream), service)
                 .await
@@ -127,7 +127,7 @@ async fn alpn_h2() {
             Ok::<_, io::Error>(Response::new(<Empty<Bytes>>::new()))
         });
 
-        hyper1::server::conn::http2::Builder::new(TokioExecutor::new())
+        hyper::server::conn::http2::Builder::new(TokioExecutor::new())
             .serve_connection(TokioIo::new(stream), service)
             .await
             .unwrap();

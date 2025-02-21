@@ -16,13 +16,9 @@ features = ["pq-experimental"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["runtime", "hyper1-runtime"]
+default = ["runtime"]
 
-runtime = []
-# `hyper1` + `runtime`.
-hyper1-runtime = ["hyper1", "dep:tower"]
-# `hyper0` + `runtime`.
-hyper0-runtime = ["hyper0", "hyper0/runtime"]
+runtime = ["hyper_old/runtime", "dep:tower"]
 
 # Use a FIPS-validated version of boringssl.
 fips = ["tokio-boring/fips"]
@@ -33,18 +29,16 @@ fips-link-precompiled = ["tokio-boring/fips-link-precompiled"]
 # Enables experimental post-quantum crypto (https://blog.cloudflare.com/post-quantum-for-all/)
 pq-experimental = ["tokio-boring/pq-experimental"]
 
-# Enable Hyper 1 support.
-hyper1 = ["dep:hyper1", "dep:http1", "dep:hyper-util", "dep:tower-service"]
-# Enable Hyper 0 support.
-hyper0 = ["dep:hyper0", "dep:http0"]
+# Enable Hyper 1 support
+hyper1 = ["dep:http", "dep:hyper", "dep:hyper-util", "dep:tower-service"]
 
 [dependencies]
 antidote = { workspace = true }
-http1 = { workspace = true, optional = true }
-http0 = { workspace = true, optional = true }
-hyper1 = { workspace = true, optional = true }
+http = { workspace = true, optional = true }
+http_old = { workspace = true }
+hyper = { workspace = true, optional = true }
 hyper-util = { workspace = true, optional = true, features = ["client", "client-legacy"] }
-hyper0 = { workspace = true, optional = true, features = ["client"] }
+hyper_old = { workspace = true, features = ["client"] }
 linked_hash_set = { workspace = true }
 boring = { workspace = true }
 tokio = { workspace = true }
@@ -57,8 +51,8 @@ tower-service = { workspace = true, optional = true }
 bytes = { workspace = true }
 http-body-util = { workspace = true }
 hyper-util = { workspace = true, features = ["http1", "http2", "service", "tokio"] }
-hyper1 = { workspace = true, features = ["server"] }
-hyper0 = { workspace = true, features = [ "full" ] }
+hyper = { workspace = true, features = ["server"] }
+hyper_old = { workspace = true, features = [ "full" ] }
 tokio = { workspace = true, features = [ "full" ] }
 tower = { workspace = true, features = ["util"] }
 futures = { workspace = true }
