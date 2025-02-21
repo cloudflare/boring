@@ -1621,8 +1621,6 @@ impl SslContextBuilder {
             (compressor.can_compress(), compressor.can_decompress());
         assert!(can_compress || can_decompress);
         let success = unsafe {
-            self.replace_ex_data(SslContext::cached_ex_index::<C>(), compressor);
-
             ffi::SSL_CTX_add_cert_compression_alg(
                 self.as_ptr(),
                 algo.0,
@@ -1641,6 +1639,7 @@ impl SslContextBuilder {
         if !success {
             return Err(ErrorStack::get());
         }
+        self.replace_ex_data(SslContext::cached_ex_index::<C>(), compressor);
         Ok(())
     }
 
