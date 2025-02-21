@@ -18,7 +18,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 default = ["runtime"]
 
-runtime = ["hyper_old/runtime", "dep:tower"]
+runtime = ["hyper_old/runtime"]
 
 # Use a FIPS-validated version of boringssl.
 fips = ["tokio-boring/fips"]
@@ -43,7 +43,6 @@ linked_hash_set = { workspace = true }
 boring = { workspace = true }
 tokio = { workspace = true }
 tokio-boring = { workspace = true }
-tower = { workspace = true, optional = true }
 tower-layer = { workspace = true }
 tower-service = { workspace = true, optional = true }
 
