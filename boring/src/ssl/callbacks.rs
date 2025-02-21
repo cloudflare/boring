@@ -589,9 +589,10 @@ pub(super) unsafe extern "C" fn raw_ssl_cert_compress<C>(
 where
     C: CertificateCompressor,
 {
-    if !C::CAN_COMPRESS {
-        return 0;
+    const {
+        assert!(C::CAN_COMPRESS);
     }
+
     // SAFETY: boring provides valid inputs.
     let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
 
@@ -619,8 +620,8 @@ pub(super) unsafe extern "C" fn raw_ssl_cert_decompress<C>(
 where
     C: CertificateCompressor,
 {
-    if !C::CAN_DECOMPRESS {
-        return 0;
+    const {
+        assert!(C::CAN_DECOMPRESS);
     }
 
     // SAFETY: boring provides valid inputs.
