@@ -576,6 +576,10 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
 
         let mut cfg = get_boringssl_cmake_config(config);
 
+        if let Ok(threads) = std::thread::available_parallelism() {
+            cfg.env("CMAKE_BUILD_PARALLEL_LEVEL", threads.to_string());
+        }
+
         if config.features.fips {
             let (clang, clangxx) = verify_fips_clang_version();
             cfg.define("CMAKE_C_COMPILER", clang)
