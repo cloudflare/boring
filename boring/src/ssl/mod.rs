@@ -1960,7 +1960,7 @@ impl SslContextBuilder {
     /// threads.
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_CTX_set1_ech_keys)]
-    pub fn set_ech_keys(&self, keys: SslEchKeys) -> Result<(), ErrorStack> {
+    pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())).map(|_| ()) }
     }
 
@@ -2217,7 +2217,7 @@ impl SslContextRef {
     /// threads.
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_CTX_set1_ech_keys)]
-    pub fn set_ech_keys(&self, keys: SslEchKeys) -> Result<(), ErrorStack> {
+    pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())).map(|_| ()) }
     }
 }
