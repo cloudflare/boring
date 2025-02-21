@@ -1623,15 +1623,19 @@ impl SslContextBuilder {
             ffi::SSL_CTX_add_cert_compression_alg(
                 self.as_ptr(),
                 C::ALGORITHM.0,
-                if C::CAN_COMPRESS {
-                    Some(callbacks::raw_ssl_cert_compress::<C>)
-                } else {
-                    None
+                const {
+                    if C::CAN_COMPRESS {
+                        Some(callbacks::raw_ssl_cert_compress::<C>)
+                    } else {
+                        None
+                    }
                 },
-                if C::CAN_DECOMPRESS {
-                    Some(callbacks::raw_ssl_cert_decompress::<C>)
-                } else {
-                    None
+                const {
+                    if C::CAN_DECOMPRESS {
+                        Some(callbacks::raw_ssl_cert_decompress::<C>)
+                    } else {
+                        None
+                    }
                 },
             ) == 1
         };
