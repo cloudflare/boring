@@ -1616,20 +1616,19 @@ impl SslContextBuilder {
     where
         C: CertificateCompressor,
     {
-        let algo = compressor.algorithm();
-        let (can_compress, can_decompress) =
-            (compressor.can_compress(), compressor.can_decompress());
-        assert!(can_compress || can_decompress);
+        const {
+            assert!(C::CAN_COMPRESS || C::CAN_DECOMPRESS, "Either compression or decompression must be supported for algorithm to be registered")
+        };
         let success = unsafe {
             ffi::SSL_CTX_add_cert_compression_alg(
                 self.as_ptr(),
-                algo.0,
-                if can_compress {
+                C::ALGORITHM.0,
+                if C::CAN_COMPRESS {
                     Some(callbacks::raw_ssl_cert_compress::<C>)
                 } else {
                     None
                 },
-                if can_decompress {
+                if C::CAN_DECOMPRESS {
                     Some(callbacks::raw_ssl_cert_decompress::<C>)
                 } else {
                     None
@@ -4401,17 +4400,13 @@ impl PrivateKeyMethodError {
 /// Describes certificate compression algorithm. Implementation MUST implement transformation at least in one direction.
 pub trait CertificateCompressor: Send + Sync + 'static {
     /// An IANA assigned identifier of compression algorithm
-    fn algorithm(&self) -> CertificateCompressionAlgorithm;
+    const ALGORITHM: CertificateCompressionAlgorithm;
 
     /// Indicates if compressor support compression
-    fn can_compress(&self) -> bool {
-        false
-    }
+    const CAN_COMPRESS: bool;
 
     /// Indicates if compressor support decompression
-    fn can_decompress(&self) -> bool {
-        false
-    }
+    const CAN_DECOMPRESS: bool;
 
     /// Perform compression of `input` buffer and write compressed data to `output`.
     #[allow(unused_variables)]

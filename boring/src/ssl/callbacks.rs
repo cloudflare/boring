@@ -589,6 +589,9 @@ pub(super) unsafe extern "C" fn raw_ssl_cert_compress<C>(
 where
     C: CertificateCompressor,
 {
+    if !C::CAN_COMPRESS {
+        return 0;
+    }
     // SAFETY: boring provides valid inputs.
     let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
 
@@ -597,9 +600,6 @@ where
         .ex_data(SslContext::cached_ex_index::<C>())
         .expect("BUG: certificate compression missed");
 
-    if !compressor.can_compress() {
-        return 0;
-    }
     let input_slice = unsafe { std::slice::from_raw_parts(input, input_len) };
     let mut writer = CryptoByteBuilder::from_ptr(out);
     if compressor.compress(input_slice, &mut writer).is_err() {
@@ -619,6 +619,10 @@ pub(super) unsafe extern "C" fn raw_ssl_cert_decompress<C>(
 where
     C: CertificateCompressor,
 {
+    if !C::CAN_DECOMPRESS {
+        return 0;
+    }
+
     // SAFETY: boring provides valid inputs.
     let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
 
