@@ -1,5 +1,16 @@
 
+4.15.0
+- 2025-02-23 Fix lifetimes in ssl::select_next_proto
+- 2025-02-23 Revert cmake bump (for now) as it is overly restrictive (#321)
+- 2025-02-21 Introduce a builder pattern for SslEchKeys + make set_ech_keys take a reference (#320)
+- 2025-02-21 Revert "Refactor!: Remove strict `TokioIo` response requirement from `hyper_boring::v1::HttpsConnector`"
+- 2025-02-21 Revert "Refactor!: Introduce a Cargo feature for optional Hyper 0 support"
+- 2025-02-21 Address clippy lints
+- 2025-02-21 Actually expose SslEchKeys
+
 4.14.0
+- 2025-02-19 Bump cmake-rs to improve Mac OS build parallelism
+- 2025-02-19 Expose SSL_CTX_set1_ech_keys from SslContextRef
 - 2024-01-27 Set CMAKE_BUILD_PARALLEL_LEVEL to available_parallelism
 - 2025-02-14 build: Fix the build for 32-bit Linux platform (#312)
 - 2024-11-30 Use corresponds macro
