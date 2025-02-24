@@ -795,6 +795,16 @@ impl CompliancePolicy {
         Self(ffi::ssl_compliance_policy_t::ssl_compliance_policy_wpa3_192_202304);
 }
 
+// IANA assigned identifier of compression algorithm. See https://www.rfc-editor.org/rfc/rfc8879.html#name-compression-algorithms
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct CertificateCompressionAlgorithm(u16);
+
+impl CertificateCompressionAlgorithm {
+    pub const ZLIB: Self = Self(ffi::TLSEXT_cert_compression_zlib as u16);
+
+    pub const BROTLI: Self = Self(ffi::TLSEXT_cert_compression_brotli as u16);
+}
+
 /// A standard implementation of protocol selection for Application Layer Protocol Negotiation
 /// (ALPN).
 ///
@@ -1592,6 +1602,48 @@ impl SslContextBuilder {
                 Some(callbacks::raw_select_cert::<F>),
             );
         }
+    }
+
+    /// Registers a certificate compression algorithm.
+    ///
+    /// Corresponds to [`SSL_CTX_add_cert_compression_alg`].
+    ///
+    /// [`SSL_CTX_add_cert_compression_alg`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_add_cert_compression_alg
+    pub fn add_certificate_compression_algorithm<C>(
+        &mut self,
+        compressor: C,
+    ) -> Result<(), ErrorStack>
+    where
+        C: CertificateCompressor,
+    {
+        const {
+            assert!(C::CAN_COMPRESS || C::CAN_DECOMPRESS, "Either compression or decompression must be supported for algorithm to be registered")
+        };
+        let success = unsafe {
+            ffi::SSL_CTX_add_cert_compression_alg(
+                self.as_ptr(),
+                C::ALGORITHM.0,
+                const {
+                    if C::CAN_COMPRESS {
+                        Some(callbacks::raw_ssl_cert_compress::<C>)
+                    } else {
+                        None
+                    }
+                },
+                const {
+                    if C::CAN_DECOMPRESS {
+                        Some(callbacks::raw_ssl_cert_decompress::<C>)
+                    } else {
+                        None
+                    }
+                },
+            ) == 1
+        };
+        if !success {
+            return Err(ErrorStack::get());
+        }
+        self.replace_ex_data(SslContext::cached_ex_index::<C>(), compressor);
+        Ok(())
     }
 
     /// Configures a custom private key method on the context.
@@ -4347,6 +4399,36 @@ impl PrivateKeyMethodError {
 
     /// The operation could not be completed and should be retried later.
     pub const RETRY: Self = Self(ffi::ssl_private_key_result_t::ssl_private_key_retry);
+}
+
+/// Describes certificate compression algorithm. Implementation MUST implement transformation at least in one direction.
+pub trait CertificateCompressor: Send + Sync + 'static {
+    /// An IANA assigned identifier of compression algorithm
+    const ALGORITHM: CertificateCompressionAlgorithm;
+
+    /// Indicates if compressor support compression
+    const CAN_COMPRESS: bool;
+
+    /// Indicates if compressor support decompression
+    const CAN_DECOMPRESS: bool;
+
+    /// Perform compression of `input` buffer and write compressed data to `output`.
+    #[allow(unused_variables)]
+    fn compress<W>(&self, input: &[u8], output: &mut W) -> std::io::Result<()>
+    where
+        W: std::io::Write,
+    {
+        Err(std::io::Error::other("not implemented"))
+    }
+
+    /// Perform decompression of `input` buffer and write compressed data to `output`.
+    #[allow(unused_variables)]
+    fn decompress<W>(&self, input: &[u8], output: &mut W) -> std::io::Result<()>
+    where
+        W: std::io::Write,
+    {
+        Err(std::io::Error::other("not implemented"))
+    }
 }
 
 use crate::ffi::{SSL_CTX_up_ref, SSL_SESSION_get_master_key, SSL_SESSION_up_ref, SSL_is_server};
