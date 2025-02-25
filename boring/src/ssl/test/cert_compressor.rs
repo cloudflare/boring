@@ -29,7 +29,7 @@ impl CertificateCompressor for BrotliCompressor {
         W: std::io::Write,
     {
         let mut writer = brotli::CompressorWriter::new(output, 1024, self.q, self.lgwin);
-        writer.write_all(&input)?;
+        writer.write_all(input)?;
         Ok(())
     }
 

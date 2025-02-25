@@ -607,7 +607,7 @@ where
         return 0;
     }
 
-    return 1;
+    1
 }
 
 pub(super) unsafe extern "C" fn raw_ssl_cert_decompress<C>(
@@ -655,13 +655,13 @@ where
 
 struct CryptoByteBuilder<'a>(*mut ffi::CBB, std::marker::PhantomData<&'a [u8]>);
 
-impl<'a> CryptoByteBuilder<'a> {
+impl CryptoByteBuilder<'_> {
     fn from_ptr(ptr: *mut ffi::CBB) -> Self {
         Self(ptr, Default::default())
     }
 }
 
-impl<'a> std::io::Write for CryptoByteBuilder<'a> {
+impl std::io::Write for CryptoByteBuilder<'_> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let success = unsafe { ffi::CBB_add_bytes(self.0, buf.as_ptr(), buf.len()) == 1 };
         if !success {
@@ -713,7 +713,7 @@ impl<'a> CryptoBufferBuilder<'a> {
     }
 }
 
-impl<'a> Drop for CryptoBufferBuilder<'a> {
+impl Drop for CryptoBufferBuilder<'_> {
     fn drop(&mut self) {
         if !self.buffer.is_null() {
             unsafe {
