@@ -715,8 +715,10 @@ impl<'a> CryptoBufferBuilder<'a> {
 
 impl<'a> Drop for CryptoBufferBuilder<'a> {
     fn drop(&mut self) {
-        unsafe {
-            boring_sys::CRYPTO_BUFFER_free(self.buffer);
+        if !self.buffer.is_null() {
+            unsafe {
+                boring_sys::CRYPTO_BUFFER_free(self.buffer);
+            }
         }
     }
 }
