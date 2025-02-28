@@ -1,5 +1,6 @@
 
 4.15.0
+- 2025-02-27 Expose API to enable certificate compression. (#241)
 - 2025-02-23 Fix lifetimes in ssl::select_next_proto
 - 2025-02-23 Revert cmake bump (for now) as it is overly restrictive (#321)
 - 2025-02-21 Introduce a builder pattern for SslEchKeys + make set_ech_keys take a reference (#320)
