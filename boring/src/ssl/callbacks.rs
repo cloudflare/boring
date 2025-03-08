@@ -8,6 +8,7 @@ use super::{
 };
 use crate::error::ErrorStack;
 use crate::ffi;
+use crate::ssl::TicketKeyCallbackResult;
 use crate::x509::{X509StoreContext, X509StoreContextRef};
 use foreign_types::ForeignType;
 use foreign_types::ForeignTypeRef;
@@ -267,6 +268,46 @@ where
         Ok(()) => ffi::SSL_TLSEXT_ERR_OK,
         Err(e) => e.0,
     }
+}
+
+pub(super) unsafe extern "C" fn raw_ticket_key<F>(
+    ssl: *mut ffi::SSL,
+    key_name: *mut u8,
+    iv: *mut u8,
+    evp_ctx: *mut ffi::EVP_CIPHER_CTX,
+    hmac_ctx: *mut ffi::HMAC_CTX,
+    encrypt: c_int,
+) -> c_int
+where
+    F: Fn(
+            &SslRef,
+            &mut [u8; 16],
+            *mut u8,
+            *mut ffi::EVP_CIPHER_CTX,
+            *mut ffi::HMAC_CTX,
+            bool,
+        ) -> TicketKeyCallbackResult
+        + 'static
+        + Sync
+        + Send,
+{
+    // SAFETY: boring provides valid inputs.
+    let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
+
+    let ssl_context = ssl.ssl_context().to_owned();
+    let callback = ssl_context
+        .ex_data::<F>(SslContext::cached_ex_index::<F>())
+        .expect("expected session resumption callback");
+
+    // Safety: the callback guarantees that key_name is 16 bytes
+    let key_name =
+        unsafe { slice::from_raw_parts_mut(key_name, ffi::SSL_TICKET_KEY_NAME_LEN as usize) };
+    let key_name = <&mut [u8; 16]>::try_from(key_name).expect("boring provides a 16-byte key name");
+
+    // When encrypting a new ticket, encrypt will be one.
+    let encrypt = encrypt == 1;
+
+    callback(ssl, key_name, iv, evp_ctx, hmac_ctx, encrypt).into()
 }
 
 pub(super) unsafe extern "C" fn raw_alpn_select<F>(
