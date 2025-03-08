@@ -5,10 +5,10 @@ use super::{
     SslVerifyMode,
 };
 use crate::ex_data::Index;
-use once_cell::sync::Lazy;
 use std::convert::identity;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::LazyLock;
 use std::task::{ready, Context, Poll, Waker};
 
 /// The type of futures to pass to [`SslContextBuilderExt::set_async_select_certificate_callback`].
@@ -42,19 +42,20 @@ pub type BoxCustomVerifyFinish = Box<dyn FnOnce(&mut SslRef) -> Result<(), SslAl
 /// Public for documentation purposes.
 pub type ExDataFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 
-pub(crate) static TASK_WAKER_INDEX: Lazy<Index<Ssl, Option<Waker>>> =
-    Lazy::new(|| Ssl::new_ex_index().unwrap());
-pub(crate) static SELECT_CERT_FUTURE_INDEX: Lazy<Index<Ssl, MutOnly<Option<BoxSelectCertFuture>>>> =
-    Lazy::new(|| Ssl::new_ex_index().unwrap());
-pub(crate) static SELECT_PRIVATE_KEY_METHOD_FUTURE_INDEX: Lazy<
+pub(crate) static TASK_WAKER_INDEX: LazyLock<Index<Ssl, Option<Waker>>> =
+    LazyLock::new(|| Ssl::new_ex_index().unwrap());
+pub(crate) static SELECT_CERT_FUTURE_INDEX: LazyLock<
+    Index<Ssl, MutOnly<Option<BoxSelectCertFuture>>>,
+> = LazyLock::new(|| Ssl::new_ex_index().unwrap());
+pub(crate) static SELECT_PRIVATE_KEY_METHOD_FUTURE_INDEX: LazyLock<
     Index<Ssl, MutOnly<Option<BoxPrivateKeyMethodFuture>>>,
-> = Lazy::new(|| Ssl::new_ex_index().unwrap());
-pub(crate) static SELECT_GET_SESSION_FUTURE_INDEX: Lazy<
+> = LazyLock::new(|| Ssl::new_ex_index().unwrap());
+pub(crate) static SELECT_GET_SESSION_FUTURE_INDEX: LazyLock<
     Index<Ssl, MutOnly<Option<BoxGetSessionFuture>>>,
-> = Lazy::new(|| Ssl::new_ex_index().unwrap());
-pub(crate) static SELECT_CUSTOM_VERIFY_FUTURE_INDEX: Lazy<
+> = LazyLock::new(|| Ssl::new_ex_index().unwrap());
+pub(crate) static SELECT_CUSTOM_VERIFY_FUTURE_INDEX: LazyLock<
     Index<Ssl, MutOnly<Option<BoxCustomVerifyFuture>>>,
-> = Lazy::new(|| Ssl::new_ex_index().unwrap());
+> = LazyLock::new(|| Ssl::new_ex_index().unwrap());
 
 impl SslContextBuilder {
     /// Sets a callback that is called before most [`ClientHello`] processing

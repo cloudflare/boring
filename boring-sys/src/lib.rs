@@ -16,9 +16,11 @@ use std::convert::TryInto;
 use std::ffi::c_void;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong};
 
-#[allow(dead_code)]
-#[allow(clippy::all)]
-#[rustfmt::skip]
+#[allow(
+    clippy::useless_transmute,
+    clippy::derive_partial_eq_without_eq,
+    dead_code
+)]
 mod generated {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
@@ -46,18 +48,7 @@ pub const fn ERR_GET_REASON(l: c_uint) -> c_int {
 }
 
 pub fn init() {
-    use std::ptr;
-    use std::sync::Once;
-
-    // explicitly initialize to work around https://github.com/openssl/openssl/issues/3505
-    static INIT: Once = Once::new();
-
-    let init_options = OPENSSL_INIT_LOAD_SSL_STRINGS;
-
-    INIT.call_once(|| {
-        assert_eq!(
-            unsafe { OPENSSL_init_ssl(init_options.try_into().unwrap(), ptr::null_mut()) },
-            1
-        )
-    });
+    unsafe {
+        CRYPTO_library_init();
+    }
 }

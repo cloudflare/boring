@@ -948,10 +948,7 @@ impl X509NameBuilder {
     }
 
     /// Add a field entry by str.
-    ///
-    /// This corresponds to [`X509_NAME_add_entry_by_txt`].
-    ///
-    /// [`X509_NAME_add_entry_by_txt`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_NAME_add_entry_by_txt.html
+    #[corresponds(X509_NAME_add_entry_by_txt)]
     pub fn append_entry_by_text(&mut self, field: &str, value: &str) -> Result<(), ErrorStack> {
         unsafe {
             let field = CString::new(field).unwrap();
@@ -970,10 +967,7 @@ impl X509NameBuilder {
     }
 
     /// Add a field entry by str with a specific type.
-    ///
-    /// This corresponds to [`X509_NAME_add_entry_by_txt`].
-    ///
-    /// [`X509_NAME_add_entry_by_txt`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_NAME_add_entry_by_txt.html
+    #[corresponds(X509_NAME_add_entry_by_txt)]
     pub fn append_entry_by_text_with_type(
         &mut self,
         field: &str,
@@ -997,10 +991,7 @@ impl X509NameBuilder {
     }
 
     /// Add a field entry by NID.
-    ///
-    /// This corresponds to [`X509_NAME_add_entry_by_NID`].
-    ///
-    /// [`X509_NAME_add_entry_by_NID`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_NAME_add_entry_by_NID.html
+    #[corresponds(X509_NAME_add_entry_by_NID)]
     pub fn append_entry_by_nid(&mut self, field: Nid, value: &str) -> Result<(), ErrorStack> {
         unsafe {
             assert!(value.len() <= ValueLen::MAX as usize);
@@ -1018,10 +1009,7 @@ impl X509NameBuilder {
     }
 
     /// Add a field entry by NID with a specific type.
-    ///
-    /// This corresponds to [`X509_NAME_add_entry_by_NID`].
-    ///
-    /// [`X509_NAME_add_entry_by_NID`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_NAME_add_entry_by_NID.html
+    #[corresponds(X509_NAME_add_entry_by_NID)]
     pub fn append_entry_by_nid_with_type(
         &mut self,
         field: Nid,
@@ -1081,10 +1069,7 @@ impl X509Name {
 
     from_der! {
         /// Deserializes a DER-encoded X509 name structure.
-        ///
-        /// This corresponds to [`d2i_X509_NAME`].
-        ///
-        /// [`d2i_X509_NAME`]: https://www.openssl.org/docs/manmaster/man3/d2i_X509_NAME.html
+        #[corresponds(d2i_X509_NAME)]
         from_der,
         X509Name,
         ffi::d2i_X509_NAME,
@@ -1131,10 +1116,7 @@ impl X509NameRef {
 
     to_der! {
         /// Serializes the certificate into a DER-encoded X509 name structure.
-        ///
-        /// This corresponds to [`i2d_X509_NAME`].
-        ///
-        /// [`i2d_X509_NAME`]: https://www.openssl.org/docs/man1.1.0/crypto/i2d_X509_NAME.html
+        #[corresponds(i2d_X509_NAME)]
         to_der,
         ffi::i2d_X509_NAME
     }
@@ -1194,10 +1176,7 @@ foreign_type_and_impl_send_sync! {
 
 impl X509NameEntryRef {
     /// Returns the field value of an `X509NameEntry`.
-    ///
-    /// This corresponds to [`X509_NAME_ENTRY_get_data`].
-    ///
-    /// [`X509_NAME_ENTRY_get_data`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_NAME_ENTRY_get_data.html
+    #[corresponds(X509_NAME_ENTRY_get_data)]
     pub fn data(&self) -> &Asn1StringRef {
         unsafe {
             let data = ffi::X509_NAME_ENTRY_get_data(self.as_ptr());
@@ -1207,10 +1186,7 @@ impl X509NameEntryRef {
 
     /// Returns the `Asn1Object` value of an `X509NameEntry`.
     /// This is useful for finding out about the actual `Nid` when iterating over all `X509NameEntries`.
-    ///
-    /// This corresponds to [`X509_NAME_ENTRY_get_object`].
-    ///
-    /// [`X509_NAME_ENTRY_get_object`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_NAME_ENTRY_get_object.html
+    #[corresponds(X509_NAME_ENTRY_get_object)]
     pub fn object(&self) -> &Asn1ObjectRef {
         unsafe {
             let object = ffi::X509_NAME_ENTRY_get_object(self.as_ptr());
@@ -1251,10 +1227,7 @@ impl X509ReqBuilder {
     }
 
     /// Set the issuer name.
-    ///
-    /// This corresponds to [`X509_REQ_set_subject_name`].
-    ///
-    /// [`X509_REQ_set_subject_name`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_REQ_set_subject_name.html
+    #[corresponds(X509_REQ_set_subject_name)]
     pub fn set_subject_name(&mut self, subject_name: &X509NameRef) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::X509_REQ_set_subject_name(
@@ -1266,10 +1239,7 @@ impl X509ReqBuilder {
     }
 
     /// Set the public key.
-    ///
-    /// This corresponds to [`X509_REQ_set_pubkey`].
-    ///
-    /// [`X509_REQ_set_pubkey`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_REQ_set_pubkey.html
+    #[corresponds(X509_REQ_set_pubkey)]
     pub fn set_pubkey<T>(&mut self, key: &PKeyRef<T>) -> Result<(), ErrorStack>
     where
         T: HasPublic,
@@ -1316,10 +1286,7 @@ impl X509ReqBuilder {
     }
 
     /// Sign the request using a private key.
-    ///
-    /// This corresponds to [`X509_REQ_sign`].
-    ///
-    /// [`X509_REQ_sign`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_REQ_sign.html
+    #[corresponds(X509_REQ_sign)]
     pub fn sign<T>(&mut self, key: &PKeyRef<T>, hash: MessageDigest) -> Result<(), ErrorStack>
     where
         T: HasPrivate,
@@ -1358,10 +1325,7 @@ impl X509Req {
         /// Deserializes a PEM-encoded PKCS#10 certificate request structure.
         ///
         /// The input should have a header of `-----BEGIN CERTIFICATE REQUEST-----`.
-        ///
-        /// This corresponds to [`PEM_read_bio_X509_REQ`].
-        ///
-        /// [`PEM_read_bio_X509_REQ`]: https://www.openssl.org/docs/man1.0.2/crypto/PEM_read_bio_X509_REQ.html
+        #[corresponds(PEM_read_bio_X509_REQ)]
         from_pem,
         X509Req,
         ffi::PEM_read_bio_X509_REQ
@@ -1369,10 +1333,7 @@ impl X509Req {
 
     from_der! {
         /// Deserializes a DER-encoded PKCS#10 certificate request structure.
-        ///
-        /// This corresponds to [`d2i_X509_REQ`].
-        ///
-        /// [`d2i_X509_REQ`]: https://www.openssl.org/docs/man1.1.0/crypto/d2i_X509_REQ.html
+        #[corresponds(d2i_X509_REQ)]
         from_der,
         X509Req,
         ffi::d2i_X509_REQ,
@@ -1385,38 +1346,26 @@ impl X509ReqRef {
         /// Serializes the certificate request to a PEM-encoded PKCS#10 structure.
         ///
         /// The output will have a header of `-----BEGIN CERTIFICATE REQUEST-----`.
-        ///
-        /// This corresponds to [`PEM_write_bio_X509_REQ`].
-        ///
-        /// [`PEM_write_bio_X509_REQ`]: https://www.openssl.org/docs/man1.0.2/crypto/PEM_write_bio_X509_REQ.html
+        #[corresponds(PEM_write_bio_X509_REQ)]
         to_pem,
         ffi::PEM_write_bio_X509_REQ
     }
 
     to_der! {
         /// Serializes the certificate request to a DER-encoded PKCS#10 structure.
-        ///
-        /// This corresponds to [`i2d_X509_REQ`].
-        ///
-        /// [`i2d_X509_REQ`]: https://www.openssl.org/docs/man1.0.2/crypto/i2d_X509_REQ.html
+        #[corresponds(i2d_X509_REQ)]
         to_der,
         ffi::i2d_X509_REQ
     }
 
     /// Returns the numerical value of the version field of the certificate request.
-    ///
-    /// This corresponds to [`X509_REQ_get_version`]
-    ///
-    /// [`X509_REQ_get_version`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_REQ_get_version.html
+    #[corresponds(X509_REQ_get_version)]
     pub fn version(&self) -> i32 {
         unsafe { X509_REQ_get_version(self.as_ptr()) as i32 }
     }
 
     /// Returns the subject name of the certificate request.
-    ///
-    /// This corresponds to [`X509_REQ_get_subject_name`]
-    ///
-    /// [`X509_REQ_get_subject_name`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_REQ_get_subject_name.html
+    #[corresponds(X509_REQ_get_subject_name)]
     pub fn subject_name(&self) -> &X509NameRef {
         unsafe {
             let name = X509_REQ_get_subject_name(self.as_ptr());
@@ -1507,10 +1456,7 @@ impl X509VerifyError {
     }
 
     /// Return a human readable error string from the verification error.
-    ///
-    /// This corresponds to [`X509_verify_cert_error_string`].
-    ///
-    /// [`X509_verify_cert_error_string`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_verify_cert_error_string.html
+    #[corresponds(X509_verify_cert_error_string)]
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn error_string(&self) -> &'static str {
         ffi::init();

@@ -43,6 +43,7 @@
 use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 use libc::{c_int, c_long};
+use openssl_macros::corresponds;
 use std::ffi::CString;
 use std::fmt;
 use std::mem;
@@ -138,10 +139,7 @@ impl<T> ToOwned for PKeyRef<T> {
 
 impl<T> PKeyRef<T> {
     /// Returns a copy of the internal RSA key.
-    ///
-    /// This corresponds to [`EVP_PKEY_get1_RSA`].
-    ///
-    /// [`EVP_PKEY_get1_RSA`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_PKEY_get1_RSA.html
+    #[corresponds(EVP_PKEY_get1_RSA)]
     pub fn rsa(&self) -> Result<Rsa<T>, ErrorStack> {
         unsafe {
             let rsa = cvt_p(ffi::EVP_PKEY_get1_RSA(self.as_ptr()))?;
@@ -150,10 +148,7 @@ impl<T> PKeyRef<T> {
     }
 
     /// Returns a copy of the internal DSA key.
-    ///
-    /// This corresponds to [`EVP_PKEY_get1_DSA`].
-    ///
-    /// [`EVP_PKEY_get1_DSA`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_PKEY_get1_DSA.html
+    #[corresponds(EVP_PKEY_get1_DSA)]
     pub fn dsa(&self) -> Result<Dsa<T>, ErrorStack> {
         unsafe {
             let dsa = cvt_p(ffi::EVP_PKEY_get1_DSA(self.as_ptr()))?;
@@ -162,10 +157,7 @@ impl<T> PKeyRef<T> {
     }
 
     /// Returns a copy of the internal DH key.
-    ///
-    /// This corresponds to [`EVP_PKEY_get1_DH`].
-    ///
-    /// [`EVP_PKEY_get1_DH`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_PKEY_get1_DH.html
+    #[corresponds(EVP_PKEY_get1_DH)]
     pub fn dh(&self) -> Result<Dh<T>, ErrorStack> {
         unsafe {
             let dh = cvt_p(ffi::EVP_PKEY_get1_DH(self.as_ptr()))?;
@@ -174,10 +166,7 @@ impl<T> PKeyRef<T> {
     }
 
     /// Returns a copy of the internal elliptic curve key.
-    ///
-    /// This corresponds to [`EVP_PKEY_get1_EC_KEY`].
-    ///
-    /// [`EVP_PKEY_get1_EC_KEY`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_PKEY_get1_EC_KEY.html
+    #[corresponds(EVP_PKEY_get1_EC_KEY)]
     pub fn ec_key(&self) -> Result<EcKey<T>, ErrorStack> {
         unsafe {
             let ec_key = cvt_p(ffi::EVP_PKEY_get1_EC_KEY(self.as_ptr()))?;
@@ -186,19 +175,13 @@ impl<T> PKeyRef<T> {
     }
 
     /// Returns the `Id` that represents the type of this key.
-    ///
-    /// This corresponds to [`EVP_PKEY_id`].
-    ///
-    /// [`EVP_PKEY_id`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_PKEY_id.html
+    #[corresponds(EVP_PKEY_id)]
     pub fn id(&self) -> Id {
         unsafe { Id::from_raw(ffi::EVP_PKEY_id(self.as_ptr())) }
     }
 
     /// Returns the maximum size of a signature in bytes.
-    ///
-    /// This corresponds to [`EVP_PKEY_size`].
-    ///
-    /// [`EVP_PKEY_size`]: https://www.openssl.org/docs/man1.1.1/man3/EVP_PKEY_size.html
+    #[corresponds(EVP_PKEY_size)]
     pub fn size(&self) -> usize {
         unsafe { ffi::EVP_PKEY_size(self.as_ptr()) as usize }
     }
@@ -212,20 +195,14 @@ where
         /// Serializes the public key into a PEM-encoded SubjectPublicKeyInfo structure.
         ///
         /// The output will have a header of `-----BEGIN PUBLIC KEY-----`.
-        ///
-        /// This corresponds to [`PEM_write_bio_PUBKEY`].
-        ///
-        /// [`PEM_write_bio_PUBKEY`]: https://www.openssl.org/docs/man1.1.0/crypto/PEM_write_bio_PUBKEY.html
+        #[corresponds(PEM_write_bio_PUBKEY)]
         public_key_to_pem,
         ffi::PEM_write_bio_PUBKEY
     }
 
     to_der! {
         /// Serializes the public key into a DER-encoded SubjectPublicKeyInfo structure.
-        ///
-        /// This corresponds to [`i2d_PUBKEY`].
-        ///
-        /// [`i2d_PUBKEY`]: https://www.openssl.org/docs/man1.1.0/crypto/i2d_PUBKEY.html
+        #[corresponds(i2d_PUBKEY)]
         public_key_to_der,
         ffi::i2d_PUBKEY
     }
@@ -255,28 +232,19 @@ where
         /// Serializes the private key to a PEM-encoded PKCS#8 PrivateKeyInfo structure.
         ///
         /// The output will have a header of `-----BEGIN PRIVATE KEY-----`.
-        ///
-        /// This corresponds to [`PEM_write_bio_PKCS8PrivateKey`].
-        ///
-        /// [`PEM_write_bio_PKCS8PrivateKey`]: https://www.openssl.org/docs/man1.0.2/crypto/PEM_write_bio_PKCS8PrivateKey.html
+        #[corresponds(PEM_write_bio_PKCS8PrivateKey)]
         private_key_to_pem_pkcs8,
         /// Serializes the private key to a PEM-encoded PKCS#8 EncryptedPrivateKeyInfo structure.
         ///
         /// The output will have a header of `-----BEGIN ENCRYPTED PRIVATE KEY-----`.
-        ///
-        /// This corresponds to [`PEM_write_bio_PKCS8PrivateKey`].
-        ///
-        /// [`PEM_write_bio_PKCS8PrivateKey`]: https://www.openssl.org/docs/man1.0.2/crypto/PEM_write_bio_PKCS8PrivateKey.html
+        #[corresponds(PEM_write_bio_PKCS8PrivateKey)]
         private_key_to_pem_pkcs8_passphrase,
         ffi::PEM_write_bio_PKCS8PrivateKey
     }
 
     to_der! {
         /// Serializes the private key to a DER-encoded key type specific format.
-        ///
-        /// This corresponds to [`i2d_PrivateKey`].
-        ///
-        /// [`i2d_PrivateKey`]: https://www.openssl.org/docs/man1.0.2/crypto/i2d_PrivateKey.html
+        #[corresponds(i2d_PrivateKey)]
         private_key_to_der,
         ffi::i2d_PrivateKey
     }
@@ -285,16 +253,10 @@ where
     // "identical to the corresponding PEM function", and it's declared in pem.h.
     private_key_to_pem! {
         /// Serializes the private key to a DER-encoded PKCS#8 PrivateKeyInfo structure.
-        ///
-        /// This corresponds to [`i2d_PKCS8PrivateKey_bio`].
-        ///
-        /// [`i2d_PKCS8PrivateKey_bio`]: https://www.openssl.org/docs/man1.1.1/man3/i2d_PKCS8PrivateKey_bio.html
+        #[corresponds(i2d_PKCS8PrivateKey_bio)]
         private_key_to_der_pkcs8,
         /// Serializes the private key to a DER-encoded PKCS#8 EncryptedPrivateKeyInfo structure.
-        ///
-        /// This corresponds to [`i2d_PKCS8PrivateKey_bio`].
-        ///
-        /// [`i2d_PKCS8PrivateKey_bio`]: https://www.openssl.org/docs/man1.1.1/man3/i2d_PKCS8PrivateKey_bio.html
+        #[corresponds(i2d_PKCS8PrivateKey_bio)]
         private_key_to_der_pkcs8_passphrase,
         ffi::i2d_PKCS8PrivateKey_bio
     }
@@ -325,10 +287,7 @@ impl<T> Clone for PKey<T> {
 
 impl<T> PKey<T> {
     /// Creates a new `PKey` containing an RSA key.
-    ///
-    /// This corresponds to [`EVP_PKEY_assign_RSA`].
-    ///
-    /// [`EVP_PKEY_assign_RSA`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_PKEY_assign_RSA.html
+    #[corresponds(EVP_PKEY_assign_RSA)]
     pub fn from_rsa(rsa: Rsa<T>) -> Result<PKey<T>, ErrorStack> {
         unsafe {
             let evp = cvt_p(ffi::EVP_PKEY_new())?;
@@ -344,10 +303,7 @@ impl<T> PKey<T> {
     }
 
     /// Creates a new `PKey` containing an elliptic curve key.
-    ///
-    /// This corresponds to [`EVP_PKEY_assign_EC_KEY`].
-    ///
-    /// [`EVP_PKEY_assign_EC_KEY`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_PKEY_assign_EC_KEY.html
+    #[corresponds(EVP_PKEY_assign_EC_KEY)]
     pub fn from_ec_key(ec_key: EcKey<T>) -> Result<PKey<T>, ErrorStack> {
         unsafe {
             let evp = cvt_p(ffi::EVP_PKEY_new())?;
@@ -366,26 +322,17 @@ impl<T> PKey<T> {
 impl PKey<Private> {
     private_key_from_pem! {
         /// Deserializes a private key from a PEM-encoded key type specific format.
-        ///
-        /// This corresponds to [`PEM_read_bio_PrivateKey`].
-        ///
-        /// [`PEM_read_bio_PrivateKey`]: https://www.openssl.org/docs/man1.1.0/crypto/PEM_read_bio_PrivateKey.html
+        #[corresponds(PEM_read_bio_PrivateKey)]
         private_key_from_pem,
 
         /// Deserializes a private key from a PEM-encoded encrypted key type specific format.
-        ///
-        /// This corresponds to [`PEM_read_bio_PrivateKey`].
-        ///
-        /// [`PEM_read_bio_PrivateKey`]: https://www.openssl.org/docs/man1.1.0/crypto/PEM_read_bio_PrivateKey.html
+        #[corresponds(PEM_read_bio_PrivateKey)]
         private_key_from_pem_passphrase,
 
         /// Deserializes a private key from a PEM-encoded encrypted key type specific format.
         ///
         /// The callback should fill the password into the provided buffer and return its length.
-        ///
-        /// This corresponds to [`PEM_read_bio_PrivateKey`].
-        ///
-        /// [`PEM_read_bio_PrivateKey`]: https://www.openssl.org/docs/man1.1.0/crypto/PEM_read_bio_PrivateKey.html
+        #[corresponds(PEM_read_bio_PrivateKey)]
         private_key_from_pem_callback,
         PKey<Private>,
         ffi::PEM_read_bio_PrivateKey
@@ -397,10 +344,7 @@ impl PKey<Private> {
         /// This function will automatically attempt to detect the underlying key format, and
         /// supports the unencrypted PKCS#8 PrivateKeyInfo structures as well as key type specific
         /// formats.
-        ///
-        /// This corresponds to [`d2i_AutoPrivateKey`].
-        ///
-        /// [`d2i_AutoPrivateKey`]: https://www.openssl.org/docs/man1.0.2/crypto/d2i_AutoPrivateKey.html
+        #[corresponds(d2i_AutoPrivateKey)]
         private_key_from_der,
         PKey<Private>,
         ffi::d2i_AutoPrivateKey,
@@ -481,10 +425,7 @@ impl PKey<Public> {
         /// Decodes a PEM-encoded SubjectPublicKeyInfo structure.
         ///
         /// The input should have a header of `-----BEGIN PUBLIC KEY-----`.
-        ///
-        /// This corresponds to [`PEM_read_bio_PUBKEY`].
-        ///
-        /// [`PEM_read_bio_PUBKEY`]: https://www.openssl.org/docs/man1.0.2/crypto/PEM_read_bio_PUBKEY.html
+        #[corresponds(PEM_read_bio_PUBKEY)]
         public_key_from_pem,
         PKey<Public>,
         ffi::PEM_read_bio_PUBKEY
@@ -492,10 +433,7 @@ impl PKey<Public> {
 
     from_der! {
         /// Decodes a DER-encoded SubjectPublicKeyInfo structure.
-        ///
-        /// This corresponds to [`d2i_PUBKEY`].
-        ///
-        /// [`d2i_PUBKEY`]: https://www.openssl.org/docs/man1.1.0/crypto/d2i_PUBKEY.html
+        #[corresponds(d2i_PUBKEY)]
         public_key_from_der,
         PKey<Public>,
         ffi::d2i_PUBKEY,

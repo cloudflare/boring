@@ -59,7 +59,6 @@
 //! ```
 use foreign_types::{ForeignType, ForeignTypeRef, Opaque};
 use libc::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
-use once_cell::sync::Lazy;
 use openssl_macros::corresponds;
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -76,7 +75,7 @@ use std::path::Path;
 use std::ptr::{self, NonNull};
 use std::slice;
 use std::str;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 
 use crate::dh::DhRef;
 use crate::ec::EcKeyRef;
@@ -105,12 +104,16 @@ pub use self::async_callbacks::{
 pub use self::connector::{
     ConnectConfiguration, SslAcceptor, SslAcceptorBuilder, SslConnector, SslConnectorBuilder,
 };
+#[cfg(not(feature = "fips"))]
+pub use self::ech::{SslEchKeys, SslEchKeysRef};
 pub use self::error::{Error, ErrorCode, HandshakeError};
 
 mod async_callbacks;
 mod bio;
 mod callbacks;
 mod connector;
+#[cfg(not(feature = "fips"))]
+mod ech;
 mod error;
 mod mut_only;
 #[cfg(test)]
@@ -426,12 +429,15 @@ impl NameType {
     }
 }
 
-static INDEXES: Lazy<Mutex<HashMap<TypeId, c_int>>> = Lazy::new(|| Mutex::new(HashMap::new()));
-static SSL_INDEXES: Lazy<Mutex<HashMap<TypeId, c_int>>> = Lazy::new(|| Mutex::new(HashMap::new()));
-static SESSION_CTX_INDEX: Lazy<Index<Ssl, SslContext>> = Lazy::new(|| Ssl::new_ex_index().unwrap());
+static INDEXES: LazyLock<Mutex<HashMap<TypeId, c_int>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+static SSL_INDEXES: LazyLock<Mutex<HashMap<TypeId, c_int>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+static SESSION_CTX_INDEX: LazyLock<Index<Ssl, SslContext>> =
+    LazyLock::new(|| Ssl::new_ex_index().unwrap());
 #[cfg(feature = "rpk")]
-static RPK_FLAG_INDEX: Lazy<Index<SslContext, bool>> =
-    Lazy::new(|| SslContext::new_ex_index().unwrap());
+static RPK_FLAG_INDEX: LazyLock<Index<SslContext, bool>> =
+    LazyLock::new(|| SslContext::new_ex_index().unwrap());
 
 unsafe extern "C" fn free_data_box<T>(
     _parent: *mut c_void,
@@ -724,10 +730,6 @@ impl SslCurve {
     pub const P256_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::SSL_CURVE_P256_KYBER768_DRAFT00 as _);
 
     /// Returns the curve name
-    ///
-    /// This corresponds to [`SSL_get_curve_name`]
-    ///
-    /// [`SSL_get_curve_name`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_get_curve_name
     #[corresponds(SSL_get_curve_name)]
     pub fn name(&self) -> Option<&'static str> {
         unsafe {
@@ -793,6 +795,16 @@ impl CompliancePolicy {
         Self(ffi::ssl_compliance_policy_t::ssl_compliance_policy_wpa3_192_202304);
 }
 
+// IANA assigned identifier of compression algorithm. See https://www.rfc-editor.org/rfc/rfc8879.html#name-compression-algorithms
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct CertificateCompressionAlgorithm(u16);
+
+impl CertificateCompressionAlgorithm {
+    pub const ZLIB: Self = Self(ffi::TLSEXT_cert_compression_zlib as u16);
+
+    pub const BROTLI: Self = Self(ffi::TLSEXT_cert_compression_brotli as u16);
+}
+
 /// A standard implementation of protocol selection for Application Layer Protocol Negotiation
 /// (ALPN).
 ///
@@ -802,11 +814,9 @@ impl CompliancePolicy {
 ///
 /// It will select the first protocol supported by the server which is also supported by the client.
 ///
-/// This corresponds to [`SSL_select_next_proto`].
-///
 /// [`SslContextBuilder::set_alpn_protos`]: struct.SslContextBuilder.html#method.set_alpn_protos
-/// [`SSL_select_next_proto`]: https://www.openssl.org/docs/man1.1.0/ssl/SSL_CTX_set_alpn_protos.html
-pub fn select_next_proto<'a>(server: &[u8], client: &'a [u8]) -> Option<&'a [u8]> {
+#[corresponds(SSL_select_next_proto)]
+pub fn select_next_proto<'a>(server: &'a [u8], client: &'a [u8]) -> Option<&'a [u8]> {
     if server.is_empty() || client.is_empty() {
         return None;
     }
@@ -1594,6 +1604,48 @@ impl SslContextBuilder {
         }
     }
 
+    /// Registers a certificate compression algorithm.
+    ///
+    /// Corresponds to [`SSL_CTX_add_cert_compression_alg`].
+    ///
+    /// [`SSL_CTX_add_cert_compression_alg`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_add_cert_compression_alg
+    pub fn add_certificate_compression_algorithm<C>(
+        &mut self,
+        compressor: C,
+    ) -> Result<(), ErrorStack>
+    where
+        C: CertificateCompressor,
+    {
+        const {
+            assert!(C::CAN_COMPRESS || C::CAN_DECOMPRESS, "Either compression or decompression must be supported for algorithm to be registered")
+        };
+        let success = unsafe {
+            ffi::SSL_CTX_add_cert_compression_alg(
+                self.as_ptr(),
+                C::ALGORITHM.0,
+                const {
+                    if C::CAN_COMPRESS {
+                        Some(callbacks::raw_ssl_cert_compress::<C>)
+                    } else {
+                        None
+                    }
+                },
+                const {
+                    if C::CAN_DECOMPRESS {
+                        Some(callbacks::raw_ssl_cert_decompress::<C>)
+                    } else {
+                        None
+                    }
+                },
+            ) == 1
+        };
+        if !success {
+            return Err(ErrorStack::get());
+        }
+        self.replace_ex_data(SslContext::cached_ex_index::<C>(), compressor);
+        Ok(())
+    }
+
     /// Configures a custom private key method on the context.
     ///
     /// See [`PrivateKeyMethod`] for more details.
@@ -1954,6 +2006,16 @@ impl SslContextBuilder {
         }
     }
 
+    /// Registers a list of ECH keys on the context. This list should contain new and old
+    /// ECHConfigs to allow stale DNS caches to update. Unlike most `SSL_CTX` APIs, this function
+    /// is safe to call even after the `SSL_CTX` has been associated with connections on various
+    /// threads.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_CTX_set1_ech_keys)]
+    pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
+        unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())).map(|_| ()) }
+    }
+
     /// Consumes the builder, returning a new `SslContext`.
     pub fn build(self) -> SslContext {
         self.ctx
@@ -2200,6 +2262,16 @@ impl SslContextRef {
     pub fn is_rpk(&self) -> bool {
         self.ex_data(*RPK_FLAG_INDEX).copied().unwrap_or_default()
     }
+
+    /// Registers a list of ECH keys on the context. This list should contain new and old
+    /// ECHConfigs to allow stale DNS caches to update. Unlike most `SSL_CTX` APIs, this function
+    /// is safe to call even after the `SSL_CTX` has been associated with connections on various
+    /// threads.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_CTX_set1_ech_keys)]
+    pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
+        unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())).map(|_| ()) }
+    }
 }
 
 /// Error returned by the callback to get a session when operation
@@ -2228,10 +2300,7 @@ pub struct ClientHello<'ssl>(&'ssl ffi::SSL_CLIENT_HELLO);
 
 impl ClientHello<'_> {
     /// Returns the data of a given extension, if present.
-    ///
-    /// This corresponds to [`SSL_early_callback_ctx_extension_get`].
-    ///
-    /// [`SSL_early_callback_ctx_extension_get`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_early_callback_ctx_extension_get
+    #[corresponds(SSL_early_callback_ctx_extension_get)]
     pub fn get_extension(&self, ext_type: ExtensionType) -> Option<&[u8]> {
         unsafe {
             let mut ptr = ptr::null();
@@ -2450,10 +2519,7 @@ impl Clone for SslSession {
 impl SslSession {
     from_der! {
         /// Deserializes a DER-encoded session structure.
-        ///
-        /// This corresponds to [`d2i_SSL_SESSION`].
-        ///
-        /// [`d2i_SSL_SESSION`]: https://www.openssl.org/docs/man1.0.2/ssl/d2i_SSL_SESSION.html
+        #[corresponds(d2i_SSL_SESSION)]
         from_der,
         SslSession,
         ffi::d2i_SSL_SESSION,
@@ -2524,10 +2590,7 @@ impl SslSessionRef {
 
     to_der! {
         /// Serializes the session into a DER-encoded structure.
-        ///
-        /// This corresponds to [`i2d_SSL_SESSION`].
-        ///
-        /// [`i2d_SSL_SESSION`]: https://www.openssl.org/docs/man1.0.2/ssl/i2d_SSL_SESSION.html
+        #[corresponds(i2d_SSL_SESSION)]
         to_der,
         ffi::i2d_SSL_SESSION
     }
@@ -2748,7 +2811,7 @@ impl SslRef {
             if cfg!(feature = "kx-client-nist-required") {
                 "P-256:P-384:P-521:P256Kyber768Draft00"
             } else {
-                "X25519:P-256:P-384:P-521:X25519Kyber768Draft00:P256Kyber768Draft00"
+                "X25519:P-256:P-384:P-521:X25519MLKEM768:X25519Kyber768Draft00:P256Kyber768Draft00"
             }
         } else {
             if cfg!(feature = "kx-client-nist-required") {
@@ -2764,8 +2827,10 @@ impl SslRef {
 
     #[cfg(feature = "kx-safe-default")]
     fn server_set_default_curves_list(&mut self) {
-        self.set_curves_list("X25519Kyber768Draft00:P256Kyber768Draft00:X25519:P-256:P-384")
-            .expect("invalid default server curves list");
+        self.set_curves_list(
+            "X25519MLKEM768:X25519Kyber768Draft00:P256Kyber768Draft00:X25519:P-256:P-384",
+        )
+        .expect("invalid default server curves list");
     }
 
     /// Returns the [`SslCurve`] used for this `SslRef`.
@@ -2924,10 +2989,7 @@ impl SslRef {
     }
 
     /// Configures whether ClientHello extensions should be permuted.
-    ///
-    /// This corresponds to [`SSL_set_permute_extensions`].
-    ///
-    /// [`SSL_set_permute_extensions`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_set_permute_extensions
+    #[corresponds(SSL_set_permute_extensions)]
     ///
     /// Note: This is gated to non-fips because the fips feature builds with a separate
     /// version of BoringSSL which doesn't yet include these APIs.
@@ -3492,7 +3554,7 @@ impl SslRef {
     /// This can be used to provide data to callbacks registered with the context. Use the
     /// `Ssl::new_ex_index` method to create an `Index`.
     ///
-    /// Any previous value will be dropped and replaced by the new one.
+    /// The previous value, if any, will be returned.
     #[corresponds(SSL_set_ex_data)]
     pub fn replace_ex_data<T>(&mut self, index: Index<Ssl, T>, data: T) -> Option<T> {
         if let Some(old) = self.ex_data_mut(index) {
@@ -3619,6 +3681,88 @@ impl SslRef {
     pub fn add_chain_cert(&mut self, cert: &X509Ref) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_add1_chain_cert(self.as_ptr(), cert.as_ptr())).map(|_| ()) }
     }
+
+    /// Configures `ech_config_list` on `SSL` for offering ECH during handshakes. If the server
+    /// cannot decrypt the encrypted ClientHello, `SSL` will instead handshake using
+    /// the cleartext parameters of the ClientHelloOuter.
+    ///
+    /// Clients should use `get_ech_name_override` to verify the server certificate in case of ECH
+    /// rejection, and follow up with `get_ech_retry_configs` to retry the connection with a fresh
+    /// set of ECHConfigs. If the retry also fails, clients should report a connection failure.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set1_ech_config_list)]
+    pub fn set_ech_config_list(&mut self, ech_config_list: &[u8]) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_set1_ech_config_list(
+                self.as_ptr(),
+                ech_config_list.as_ptr(),
+                ech_config_list.len(),
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// This function returns a serialized `ECHConfigList` as provided by the
+    /// server, if one exists.
+    ///
+    /// Clients should call this function when handling an `SSL_R_ECH_REJECTED` error code to
+    /// recover from potential key mismatches. If the result is `Some`, the client should retry the
+    /// connection using the returned `ECHConfigList`.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_get0_ech_retry_configs)]
+    pub fn get_ech_retry_configs(&self) -> Option<&[u8]> {
+        unsafe {
+            let mut data = ptr::null();
+            let mut len: usize = 0;
+            ffi::SSL_get0_ech_retry_configs(self.as_ptr(), &mut data, &mut len);
+
+            if data.is_null() {
+                None
+            } else {
+                Some(slice::from_raw_parts(data, len))
+            }
+        }
+    }
+
+    /// If `SSL` is a client and the server rejects ECH, this function returns the public name
+    /// associated with the ECHConfig that was used to attempt ECH.
+    ///
+    /// Clients should call this function during the certificate verification callback to
+    /// ensure the server's certificate is valid for the public name, which is required to
+    /// authenticate retry configs.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_get0_ech_name_override)]
+    pub fn get_ech_name_override(&self) -> Option<&[u8]> {
+        unsafe {
+            let mut data: *const c_char = ptr::null();
+            let mut len: usize = 0;
+            ffi::SSL_get0_ech_name_override(self.as_ptr(), &mut data, &mut len);
+
+            if data.is_null() {
+                None
+            } else {
+                Some(slice::from_raw_parts(data as *const u8, len))
+            }
+        }
+    }
+
+    // Whether or not `SSL` negotiated ECH.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_ech_accepted)]
+    pub fn ech_accepted(&self) -> bool {
+        unsafe { ffi::SSL_ech_accepted(self.as_ptr()) != 0 }
+    }
+
+    // Whether or not to enable ECH grease on `SSL`.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set_enable_ech_grease)]
+    pub fn set_enable_ech_grease(&self, enable: bool) {
+        let enable = if enable { 1 } else { 0 };
+
+        unsafe {
+            ffi::SSL_set_enable_ech_grease(self.as_ptr(), enable);
+        }
+    }
 }
 
 /// An SSL stream midway through the handshake process.
@@ -3670,10 +3814,7 @@ impl<S> MidHandshakeSslStream<S> {
     }
 
     /// Restarts the handshake process.
-    ///
-    /// This corresponds to [`SSL_do_handshake`].
-    ///
-    /// [`SSL_do_handshake`]: https://www.openssl.org/docs/manmaster/man3/SSL_do_handshake.html
+    #[corresponds(SSL_do_handshake)]
     pub fn handshake(mut self) -> Result<SslStream<S>, HandshakeError<S>> {
         let ret = unsafe { ffi::SSL_do_handshake(self.stream.ssl.as_ptr()) };
         if ret > 0 {
@@ -4258,6 +4399,36 @@ impl PrivateKeyMethodError {
 
     /// The operation could not be completed and should be retried later.
     pub const RETRY: Self = Self(ffi::ssl_private_key_result_t::ssl_private_key_retry);
+}
+
+/// Describes certificate compression algorithm. Implementation MUST implement transformation at least in one direction.
+pub trait CertificateCompressor: Send + Sync + 'static {
+    /// An IANA assigned identifier of compression algorithm
+    const ALGORITHM: CertificateCompressionAlgorithm;
+
+    /// Indicates if compressor support compression
+    const CAN_COMPRESS: bool;
+
+    /// Indicates if compressor support decompression
+    const CAN_DECOMPRESS: bool;
+
+    /// Perform compression of `input` buffer and write compressed data to `output`.
+    #[allow(unused_variables)]
+    fn compress<W>(&self, input: &[u8], output: &mut W) -> std::io::Result<()>
+    where
+        W: std::io::Write,
+    {
+        Err(std::io::Error::other("not implemented"))
+    }
+
+    /// Perform decompression of `input` buffer and write compressed data to `output`.
+    #[allow(unused_variables)]
+    fn decompress<W>(&self, input: &[u8], output: &mut W) -> std::io::Result<()>
+    where
+        W: std::io::Write,
+    {
+        Err(std::io::Error::other("not implemented"))
+    }
 }
 
 use crate::ffi::{SSL_CTX_up_ref, SSL_SESSION_get_master_key, SSL_SESSION_up_ref, SSL_is_server};

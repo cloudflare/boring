@@ -8,7 +8,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "4.13.0"
+version = "4.15.0"
 repository = "https://github.com/cloudflare/boring"
 edition = "2021"
 
@@ -19,9 +19,9 @@ tag-prefix = ""
 publish = false
 
 [workspace.dependencies]
-boring-sys = { version = "4.13.0", path = "./boring-sys" }
-boring = { version = "4.13.0", path = "./boring" }
-tokio-boring = { version = "4.13.0", path = "./tokio-boring" }
+boring-sys = { version = "4.15.0", path = "./boring-sys" }
+boring = { version = "4.15.0", path = "./boring" }
+tokio-boring = { version = "4.15.0", path = "./tokio-boring" }
 
 bindgen = { version = "0.70.1", default-features = false, features = ["runtime"] }
 bytes = "1"
@@ -44,9 +44,9 @@ hyper = "1"
 hyper-util = "0.1.6"
 hyper_old = { package = "hyper", version = "0.14", default-features = false }
 linked_hash_set = "0.1"
-once_cell = "1.0"
 openssl-macros = "0.1.1"
 tower = "0.4"
 tower-layer = "0.3"
 tower-service = "0.3"
 autocfg = "1.3.0"
+brotli = "6.0"
