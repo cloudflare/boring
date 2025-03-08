@@ -30,6 +30,7 @@ mod ech;
 mod private_key_method;
 mod server;
 mod session;
+mod session_resumption;
 mod verify;
 
 static ROOT_CERT: &[u8] = include_bytes!("../../../test/root-ca.pem");

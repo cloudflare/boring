@@ -804,6 +804,50 @@ pub enum SslInfoCallbackValue {
     Alert(SslInfoCallbackAlert),
 }
 
+/// Ticket key callback status.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum TicketKeyCallbackResult {
+    /// Abort the handshake.
+    Error,
+
+    /// The peer supplied session ticket was not recognized. Continue with a full handshake.
+    ///
+    /// # Note
+    ///
+    /// This is a decryption specific status code.
+    DecryptTicketUnrecognized,
+
+    /// Resumption callback was successful.
+    ///
+    /// When in decryption mode, attempt an abbreviated handshake via session resumption. When in
+    /// encryption mode, provide a new ticket to the client.
+    Success,
+
+    /// Resumption callback was successful. Attempt an abbreviated handshake, and additionally
+    /// provide new session tickets to the peer.
+    ///
+    /// Session resumption short-circuits some security checks of a full-handshake, in exchange for
+    /// potential performance gains. For this reason, a session ticket should only be valid for a
+    /// limited time. Providing the peer with renewed session tickets allows them to continue
+    /// session resumption with the new tickets.
+    ///
+    /// # Note
+    ///
+    /// This is a decryption specific status code.
+    DecryptSuccessRenew,
+}
+
+impl From<TicketKeyCallbackResult> for c_int {
+    fn from(value: TicketKeyCallbackResult) -> Self {
+        match value {
+            TicketKeyCallbackResult::Error => -1,
+            TicketKeyCallbackResult::DecryptTicketUnrecognized => 0,
+            TicketKeyCallbackResult::Success => 1,
+            TicketKeyCallbackResult::DecryptSuccessRenew => 2,
+        }
+    }
+}
+
 #[derive(Hash, Copy, Clone, PartialOrd, Ord, Eq, PartialEq, Debug)]
 pub struct SslInfoCallbackAlert(c_int);
 
@@ -1078,6 +1122,43 @@ impl SslContextBuilder {
             ffi::SSL_CTX_set_tlsext_servername_arg(self.as_ptr(), arg);
             ffi::SSL_CTX_set_tlsext_servername_callback(self.as_ptr(), Some(raw_sni::<F>));
         }
+    }
+
+    /// Configures a custom session ticket key callback for session resumption.
+    ///
+    /// Session Resumption uses the security context (aka. session tickets) of a previous
+    /// connection to establish a new connection via an abbreviated handshake. Skipping portions of
+    /// a handshake can potentially yield performance gains.
+    ///
+    /// An attacker that compromises a server's session ticket key can impersonate the server and,
+    /// prior to TLS 1.3, retroactively decrypt all application traffic from sessions using that
+    /// ticket key. Thus ticket keys must be regularly rotated for forward secrecy.
+    ///
+    /// # Panics
+    ///
+    /// This method panics if this `Ssl` is associated with a RPK context.
+    #[corresponds(SSL_CTX_set_tlsext_ticket_key_cb)]
+    pub fn set_ticket_key_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(
+                &SslRef,
+                &mut [u8; 16],
+                *mut u8,
+                *mut ffi::EVP_CIPHER_CTX,
+                *mut ffi::HMAC_CTX,
+                bool,
+            ) -> TicketKeyCallbackResult
+            + 'static
+            + Sync
+            + Send,
+    {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
+        unsafe {
+            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+            ffi::SSL_CTX_set_tlsext_ticket_key_cb(self.as_ptr(), Some(raw_ticket_key::<F>))
+        };
     }
 
     /// Sets the certificate verification depth.
