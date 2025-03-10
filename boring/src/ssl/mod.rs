@@ -2805,7 +2805,7 @@ impl SslRef {
             if cfg!(feature = "kx-client-nist-required") {
                 "P256Kyber768Draft00:P-256:P-384:P-521"
             } else {
-                "X25519Kyber768Draft00:X25519:P256Kyber768Draft00:P-256:P-384:P-521"
+                "X25519MLKEM768:X25519Kyber768Draft00:X25519:P256Kyber768Draft00:P-256:P-384:P-521"
             }
         } else if cfg!(feature = "kx-client-pq-supported") {
             if cfg!(feature = "kx-client-nist-required") {
