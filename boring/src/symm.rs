@@ -54,6 +54,7 @@
 
 use crate::ffi;
 use libc::{c_int, c_uint};
+use openssl_macros::corresponds;
 use std::cmp;
 use std::ptr;
 
@@ -77,10 +78,7 @@ pub struct Cipher(*const ffi::EVP_CIPHER);
 
 impl Cipher {
     /// Looks up the cipher for a certain nid.
-    ///
-    /// This corresponds to [`EVP_get_cipherbynid`]
-    ///
-    /// [`EVP_get_cipherbynid`]: https://www.openssl.org/docs/man1.0.2/crypto/EVP_get_cipherbyname.html
+    #[corresponds(EVP_get_cipherbynid)]
     pub fn from_nid(nid: Nid) -> Option<Cipher> {
         let ptr = unsafe { ffi::EVP_get_cipherbyname(ffi::OBJ_nid2sn(nid.as_raw())) };
         if ptr.is_null() {

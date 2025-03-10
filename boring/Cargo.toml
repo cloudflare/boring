@@ -10,7 +10,7 @@ readme = "README.md"
 keywords = ["crypto", "tls", "ssl", "dtls"]
 categories = ["cryptography", "api-bindings"]
 edition = { workspace = true }
-rust-version = "1.70"
+rust-version = "1.80"
 
 [package.metadata.docs.rs]
 features = ["rpk", "pq-experimental", "underscore-wildcards"]
@@ -74,7 +74,6 @@ kx-client-nist-required = ["kx-safe-default"]
 [dependencies]
 bitflags = { workspace = true }
 foreign-types = { workspace = true }
-once_cell = { workspace = true }
 openssl-macros = { workspace = true }
 libc = { workspace = true }
 boring-sys = { workspace = true }
@@ -82,3 +81,4 @@ boring-sys = { workspace = true }
 [dev-dependencies]
 hex = { workspace = true }
 rusty-hook = { workspace = true }
+brotli = { workspace = true }

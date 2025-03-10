@@ -1,10 +1,10 @@
 #![forbid(unsafe_op_in_unsafe_fn)]
 
 use super::{
-    AlpnError, ClientHello, GetSessionPendingError, PrivateKeyMethod, PrivateKeyMethodError,
-    SelectCertError, SniError, Ssl, SslAlert, SslContext, SslContextRef, SslInfoCallbackAlert,
-    SslInfoCallbackMode, SslInfoCallbackValue, SslRef, SslSession, SslSessionRef,
-    SslSignatureAlgorithm, SslVerifyError, SESSION_CTX_INDEX,
+    AlpnError, CertificateCompressor, ClientHello, GetSessionPendingError, PrivateKeyMethod,
+    PrivateKeyMethodError, SelectCertError, SniError, Ssl, SslAlert, SslContext, SslContextRef,
+    SslInfoCallbackAlert, SslInfoCallbackMode, SslInfoCallbackValue, SslRef, SslSession,
+    SslSessionRef, SslSignatureAlgorithm, SslVerifyError, SESSION_CTX_INDEX,
 };
 use crate::error::ErrorStack;
 use crate::ffi;
@@ -578,4 +578,147 @@ pub(super) unsafe extern "C" fn raw_info_callback<F>(
     };
 
     callback(ssl, SslInfoCallbackMode(mode), value);
+}
+
+pub(super) unsafe extern "C" fn raw_ssl_cert_compress<C>(
+    ssl: *mut ffi::SSL,
+    out: *mut ffi::CBB,
+    input: *const u8,
+    input_len: usize,
+) -> ::std::os::raw::c_int
+where
+    C: CertificateCompressor,
+{
+    const {
+        assert!(C::CAN_COMPRESS);
+    }
+
+    // SAFETY: boring provides valid inputs.
+    let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
+
+    let ssl_context = ssl.ssl_context();
+    let compressor = ssl_context
+        .ex_data(SslContext::cached_ex_index::<C>())
+        .expect("BUG: certificate compression missed");
+
+    let input_slice = unsafe { std::slice::from_raw_parts(input, input_len) };
+    let mut writer = CryptoByteBuilder::from_ptr(out);
+    if compressor.compress(input_slice, &mut writer).is_err() {
+        return 0;
+    }
+
+    1
+}
+
+pub(super) unsafe extern "C" fn raw_ssl_cert_decompress<C>(
+    ssl: *mut ffi::SSL,
+    out: *mut *mut ffi::CRYPTO_BUFFER,
+    uncompressed_len: usize,
+    input: *const u8,
+    input_len: usize,
+) -> ::std::os::raw::c_int
+where
+    C: CertificateCompressor,
+{
+    const {
+        assert!(C::CAN_DECOMPRESS);
+    }
+
+    // SAFETY: boring provides valid inputs.
+    let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
+
+    let ssl_context = ssl.ssl_context();
+    let compressor = ssl_context
+        .ex_data(SslContext::cached_ex_index::<C>())
+        .expect("BUG: certificate compression missed");
+
+    let Ok(mut decompression_buffer) = CryptoBufferBuilder::with_capacity(uncompressed_len) else {
+        return 0;
+    };
+
+    let input_slice = unsafe { std::slice::from_raw_parts(input, input_len) };
+
+    if compressor
+        .decompress(input_slice, decompression_buffer.as_writer())
+        .is_err()
+    {
+        return 0;
+    }
+
+    let Ok(crypto_buffer) = decompression_buffer.build() else {
+        return 0;
+    };
+
+    unsafe { *out = crypto_buffer };
+    1
+}
+
+struct CryptoByteBuilder<'a>(*mut ffi::CBB, std::marker::PhantomData<&'a [u8]>);
+
+impl CryptoByteBuilder<'_> {
+    fn from_ptr(ptr: *mut ffi::CBB) -> Self {
+        Self(ptr, Default::default())
+    }
+}
+
+impl std::io::Write for CryptoByteBuilder<'_> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let success = unsafe { ffi::CBB_add_bytes(self.0, buf.as_ptr(), buf.len()) == 1 };
+        if !success {
+            return Err(std::io::Error::other("CBB_add_bytes failed"));
+        }
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        let success = unsafe { ffi::CBB_flush(self.0) == 1 };
+        if !success {
+            return Err(std::io::Error::other("CBB_flush failed"));
+        }
+        Ok(())
+    }
+}
+
+struct CryptoBufferBuilder<'a> {
+    buffer: *mut ffi::CRYPTO_BUFFER,
+    cursor: std::io::Cursor<&'a mut [u8]>,
+}
+
+impl<'a> CryptoBufferBuilder<'a> {
+    fn with_capacity(capacity: usize) -> Result<CryptoBufferBuilder<'a>, ErrorStack> {
+        let mut data: *mut u8 = std::ptr::null_mut();
+        let buffer = unsafe { crate::cvt_p(ffi::CRYPTO_BUFFER_alloc(&mut data, capacity))? };
+        Ok(CryptoBufferBuilder {
+            buffer,
+            cursor: std::io::Cursor::new(unsafe { std::slice::from_raw_parts_mut(data, capacity) }),
+        })
+    }
+
+    fn as_writer(&mut self) -> &mut (impl std::io::Write + 'a) {
+        &mut self.cursor
+    }
+
+    fn build(mut self) -> Result<*mut ffi::CRYPTO_BUFFER, ErrorStack> {
+        let buffer_capacity = unsafe { ffi::CRYPTO_BUFFER_len(self.buffer) };
+        if self.cursor.position() != buffer_capacity as u64 {
+            // Make sure all bytes in buffer initialized as required by Boring SSL.
+            return Err(ErrorStack::get());
+        }
+        unsafe {
+            let mut result = ptr::null_mut();
+            ptr::swap(&mut self.buffer, &mut result);
+            std::mem::forget(self);
+            Ok(result)
+        }
+    }
+}
+
+impl Drop for CryptoBufferBuilder<'_> {
+    fn drop(&mut self) {
+        if !self.buffer.is_null() {
+            unsafe {
+                boring_sys::CRYPTO_BUFFER_free(self.buffer);
+            }
+        }
+    }
 }
