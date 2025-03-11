@@ -810,12 +810,14 @@ pub enum TicketKeyCallbackResult {
     /// Abort the handshake.
     Error,
 
-    /// The peer supplied session ticket was not recognized. Continue with a full handshake.
+    /// Continue with a full handshake.
+    ///
+    /// The peer supplied session ticket was not recognized.
     ///
     /// # Note
     ///
     /// This is a decryption specific status code.
-    DecryptTicketUnrecognized,
+    Noop,
 
     /// Resumption callback was successful.
     ///
@@ -841,7 +843,7 @@ impl From<TicketKeyCallbackResult> for c_int {
     fn from(value: TicketKeyCallbackResult) -> Self {
         match value {
             TicketKeyCallbackResult::Error => -1,
-            TicketKeyCallbackResult::DecryptTicketUnrecognized => 0,
+            TicketKeyCallbackResult::Noop => 0,
             TicketKeyCallbackResult::Success => 1,
             TicketKeyCallbackResult::DecryptSuccessRenew => 2,
         }
