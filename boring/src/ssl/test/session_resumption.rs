@@ -15,6 +15,7 @@ static CUSTOM_DECRYPTION_CALLED_BACK: AtomicU8 = AtomicU8::new(0);
 #[test]
 fn resume_session() {
     static SESSION_TICKET: OnceLock<Vec<u8>> = OnceLock::new();
+    static NST_RECIEVED_COUNT: AtomicU8 = AtomicU8::new(0);
 
     let mut server = Server::builder();
     server.expected_connections_count(2);
@@ -25,12 +26,17 @@ fn resume_session() {
         .ctx()
         .set_session_cache_mode(SslSessionCacheMode::CLIENT);
     client.ctx().set_new_session_callback(|_, session| {
-        let _can_receive_multiple_tickets = SESSION_TICKET.set(session.to_der().unwrap());
+        NST_RECIEVED_COUNT.fetch_add(1, Ordering::SeqCst);
+        // The server sends multiple session tickets but we only care to retrieve one.
+        if SESSION_TICKET.get().is_none() {
+            SESSION_TICKET.set(session.to_der().unwrap()).unwrap();
+        }
     });
     let ssl_stream = client.connect();
 
     assert!(!ssl_stream.ssl().session_reused());
     assert!(SESSION_TICKET.get().is_some());
+    assert_eq!(NST_RECIEVED_COUNT.load(Ordering::SeqCst), 2);
 
     // Retrieve the session ticket
     let session_ticket = SslSession::from_der(SESSION_TICKET.get().unwrap()).unwrap();
@@ -47,6 +53,7 @@ fn resume_session() {
 #[test]
 fn custom_callback() {
     static SESSION_TICKET: OnceLock<Vec<u8>> = OnceLock::new();
+    static NST_RECIEVED_COUNT: AtomicU8 = AtomicU8::new(0);
 
     let mut server = Server::builder();
     server.expected_connections_count(2);
@@ -60,7 +67,11 @@ fn custom_callback() {
         .ctx()
         .set_session_cache_mode(SslSessionCacheMode::CLIENT);
     client.ctx().set_new_session_callback(|_, session| {
-        let _can_receive_multiple_tickets = SESSION_TICKET.set(session.to_der().unwrap());
+        NST_RECIEVED_COUNT.fetch_add(1, Ordering::SeqCst);
+        // The server sends multiple session tickets but we only care to retrieve one.
+        if SESSION_TICKET.get().is_none() {
+            SESSION_TICKET.set(session.to_der().unwrap()).unwrap();
+        }
     });
     let ssl_stream = client.connect();
 
@@ -68,6 +79,7 @@ fn custom_callback() {
     assert!(SESSION_TICKET.get().is_some());
     assert_eq!(CUSTOM_ENCRYPTION_CALLED_BACK.load(Ordering::SeqCst), 2);
     assert_eq!(CUSTOM_DECRYPTION_CALLED_BACK.load(Ordering::SeqCst), 0);
+    assert_eq!(NST_RECIEVED_COUNT.load(Ordering::SeqCst), 2);
 
     // Retrieve the session ticket
     let session_ticket = SslSession::from_der(SESSION_TICKET.get().unwrap()).unwrap();

@@ -299,7 +299,7 @@ where
         .ex_data::<F>(SslContext::cached_ex_index::<F>())
         .expect("expected session resumption callback");
 
-    // Safety: the callback guarantees that key_name is 16 bytes
+    // SAFETY: the callback guarantees that key_name is 16 bytes
     let key_name =
         unsafe { slice::from_raw_parts_mut(key_name, ffi::SSL_TICKET_KEY_NAME_LEN as usize) };
     let key_name = <&mut [u8; 16]>::try_from(key_name).expect("boring provides a 16-byte key name");
