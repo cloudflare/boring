@@ -760,7 +760,7 @@ fn main() {
         "des.h",
         "dtls1.h",
         "hkdf.h",
-        #[cfg(not(feature = "fips"))]
+        #[cfg(not(any(feature = "fips", feature = "fips-no-compat")))]
         "hpke.h",
         "hmac.h",
         "hrss.h",
