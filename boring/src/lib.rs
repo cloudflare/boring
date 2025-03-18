@@ -61,6 +61,13 @@
 //! Note that `BORING_BSSL_PRECOMPILED_BCM_O` is never used, as linking BoringSSL with precompiled non-FIPS
 //! module is not supported.
 //!
+//! ## Linking with a C++ standard library
+//!
+//! Recent versions of boringssl require some C++ standard library features, so boring needs to link
+//! with a STL implementation. This can be controlled using the BORING_BSSL_RUST_CPPLIB variable. If
+//! no library is specified, libc++ is used on macOS and iOS whereas libstdc++ is used on other Unix
+//! systems.
+//!
 //! # Optional patches
 //!
 //! ## Raw Public Key
