@@ -104,7 +104,7 @@ pub use self::async_callbacks::{
 pub use self::connector::{
     ConnectConfiguration, SslAcceptor, SslAcceptorBuilder, SslConnector, SslConnectorBuilder,
 };
-#[cfg(not(any(feature = "fips", feature = "fips-no-compat")))]
+#[cfg(not(feature = "fips"))]
 pub use self::ech::{SslEchKeys, SslEchKeysRef};
 pub use self::error::{Error, ErrorCode, HandshakeError};
 
@@ -112,7 +112,7 @@ mod async_callbacks;
 mod bio;
 mod callbacks;
 mod connector;
-#[cfg(not(any(feature = "fips", feature = "fips-no-compat")))]
+#[cfg(not(feature = "fips"))]
 mod ech;
 mod error;
 mod mut_only;
@@ -714,7 +714,7 @@ impl SslCurve {
 
     pub const X25519: SslCurve = SslCurve(ffi::SSL_CURVE_X25519 as _);
 
-    #[cfg(not(any(feature = "fips", feature = "fips-no-compat")))]
+    #[cfg(not(feature = "fips"))]
     pub const X25519_KYBER768_DRAFT00: SslCurve =
         SslCurve(ffi::SSL_CURVE_X25519_KYBER768_DRAFT00 as _);
 
@@ -759,7 +759,7 @@ impl SslCurve {
             ffi::SSL_CURVE_SECP384R1 => Some(ffi::NID_secp384r1),
             ffi::SSL_CURVE_SECP521R1 => Some(ffi::NID_secp521r1),
             ffi::SSL_CURVE_X25519 => Some(ffi::NID_X25519),
-            #[cfg(not(any(feature = "fips", feature = "fips-no-compat")))]
+            #[cfg(not(feature = "fips"))]
             ffi::SSL_CURVE_X25519_KYBER768_DRAFT00 => Some(ffi::NID_X25519Kyber768Draft00),
             #[cfg(all(not(feature = "fips"), feature = "pq-experimental"))]
             ffi::SSL_CURVE_X25519_KYBER768_DRAFT00_OLD => Some(ffi::NID_X25519Kyber768Draft00Old),
@@ -2010,7 +2010,7 @@ impl SslContextBuilder {
     /// ECHConfigs to allow stale DNS caches to update. Unlike most `SSL_CTX` APIs, this function
     /// is safe to call even after the `SSL_CTX` has been associated with connections on various
     /// threads.
-    #[cfg(not(any(feature = "fips", feature = "fips-no-compat")))]
+    #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_CTX_set1_ech_keys)]
     pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())).map(|_| ()) }
@@ -2267,7 +2267,7 @@ impl SslContextRef {
     /// ECHConfigs to allow stale DNS caches to update. Unlike most `SSL_CTX` APIs, this function
     /// is safe to call even after the `SSL_CTX` has been associated with connections on various
     /// threads.
-    #[cfg(not(any(feature = "fips", feature = "fips-no-compat")))]
+    #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_CTX_set1_ech_keys)]
     pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())).map(|_| ()) }
