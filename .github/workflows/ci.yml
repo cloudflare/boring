@@ -263,7 +263,7 @@ jobs:
       working-directory: ${{ runner.temp }}/llvm/bin
       run: ln -s clang clang++-12
     - name: Run tests
-      run: cargo test --features fips,fips-compat
+      run: cargo test --features fips
     - name: Test boring-sys cargo publish (FIPS)
       # Running `cargo publish --dry-run` tests two things:
       #
@@ -338,7 +338,7 @@ jobs:
     - name: Set CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER
       run: echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=${{ matrix.target }}-gcc" >> $GITHUB_ENV
     - name: Build for ${{ matrix.target }}
-      run: cargo build --target ${{ matrix.target }} --all-targets --features fips,fips-compat
+      run: cargo build --target ${{ matrix.target }} --all-targets --features fips
 
   test-features:
     name: Test features
