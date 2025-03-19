@@ -175,19 +175,19 @@ jobs:
             CPLUS_INCLUDE_PATH: "C:\\msys64\\usr\\include"
             LIBRARY_PATH: "C:\\msys64\\usr\\lib"
           # CI's Windows doesn't have required root certs
-          extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring
+          extra_test_args: --workspace --exclude rama-boring-tokio
         - thing: i686-msvc
           target: i686-pc-windows-msvc
           rust: stable-x86_64-msvc
           os: windows-latest
           # CI's Windows doesn't have required root certs
-          extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring
+          extra_test_args: --workspace --exclude rama-boring-tokio
         - thing: x86_64-msvc
           target: x86_64-pc-windows-msvc
           rust: stable-x86_64-msvc
           os: windows-latest
           # CI's Windows doesn't have required root certs
-          extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring
+          extra_test_args: --workspace --exclude rama-boring-tokio
 
     steps:
     - uses: actions/checkout@v4
@@ -227,18 +227,18 @@ jobs:
       run: cargo test --target ${{ matrix.target }} ${{ matrix.extra_test_args }}
       shell: bash
       env: ${{ matrix.custom_env }}
-    - name: Test boring-sys cargo publish
+    - name: Test rama-boring-sys cargo publish
       # Running `cargo publish --dry-run` tests two things:
       #
-      # 1. That `boring-sys` can build BoringSSL with just the files included
+      # 1. That `rama-boring-sys` can build BoringSSL with just the files included
       #    in the crates.io package (as determined by the `include` field in
       #    the `Cargo.toml`).
-      # 2. That the final `boring-sys` package size, including the BoringSSL
+      # 2. That the final `rama-boring-sys` package size, including the BoringSSL
       #    submodules, is not too large to be published to `crates.io`.
       #
       # Both of these may no longer be the case after updating the BoringSSL
       # submodules to a new revision, so it's important to test this on CI.
-      run: cargo publish --dry-run -p boring-sys
+      run: cargo publish --dry-run -p rama-boring-sys
 
   test-fips:
     name: Test FIPS integration
@@ -264,18 +264,18 @@ jobs:
       run: ln -s clang clang++-12
     - name: Run tests
       run: cargo test --features fips
-    - name: Test boring-sys cargo publish (FIPS)
+    - name: Test rama-boring-sys cargo publish (FIPS)
       # Running `cargo publish --dry-run` tests two things:
       #
-      # 1. That `boring-sys` can build BoringSSL with just the files included
+      # 1. That `rama-boring-sys` can build BoringSSL with just the files included
       #    in the crates.io package (as determined by the `include` field in
       #    the `Cargo.toml`).
-      # 2. That the final `boring-sys` package size, including the BoringSSL
+      # 2. That the final `rama-boring-sys` package size, including the BoringSSL
       #    submodules, is not too large to be published to `crates.io`.
       #
       # Both of these may no longer be the case after updating the BoringSSL
       # submodules to a new revision, so it's important to test this on CI.
-      run: cargo publish --dry-run -p boring-sys --features fips
+      run: cargo publish --dry-run -p rama-boring-sys --features fips
 
   cross-build:
     name: Cross build from macOS to Linux
@@ -366,5 +366,3 @@ jobs:
       name: Run `rpk,underscore-wildcards` tests
     - run: cargo test --features pq-experimental,rpk,underscore-wildcards
       name: Run `pq-experimental,rpk,underscore-wildcards` tests
-    - run: cargo test -p hyper-boring --features hyper1
-      name: Run hyper 1.0 tests for hyper-boring

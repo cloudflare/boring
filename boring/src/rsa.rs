@@ -16,7 +16,7 @@
 //! Generate a 2048-bit RSA key pair and use the public key to encrypt some data.
 //!
 //! ```rust
-//! use boring::rsa::{Rsa, Padding};
+//! use rama_boring::rsa::{Rsa, Padding};
 //!
 //! let rsa = Rsa::generate(2048).unwrap();
 //! let data = b"foobar";

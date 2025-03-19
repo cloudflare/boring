@@ -10,10 +10,10 @@
 //! Sign and verify data given an RSA keypair:
 //!
 //! ```rust
-//! use boring::sign::{Signer, Verifier};
-//! use boring::rsa::Rsa;
-//! use boring::pkey::PKey;
-//! use boring::hash::MessageDigest;
+//! use rama_boring::sign::{Signer, Verifier};
+//! use rama_boring::rsa::Rsa;
+//! use rama_boring::pkey::PKey;
+//! use rama_boring::hash::MessageDigest;
 //!
 //! // Generate a keypair
 //! let keypair = Rsa::generate(2048).unwrap();
@@ -533,13 +533,11 @@ mod test {
     use crate::rsa::{Padding, Rsa};
     use crate::sign::{Signer, Verifier};
 
-    const INPUT: &str =
-        "65794a68624763694f694a53557a49314e694a392e65794a7063334d694f694a71623255694c41304b49434a6c\
+    const INPUT: &str = "65794a68624763694f694a53557a49314e694a392e65794a7063334d694f694a71623255694c41304b49434a6c\
          654841694f6a457a4d4441344d546b7a4f44417344516f67496d6830644841364c79396c654746746347786c4c\
          6d4e76625339706331397962323930496a7030636e566c6651";
 
-    const SIGNATURE: &str =
-        "702e218943e88fd11eb5d82dbf7845f34106ae1b81fff7731116add1717d83656d420afd3c96eedd73a2663e51\
+    const SIGNATURE: &str = "702e218943e88fd11eb5d82dbf7845f34106ae1b81fff7731116add1717d83656d420afd3c96eedd73a2663e51\
          66687b000b87226e0187ed1073f945e582adfcef16d85a798ee8c66ddb3db8975b17d09402beedd5d9d9700710\
          8db28160d5f8040ca7445762b81fbe7ff9d92e0ae76f24f25b33bbe6f44ae61eb1040acb20044d3ef9128ed401\
          30795bd4bd3b41eecad066ab651981fde48df77f372dc38b9fafdd3befb18b5da3cc3c2eb02f9e3a41d612caad\

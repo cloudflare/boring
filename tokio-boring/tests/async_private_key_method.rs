@@ -1,11 +1,13 @@
-use boring::hash::MessageDigest;
-use boring::pkey::PKey;
-use boring::rsa::Padding;
-use boring::sign::{RsaPssSaltlen, Signer};
-use boring::ssl::{SslRef, SslSignatureAlgorithm};
 use futures::future;
+use rama_boring::hash::MessageDigest;
+use rama_boring::pkey::PKey;
+use rama_boring::rsa::Padding;
+use rama_boring::sign::{RsaPssSaltlen, Signer};
+use rama_boring::ssl::{SslRef, SslSignatureAlgorithm};
+use rama_boring_tokio::{
+    AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, BoxPrivateKeyMethodFuture,
+};
 use tokio::task::yield_now;
-use tokio_boring::{AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, BoxPrivateKeyMethodFuture};
 
 mod common;
 

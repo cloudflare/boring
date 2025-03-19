@@ -6,13 +6,13 @@
 //! # Example
 //!
 //! ```rust
-//! use boring::x509::store::{X509StoreBuilder, X509Store};
-//! use boring::x509::{X509, X509Name};
-//! use boring::asn1::Asn1Time;
-//! use boring::pkey::PKey;
-//! use boring::hash::MessageDigest;
-//! use boring::rsa::Rsa;
-//! use boring::nid::Nid;
+//! use rama_boring::x509::store::{X509StoreBuilder, X509Store};
+//! use rama_boring::x509::{X509, X509Name};
+//! use rama_boring::asn1::Asn1Time;
+//! use rama_boring::pkey::PKey;
+//! use rama_boring::hash::MessageDigest;
+//! use rama_boring::rsa::Rsa;
+//! use rama_boring::nid::Nid;
 //!
 //! let rsa = Rsa::generate(2048).unwrap();
 //! let pkey = PKey::from_rsa(rsa).unwrap();

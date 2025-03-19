@@ -1,14 +1,14 @@
 #[cfg(feature = "rpk")]
 mod test_rpk {
-    use boring::pkey::PKey;
-    use boring::ssl::{SslAcceptor, SslConnector};
     use futures::future;
+    use rama_boring::pkey::PKey;
+    use rama_boring::ssl::{SslAcceptor, SslConnector};
+    use rama_boring_tokio::{HandshakeError, SslStream};
     use std::future::Future;
     use std::net::SocketAddr;
     use std::pin::Pin;
     use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
     use tokio::net::{TcpListener, TcpStream};
-    use tokio_boring::{HandshakeError, SslStream};
 
     fn create_server() -> (
         impl Future<Output = Result<SslStream<TcpStream>, HandshakeError<TcpStream>>>,
@@ -34,7 +34,7 @@ mod test_rpk {
 
             let stream = listener.accept().await.unwrap().0;
 
-            tokio_boring::accept(&acceptor, stream).await
+            rama_boring_tokio::accept(&acceptor, stream).await
         };
 
         (server, addr)
@@ -65,7 +65,7 @@ mod test_rpk {
             let config = connector.build().configure().unwrap();
 
             let stream = TcpStream::connect(&addr).await.unwrap();
-            let mut stream = tokio_boring::connect(config, "localhost", stream)
+            let mut stream = rama_boring_tokio::connect(config, "localhost", stream)
                 .await
                 .unwrap();
 
@@ -96,7 +96,7 @@ mod test_rpk {
 
             let stream = TcpStream::connect(&addr).await.unwrap();
 
-            let err = tokio_boring::connect(config, "localhost", stream)
+            let err = rama_boring_tokio::connect(config, "localhost", stream)
                 .await
                 .unwrap_err();
 

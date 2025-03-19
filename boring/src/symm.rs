@@ -5,7 +5,7 @@
 //! Encrypt data in AES128 CBC mode
 //!
 //! ```
-//! use boring::symm::{encrypt, Cipher};
+//! use rama_boring::symm::{encrypt, Cipher};
 //!
 //! let cipher = Cipher::aes_128_cbc();
 //! let data = b"Some Crypto Text";
@@ -26,8 +26,8 @@
 //! Encrypting an asymmetric key with a symmetric cipher
 //!
 //! ```
-//! use boring::rsa::{Padding, Rsa};
-//! use boring::symm::Cipher;
+//! use rama_boring::rsa::{Padding, Rsa};
+//! use rama_boring::symm::Cipher;
 //!
 //! // Generate keypair and encrypt private key:
 //! let keypair = Rsa::generate(2048).unwrap();
@@ -226,7 +226,7 @@ unsafe impl Send for Cipher {}
 /// CBC mode.
 ///
 /// ```
-/// use boring::symm::{Cipher, Mode, Crypter};
+/// use rama_boring::symm::{Cipher, Mode, Crypter};
 ///
 /// let plaintexts: [&[u8]; 2] = [b"Some Stream of", b" Crypto Text"];
 /// let key = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
@@ -550,7 +550,7 @@ impl Drop for Crypter {
 /// Encrypt data in AES128 CBC mode
 ///
 /// ```
-/// use boring::symm::{encrypt, Cipher};
+/// use rama_boring::symm::{encrypt, Cipher};
 ///
 /// let cipher = Cipher::aes_128_cbc();
 /// let data = b"Some Crypto Text";
@@ -589,7 +589,7 @@ pub fn encrypt(
 /// Decrypt data in AES128 CBC mode
 ///
 /// ```
-/// use boring::symm::{decrypt, Cipher};
+/// use rama_boring::symm::{decrypt, Cipher};
 ///
 /// let cipher = Cipher::aes_128_cbc();
 /// let data = b"\xB4\xB9\xE7\x30\xD6\xD6\xF7\xDE\x77\x3F\x1C\xFF\xB3\x3E\x44\x5A\x91\xD7\x27\x62\

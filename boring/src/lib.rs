@@ -102,8 +102,8 @@
 extern crate bitflags;
 #[macro_use]
 extern crate foreign_types;
-extern crate boring_sys as ffi;
 extern crate libc;
+extern crate rama_boring_sys as ffi;
 
 #[cfg(test)]
 extern crate hex;

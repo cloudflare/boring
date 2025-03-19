@@ -1,15 +1,18 @@
-# boring
+# rama-boring
 
-[![crates.io](https://img.shields.io/crates/v/boring.svg)](https://crates.io/crates/boring)
+[![crates.io](https://img.shields.io/crates/v/rama-boring.svg)](https://crates.io/crates/rama-boring)
 
-BoringSSL bindings for the Rust programming language and TLS adapters for [tokio](https://github.com/tokio-rs/tokio)
-and [hyper](https://github.com/hyperium/hyper) built on top of it.
+> Permanent fork, synced upstream, of <https://github.com/cloudflare/boring>, in function of [Rama](https://github.com/plabayo/rama).
+>
+> Please create issues via the rama repository @
+> <https://github.com/plabayo/rama/issues>
+
+BoringSSL bindings for the Rust programming language and TLS adapters for [tokio](https://github.com/tokio-rs/tokio).
 
 ## Documentation
- - Boring API: <https://docs.rs/boring>
- - tokio TLS adapters: <https://docs.rs/tokio-boring>
- - hyper HTTPS connector: <https://docs.rs/hyper-boring>
- - FFI bindings: <https://docs.rs/boring-sys>
+ - Boring API: <https://docs.rs/rama-boring>
+ - tokio TLS adapters: <https://docs.rs/rama-boring-tokio>
+ - FFI bindings: <https://docs.rs/rama-boring-sys>
 
 ## Contribution
 
@@ -20,4 +23,5 @@ Version 2.0 and the MIT license without any additional terms or conditions.
 
 ## Accolades
 
-The project is based on a fork of [rust-openssl](https://github.com/sfackler/rust-openssl).
+The project is based on a [tokio-boring](https://github.com/cloudflare/boring)
+which itself is based on a fork of [rust-openssl](https://github.com/sfackler/rust-openssl).

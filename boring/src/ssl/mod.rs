@@ -8,7 +8,7 @@
 //! To connect as a client to a remote server:
 //!
 //! ```no_run
-//! use boring::ssl::{SslMethod, SslConnector};
+//! use rama_boring::ssl::{SslMethod, SslConnector};
 //! use std::io::{Read, Write};
 //! use std::net::TcpStream;
 //!
@@ -26,7 +26,7 @@
 //! To accept connections as a server from remote clients:
 //!
 //! ```no_run
-//! use boring::ssl::{SslMethod, SslAcceptor, SslStream, SslFiletype};
+//! use rama_boring::ssl::{SslMethod, SslAcceptor, SslStream, SslFiletype};
 //! use std::net::{TcpListener, TcpStream};
 //! use std::sync::Arc;
 //! use std::thread;
@@ -1617,7 +1617,10 @@ impl SslContextBuilder {
         C: CertificateCompressor,
     {
         const {
-            assert!(C::CAN_COMPRESS || C::CAN_DECOMPRESS, "Either compression or decompression must be supported for algorithm to be registered")
+            assert!(
+                C::CAN_COMPRESS || C::CAN_DECOMPRESS,
+                "Either compression or decompression must be supported for algorithm to be registered"
+            )
         };
         let success = unsafe {
             ffi::SSL_CTX_add_cert_compression_alg(

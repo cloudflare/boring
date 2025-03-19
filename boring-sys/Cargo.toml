@@ -1,13 +1,16 @@
 [package]
-name = "boring-sys"
+name = "rama-boring-sys"
 version = { workspace = true }
-authors = ["Alex Crichton <alex@alexcrichton.com>",
-           "Steven Fackler <sfackler@gmail.com>",
-           "Ivan Nikulin <ifaaan@gmail.com>"]
+authors = [
+    "Alex Crichton <alex@alexcrichton.com>",
+    "Steven Fackler <sfackler@gmail.com>",
+    "Ivan Nikulin <ifaaan@gmail.com>",
+    "Glen De Cauwsemaecker <glen@plabayo.tech>",
+]
 license = "MIT"
-description = "FFI bindings to BoringSSL"
+description = "FFI bindings to BoringSSL for Rama"
 repository = { workspace = true }
-documentation = "https://docs.rs/boring-sys"
+documentation = "https://docs.rs/rama-boring-sys"
 links = "boringssl"
 build = "build/main.rs"
 readme = "README.md"

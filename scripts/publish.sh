@@ -27,7 +27,3 @@ sleep 20
 echo "===  Publishing tokio-boring... ==="
 (cd tokio-boring && cargo publish)
 sleep 20
-
-echo "===  Publishing hyper-boring... ==="
-(cd hyper-boring && cargo publish)
-sleep 20

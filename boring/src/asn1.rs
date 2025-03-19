@@ -21,7 +21,7 @@
 //! ## Examples
 //!
 //! ```
-//! use boring::asn1::Asn1Time;
+//! use rama_boring::asn1::Asn1Time;
 //! let tomorrow = Asn1Time::days_from_now(1);
 //! ```
 use crate::ffi;

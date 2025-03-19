@@ -1,7 +1,7 @@
-use boring::ssl::ClientHello;
 use futures::future;
+use rama_boring::ssl::ClientHello;
+use rama_boring_tokio::{AsyncSelectCertError, BoxSelectCertFinish, BoxSelectCertFuture};
 use tokio::task::yield_now;
-use tokio_boring::{AsyncSelectCertError, BoxSelectCertFinish, BoxSelectCertFuture};
 
 mod common;
 

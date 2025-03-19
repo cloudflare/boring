@@ -1,5 +1,5 @@
-use boring::ssl::{SslConnector, SslMethod};
 use futures::future;
+use rama_boring::ssl::{SslConnector, SslMethod};
 use std::net::ToSocketAddrs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -18,7 +18,7 @@ async fn google() {
         .build()
         .configure()
         .unwrap();
-    let mut stream = tokio_boring::connect(config, "google.com", stream)
+    let mut stream = rama_boring_tokio::connect(config, "google.com", stream)
         .await
         .unwrap();
 

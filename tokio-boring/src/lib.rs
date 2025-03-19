@@ -8,16 +8,16 @@
 //!
 //! `tokio-boring` exports this ability through [`accept`] and [`connect`]. `accept` should
 //! be used by servers, and `connect` by clients. These augment the functionality provided by the
-//! [`boring`] crate, on which this crate is built. Configuration of TLS parameters is still
-//! primarily done through the [`boring`] crate.
+//! [`rama-boring`] crate, on which this crate is built. Configuration of TLS parameters is still
+//! primarily done through the [`rama-boring`] crate.
 #![warn(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-use boring::ssl::{
+use rama_boring::ssl::{
     self, ConnectConfiguration, ErrorCode, MidHandshakeSslStream, ShutdownResult, SslAcceptor,
     SslRef,
 };
-use boring_sys as ffi;
+use rama_boring_sys as ffi;
 use std::error::Error;
 use std::fmt;
 use std::future::Future;
@@ -32,7 +32,7 @@ mod bridge;
 use self::bridge::AsyncStreamBridge;
 
 pub use crate::async_callbacks::SslContextBuilderExt;
-pub use boring::ssl::{
+pub use rama_boring::ssl::{
     AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError, BoxGetSessionFinish,
     BoxGetSessionFuture, BoxPrivateKeyMethodFinish, BoxPrivateKeyMethodFuture, BoxSelectCertFinish,
     BoxSelectCertFuture, ExDataFuture,

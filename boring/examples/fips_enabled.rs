@@ -1,3 +1,6 @@
 fn main() {
-    println!("boring::fips::enabled(): {}", boring::fips::enabled());
+    println!(
+        "rama_boring::fips::enabled(): {}",
+        rama_boring::fips::enabled()
+    );
 }

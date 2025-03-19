@@ -1,4 +1,4 @@
-use boring::ssl::{
+use rama_boring::ssl::{
     AsyncPrivateKeyMethod, AsyncSelectCertError, BoxGetSessionFuture, BoxSelectCertFuture,
     ClientHello, SslContextBuilder, SslRef,
 };
@@ -42,6 +42,9 @@ pub trait SslContextBuilderExt: private::Sealed {
     /// # Safety
     ///
     /// The returned [`SslSession`] must not be associated with a different [`SslContext`].
+    ///
+    /// [`SslSession`]: rama_boring::ssl::SslSession
+    /// [`SslContext`]: rama_boring::ssl::SslContext
     unsafe fn set_async_get_session_callback<F>(&mut self, callback: F)
     where
         F: Fn(&mut SslRef, &[u8]) -> Option<BoxGetSessionFuture> + Send + Sync + 'static;

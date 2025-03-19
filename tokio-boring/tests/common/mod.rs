@@ -1,15 +1,15 @@
 #![allow(dead_code)]
 
-use boring::error::ErrorStack;
-use boring::ssl::{
+use futures::future::{self, Future};
+use rama_boring::error::ErrorStack;
+use rama_boring::ssl::{
     SslAcceptor, SslAcceptorBuilder, SslConnector, SslConnectorBuilder, SslFiletype, SslMethod,
 };
-use futures::future::{self, Future};
+use rama_boring_tokio::{HandshakeError, SslStream};
 use std::net::SocketAddr;
 use std::pin::Pin;
 use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio_boring::{HandshakeError, SslStream};
 
 pub(crate) fn create_server(
     setup: impl FnOnce(&mut SslAcceptorBuilder),
@@ -24,7 +24,7 @@ pub(crate) fn create_server(
 
         let stream = listener.accept().await.unwrap().0;
 
-        tokio_boring::accept(&acceptor, stream).await
+        rama_boring_tokio::accept(&acceptor, stream).await
     };
 
     (server, addr)
@@ -65,7 +65,7 @@ pub(crate) async fn connect(
 
     let stream = TcpStream::connect(&addr).await.unwrap();
 
-    tokio_boring::connect(config, "localhost", stream).await
+    rama_boring_tokio::connect(config, "localhost", stream).await
 }
 
 pub(crate) fn create_connector(

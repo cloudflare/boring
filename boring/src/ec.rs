@@ -602,10 +602,10 @@ impl EcKey<Public> {
     /// # Example
     ///
     /// ```no_run
-    /// use boring::bn::BigNumContext;
-    /// use boring::ec::*;
-    /// use boring::nid::Nid;
-    /// use boring::pkey::PKey;
+    /// use rama_boring::bn::BigNumContext;
+    /// use rama_boring::ec::*;
+    /// use rama_boring::nid::Nid;
+    /// use rama_boring::pkey::PKey;
     ///
     /// // get bytes from somewhere, i.e. this will not produce a valid key
     /// let public_key: Vec<u8> = vec![];
@@ -848,12 +848,12 @@ mod test {
     #[test]
     fn generator() {
         let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).unwrap();
-        let gen = group.generator();
+        let generator = group.generator();
         let one = BigNum::from_u32(1).unwrap();
         let mut ctx = BigNumContext::new().unwrap();
         let mut ecp = EcPoint::new(&group).unwrap();
         ecp.mul_generator(&group, &one, &ctx).unwrap();
-        assert!(ecp.eq(&group, gen, &mut ctx).unwrap());
+        assert!(ecp.eq(&group, generator, &mut ctx).unwrap());
     }
 
     #[test]

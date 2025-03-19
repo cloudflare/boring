@@ -1,10 +1,10 @@
-use boring::ssl::{SslOptions, SslRef, SslSession, SslSessionCacheMode, SslVersion};
 use futures::future;
+use rama_boring::ssl::{SslOptions, SslRef, SslSession, SslSessionCacheMode, SslVersion};
+use rama_boring_tokio::BoxGetSessionFinish;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 use tokio::net::TcpStream;
 use tokio::task::yield_now;
-use tokio_boring::BoxGetSessionFinish;
 
 mod common;
 
@@ -56,14 +56,14 @@ async fn test() {
     });
 
     let server = async move {
-        tokio_boring::accept(&acceptor, listener.accept().await.unwrap().0)
+        rama_boring_tokio::accept(&acceptor, listener.accept().await.unwrap().0)
             .await
             .unwrap();
 
         assert!(SERVER_SESSION_DER.get().is_some());
         assert!(!FOUND_SESSION.load(Ordering::SeqCst));
 
-        tokio_boring::accept(&acceptor, listener.accept().await.unwrap().0)
+        rama_boring_tokio::accept(&acceptor, listener.accept().await.unwrap().0)
             .await
             .unwrap();
 
@@ -71,7 +71,7 @@ async fn test() {
     };
 
     let client = async move {
-        tokio_boring::connect(
+        rama_boring_tokio::connect(
             connector.configure().unwrap(),
             "localhost",
             TcpStream::connect(&addr).await.unwrap(),
@@ -89,7 +89,7 @@ async fn test() {
                 .unwrap();
         }
 
-        tokio_boring::connect(
+        rama_boring_tokio::connect(
             config,
             "localhost",
             TcpStream::connect(&addr).await.unwrap(),

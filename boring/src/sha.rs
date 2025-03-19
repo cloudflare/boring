@@ -16,7 +16,7 @@
 //! ```rust
 //! extern crate hex;
 //!
-//! use boring::sha;
+//! use rama_boring::sha;
 //!
 //! fn main() {
 //!     let mut hasher = sha::Sha256::new();
@@ -36,7 +36,7 @@
 //! ```rust
 //! extern crate hex;
 //!
-//! use boring::sha::sha256;
+//! use rama_boring::sha::sha256;
 //!
 //! fn main() {
 //!     let hash = sha256(b"your data or message");

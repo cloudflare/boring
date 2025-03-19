@@ -1,8 +1,8 @@
-# tokio-boring
+# rama-boring-tokio
 
-An implementation of SSL streams for Tokio built on top of the BoringSSL.
+An implementation of SSL streams for Tokio backed by BoringSSL in function of [Rama](https://github.com/plabayo/rama).
 
-[Documentation](https://docs.rs/tokio-boring)
+[Documentation](https://docs.rs/rama-boring-tokio)
 
 ## Usage
 
@@ -10,13 +10,13 @@ First, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tokio-boring = "1.0.0"
+rama-boring-tokio = "0.2.0"
 ```
 
 Then, use either `accept` or `connect` as appropriate.
 
 ```rust
-use boring::ssl;
+use rama_boring::ssl;
 use tokio::net::TcpListener;
 
 #[tokio::main]
@@ -25,11 +25,11 @@ async fn main() -> anyhow::Result<()> {
     let (tcp_stream, _addr) = listener.accept().await?;
 
     let server = ssl::SslMethod::tls_server();
-    let mut ssl_builder = boring::ssl::SslAcceptor::mozilla_modern(server)?;
+    let mut ssl_builder = rama_boring::ssl::SslAcceptor::mozilla_modern(server)?;
     ssl_builder.set_default_verify_paths()?;
     ssl_builder.set_verify(ssl::SslVerifyMode::PEER);
     let acceptor = ssl_builder.build();
-    let _ssl_stream = tokio_boring::accept(&acceptor, tcp_stream).await?;
+    let _ssl_stream = rama_boring_tokio::accept(&acceptor, tcp_stream).await?;
     Ok(())
 }
 ```
@@ -40,7 +40,7 @@ negotiating the connection. Each TLS stream implements the `Read` and
 ecosystem. Client connections initiated from this crate verify hostnames
 automatically and by default.
 
-`tokio-boring` exports this ability through [`accept`] and [`connect`]. `accept` should
+`rama-boring-tokio` exports this ability through [`accept`] and [`connect`]. `accept` should
 be used by servers, and `connect` by clients. These augment the functionality provided by the
 [`boring`] crate, on which this crate is built. Configuration of TLS parameters is still
 primarily done through the [`boring`] crate.
@@ -64,4 +64,5 @@ dual licensed as above, without any additional terms or conditions.
 
 ## Accolades
 
-The project is based on a fork of [tokio-openssl](https://github.com/sfackler/tokio-openssl).
+The project is based on a [tokio-boring](https://github.com/cloudflare/boring)
+which itself is based on a fork of [tokio-openssl](https://github.com/sfackler/tokio-openssl).

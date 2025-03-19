@@ -1,16 +1,20 @@
 [package]
-name = "boring"
+name = "rama-boring"
 version = { workspace = true }
-authors = ["Steven Fackler <sfackler@gmail.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
+authors = [
+    "Steven Fackler <sfackler@gmail.com>",
+    "Ivan Nikulin <ifaaan@gmail.com>",
+    "Glen De Cauwsemaecker <glen@plabayo.tech>",
+]
 license = "Apache-2.0"
-description = "BoringSSL bindings"
+description = "BoringSSL bindings for Rama"
 repository = { workspace = true }
-documentation = "https://docs.rs/boring"
+documentation = "https://docs.rs/rama-boring"
 readme = "README.md"
 keywords = ["crypto", "tls", "ssl", "dtls"]
 categories = ["cryptography", "api-bindings"]
 edition = { workspace = true }
-rust-version = "1.80"
+rust-version = "1.82"
 
 [package.metadata.docs.rs]
 features = ["rpk", "pq-experimental", "underscore-wildcards"]
@@ -20,7 +24,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 # Controlling the build
 
 # Use a FIPS-validated version of BoringSSL. This feature sets "fips-compat".
-fips = ["fips-compat", "boring-sys/fips"]
+fips = ["fips-compat", "rama-boring-sys/fips"]
 
 # Use a FIPS build of BoringSSL, but don't set "fips-compat".
 #
@@ -30,7 +34,7 @@ fips = ["fips-compat", "boring-sys/fips"]
 #
 # TODO(cjpatton) Delete this feature and modify "fips" so that it doesn't imply
 # "fips-compat".
-fips-no-compat = ["boring-sys/fips"]
+fips-no-compat = ["rama-boring-sys/fips"]
 
 # Build with compatibility for the BoringSSL FIPS version, without enabling the
 # `fips` feature itself (useful e.g. if `fips-link-precompiled` is used with an
@@ -38,27 +42,26 @@ fips-no-compat = ["boring-sys/fips"]
 fips-compat = []
 
 # Link with precompiled FIPS-validated `bcm.o` module.
-fips-link-precompiled = ["boring-sys/fips-link-precompiled"]
+fips-link-precompiled = ["rama-boring-sys/fips-link-precompiled"]
 
 # Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
 # This feature is necessary in order to compile the bindings for the
 # default branch of boringSSL. Alternatively, a version of boringSSL that
 # implements the same feature set can be provided by setting
 # `BORING_BSSL{,_FIPS}_SOURCE_PATH` and `BORING_BSSL{,_FIPS}_ASSUME_PATCHED`.
-rpk = ["boring-sys/rpk"]
+rpk = ["rama-boring-sys/rpk"]
 
 # Applies a patch to the boringSSL source code that enables support for PQ key
 # exchange. This feature is necessary in order to compile the bindings for the
 # default branch of boringSSL. Alternatively, a version of boringSSL that
 # implements the same feature set can be provided by setting
 # `BORING_BSSL{,_FIPS}_SOURCE_PATH` and `BORING_BSSL{,_FIPS}_ASSUME_PATCHED`.
-pq-experimental = ["boring-sys/pq-experimental"]
+pq-experimental = ["rama-boring-sys/pq-experimental"]
 
 # Applies a patch to enable
 # `ffi::X509_CHECK_FLAG_UNDERSCORE_WILDCARDS`. Same caveats as
 # those for `pq-experimental` feature apply.
-underscore-wildcards = ["boring-sys/underscore-wildcards"]
-
+underscore-wildcards = ["rama-boring-sys/underscore-wildcards"]
 # Controlling key exchange preferences at compile time
 
 # Choose key exchange preferences at compile time. This prevents the user from
@@ -84,11 +87,11 @@ kx-client-nist-required = ["kx-safe-default"]
 [dependencies]
 bitflags = { workspace = true }
 foreign-types = { workspace = true }
-openssl-macros = { workspace = true }
 libc = { workspace = true }
-boring-sys = { workspace = true }
+openssl-macros = { workspace = true }
+rama-boring-sys = { workspace = true }
 
 [dev-dependencies]
+brotli = { workspace = true }
 hex = { workspace = true }
 rusty-hook = { workspace = true }
-brotli = { workspace = true }

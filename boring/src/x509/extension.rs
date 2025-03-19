@@ -8,8 +8,8 @@
 //! # Example
 //!
 //! ```rust
-//! use boring::x509::extension::BasicConstraints;
-//! use boring::x509::X509Extension;
+//! use rama_boring::x509::extension::BasicConstraints;
+//! use rama_boring::x509::X509Extension;
 //!
 //! let mut bc = BasicConstraints::new();
 //! let bc = bc.critical().ca().pathlen(1);

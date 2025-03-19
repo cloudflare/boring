@@ -5,7 +5,7 @@
 //! To generate a buffer with cryptographically strong bytes:
 //!
 //! ```
-//! use boring::rand::rand_bytes;
+//! use rama_boring::rand::rand_bytes;
 //!
 //! let mut buf = [0; 256];
 //! rand_bytes(&mut buf).unwrap();
@@ -25,7 +25,7 @@ use crate::error::ErrorStack;
 /// To generate a buffer with cryptographically strong bytes:
 ///
 /// ```
-/// use boring::rand::rand_bytes;
+/// use rama_boring::rand::rand_bytes;
 ///
 /// let mut buf = [0; 256];
 /// rand_bytes(&mut buf).unwrap();
