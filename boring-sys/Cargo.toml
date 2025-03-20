@@ -57,8 +57,14 @@ features = ["rpk", "pq-experimental", "underscore-wildcards"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-# Use a FIPS-validated version of boringssl.
+# Compile boringssl using the FIPS build flag if building boringssl from
+# scratch.
 fips = []
+
+# Use a precompiled FIPS-validated version of BoringSSL. Meant to be used with
+# FIPS-20230428 or newer. Users must set `BORING_BSSL_FIPS_PATH` to use this
+# feature, or else the build will fail.
+fips-precompiled = []
 
 # Link with precompiled FIPS-validated `bcm.o` module.
 fips-link-precompiled = []
