@@ -87,8 +87,6 @@ use crate::pkey::{HasPrivate, PKeyRef, Params, Private};
 use crate::srtp::{SrtpProtectionProfile, SrtpProtectionProfileRef};
 use crate::ssl::bio::BioMethod;
 use crate::ssl::callbacks::*;
-#[cfg(not(feature = "fips"))]
-use crate::ssl::ech::SslEchKeys;
 use crate::ssl::error::InnerError;
 use crate::stack::{Stack, StackRef, Stackable};
 use crate::x509::store::{X509Store, X509StoreBuilderRef, X509StoreRef};
@@ -106,13 +104,15 @@ pub use self::async_callbacks::{
 pub use self::connector::{
     ConnectConfiguration, SslAcceptor, SslAcceptorBuilder, SslConnector, SslConnectorBuilder,
 };
+#[cfg(not(any(feature = "fips", feature = "fips-no-compat")))]
+pub use self::ech::{SslEchKeys, SslEchKeysRef};
 pub use self::error::{Error, ErrorCode, HandshakeError};
 
 mod async_callbacks;
 mod bio;
 mod callbacks;
 mod connector;
-#[cfg(not(feature = "fips"))]
+#[cfg(not(any(feature = "fips", feature = "fips-no-compat")))]
 mod ech;
 mod error;
 mod mut_only;
@@ -714,19 +714,19 @@ impl SslCurve {
 
     pub const X25519: SslCurve = SslCurve(ffi::SSL_CURVE_X25519 as _);
 
-    #[cfg(not(feature = "fips"))]
+    #[cfg(not(any(feature = "fips", feature = "fips-no-compat")))]
     pub const X25519_KYBER768_DRAFT00: SslCurve =
         SslCurve(ffi::SSL_CURVE_X25519_KYBER768_DRAFT00 as _);
 
-    #[cfg(feature = "pq-experimental")]
+    #[cfg(all(not(feature = "fips"), feature = "pq-experimental"))]
     pub const X25519_KYBER768_DRAFT00_OLD: SslCurve =
         SslCurve(ffi::SSL_CURVE_X25519_KYBER768_DRAFT00_OLD as _);
 
-    #[cfg(feature = "pq-experimental")]
+    #[cfg(all(not(feature = "fips"), feature = "pq-experimental"))]
     pub const X25519_KYBER512_DRAFT00: SslCurve =
         SslCurve(ffi::SSL_CURVE_X25519_KYBER512_DRAFT00 as _);
 
-    #[cfg(feature = "pq-experimental")]
+    #[cfg(all(not(feature = "fips"), feature = "pq-experimental"))]
     pub const P256_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::SSL_CURVE_P256_KYBER768_DRAFT00 as _);
 
     /// Returns the curve name
@@ -759,15 +759,15 @@ impl SslCurve {
             ffi::SSL_CURVE_SECP384R1 => Some(ffi::NID_secp384r1),
             ffi::SSL_CURVE_SECP521R1 => Some(ffi::NID_secp521r1),
             ffi::SSL_CURVE_X25519 => Some(ffi::NID_X25519),
-            #[cfg(not(feature = "fips"))]
+            #[cfg(not(any(feature = "fips", feature = "fips-no-compat")))]
             ffi::SSL_CURVE_X25519_KYBER768_DRAFT00 => Some(ffi::NID_X25519Kyber768Draft00),
-            #[cfg(feature = "pq-experimental")]
+            #[cfg(all(not(feature = "fips"), feature = "pq-experimental"))]
             ffi::SSL_CURVE_X25519_KYBER768_DRAFT00_OLD => Some(ffi::NID_X25519Kyber768Draft00Old),
-            #[cfg(feature = "pq-experimental")]
+            #[cfg(all(not(feature = "fips"), feature = "pq-experimental"))]
             ffi::SSL_CURVE_X25519_KYBER512_DRAFT00 => Some(ffi::NID_X25519Kyber512Draft00),
-            #[cfg(feature = "pq-experimental")]
+            #[cfg(all(not(feature = "fips"), feature = "pq-experimental"))]
             ffi::SSL_CURVE_P256_KYBER768_DRAFT00 => Some(ffi::NID_P256Kyber768Draft00),
-            #[cfg(feature = "pq-experimental")]
+            #[cfg(all(not(feature = "fips"), feature = "pq-experimental"))]
             ffi::SSL_CURVE_X25519_MLKEM768 => Some(ffi::NID_X25519MLKEM768),
             _ => None,
         }
@@ -795,6 +795,16 @@ impl CompliancePolicy {
         Self(ffi::ssl_compliance_policy_t::ssl_compliance_policy_wpa3_192_202304);
 }
 
+// IANA assigned identifier of compression algorithm. See https://www.rfc-editor.org/rfc/rfc8879.html#name-compression-algorithms
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct CertificateCompressionAlgorithm(u16);
+
+impl CertificateCompressionAlgorithm {
+    pub const ZLIB: Self = Self(ffi::TLSEXT_cert_compression_zlib as u16);
+
+    pub const BROTLI: Self = Self(ffi::TLSEXT_cert_compression_brotli as u16);
+}
+
 /// A standard implementation of protocol selection for Application Layer Protocol Negotiation
 /// (ALPN).
 ///
@@ -806,7 +816,7 @@ impl CompliancePolicy {
 ///
 /// [`SslContextBuilder::set_alpn_protos`]: struct.SslContextBuilder.html#method.set_alpn_protos
 #[corresponds(SSL_select_next_proto)]
-pub fn select_next_proto<'a>(server: &[u8], client: &'a [u8]) -> Option<&'a [u8]> {
+pub fn select_next_proto<'a>(server: &'a [u8], client: &'a [u8]) -> Option<&'a [u8]> {
     if server.is_empty() || client.is_empty() {
         return None;
     }
@@ -1594,6 +1604,48 @@ impl SslContextBuilder {
         }
     }
 
+    /// Registers a certificate compression algorithm.
+    ///
+    /// Corresponds to [`SSL_CTX_add_cert_compression_alg`].
+    ///
+    /// [`SSL_CTX_add_cert_compression_alg`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_add_cert_compression_alg
+    pub fn add_certificate_compression_algorithm<C>(
+        &mut self,
+        compressor: C,
+    ) -> Result<(), ErrorStack>
+    where
+        C: CertificateCompressor,
+    {
+        const {
+            assert!(C::CAN_COMPRESS || C::CAN_DECOMPRESS, "Either compression or decompression must be supported for algorithm to be registered")
+        };
+        let success = unsafe {
+            ffi::SSL_CTX_add_cert_compression_alg(
+                self.as_ptr(),
+                C::ALGORITHM.0,
+                const {
+                    if C::CAN_COMPRESS {
+                        Some(callbacks::raw_ssl_cert_compress::<C>)
+                    } else {
+                        None
+                    }
+                },
+                const {
+                    if C::CAN_DECOMPRESS {
+                        Some(callbacks::raw_ssl_cert_decompress::<C>)
+                    } else {
+                        None
+                    }
+                },
+            ) == 1
+        };
+        if !success {
+            return Err(ErrorStack::get());
+        }
+        self.replace_ex_data(SslContext::cached_ex_index::<C>(), compressor);
+        Ok(())
+    }
+
     /// Configures a custom private key method on the context.
     ///
     /// See [`PrivateKeyMethod`] for more details.
@@ -1958,9 +2010,9 @@ impl SslContextBuilder {
     /// ECHConfigs to allow stale DNS caches to update. Unlike most `SSL_CTX` APIs, this function
     /// is safe to call even after the `SSL_CTX` has been associated with connections on various
     /// threads.
-    #[cfg(not(feature = "fips"))]
+    #[cfg(not(any(feature = "fips", feature = "fips-no-compat")))]
     #[corresponds(SSL_CTX_set1_ech_keys)]
-    pub fn set_ech_keys(&mut self, keys: SslEchKeys) -> Result<(), ErrorStack> {
+    pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())).map(|_| ()) }
     }
 
@@ -2209,6 +2261,16 @@ impl SslContextRef {
     #[cfg(feature = "rpk")]
     pub fn is_rpk(&self) -> bool {
         self.ex_data(*RPK_FLAG_INDEX).copied().unwrap_or_default()
+    }
+
+    /// Registers a list of ECH keys on the context. This list should contain new and old
+    /// ECHConfigs to allow stale DNS caches to update. Unlike most `SSL_CTX` APIs, this function
+    /// is safe to call even after the `SSL_CTX` has been associated with connections on various
+    /// threads.
+    #[cfg(not(any(feature = "fips", feature = "fips-no-compat")))]
+    #[corresponds(SSL_CTX_set1_ech_keys)]
+    pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
+        unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())).map(|_| ()) }
     }
 }
 
@@ -2743,7 +2805,7 @@ impl SslRef {
             if cfg!(feature = "kx-client-nist-required") {
                 "P256Kyber768Draft00:P-256:P-384:P-521"
             } else {
-                "X25519Kyber768Draft00:X25519:P256Kyber768Draft00:P-256:P-384:P-521"
+                "X25519MLKEM768:X25519Kyber768Draft00:X25519:P256Kyber768Draft00:P-256:P-384:P-521"
             }
         } else if cfg!(feature = "kx-client-pq-supported") {
             if cfg!(feature = "kx-client-nist-required") {
@@ -4337,6 +4399,36 @@ impl PrivateKeyMethodError {
 
     /// The operation could not be completed and should be retried later.
     pub const RETRY: Self = Self(ffi::ssl_private_key_result_t::ssl_private_key_retry);
+}
+
+/// Describes certificate compression algorithm. Implementation MUST implement transformation at least in one direction.
+pub trait CertificateCompressor: Send + Sync + 'static {
+    /// An IANA assigned identifier of compression algorithm
+    const ALGORITHM: CertificateCompressionAlgorithm;
+
+    /// Indicates if compressor support compression
+    const CAN_COMPRESS: bool;
+
+    /// Indicates if compressor support decompression
+    const CAN_DECOMPRESS: bool;
+
+    /// Perform compression of `input` buffer and write compressed data to `output`.
+    #[allow(unused_variables)]
+    fn compress<W>(&self, input: &[u8], output: &mut W) -> std::io::Result<()>
+    where
+        W: std::io::Write,
+    {
+        Err(std::io::Error::other("not implemented"))
+    }
+
+    /// Perform decompression of `input` buffer and write compressed data to `output`.
+    #[allow(unused_variables)]
+    fn decompress<W>(&self, input: &[u8], output: &mut W) -> std::io::Result<()>
+    where
+        W: std::io::Write,
+    {
+        Err(std::io::Error::other("not implemented"))
+    }
 }
 
 use crate::ffi::{SSL_CTX_up_ref, SSL_SESSION_get_master_key, SSL_SESSION_up_ref, SSL_is_server};

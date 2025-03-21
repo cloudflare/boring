@@ -18,11 +18,12 @@ static ECH_KEY_2: &[u8] = include_bytes!("../../../test/echkey-2");
 fn bootstrap_ech(config: &[u8], key: &[u8], list: &[u8]) -> (Server, ClientSslBuilder) {
     let server = {
         let key = HpkeKey::dhkem_p256_sha256(key).unwrap();
-        let mut ech_keys = SslEchKeys::new().unwrap();
-        ech_keys.add_key(true, config, key).unwrap();
+        let mut ech_keys_builder = SslEchKeys::builder().unwrap();
+        ech_keys_builder.add_key(true, config, key).unwrap();
+        let ech_keys = ech_keys_builder.build();
 
         let mut builder = Server::builder();
-        builder.ctx().set_ech_keys(ech_keys).unwrap();
+        builder.ctx().set_ech_keys(&ech_keys).unwrap();
 
         builder.build()
     };

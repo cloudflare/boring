@@ -19,8 +19,18 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 # Controlling the build
 
-# Use a FIPS-validated version of boringssl.
+# Use a FIPS-validated version of BoringSSL. This feature sets "fips-compat".
 fips = ["fips-compat", "boring-sys/fips"]
+
+# Use a FIPS build of BoringSSL, but don't set "fips-compat".
+#
+# As of boringSSL commit a430310d6563c0734ddafca7731570dfb683dc19, we no longer
+# need to make exceptions for the types of BufLen, ProtosLen, and ValueLen,
+# which means the "fips-compat" feature is no longer needed.
+#
+# TODO(cjpatton) Delete this feature and modify "fips" so that it doesn't imply
+# "fips-compat".
+fips-no-compat = ["boring-sys/fips"]
 
 # Build with compatibility for the BoringSSL FIPS version, without enabling the
 # `fips` feature itself (useful e.g. if `fips-link-precompiled` is used with an
@@ -81,3 +91,4 @@ boring-sys = { workspace = true }
 [dev-dependencies]
 hex = { workspace = true }
 rusty-hook = { workspace = true }
+brotli = { workspace = true }

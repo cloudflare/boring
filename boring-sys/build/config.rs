@@ -96,10 +96,15 @@ impl Config {
             || self.features.underscore_wildcards;
 
         let patches_required = features_with_patches_enabled && !self.env.assume_patched;
-        let build_from_sources_required = self.features.fips_link_precompiled || patches_required;
 
-        if is_precompiled_native_lib && build_from_sources_required {
-            panic!("precompiled BoringSSL was provided, so FIPS configuration or optional patches can't be applied");
+        if is_precompiled_native_lib && patches_required {
+            println!(
+                "cargo:warning=precompiled BoringSSL was provided, so patches will be ignored"
+            );
+        }
+
+        if is_precompiled_native_lib && self.features.fips_link_precompiled {
+            panic!("precompiled BoringSSL was provided, so FIPS configuration can't be applied");
         }
     }
 }
@@ -165,7 +170,7 @@ impl Env {
             opt_level: target_var("OPT_LEVEL"),
             android_ndk_home: target_var("ANDROID_NDK_HOME").map(Into::into),
             cmake_toolchain_file: target_var("CMAKE_TOOLCHAIN_FILE").map(Into::into),
-            cpp_runtime_lib: target_var("BORING_BSSL_RUST_CPPLIB").map(Into::into),
+            cpp_runtime_lib: target_var("BORING_BSSL_RUST_CPPLIB"),
         }
     }
 }

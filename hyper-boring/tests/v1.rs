@@ -4,15 +4,14 @@ use boring::ssl::{SslAcceptor, SslConnector, SslFiletype, SslMethod};
 use bytes::Bytes;
 use futures::StreamExt;
 use http_body_util::{BodyStream, Empty};
-use hyper1::{service, Response};
-use hyper_boring::HttpsConnector;
+use hyper::{service, Response};
+use hyper_boring::v1::HttpsConnector;
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use std::convert::Infallible;
 use std::{io, iter};
 use tokio::net::TcpListener;
-use tower::ServiceExt;
 
 #[tokio::test]
 async fn google() {
@@ -56,7 +55,7 @@ async fn localhost() {
                 Ok::<_, io::Error>(Response::new(<Empty<Bytes>>::new()))
             });
 
-            hyper1::server::conn::http1::Builder::new()
+            hyper::server::conn::http1::Builder::new()
                 .keep_alive(false)
                 .serve_connection(TokioIo::new(stream), service)
                 .await
@@ -84,7 +83,7 @@ async fn localhost() {
         let _ = writeln!(&file, "{}", line);
     });
 
-    let ssl = HttpsConnector::with_connector(connector.map_response(TokioIo::new), ssl).unwrap();
+    let ssl = HttpsConnector::with_connector(connector, ssl).unwrap();
     let client = Client::builder(TokioExecutor::new()).build::<_, Empty<Bytes>>(ssl);
 
     for _ in 0..3 {
@@ -127,7 +126,7 @@ async fn alpn_h2() {
             Ok::<_, io::Error>(Response::new(<Empty<Bytes>>::new()))
         });
 
-        hyper1::server::conn::http2::Builder::new(TokioExecutor::new())
+        hyper::server::conn::http2::Builder::new(TokioExecutor::new())
             .serve_connection(TokioIo::new(stream), service)
             .await
             .unwrap();
@@ -145,8 +144,7 @@ async fn alpn_h2() {
 
     ssl.set_ca_file("tests/test/root-ca.pem").unwrap();
 
-    let mut ssl =
-        HttpsConnector::with_connector(connector.map_response(TokioIo::new), ssl).unwrap();
+    let mut ssl = HttpsConnector::with_connector(connector, ssl).unwrap();
 
     ssl.set_ssl_callback(|ssl, _| ssl.set_alpn_protos(b"\x02h2\x08http/1.1"));
 

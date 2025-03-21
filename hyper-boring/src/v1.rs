@@ -6,9 +6,9 @@ use boring::ssl::{
     ConnectConfiguration, Ssl, SslConnector, SslConnectorBuilder, SslMethod, SslRef,
     SslSessionCacheMode,
 };
-use http1::uri::Scheme;
-use http1::Uri;
-use hyper1::rt::{Read, ReadBufCursor, Write};
+use http::uri::Scheme;
+use http::Uri;
+use hyper::rt::{Read, ReadBufCursor, Write};
 use hyper_util::client::legacy::connect::{Connected, Connection, HttpConnector};
 use hyper_util::rt::TokioIo;
 use std::error::Error;
@@ -19,11 +19,6 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::{io, net};
 use tokio::io::{AsyncRead, AsyncWrite};
-use tokio::net::TcpStream;
-#[cfg(all(feature = "runtime", feature = "hyper1-runtime"))]
-use tower::util::MapResponse;
-#[cfg(all(feature = "runtime", feature = "hyper1-runtime"))]
-use tower::ServiceExt;
 use tower_layer::Layer;
 use tower_service::Service;
 
@@ -34,30 +29,25 @@ pub struct HttpsConnector<T> {
     inner: Inner,
 }
 
-/// Specialized version of [`HttpConnector`] with responses wrapped with
-/// [`TokioIo::new`] in order to bring back compatibility with Tokio traits.
-pub type TokioHttpConnector =
-    MapResponse<HttpConnector, fn(TokioIo<TcpStream>) -> TokioIo<TokioIo<TcpStream>>>;
-
-#[cfg(all(feature = "runtime", feature = "hyper1-runtime"))]
-impl HttpsConnector<TokioHttpConnector> {
+#[cfg(feature = "runtime")]
+impl HttpsConnector<HttpConnector> {
     /// Creates a a new `HttpsConnector` using default settings.
     ///
     /// The Hyper `HttpConnector` is used to perform the TCP socket connection. ALPN is configured to support both
     /// HTTP/2 and HTTP/1.1.
     ///
     /// Requires the `runtime` Cargo feature.
-    pub fn new() -> Result<Self, ErrorStack> {
+    pub fn new() -> Result<HttpsConnector<HttpConnector>, ErrorStack> {
         let mut http = HttpConnector::new();
         http.enforce_http(false);
 
-        HttpsLayer::new().map(|l| l.layer(http.map_response(TokioIo::new as _)))
+        HttpsLayer::new().map(|l| l.layer(http))
     }
 }
 
 impl<S, T> HttpsConnector<S>
 where
-    S: Service<Uri, Response = T> + Send,
+    S: Service<Uri, Response = TokioIo<T>> + Send,
     S::Error: Into<Box<dyn Error + Send + Sync>>,
     S::Future: Unpin + Send + 'static,
     T: AsyncRead + AsyncWrite + Connection + Unpin + fmt::Debug + Sync + Send + 'static,
@@ -65,10 +55,6 @@ where
     /// Creates a new `HttpsConnector`.
     ///
     /// The session cache configuration of `ssl` will be overwritten.
-    ///
-    /// If the provided service's response type does not fit the trait
-    /// requirements because it is closer to the Hyper ecosystem than the Tokio
-    /// one, wrapping your responses with [`TokioIo`] should work.
     pub fn with_connector(
         http: S,
         ssl: SslConnectorBuilder,
@@ -229,7 +215,7 @@ impl Inner {
 
 impl<T, S> Service<Uri> for HttpsConnector<S>
 where
-    S: Service<Uri, Response = T> + Send,
+    S: Service<Uri, Response = TokioIo<T>> + Send,
     S::Error: Into<Box<dyn Error + Send + Sync>>,
     S::Future: Unpin + Send + 'static,
     T: AsyncRead + AsyncWrite + Connection + Unpin + fmt::Debug + Sync + Send + 'static,
@@ -258,7 +244,7 @@ where
         let connect = self.http.call(uri);
 
         let f = async {
-            let conn = connect.await.map_err(Into::into)?;
+            let conn = connect.await.map_err(Into::into)?.into_inner();
 
             let (inner, uri) = match tls_setup {
                 Some((inner, uri)) => (inner, uri),
