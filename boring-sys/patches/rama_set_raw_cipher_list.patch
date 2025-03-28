@@ -1,0 +1,124 @@
+diff --git a/src/include/openssl/ssl.h b/src/include/openssl/ssl.h
+index 53aa9b453..2528a587f 100644
+--- a/src/include/openssl/ssl.h
++++ b/src/include/openssl/ssl.h
+@@ -1553,6 +1553,10 @@ OPENSSL_EXPORT int SSL_CTX_set_strict_cipher_list(SSL_CTX *ctx,
+ // garbage inputs, unless an empty cipher list results.
+ OPENSSL_EXPORT int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str);
+ 
++// Fork of SSL_CTX_set_cipher_list but working with direct cipher values
++// that are used as a source of truth
++OPENSSL_EXPORT int RAMA_SSL_CTX_set_raw_cipher_list(SSL_CTX *ctx, const uint16_t *values, int num);
++
+ // SSL_set_strict_cipher_list configures the cipher list for |ssl|, evaluating
+ // |str| as a cipher string and returning error if |str| contains anything
+ // meaningless. It returns one on success and zero on failure.
+diff --git a/src/ssl/internal.h b/src/ssl/internal.h
+index 1e6da2153..065789564 100644
+--- a/src/ssl/internal.h
++++ b/src/ssl/internal.h
+@@ -639,6 +639,15 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
+                             const bool has_aes_hw, const char *rule_str,
+                             bool strict);
+ 
++// fork of `ssl_create_cipher_list` ^
++// with the key difference that we respect the `rule_str` param
++// as the source of truth
++//
++// this is potentially dangerous as it might mean it uses ciphers
++// which aren't supported
++bool rama_ssl_create_raw_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
++                                     const uint16_t *cipher_values, int num);
++
+ // ssl_cipher_auth_mask_for_key returns the mask of cipher |algorithm_auth|
+ // values suitable for use with |key| in TLS 1.2 and below.
+ uint32_t ssl_cipher_auth_mask_for_key(const EVP_PKEY *key);
+diff --git a/src/ssl/ssl_cipher.cc b/src/ssl/ssl_cipher.cc
+index ebb075351..48f564dd5 100644
+--- a/src/ssl/ssl_cipher.cc
++++ b/src/ssl/ssl_cipher.cc
+@@ -1273,6 +1273,69 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
+   return true;
+ }
+ 
++// fork of `ssl_create_cipher_list` ^
++// with the key difference that we respect the `rule_str` param
++// as the source of truth
++//
++// this is potentially dangerous as it might mean it uses ciphers
++// which aren't supported
++bool rama_ssl_create_raw_cipher_list(
++    UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
++    const uint16_t *cipher_values, int num) {
++  // Return with error if nothing to do.
++  if (out_cipher_list == NULL || cipher_values == NULL ||
++      num <= 0) {
++    return false;
++  }
++
++  // Allocate new "cipherstack" for the result, return with error
++  // if we cannot get one.
++  UniquePtr<STACK_OF(SSL_CIPHER)> cipherstack(sk_SSL_CIPHER_new_null());
++  if (cipherstack == nullptr) {
++    return false;
++  }
++
++  // for now we do not use groups as this is really only intended for client connectors,
++  // where AFAIK the groups aren't used... but perhaps we're wrong and we should somehow support this...
++  Array<bool> in_group_flags;
++  size_t num_in_group_flags = 0;
++
++  // Push the ciphers as-is
++  //
++  // TODO: we might need to do some verification here
++  int i;
++  const SSL_CIPHER* value;
++  for (i = 0; i < num; i++) {
++    value = SSL_get_cipher_by_value(cipher_values[i]);
++    if (value == NULL) {
++        continue;
++    }
++    if (!sk_SSL_CIPHER_push(cipherstack.get(), value)) {
++      return false;
++    }
++  }
++
++  UniquePtr<SSLCipherPreferenceList> pref_list =
++      MakeUnique<SSLCipherPreferenceList>();
++  if (!pref_list ||
++      !pref_list->Init(
++          std::move(cipherstack),
++          MakeConstSpan(in_group_flags).subspan(0, num_in_group_flags))) {
++    return false;
++  }
++
++  *out_cipher_list = std::move(pref_list);
++
++  // Configuring an empty cipher list is an error but still updates the
++  // output.
++  if (sk_SSL_CIPHER_num((*out_cipher_list)->ciphers.get()) == 0) {
++    OPENSSL_PUT_ERROR(SSL, SSL_R_NO_CIPHER_MATCH);
++    return false;
++  }
++
++  return true;
++}
++
+ uint32_t ssl_cipher_auth_mask_for_key(const EVP_PKEY *key) {
+   switch (EVP_PKEY_id(key)) {
+     case EVP_PKEY_RSA:
+diff --git a/src/ssl/ssl_lib.cc b/src/ssl/ssl_lib.cc
+index 838761af5..83f1626cb 100644
+--- a/src/ssl/ssl_lib.cc
++++ b/src/ssl/ssl_lib.cc
+@@ -2045,6 +2045,10 @@ int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str) {
+                                 false /* not strict */);
+ }
+ 
++OPENSSL_EXPORT int RAMA_SSL_CTX_set_raw_cipher_list(SSL_CTX *ctx, const uint16_t *values, int num) {
++    return rama_ssl_create_raw_cipher_list(&ctx->cipher_list, values, num);
++}
++
+ int SSL_CTX_set_strict_cipher_list(SSL_CTX *ctx, const char *str) {
+   const bool has_aes_hw = ctx->aes_hw_override ? ctx->aes_hw_override_value
+                                                : EVP_has_aes_hardware();
