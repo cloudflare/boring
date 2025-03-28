@@ -45,6 +45,17 @@ fn get_ctx_options() {
 }
 
 #[test]
+fn set_raw_cipher_list() {
+    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
+    // firefox 136 @ MacOS (2025-03-28)
+    ctx.set_raw_cipher_list(&[
+        0x1301, 0x1303, 0x1302, 0xc02b, 0xc02f, 0xcca9, 0xcca8, 0xc02c, 0xc030, 0xc00a, 0xc009,
+        0xc013, 0xc014, 0x009c, 0x009d, 0x002f, 0x0035,
+    ])
+    .unwrap();
+}
+
+#[test]
 fn set_ctx_options() {
     let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
     let opts = ctx.set_options(SslOptions::NO_TICKET);

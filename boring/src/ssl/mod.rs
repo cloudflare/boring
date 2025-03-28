@@ -1428,6 +1428,28 @@ impl SslContextBuilder {
         }
     }
 
+    /// Sets the raw list of ciphers, regardless if they are supported or not.
+    ///
+    /// Use [`set_cipher_list`] if you want to play safe instead and do not control the exact cipher list.
+    #[corresponds(RAMA_SSL_CTX_set_raw_cipher_list)]
+    pub fn set_raw_cipher_list(&mut self, cipher_list: &[u16]) -> Result<(), ErrorStack> {
+        #[cfg(not(feature = "fips"))]
+        unsafe {
+            cvt(ffi::RAMA_SSL_CTX_set_raw_cipher_list(
+                self.as_ptr(),
+                cipher_list.as_ptr() as *const _,
+                cipher_list.len() as i32,
+            ))
+            .map(|_| ())
+        }
+        #[cfg(feature = "fips")]
+        {
+            // not FIPS compliant, trol
+            let _ = cipher_list;
+            Ok(())
+        }
+    }
+
     /// Gets the list of supported ciphers for protocols before TLSv1.3.
     ///
     /// See [`ciphers`] for details on the format
