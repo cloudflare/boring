@@ -1944,6 +1944,26 @@ impl SslContextBuilder {
         unsafe { ffi::SSL_CTX_set_permute_extensions(self.as_ptr(), enabled as _) }
     }
 
+    /// Configures whether ClientHello extensions should be in the provided order.
+    #[corresponds(RAMA_SSL_CTX_set_extension_order)]
+    pub fn set_extension_order(&mut self, ids: &[u16]) -> Result<(), ErrorStack> {
+        #[cfg(not(feature = "fips"))]
+        unsafe {
+            cvt(ffi::RAMA_SSL_CTX_set_extension_order(
+                self.as_ptr(),
+                ids.as_ptr() as *const _,
+                ids.len() as i32,
+            ))
+            .map(|_| ())
+        }
+        #[cfg(feature = "fips")]
+        {
+            // not FIPS compliant, trol
+            let _ = ids;
+            Ok(())
+        }
+    }
+
     /// Sets the context's supported signature verification algorithms.
     #[corresponds(SSL_CTX_set_verify_algorithm_prefs)]
     pub fn set_verify_algorithm_prefs(

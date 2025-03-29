@@ -56,6 +56,71 @@ fn set_raw_cipher_list() {
 }
 
 #[test]
+fn test_connect_with_set_raw_cipher_list_client_ctx() {
+    let server = Server::builder();
+    let server = server.build();
+
+    let mut client = server.client();
+    // firefox 136 @ MacOS (2025-03-28)
+    client
+        .ctx()
+        .set_raw_cipher_list(&[
+            0x1301, 0x1303, 0x1302, 0xc02b, 0xc02f, 0xcca9, 0xcca8, 0xc02c, 0xc030, 0xc00a, 0xc009,
+            0xc013, 0xc014, 0x009c, 0x009d, 0x002f, 0x0035,
+        ])
+        .unwrap();
+    let _ = client.connect();
+}
+
+#[test]
+fn set_extension_order() {
+    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
+    // firefox 136 @ MacOS (2025-03-29)
+    ctx.set_extension_order(&[
+        0x0000, 0x0017, 0xff01, 0x000a, 0x000b, 0x0023, 0x0010, 0x0005, 0x0022, 0x0012, 0x0033,
+        0x002b, 0x000d, 0x002d, 0x001c, 0x001b, 0xfe0d,
+    ])
+    .unwrap();
+}
+
+#[test]
+fn test_connect_with_set_extension_order_client_ctx() {
+    let server = Server::builder();
+    let server = server.build();
+
+    let mut client = server.client();
+    // firefox 136 @ MacOS (2025-03-29)
+    client
+        .ctx()
+        .set_extension_order(&[
+            0x0000, 0x0017, 0xff01, 0x000a, 0x000b, 0x0023, 0x0010, 0x0005, 0x0022, 0x0012, 0x0033,
+            0x002b, 0x000d, 0x002d, 0x001c, 0x001b, 0xfe0d,
+        ])
+        .unwrap();
+    let _ = client.connect();
+}
+
+#[test]
+fn test_connect_with_set_extension_order_empty_client_ctx() {
+    let server = Server::builder();
+    let server = server.build();
+
+    let mut client = server.client();
+    client.ctx().set_extension_order(&[]).unwrap();
+    let _ = client.connect();
+}
+
+#[test]
+fn test_connect_with_set_extension_order_server_name_client_ctx() {
+    let server = Server::builder();
+    let server = server.build();
+
+    let mut client = server.client();
+    client.ctx().set_extension_order(&[0x0000]).unwrap();
+    let _ = client.connect();
+}
+
+#[test]
 fn set_ctx_options() {
     let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
     let opts = ctx.set_options(SslOptions::NO_TICKET);
