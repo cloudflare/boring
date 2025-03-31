@@ -19,23 +19,26 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 # Controlling the build
 
-# Use a FIPS-validated version of BoringSSL. This feature sets "fips-compat".
+# NOTE: This feature is deprecated. It is needed for the submoduled
+# boringssl-fips, which is extremely old and requires modifications to the
+# bindings, as some newer APIs don't exist and some function signatures have
+# changed. It is highly recommended to use `fips-precompiled` instead.
+#
+# This feature sets `fips-compat` on behalf of the user to guarantee bindings
+# compatibility with the submoduled boringssl-fips.
+#
+# Use a FIPS-validated version of BoringSSL.
 fips = ["fips-compat", "boring-sys/fips"]
 
-# Use a FIPS build of BoringSSL, but don't set "fips-compat".
-#
-# As of boringSSL commit a430310d6563c0734ddafca7731570dfb683dc19, we no longer
-# need to make exceptions for the types of BufLen, ProtosLen, and ValueLen,
-# which means the "fips-compat" feature is no longer needed.
-#
-# TODO(cjpatton) Delete this feature and modify "fips" so that it doesn't imply
-# "fips-compat".
-fips-no-compat = ["boring-sys/fips"]
-
-# Build with compatibility for the BoringSSL FIPS version, without enabling the
-# `fips` feature itself (useful e.g. if `fips-link-precompiled` is used with an
-# older BoringSSL version).
+# Build with compatibility for the submoduled boringssl-fips, without enabling
+# the `fips` feature itself (useful e.g. if `fips-link-precompiled` is used
+# with an older BoringSSL version).
 fips-compat = []
+
+# Use a precompiled FIPS-validated version of BoringSSL. Meant to be used with
+# FIPS-20230428 or newer. Users must set `BORING_BSSL_FIPS_PATH` to use this
+# feature, or else the build will fail.
+fips-precompiled = ["boring-sys/fips-precompiled"]
 
 # Link with precompiled FIPS-validated `bcm.o` module.
 fips-link-precompiled = ["boring-sys/fips-link-precompiled"]

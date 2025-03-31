@@ -16,13 +16,13 @@ pub fn enabled() -> bool {
 fn is_enabled() {
     #[cfg(any(
         feature = "fips",
-        feature = "fips-no-compat",
+        feature = "fips-precompiled",
         feature = "fips-link-precompiled"
     ))]
     assert!(enabled());
     #[cfg(not(any(
         feature = "fips",
-        feature = "fips-no-compat",
+        feature = "fips-precompiled",
         feature = "fips-link-precompiled"
     )))]
     assert!(!enabled());
