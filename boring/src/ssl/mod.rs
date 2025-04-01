@@ -896,11 +896,12 @@ pub enum TicketKeyCallbackResult {
 
     /// Continue with a full handshake.
     ///
-    /// The peer supplied session ticket was not recognized.
+    /// When in decryption mode, this indicates that the peer supplied session ticket was not
+    /// recognized. When in encryption mode, this instructs boring to not send a session ticket.
     ///
     /// # Note
     ///
-    /// This is a decryption specific status code.
+    /// This is a decryption specific status code when using the submoduled BoringSSL.
     Noop,
 
     /// Resumption callback was successful.
