@@ -44,7 +44,7 @@ fn resume_session() {
     // Attempt to resume the connection using the session ticket
     let client_2 = server.client();
     let mut ssl_builder = client_2.build().builder();
-    unsafe { ssl_builder.ssl().set_session(&session_ticket).unwrap() };
+    unsafe { ssl_builder.ssl().set_session(session_ticket).unwrap() };
     let ssl_stream_2 = ssl_builder.connect();
 
     assert!(ssl_stream_2.ssl().session_reused());
@@ -85,7 +85,7 @@ fn custom_callback_success() {
     // Attempt to resume the connection using the session ticket
     let client_2 = server.client();
     let mut ssl_builder = client_2.build().builder();
-    unsafe { ssl_builder.ssl().set_session(&session_ticket).unwrap() };
+    unsafe { ssl_builder.ssl().set_session(session_ticket).unwrap() };
     let ssl_stream_2 = ssl_builder.connect();
 
     assert!(ssl_stream_2.ssl().session_reused());
@@ -128,7 +128,7 @@ fn custom_callback_unrecognized_decryption_ticket() {
     // Attempt to resume the connection using the session ticket
     let client_2 = server.client();
     let mut ssl_builder = client_2.build().builder();
-    unsafe { ssl_builder.ssl().set_session(&session_ticket).unwrap() };
+    unsafe { ssl_builder.ssl().set_session(session_ticket).unwrap() };
     let ssl_stream_2 = ssl_builder.connect();
 
     // Second connection was NOT resumed due to TicketKeyCallbackResult::Noop on decryption
