@@ -16,7 +16,7 @@ static NOOP_DECRYPTION_CALLED_BACK: AtomicU8 = AtomicU8::new(0);
 
 #[test]
 fn resume_session() {
-    static SESSION_TICKET: OnceLock<Vec<u8>> = OnceLock::new();
+    static SESSION_TICKET: OnceLock<SslSession> = OnceLock::new();
     static NST_RECIEVED_COUNT: AtomicU8 = AtomicU8::new(0);
 
     let mut server = Server::builder();
@@ -30,9 +30,7 @@ fn resume_session() {
     client.ctx().set_new_session_callback(|_, session| {
         NST_RECIEVED_COUNT.fetch_add(1, Ordering::SeqCst);
         // The server sends multiple session tickets but we only care to retrieve one.
-        if SESSION_TICKET.get().is_none() {
-            SESSION_TICKET.set(session.to_der().unwrap()).unwrap();
-        }
+        let _ = SESSION_TICKET.set(session);
     });
     let ssl_stream = client.connect();
 
@@ -41,7 +39,7 @@ fn resume_session() {
     assert_eq!(NST_RECIEVED_COUNT.load(Ordering::SeqCst), 2);
 
     // Retrieve the session ticket
-    let session_ticket = SslSession::from_der(SESSION_TICKET.get().unwrap()).unwrap();
+    let session_ticket = SESSION_TICKET.get().unwrap();
 
     // Attempt to resume the connection using the session ticket
     let client_2 = server.client();
@@ -54,7 +52,7 @@ fn resume_session() {
 
 #[test]
 fn custom_callback_success() {
-    static SESSION_TICKET: OnceLock<Vec<u8>> = OnceLock::new();
+    static SESSION_TICKET: OnceLock<SslSession> = OnceLock::new();
     static NST_RECIEVED_COUNT: AtomicU8 = AtomicU8::new(0);
 
     let mut server = Server::builder();
@@ -71,9 +69,7 @@ fn custom_callback_success() {
     client.ctx().set_new_session_callback(|_, session| {
         NST_RECIEVED_COUNT.fetch_add(1, Ordering::SeqCst);
         // The server sends multiple session tickets but we only care to retrieve one.
-        if SESSION_TICKET.get().is_none() {
-            SESSION_TICKET.set(session.to_der().unwrap()).unwrap();
-        }
+        let _ = SESSION_TICKET.set(session);
     });
     let ssl_stream = client.connect();
 
@@ -84,7 +80,7 @@ fn custom_callback_success() {
     assert_eq!(NST_RECIEVED_COUNT.load(Ordering::SeqCst), 2);
 
     // Retrieve the session ticket
-    let session_ticket = SslSession::from_der(SESSION_TICKET.get().unwrap()).unwrap();
+    let session_ticket = SESSION_TICKET.get().unwrap();
 
     // Attempt to resume the connection using the session ticket
     let client_2 = server.client();
@@ -99,7 +95,7 @@ fn custom_callback_success() {
 
 #[test]
 fn custom_callback_unrecognized_decryption_ticket() {
-    static SESSION_TICKET: OnceLock<Vec<u8>> = OnceLock::new();
+    static SESSION_TICKET: OnceLock<SslSession> = OnceLock::new();
     static NST_RECIEVED_COUNT: AtomicU8 = AtomicU8::new(0);
 
     let mut server = Server::builder();
@@ -116,9 +112,7 @@ fn custom_callback_unrecognized_decryption_ticket() {
     client.ctx().set_new_session_callback(|_, session| {
         NST_RECIEVED_COUNT.fetch_add(1, Ordering::SeqCst);
         // The server sends multiple session tickets but we only care to retrieve one.
-        if SESSION_TICKET.get().is_none() {
-            SESSION_TICKET.set(session.to_der().unwrap()).unwrap();
-        }
+        let _ = SESSION_TICKET.set(session);
     });
     let ssl_stream = client.connect();
 
@@ -129,7 +123,7 @@ fn custom_callback_unrecognized_decryption_ticket() {
     assert_eq!(NST_RECIEVED_COUNT.load(Ordering::SeqCst), 2);
 
     // Retrieve the session ticket
-    let session_ticket = SslSession::from_der(SESSION_TICKET.get().unwrap()).unwrap();
+    let session_ticket = SESSION_TICKET.get().unwrap();
 
     // Attempt to resume the connection using the session ticket
     let client_2 = server.client();
