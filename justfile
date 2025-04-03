@@ -14,14 +14,12 @@ clippy:
 
 dry-publish:
 	cargo publish --dry-run -p rama-boring-sys
-	# cargo publish --dry-run -p rama-boring-sys --features fips
 
 doc:
 	RUSTDOCFLAGS="-D rustdoc::broken-intra-doc-links" cargo doc  --no-deps
 
 test:
 	cargo test
-	# cargo test --features fips
 	cargo test --features rpk
 	cargo test --features pq-experimental
 	cargo test --features underscore-wildcards

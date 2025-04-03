@@ -956,10 +956,7 @@ impl X509NameBuilder {
     }
 }
 
-#[cfg(not(feature = "fips-compat"))]
 type ValueLen = isize;
-#[cfg(feature = "fips-compat")]
-type ValueLen = i32;
 
 foreign_type_and_impl_send_sync! {
     type CType = ffi::X509_NAME;

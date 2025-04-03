@@ -1,0 +1,468 @@
+diff --git a/src/include/openssl/ssl.h b/src/include/openssl/ssl.h
+index 53aa9b453..0534d7c2b 100644
+--- a/src/include/openssl/ssl.h
++++ b/src/include/openssl/ssl.h
+@@ -1553,6 +1553,10 @@ OPENSSL_EXPORT int SSL_CTX_set_strict_cipher_list(SSL_CTX *ctx,
+ // garbage inputs, unless an empty cipher list results.
+ OPENSSL_EXPORT int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str);
+ 
++// Fork of SSL_CTX_set_cipher_list but working with direct cipher values
++// that are used as a source of truth
++OPENSSL_EXPORT int RAMA_SSL_CTX_set_raw_cipher_list(SSL_CTX *ctx, const uint16_t *values, int num);
++
+ // SSL_set_strict_cipher_list configures the cipher list for |ssl|, evaluating
+ // |str| as a cipher string and returning error if |str| contains anything
+ // meaningless. It returns one on success and zero on failure.
+@@ -3068,6 +3072,9 @@ OPENSSL_EXPORT int SSL_CTX_add_cert_compression_alg(
+     SSL_CTX *ctx, uint16_t alg_id, ssl_cert_compression_func_t compress,
+     ssl_cert_decompression_func_t decompress);
+ 
++// Set record size limit that will be used
++OPENSSL_EXPORT int SSL_set_record_size_limit(SSL *ssl, uint16_t limit);
++
+ 
+ // Next protocol negotiation.
+ //
+@@ -3337,6 +3344,12 @@ OPENSSL_EXPORT int SSL_set1_delegated_credential(
+ // and zero otherwise.
+ OPENSSL_EXPORT int SSL_delegated_credential_used(const SSL *ssl);
+ 
++// Client side set which credential schemes are support for this extension
++OPENSSL_EXPORT int SSL_set_delegated_credential_schemes(SSL *ssl,
++    const uint16_t *prefs,
++    size_t num_prefs);
++
++
+ 
+ // QUIC integration.
+ //
+@@ -4566,6 +4579,12 @@ OPENSSL_EXPORT void SSL_CTX_set_grease_enabled(SSL_CTX *ctx, int enabled);
+ // permute extensions. For now, this is only implemented for the ClientHello.
+ OPENSSL_EXPORT void SSL_CTX_set_permute_extensions(SSL_CTX *ctx, int enabled);
+ 
++// RAMA_SSL_CTX_set_extension_order configures whether sockets on |ctx|
++// should make use of the provided extensions to define the order,
++// which is similar to SSL_CTX_set_permute_extensions but in a defined
++// order instead of a random one.
++OPENSSL_EXPORT int RAMA_SSL_CTX_set_extension_order(SSL_CTX *ctx, const uint16_t *ids, int num);
++
+ // SSL_set_permute_extensions configures whether sockets on |ssl| should
+ // permute extensions. For now, this is only implemented for the ClientHello.
+ OPENSSL_EXPORT void SSL_set_permute_extensions(SSL *ssl, int enabled);
+diff --git a/src/include/openssl/tls1.h b/src/include/openssl/tls1.h
+index 772fb87a3..239b219d9 100644
+--- a/src/include/openssl/tls1.h
++++ b/src/include/openssl/tls1.h
+@@ -222,6 +222,9 @@ extern "C" {
+ // ExtensionType value from RFC 8879
+ #define TLSEXT_TYPE_cert_compression 27
+ 
++// ExtensionType value from RFC 8449
++#define TLSEXT_TYPE_record_size_limit 28
++
+ // ExtensionType value from RFC 4507
+ #define TLSEXT_TYPE_session_ticket 35
+ 
+diff --git a/src/ssl/extensions.cc b/src/ssl/extensions.cc
+index 5ee280221..07e240a4a 100644
+--- a/src/ssl/extensions.cc
++++ b/src/ssl/extensions.cc
+@@ -2808,6 +2808,32 @@ static bool ext_quic_transport_params_add_serverhello_legacy(SSL_HANDSHAKE *hs,
+ static bool ext_delegated_credential_add_clienthello(
+     const SSL_HANDSHAKE *hs, CBB *out, CBB *out_compressible,
+     ssl_client_hello_type_t type) {
++  if (hs->max_version < TLS1_3_VERSION) {
++    return true;
++  }
++
++  const bssl::Array<uint16_t>& sigalgs = hs->ssl->config->supported_delegated_credential_schemes;
++  if (sigalgs.empty()) {
++    return true;
++  }
++
++  CBB contents, sigalgs_cbb;
++  if (!CBB_add_u16(out, TLSEXT_TYPE_delegated_credential) ||
++      !CBB_add_u16_length_prefixed(out, &contents) ||
++      !CBB_add_u16_length_prefixed(&contents, &sigalgs_cbb)) {
++    return false;
++  }
++
++  for (uint16_t sigalg : sigalgs) {
++    if (!CBB_add_u16(&sigalgs_cbb, sigalg)) {
++      return false;
++    }
++  }
++
++  if (!CBB_flush(out)) {
++    return false;
++  }
++
+   return true;
+ }
+ 
+@@ -2834,6 +2860,30 @@ static bool ext_delegated_credential_parse_clienthello(SSL_HANDSHAKE *hs,
+   return true;
+ }
+ 
++static bool record_size_limit_add_clienthello(const SSL_HANDSHAKE *hs, CBB *out,
++                                               CBB *out_compressible,
++                                               ssl_client_hello_type_t type) {
++  if (!hs->ssl->config->record_size_limit) {
++    return true;
++  }
++
++  CBB contents;
++  if (!CBB_add_u16(out, TLSEXT_TYPE_record_size_limit) ||
++      !CBB_add_u16_length_prefixed(out, &contents) ||
++      !CBB_add_u16(&contents, hs->ssl->config->record_size_limit) ||
++      !CBB_flush(out)) {
++    return false;
++  }
++
++  return true;
++}
++
++static bool record_size_limit_parse_serverhello(SSL_HANDSHAKE *hs,
++                                                uint8_t *out_alert,
++                                                CBS *contents) {
++  return true;
++}
++
+ // Certificate compression
+ 
+ static bool cert_compression_add_clienthello(const SSL_HANDSHAKE *hs, CBB *out,
+@@ -3252,6 +3302,13 @@ static const struct tls_extension kExtensions[] = {
+     cert_compression_parse_clienthello,
+     cert_compression_add_serverhello,
+   },
++  {
++    TLSEXT_TYPE_record_size_limit,
++    record_size_limit_add_clienthello,
++    record_size_limit_parse_serverhello,
++    ignore_parse_clienthello,
++    dont_add_serverhello,
++  },
+   {
+     TLSEXT_TYPE_delegated_credential,
+     ext_delegated_credential_add_clienthello,
+@@ -3278,6 +3335,74 @@ static_assert(kNumExtensions <=
+                   sizeof(((SSL_HANDSHAKE *)NULL)->extensions.received) * 8,
+               "too many extensions for received bitset");
+ 
++bool rama_ssl_setup_extension_order(SSL_HANDSHAKE *hs) {
++    SSL *const ssl = hs->ssl;
++    if (ssl->ctx->rama_ssl_extension_order.empty()) {
++        return ssl_setup_extension_permutation(hs);
++    }
++
++    static_assert(kNumExtensions <= UINT8_MAX,
++                  "extensions_permutation type is too small");
++    Array<uint8_t> permutation;
++    if (!permutation.Init(kNumExtensions)) {
++      return false;
++    }
++
++    bool seen[kNumExtensions] = {0};
++    int permIndex = 0;
++
++    for (uint16_t id : ssl->ctx->rama_ssl_extension_order) {
++        size_t j;
++        for (j = 0; j < kNumExtensions; j++) {
++            if (kExtensions[j].value == id) {
++                break;
++            }
++        }
++        if (j == kNumExtensions || seen[j]) {
++            continue;  // Skip unknown or duplicate entries
++        }
++        seen[j] = true;
++        permutation[permIndex++] = j;
++    }
++
++    size_t rem = kNumExtensions - permIndex;
++    if (rem == 0) {
++        hs->extension_permutation = std::move(permutation);
++        return true;
++    }
++
++    size_t offset = permIndex;
++    for (size_t i = 0; i < kNumExtensions; i++) {
++        if (seen[i]) {
++            continue; // skip duplicate entries
++        }
++        seen[i] = true;
++        permutation[permIndex++] = i;
++    }
++
++    if (rem > 1) {
++        size_t seeds_num = rem - 1;
++        uint32_t *seeds = static_cast<uint32_t *>(OPENSSL_malloc(seeds_num * sizeof(uint32_t)));
++        if (!seeds) {
++            permutation.Reset();
++            return false;
++        }
++        if (!RAND_bytes(reinterpret_cast<uint8_t *>(seeds), seeds_num * sizeof(uint32_t))) {
++            permutation.Reset();
++            OPENSSL_free(seeds);
++            return false;
++        }
++        for (size_t i = kNumExtensions - 1; i > offset; i--) {
++            size_t swap_idx = offset + (seeds[i - offset] % (i - offset));
++            std::swap(permutation[i], permutation[swap_idx]);
++        }
++        OPENSSL_free(seeds);
++    }
++
++    hs->extension_permutation = std::move(permutation);
++    return true;
++}
++
+ bool ssl_setup_extension_permutation(SSL_HANDSHAKE *hs) {
+   if (!hs->config->permute_extensions) {
+     return true;
+diff --git a/src/ssl/handshake_client.cc b/src/ssl/handshake_client.cc
+index 971ebd0b1..6f3980771 100644
+--- a/src/ssl/handshake_client.cc
++++ b/src/ssl/handshake_client.cc
+@@ -242,7 +242,7 @@ static bool ssl_write_client_cipher_list(const SSL_HANDSHAKE *hs, CBB *out,
+ 
+   // Add TLS 1.3 ciphers. Order ChaCha20-Poly1305 relative to AES-GCM based on
+   // hardware support.
+-  if (hs->max_version >= TLS1_3_VERSION) {
++  if (!ssl->ctx->rama_preserve_cipher_list && hs->max_version >= TLS1_3_VERSION) {
+     const bool has_aes_hw = ssl->config->aes_hw_override
+                                 ? ssl->config->aes_hw_override_value
+                                 : EVP_has_aes_hardware();
+@@ -538,7 +538,7 @@ static enum ssl_hs_wait_t do_start_connect(SSL_HANDSHAKE *hs) {
+   }
+ 
+   if (!ssl_setup_key_shares(hs, /*override_group_id=*/0) ||
+-      !ssl_setup_extension_permutation(hs) ||
++      !rama_ssl_setup_extension_order(hs) ||
+       !ssl_encrypt_client_hello(hs, MakeConstSpan(ech_enc, ech_enc_len)) ||
+       !ssl_add_client_hello(hs)) {
+     return ssl_hs_error;
+diff --git a/src/ssl/internal.h b/src/ssl/internal.h
+index 1e6da2153..a81917d2f 100644
+--- a/src/ssl/internal.h
++++ b/src/ssl/internal.h
+@@ -639,6 +639,15 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
+                             const bool has_aes_hw, const char *rule_str,
+                             bool strict);
+ 
++// fork of `ssl_create_cipher_list` ^
++// with the key difference that we respect the `rule_str` param
++// as the source of truth
++//
++// this is potentially dangerous as it might mean it uses ciphers
++// which aren't supported
++bool rama_ssl_create_raw_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
++                                     const uint16_t *cipher_values, int num);
++
+ // ssl_cipher_auth_mask_for_key returns the mask of cipher |algorithm_auth|
+ // values suitable for use with |key| in TLS 1.2 and below.
+ uint32_t ssl_cipher_auth_mask_for_key(const EVP_PKEY *key);
+@@ -2132,6 +2141,11 @@ bool tls13_process_new_session_ticket(SSL *ssl, const SSLMessage &msg);
+ bssl::UniquePtr<SSL_SESSION> tls13_create_session_with_ticket(SSL *ssl,
+                                                               CBS *body);
+ 
++// rama_ssl_setup_extension_order uses the extension order as
++// defined by the provided extension order, or falls back
++// to ssl_setup_extension_permutation otherwise.
++bool rama_ssl_setup_extension_order(SSL_HANDSHAKE *hs);
++
+ // ssl_setup_extension_permutation computes a ClientHello extension permutation
+ // for |hs|, if applicable. It returns true on success and false on error.
+ bool ssl_setup_extension_permutation(SSL_HANDSHAKE *hs);
+@@ -3128,6 +3142,12 @@ struct SSL_CONFIG {
+   // of support for AES hw. The value is only considered if |aes_hw_override| is
+   // true.
+   bool aes_hw_override_value : 1;
++
++  // Value that will be used for record size extension
++  uint16_t record_size_limit = 0;
++
++  // Credentials schemes that client supports for using delegated credentials
++  Array<uint16_t> supported_delegated_credential_schemes;
+ };
+ 
+ // From RFC 8446, used in determining PSK modes.
+@@ -3720,9 +3740,17 @@ struct ssl_ctx_st {
+   // grease_enabled is whether GREASE (RFC 8701) is enabled.
+   bool grease_enabled : 1;
+ 
++  // rama: set to indicate that the cipher list should be preserved
++  // as-is, besides the ephermal bits such as grease.
++  bool rama_preserve_cipher_list : 1;
++
+   // permute_extensions is whether to permute extensions when sending messages.
+   bool permute_extensions : 1;
+ 
++  // rama_ssl_extension_order, if not empty, will use this
++  // as the order to be used to write the ssl extensions.
++  bssl::Array<uint16_t> rama_ssl_extension_order;
++
+   // allow_unknown_alpn_protos is whether the client allows unsolicited ALPN
+   // protocols from the peer.
+   bool allow_unknown_alpn_protos : 1;
+diff --git a/src/ssl/ssl_cipher.cc b/src/ssl/ssl_cipher.cc
+index ebb075351..23653c931 100644
+--- a/src/ssl/ssl_cipher.cc
++++ b/src/ssl/ssl_cipher.cc
+@@ -1273,6 +1273,73 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
+   return true;
+ }
+ 
++// fork of `ssl_create_cipher_list` ^
++// with the key difference that we respect the `rule_str` param
++// as the source of truth
++//
++// this is potentially dangerous as it might mean it uses ciphers
++// which aren't supported
++bool rama_ssl_create_raw_cipher_list(
++    UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
++    const uint16_t *cipher_values, int num) {
++  // Return with error if nothing to do.
++  if (out_cipher_list == NULL || cipher_values == NULL ||
++      num <= 0) {
++    return false;
++  }
++
++  // Allocate new "cipherstack" for the result, return with error
++  // if we cannot get one.
++  UniquePtr<STACK_OF(SSL_CIPHER)> cipherstack(sk_SSL_CIPHER_new_null());
++  if (cipherstack == nullptr) {
++    return false;
++  }
++
++  // for now we do not use groups as this is really only intended for client connectors,
++  // where AFAIK the groups aren't used... but perhaps we're wrong and we should somehow support this...
++  Array<bool> in_group_flags;
++  size_t num_in_group_flags = 0;
++  if (!in_group_flags.Init(num)) {
++      return false;
++  }
++
++  // Push the ciphers as-is
++  //
++  // TODO: we might need to do some verification here
++  int i;
++  const SSL_CIPHER* value;
++  for (i = 0; i < num; i++) {
++    value = SSL_get_cipher_by_value(cipher_values[i]);
++    if (value == NULL) {
++        continue;
++    }
++    if (!sk_SSL_CIPHER_push(cipherstack.get(), value)) {
++      return false;
++    }
++    in_group_flags[num_in_group_flags++] = false;
++  }
++
++  UniquePtr<SSLCipherPreferenceList> pref_list =
++      MakeUnique<SSLCipherPreferenceList>();
++  if (!pref_list ||
++      !pref_list->Init(
++          std::move(cipherstack),
++          MakeConstSpan(in_group_flags).subspan(0, num_in_group_flags))) {
++    return false;
++  }
++
++  *out_cipher_list = std::move(pref_list);
++
++  // Configuring an empty cipher list is an error but still updates the
++  // output.
++  if (sk_SSL_CIPHER_num((*out_cipher_list)->ciphers.get()) == 0) {
++    OPENSSL_PUT_ERROR(SSL, SSL_R_NO_CIPHER_MATCH);
++    return false;
++  }
++
++  return true;
++}
++
+ uint32_t ssl_cipher_auth_mask_for_key(const EVP_PKEY *key) {
+   switch (EVP_PKEY_id(key)) {
+     case EVP_PKEY_RSA:
+diff --git a/src/ssl/ssl_lib.cc b/src/ssl/ssl_lib.cc
+index 838761af5..5b80ea4a8 100644
+--- a/src/ssl/ssl_lib.cc
++++ b/src/ssl/ssl_lib.cc
+@@ -531,6 +531,7 @@ ssl_ctx_st::ssl_ctx_st(const SSL_METHOD *ssl_method)
+       signed_cert_timestamps_enabled(false),
+       channel_id_enabled(false),
+       grease_enabled(false),
++      rama_preserve_cipher_list(false),
+       permute_extensions(false),
+       allow_unknown_alpn_protos(false),
+       false_start_allowed_without_alpn(false),
+@@ -2045,6 +2046,14 @@ int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str) {
+                                 false /* not strict */);
+ }
+ 
++OPENSSL_EXPORT int RAMA_SSL_CTX_set_raw_cipher_list(SSL_CTX *ctx, const uint16_t *values, int num) {
++    bool result = rama_ssl_create_raw_cipher_list(&ctx->cipher_list, values, num);
++    if (result) {
++        ctx->rama_preserve_cipher_list = true;
++    }
++    return result;
++}
++
+ int SSL_CTX_set_strict_cipher_list(SSL_CTX *ctx, const char *str) {
+   const bool has_aes_hw = ctx->aes_hw_override ? ctx->aes_hw_override_value
+                                                : EVP_has_aes_hardware();
+@@ -2327,6 +2336,43 @@ int SSL_has_application_settings(const SSL *ssl) {
+   return session && session->has_application_settings;
+ }
+ 
++int SSL_set_record_size_limit(SSL *ssl, uint16_t limit) {
++  if (!ssl->config) {
++    return 0;
++  }
++
++  // TODO actually check this, but at this point here we dont yet
++  // know the max limit as we dont know which tls version we will use
++  // For now we just trust that the client will set valid values here.
++
++  // SSL_version will be undefined as we didnt handshake yet
++  // int version = SSL_version(ssl);
++  // uint16_t max_limit;
++  // if (version <= TLS1_2_VERSION) {
++  //   max_limit = 16384;
++  // } else if (version >= TLS1_3_VERSION) {
++  //   max_limit = 16385;
++  // } else {
++  //   return 0;
++  // }
++
++  // if (limit < 64 || limit > max_limit) {
++  //   return 0;
++  // }
++  ssl->config->record_size_limit = limit;
++  return 1;
++}
++
++int SSL_set_delegated_credential_schemes(SSL *ssl, const uint16_t *schemes,
++  size_t schemes_len) {
++  if (!ssl->config) {
++    return 0;
++  }
++
++  return ssl->config->supported_delegated_credential_schemes.CopyFrom(
++    MakeConstSpan(schemes, schemes_len));
++}
++
+ int SSL_CTX_add_cert_compression_alg(SSL_CTX *ctx, uint16_t alg_id,
+                                      ssl_cert_compression_func_t compress,
+                                      ssl_cert_decompression_func_t decompress) {
+@@ -2932,6 +2978,11 @@ void SSL_CTX_set_permute_extensions(SSL_CTX *ctx, int enabled) {
+   ctx->permute_extensions = !!enabled;
+ }
+ 
++int RAMA_SSL_CTX_set_extension_order(SSL_CTX *ctx, const uint16_t *ids, int ids_len) {
++  return ctx->rama_ssl_extension_order.CopyFrom(
++    MakeConstSpan(ids, ids_len));
++}
++
+ void SSL_set_permute_extensions(SSL *ssl, int enabled) {
+   if (!ssl->config) {
+     return;

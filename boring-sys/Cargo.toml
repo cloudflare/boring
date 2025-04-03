@@ -33,23 +33,6 @@ include = [
     "/deps/boringssl/**/CMakeLists.txt",
     "/deps/boringssl/**/sources.cmake",
     "/deps/boringssl/LICENSE",
-    # boringssl (FIPS)
-    "/deps/boringssl-fips/src/util/32-bit-toolchain.cmake",
-    "/deps/boringssl-fips/**/*.[chS]",
-    "/deps/boringssl-fips/**/*.asm",
-    "/deps/boringssl-fips/**/*.pl",
-    "/deps/boringssl-fips/**/*.go",
-    "/deps/boringssl-fips/**/go.mod",
-    "/deps/boringssl-fips/**/go.sum",
-    "/deps/boringssl-fips/sources.json",
-    "/deps/boringssl-fips/crypto/obj/obj_mac.num",
-    "/deps/boringssl-fips/crypto/obj/objects.txt",
-    "/deps/boringssl-fips/crypto/err/*.errordata",
-    "/deps/boringssl-fips/**/*.bzl",
-    "/deps/boringssl-fips/**/*.cc",
-    "/deps/boringssl-fips/**/CMakeLists.txt",
-    "/deps/boringssl-fips/**/sources.cmake",
-    "/deps/boringssl-fips/LICENSE",
     "/build/*",
     "/src",
     "/patches",
@@ -60,11 +43,6 @@ features = ["rpk", "pq-experimental", "underscore-wildcards"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-# Use a FIPS-validated version of boringssl.
-fips = []
-
-# Link with precompiled FIPS-validated `bcm.o` module.
-fips-link-precompiled = []
 
 # Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
 rpk = []
