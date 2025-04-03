@@ -1,4 +1,16 @@
 
+4.16.0
+- 2025-03-31 Add fips-precompiled feature to support newer versions of FIPS (#338)
+- 2025-03-18 Document linking to C++ standard library (#335)
+- 2025-03-18 Revert "Remove "fips-no-compat", decouple "fips-compat" from "fips"" (#334)
+- 2025-03-11 boring: Disable `SslCurve` API with "fips" feature
+- 2025-03-11 boring-sys: Ignore patches when boringSSL is precompiled
+- 2025-03-13 Remove "fips-no-compat", decouple "fips-compat" from "fips"
+- 2025-03-14 Add feature "fips-no-compat"
+- 2025-03-10 Advertise X25519MLKEM768 with "kx-client-pq-preferred" (#329)
+- 2025-03-10 Update to actions/cache@v4 (#328)
+- 2025-02-28 Add missing release notes entry (#324)
+
 4.15.0
 - 2025-02-27 Expose API to enable certificate compression. (#241)
 - 2025-02-23 Fix lifetimes in ssl::select_next_proto
