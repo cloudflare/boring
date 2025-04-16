@@ -88,10 +88,10 @@
 //!   before the end of 2024.
 //! - `X25519Kyber768Draft00Old` is the same as `X25519Kyber768Draft00`, but under its old codepoint.
 //! - `X25519Kyber512Draft00`. Similar to `X25519Kyber768Draft00`, but uses level 1 parameter set for
-//!    Kyber. Not recommended. It's useful to test whether the shorter ClientHello upsets fewer middle
-//!    boxes.
+//!   Kyber. Not recommended. It's useful to test whether the shorter ClientHello upsets fewer middle
+//!   boxes.
 //! - `P256Kyber768Draft00`. Similar again to `X25519Kyber768Draft00`, but uses P256 as classical
-//!    part. It uses a non-standard codepoint. Not recommended.
+//!   part. It uses a non-standard codepoint. Not recommended.
 //!
 //! Presently all these key agreements are deployed by Cloudflare, but we do not guarantee continued
 //! support for them.
