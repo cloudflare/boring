@@ -738,6 +738,12 @@ impl SslCurve {
     ))]
     pub const P256_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::SSL_CURVE_P256_KYBER768_DRAFT00 as _);
 
+    #[cfg(all(
+        not(any(feature = "fips", feature = "fips-precompiled")),
+        feature = "pq-experimental"
+    ))]
+    pub const X25519_MLKEM768: SslCurve = SslCurve(ffi::SSL_CURVE_X25519_MLKEM768 as _);
+
     /// Returns the curve name
     #[corresponds(SSL_get_curve_name)]
     pub fn name(&self) -> Option<&'static str> {
