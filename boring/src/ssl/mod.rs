@@ -767,7 +767,7 @@ impl SslCurve {
     // underlying boringssl version is upgraded, this should be removed in favor of the new
     // SSL_CTX_set1_group_ids API.
     #[allow(dead_code)]
-    fn nid(&self) -> Option<c_int> {
+    pub fn nid(&self) -> Option<c_int> {
         match self.0 {
             ffi::SSL_CURVE_SECP224R1 => Some(ffi::NID_secp224r1),
             ffi::SSL_CURVE_SECP256R1 => Some(ffi::NID_X9_62_prime256v1),
@@ -2813,6 +2813,25 @@ impl SslRef {
         unsafe { ffi::SSL_get_rbio(self.as_ptr()) }
     }
 
+    /// Sets the options used by the ongoing session, returning the old set.
+    ///
+    /// # Note
+    ///
+    /// This *enables* the specified options, but does not disable unspecified options. Use
+    /// `clear_options` for that.
+    #[corresponds(SSL_set_options)]
+    pub fn set_options(&mut self, option: SslOptions) -> SslOptions {
+        let bits = unsafe { ffi::SSL_set_options(self.as_ptr(), option.bits()) };
+        SslOptions::from_bits_retain(bits)
+    }
+
+    /// Clears the options used by the ongoing session, returning the old set.
+    #[corresponds(SSL_clear_options)]
+    pub fn clear_options(&mut self, option: SslOptions) -> SslOptions {
+        let bits = unsafe { ffi::SSL_clear_options(self.as_ptr(), option.bits()) };
+        SslOptions::from_bits_retain(bits)
+    }
+
     #[corresponds(SSL_set1_curves_list)]
     pub fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
         let curves = CString::new(curves).unwrap();
@@ -2820,6 +2839,20 @@ impl SslRef {
             cvt_0i(ffi::SSL_set1_curves_list(
                 self.as_ptr(),
                 curves.as_ptr() as *const _,
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Sets the ongoing session's supported groups by their named identifiers
+    /// (formerly referred to as curves).
+    #[corresponds(SSL_set1_groups)]
+    pub fn set_group_nids(&mut self, group_nids: &[i32]) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_set1_groups(
+                self.as_ptr(),
+                group_nids.as_ptr() as *const _,
+                group_nids.len(),
             ))
             .map(|_| ())
         }
