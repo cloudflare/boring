@@ -8,9 +8,8 @@ An implementation of SSL streams for Tokio backed by BoringSSL in function of [R
 
 First, add this to your `Cargo.toml`:
 
-```toml
-[dependencies]
-rama-boring-tokio = "0.2.0"
+```bash
+cargo add rama-boring-tokio
 ```
 
 Then, use either `accept` or `connect` as appropriate.
