@@ -724,9 +724,12 @@ fn main() {
     // bindgen 0.70 replaced the run-time layout tests with compile-time ones,
     // but they depend on std::mem::offset_of, stabilized in 1.77.
     let supports_layout_tests = autocfg::new().probe_rustc_version(1, 77);
+    let Ok(target_rust_version) = bindgen::RustTarget::stable(68, 0) else {
+        panic!("bindgen does not recognize target rust version");
+    };
 
     let mut builder = bindgen::Builder::default()
-        .rust_target(bindgen::RustTarget::Stable_1_68) // bindgen MSRV is 1.70, so this is enough
+        .rust_target(target_rust_version) // bindgen MSRV is 1.70, so this is enough
         .derive_copy(true)
         .derive_debug(true)
         .derive_default(true)
