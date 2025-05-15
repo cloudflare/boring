@@ -284,15 +284,20 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
 
         "linux" => match &*config.target_arch {
             "x86" => {
+                // `src_path` can be a path relative to the manifest dir, but
+                // cmake hates that.
+                let cmake_toolchain_file_path = config
+                    .manifest_dir
+                    .join(src_path)
+                    .join("util/32-bit-toolchain.cmake");
+
+                eprintln!(
+                    "linux arch=x86: CMAKE_TOOLCHAIN_FILE={}",
+                    cmake_toolchain_file_path.to_string_lossy()
+                );
                 boringssl_cmake.define(
                     "CMAKE_TOOLCHAIN_FILE",
-                    // `src_path` can be a path relative to the manifest dir, but
-                    // cmake hates that.
-                    config
-                        .manifest_dir
-                        .join(src_path)
-                        .join("src/util/32-bit-toolchain.cmake")
-                        .as_os_str(),
+                    cmake_toolchain_file_path.as_os_str(),
                 );
             }
             "aarch64" => {
@@ -451,16 +456,9 @@ fn apply_patch(config: &Config, patch_name: &str) -> io::Result<()> {
     #[cfg(windows)]
     let cmd_path = config.manifest_dir.join("patches").join(patch_name);
 
-    let mut args = vec!["apply", "-v", "--whitespace=fix"];
-
-    // non-bazel versions of BoringSSL have no src/ dir
-    if config.is_bazel {
-        args.push("-p2");
-    }
-
     run_command(
         Command::new("git")
-            .args(&args)
+            .args(["apply", "-v", "--whitespace=fix"])
             .arg(cmd_path)
             .current_dir(src_path),
     )?;
@@ -581,13 +579,7 @@ fn main() {
         }
 
         let src_path = get_boringssl_source_path(&config);
-        let candidate = src_path.join("include");
-
-        if candidate.exists() {
-            candidate
-        } else {
-            src_path.join("src").join("include")
-        }
+        src_path.join("include")
     });
 
     // bindgen 0.70 replaced the run-time layout tests with compile-time ones,

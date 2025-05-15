@@ -44,15 +44,16 @@ impl Config {
         let features = Features::from_env();
         let env = Env::from_env(&host, &target);
 
-        let mut is_bazel = false;
-        if let Some(src_path) = &env.source_path {
-            is_bazel = src_path.join("src").exists();
-        }
+        // NOTE: no more src dir, always assume bazel = false
+        // let mut is_bazel = false;
+        // if let Some(src_path) = &env.source_path {
+        //     is_bazel = src_path.join("src").exists();
+        // }
 
         let config = Self {
             manifest_dir,
             out_dir,
-            is_bazel,
+            is_bazel: false,
             host,
             target,
             target_arch,
