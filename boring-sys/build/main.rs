@@ -539,13 +539,14 @@ fn main() {
     let bssl_dir = built_boring_source_path(&config);
     let build_path = get_boringssl_platform_output_path(&config);
 
-    if config.is_bazel {
+    if config.is_bazel || config.env.path.is_some() {
         println!(
             "cargo:rustc-link-search=native={}/lib/{}",
             bssl_dir.display(),
             build_path
         );
     } else {
+        // todo(rmehra): clean this up, I think these are pretty redundant
         println!(
             "cargo:rustc-link-search=native={}/build/crypto/{}",
             bssl_dir.display(),

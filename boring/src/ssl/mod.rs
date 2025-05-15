@@ -3498,6 +3498,12 @@ impl SslRef {
             ffi::SSL_set_enable_ech_grease(self.as_ptr(), enable);
         }
     }
+
+    /// Sets the compliance policy on `SSL`.
+    #[corresponds(SSL_set_compliance_policy)]
+    pub fn set_compliance_policy(&mut self, policy: CompliancePolicy) -> Result<(), ErrorStack> {
+        unsafe { cvt_0i(ffi::SSL_set_compliance_policy(self.as_ptr(), policy.0)).map(|_| ()) }
+    }
 }
 
 /// An SSL stream midway through the handshake process.
