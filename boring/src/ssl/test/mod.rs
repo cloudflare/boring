@@ -981,30 +981,6 @@ fn sni_callback_swapped_ctx() {
     assert!(CALLED_BACK.load(Ordering::SeqCst));
 }
 
-#[cfg(feature = "kx-safe-default")]
-#[test]
-fn client_set_default_curves_list() {
-    let ssl_ctx = crate::ssl::SslContextBuilder::new(SslMethod::tls())
-        .unwrap()
-        .build();
-    let mut ssl = Ssl::new(&ssl_ctx).unwrap();
-
-    // Panics if Kyber768 missing in boringSSL.
-    ssl.client_set_default_curves_list();
-}
-
-#[cfg(feature = "kx-safe-default")]
-#[test]
-fn server_set_default_curves_list() {
-    let ssl_ctx = crate::ssl::SslContextBuilder::new(SslMethod::tls())
-        .unwrap()
-        .build();
-    let mut ssl = Ssl::new(&ssl_ctx).unwrap();
-
-    // Panics if Kyber768 missing in boringSSL.
-    ssl.server_set_default_curves_list();
-}
-
 #[test]
 fn get_curve() {
     let server = Server::builder().build();
@@ -1023,7 +999,6 @@ fn get_curve_name() {
     assert_eq!(SslCurve::X25519.name(), Some("X25519"));
 }
 
-#[cfg(not(feature = "kx-safe-default"))]
 #[test]
 fn set_curves() {
     let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();

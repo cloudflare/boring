@@ -17,51 +17,15 @@ edition = { workspace = true }
 rust-version = "1.82"
 
 [package.metadata.docs.rs]
-features = ["rpk", "pq-experimental", "underscore-wildcards"]
+features = ["underscore-wildcards"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-# Controlling the build
-
-# Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
-# This feature is necessary in order to compile the bindings for the
-# default branch of boringSSL. Alternatively, a version of boringSSL that
-# implements the same feature set can be provided by setting
-# `BORING_BSSL{,_FIPS}_SOURCE_PATH` and `BORING_BSSL{,_FIPS}_ASSUME_PATCHED`.
-rpk = ["rama-boring-sys/rpk"]
-
-# Applies a patch to the boringSSL source code that enables support for PQ key
-# exchange. This feature is necessary in order to compile the bindings for the
-# default branch of boringSSL. Alternatively, a version of boringSSL that
-# implements the same feature set can be provided by setting
-# `BORING_BSSL{,_FIPS}_SOURCE_PATH` and `BORING_BSSL{,_FIPS}_ASSUME_PATCHED`.
-pq-experimental = ["rama-boring-sys/pq-experimental"]
-
 # Applies a patch to enable
 # `ffi::X509_CHECK_FLAG_UNDERSCORE_WILDCARDS`. Same caveats as
 # those for `pq-experimental` feature apply.
 underscore-wildcards = ["rama-boring-sys/underscore-wildcards"]
 # Controlling key exchange preferences at compile time
-
-# Choose key exchange preferences at compile time. This prevents the user from
-# choosing their own preferences.
-kx-safe-default = []
-
-# Support PQ key exchange. The client will prefer classical key exchange, but
-# will upgrade to PQ key exchange if requested by the server. This is the
-# safest option if you don't know if the peer supports PQ key exchange. This
-# feature implies "kx-safe-default".
-kx-client-pq-supported = ["kx-safe-default"]
-
-# Prefer PQ key exchange. The client will prefer PQ exchange, but fallback to
-# classical key exchange if requested by the server. This is the best option if
-# you know the peer supports PQ key exchange. This feature implies
-# "kx-safe-default" and "kx-client-pq-supported".
-kx-client-pq-preferred = ["kx-safe-default", "kx-client-pq-supported"]
-
-# Disable key exchange involving non-NIST key exchange on the client side.
-# Implies "kx-safe-default".
-kx-client-nist-required = ["kx-safe-default"]
 
 [dependencies]
 bitflags = { workspace = true }

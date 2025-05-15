@@ -20,14 +20,7 @@ doc:
 
 test:
 	cargo test
-	cargo test --features rpk
-	cargo test --features pq-experimental
 	cargo test --features underscore-wildcards
-	cargo test --features pq-experimental,rpk
-	cargo test --features kx-safe-default,pq-experimental
-	cargo test --features pq-experimental,underscore-wildcards
-	cargo test --features rpk,underscore-wildcards
-	cargo test --features pq-experimental,rpk,underscore-wildcards
 
 qa: lint check clippy doc test dry-publish
 

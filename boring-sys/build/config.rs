@@ -15,8 +15,6 @@ pub(crate) struct Config {
 }
 
 pub(crate) struct Features {
-    pub(crate) pq_experimental: bool,
-    pub(crate) rpk: bool,
     pub(crate) underscore_wildcards: bool,
 }
 
@@ -80,9 +78,7 @@ impl Config {
             );
         }
 
-        let features_with_patches_enabled = self.features.rpk
-            || self.features.pq_experimental
-            || self.features.underscore_wildcards;
+        let features_with_patches_enabled = self.features.underscore_wildcards;
 
         let patches_required = features_with_patches_enabled && !self.env.assume_patched;
 
@@ -96,13 +92,9 @@ impl Config {
 
 impl Features {
     fn from_env() -> Self {
-        let pq_experimental = env::var_os("CARGO_FEATURE_PQ_EXPERIMENTAL").is_some();
-        let rpk = env::var_os("CARGO_FEATURE_RPK").is_some();
         let underscore_wildcards = env::var_os("CARGO_FEATURE_UNDERSCORE_WILDCARDS").is_some();
 
         Self {
-            pq_experimental,
-            rpk,
             underscore_wildcards,
         }
     }

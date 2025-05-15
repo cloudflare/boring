@@ -70,11 +70,6 @@
 //!
 //! # Optional patches
 //!
-//! ## Raw Public Key
-//!
-//! The crate can be compiled with [RawPublicKey](https://datatracker.ietf.org/doc/html/rfc7250)
-//! support by turning on `rpk` compilation feature.
-//!
 //! ## Experimental post-quantum cryptography
 //!
 //! The crate can be compiled with [post-quantum cryptography](https://blog.cloudflare.com/post-quantum-for-all/)

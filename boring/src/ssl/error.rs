@@ -200,12 +200,6 @@ fn fmt_mid_handshake_error(
     f: &mut fmt::Formatter,
     prefix: &str,
 ) -> fmt::Result {
-    #[cfg(feature = "rpk")]
-    if s.ssl().ssl_context().is_rpk() {
-        write!(f, "{}", prefix)?;
-        return write!(f, " {}", s.error());
-    }
-
     match s.ssl().verify_result() {
         // INVALID_CALL is returned if no verification took place,
         // such as before a cert is sent.

@@ -16,15 +16,7 @@ An implementation of SSL streams for Tokio backed by BoringSSL in function of Ra
 """
 
 [package.metadata.docs.rs]
-features = ["rpk", "pq-experimental"]
 rustdoc-args = ["--cfg", "docsrs"]
-
-[features]
-# Enables experimental post-quantum crypto (https://blog.cloudflare.com/post-quantum-for-all/)
-pq-experimental = ["rama-boring/pq-experimental"]
-
-# Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
-rpk = ["rama-boring/rpk"]
 
 [dependencies]
 rama-boring = { workspace = true }

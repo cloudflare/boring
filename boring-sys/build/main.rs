@@ -427,23 +427,13 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
         run_command(Command::new("git").arg("init").current_dir(src_path))?;
     }
 
-    if config.features.pq_experimental {
-        println!("cargo:warning=applying experimental post quantum crypto patch to boringssl");
-        apply_patch(config, "boring-pq.patch")?;
-    }
-
-    if config.features.rpk {
-        println!("cargo:warning=applying RPK patch to boringssl");
-        apply_patch(config, "rpk.patch")?;
-    }
-
     if config.features.underscore_wildcards {
         println!("cargo:warning=applying underscore wildcards patch to boringssl");
         apply_patch(config, "underscore-wildcards.patch")?;
     }
 
     // We dont feature gate these changes as we rely on them in a lot of places.
-    println!("cargo:warning=applying rama tls patch");
+    println!("cargo:info=applying rama tls patch");
     apply_patch(config, "rama_tls.patch")?;
 
     Ok(())
@@ -509,15 +499,11 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
                 "cargo:warning=skipping git patches application, provided\
                 native BoringSSL is expected to have the patches included"
             );
-        } else if config.env.source_path.is_some()
-            && (config.features.rpk
-                || config.features.pq_experimental
-                || config.features.underscore_wildcards)
-        {
+        } else if config.env.source_path.is_some() && (config.features.underscore_wildcards) {
             panic!(
                 "BORING_BSSL_ASSUME_PATCHED must be set when setting
                    BORING_BSSL_SOURCE_PATH and using any of the following
-                   features: rpk, pq-experimental, underscore-wildcards"
+                   features: underscore-wildcards"
             );
         } else {
             ensure_patches_applied(config).unwrap();
@@ -649,7 +635,6 @@ fn main() {
         "des.h",
         "dtls1.h",
         "hkdf.h",
-        #[cfg(not(any(feature = "fips", feature = "fips-no-compat")))]
         "hpke.h",
         "hmac.h",
         "hrss.h",
