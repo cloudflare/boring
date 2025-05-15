@@ -21,7 +21,6 @@ include = [
     "/*.toml",
     "/LICENSE-MIT",
     "/cmake/*.cmake",
-    # boringssl (non-FIPS)
     "/deps/boringssl/util/32-bit-toolchain.cmake",
     "/deps/boringssl/util/go_tests.txt",
     "/deps/boringssl/**/*.[chS]",
@@ -38,6 +37,7 @@ include = [
     "/deps/boringssl/**/*.clang-format",
     "/deps/boringssl/**/*.cc",
     "/deps/boringssl/**/*.inc",
+    "/deps/boringssl/cmake/*.cmake",
     "/deps/boringssl/**/CMakeLists.txt",
     "/deps/boringssl/**/sources.cmake",
     "/deps/boringssl/build.json",
