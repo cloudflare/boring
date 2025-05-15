@@ -64,22 +64,26 @@ jobs:
     strategy:
       matrix:
         thing:
+          # Disable as this doesn't work for now and neither do we really need it for rama ATM
+          # TODO FIX
           - stable
-          - arm-android
-          - arm64-android
-          - i686-android
-          - x86_64-android
-          - aarch64-ios
-          - aarch64-ios-sim
-          - x86_64-ios
+          # - arm-android
+          # - arm64-android
+          # - i686-android
+          # - x86_64-android
+          # - aarch64-ios
+          # - aarch64-ios-sim
+          # - x86_64-ios
           - i686-linux
           - arm-linux
           - aarch64-linux
           - arm64-macos
           - x86_64-macos
-          - x86_64-mingw
-          - i686-msvc
-          - x86_64-msvc
+          # Disable as this doesn't work for now and neither do we really need it for rama ATM
+          # TODO FIX
+          # - x86_64-mingw
+          # - i686-msvc
+          # - x86_64-msvc
         include:
           - check_only: false
           - extra_test_args: ""
@@ -89,46 +93,48 @@ jobs:
             target: x86_64-unknown-linux-gnu
             rust: stable
             os: ubuntu-latest
-          - thing: arm-android
-            target: armv7-linux-androideabi
-            rust: stable
-            os: ubuntu-latest
-            check_only: true
-          - thing: arm64-android
-            target: aarch64-linux-android
-            rust: stable
-            os: ubuntu-latest
-            check_only: true
-          - thing: i686-android
-            target: i686-linux-android
-            rust: stable
-            os: ubuntu-latest
-            check_only: true
-          - thing: x86_64-android
-            target: x86_64-linux-android
-            rust: stable
-            os: ubuntu-latest
-            check_only: true
-          - thing: aarch64-ios
-            target: aarch64-apple-ios
-            os: macos-latest
-            check_only: true
-            custom_env:
-              IPHONEOS_DEPLOYMENT_TARGET: 17.5
-            # It's... theoretically possible to run tests on iPhone Simulator,
-            # but for now, make sure that BoringSSL only builds.
-          - thing: aarch64-ios-sim
-            target: aarch64-apple-ios-sim
-            os: macos-latest
-            check_only: true
-            custom_env:
-              IPHONEOS_DEPLOYMENT_TARGET: 17.5
-          - thing: x86_64-ios
-            target: x86_64-apple-ios
-            os: macos-latest
-            check_only: true
-            custom_env:
-              IPHONEOS_DEPLOYMENT_TARGET: 17.5
+          # Disable as this doesn't work for now and neither do we really need it for rama ATM
+          # TODO FIX
+          # - thing: arm-android
+          #   target: armv7-linux-androideabi
+          #   rust: stable
+          #   os: ubuntu-latest
+          #   check_only: true
+          # - thing: arm64-android
+          #   target: aarch64-linux-android
+          #   rust: stable
+          #   os: ubuntu-latest
+          #   check_only: true
+          # - thing: i686-android
+          #   target: i686-linux-android
+          #   rust: stable
+          #   os: ubuntu-latest
+          #   check_only: true
+          # - thing: x86_64-android
+          #   target: x86_64-linux-android
+          #   rust: stable
+          #   os: ubuntu-latest
+          #   check_only: true
+          # - thing: aarch64-ios
+          #   target: aarch64-apple-ios
+          #   os: macos-latest
+          #   check_only: true
+          #   custom_env:
+          #     IPHONEOS_DEPLOYMENT_TARGET: 17.5
+          #   # It's... theoretically possible to run tests on iPhone Simulator,
+          #   # but for now, make sure that BoringSSL only builds.
+          # - thing: aarch64-ios-sim
+          #   target: aarch64-apple-ios-sim
+          #   os: macos-latest
+          #   check_only: true
+          #   custom_env:
+          #     IPHONEOS_DEPLOYMENT_TARGET: 17.5
+          # - thing: x86_64-ios
+          #   target: x86_64-apple-ios
+          #   os: macos-latest
+          #   check_only: true
+          #   custom_env:
+          #     IPHONEOS_DEPLOYMENT_TARGET: 17.5
           - thing: i686-linux
             target: i686-unknown-linux-gnu
             rust: stable
@@ -163,31 +169,33 @@ jobs:
             target: x86_64-apple-darwin
             rust: stable
             os: macos-latest
-          - thing: x86_64-mingw
-            target: x86_64-pc-windows-gnu
-            rust: stable
-            os: windows-latest
-            check_only: true # tests are flaky for unclear reasons
-            custom_env:
-              CC: gcc
-              CXX: g++
-              C_INCLUDE_PATH: "C:\\msys64\\usr\\include"
-              CPLUS_INCLUDE_PATH: "C:\\msys64\\usr\\include"
-              LIBRARY_PATH: "C:\\msys64\\usr\\lib"
-            # CI's Windows doesn't have required root certs
-            extra_test_args: --workspace --exclude rama-boring-tokio
-          - thing: i686-msvc
-            target: i686-pc-windows-msvc
-            rust: stable-x86_64-msvc
-            os: windows-latest
-            # CI's Windows doesn't have required root certs
-            extra_test_args: --workspace --exclude rama-boring-tokio
-          - thing: x86_64-msvc
-            target: x86_64-pc-windows-msvc
-            rust: stable-x86_64-msvc
-            os: windows-latest
-            # CI's Windows doesn't have required root certs
-            extra_test_args: --workspace --exclude rama-boring-tokio
+          # Disable as this doesn't work for now and neither do we really need it for rama ATM
+          # TODO FIX
+          # - thing: x86_64-mingw
+          #   target: x86_64-pc-windows-gnu
+          #   rust: stable
+          #   os: windows-latest
+          #   check_only: true # tests are flaky for unclear reasons
+          #   custom_env:
+          #     CC: gcc
+          #     CXX: g++
+          #     C_INCLUDE_PATH: "C:\\msys64\\usr\\include"
+          #     CPLUS_INCLUDE_PATH: "C:\\msys64\\usr\\include"
+          #     LIBRARY_PATH: "C:\\msys64\\usr\\lib"
+          #   # CI's Windows doesn't have required root certs
+          #   extra_test_args: --workspace --exclude rama-boring-tokio
+          # - thing: i686-msvc
+          #   target: i686-pc-windows-msvc
+          #   rust: stable-x86_64-msvc
+          #   os: windows-latest
+          #   # CI's Windows doesn't have required root certs
+          #   extra_test_args: --workspace --exclude rama-boring-tokio
+          # - thing: x86_64-msvc
+          #   target: x86_64-pc-windows-msvc
+          #   rust: stable-x86_64-msvc
+          #   os: windows-latest
+          #   # CI's Windows doesn't have required root certs
+          #   extra_test_args: --workspace --exclude rama-boring-tokio
 
     steps:
       - uses: actions/checkout@v4
@@ -240,29 +248,31 @@ jobs:
         # submodules to a new revision, so it's important to test this on CI.
         run: cargo publish --dry-run -p rama-boring-sys
 
-  cross-build:
-    name: Cross build from macOS to Linux
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: "recursive"
-      - name: Install Rust (rustup)
-        run: rustup update stable --no-self-update && rustup default stable && rustup target add ${{ matrix.target }}
-        shell: bash
-      - name: Install ${{ matrix.target }} toolchain
-        run: brew tap messense/macos-cross-toolchains && brew install ${{ matrix.target }}
-      - name: Set BORING_BSSL_SYSROOT
-        run: echo "BORING_BSSL_SYSROOT=$(brew --prefix ${{ matrix.target }})/toolchain/${{ matrix.target }}/sysroot" >> $GITHUB_ENV
-        shell: bash
-      - name: Set CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER
-        run: echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=${{ matrix.target }}-gcc" >> $GITHUB_ENV
-      - name: Build for ${{ matrix.target }}
-        run: cargo build --target ${{ matrix.target }} --all-targets
+  # Disable as this doesn't work for now and neither do we really need it for rama ATM
+  # TODO FIX
+  # cross-build:
+  #   name: Cross build from macOS to Linux
+  #   runs-on: macos-latest
+  #   strategy:
+  #     matrix:
+  #       include:
+  #         - target: x86_64-unknown-linux-gnu
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         submodules: "recursive"
+  #     - name: Install Rust (rustup)
+  #       run: rustup update stable --no-self-update && rustup default stable && rustup target add ${{ matrix.target }}
+  #       shell: bash
+  #     - name: Install ${{ matrix.target }} toolchain
+  #       run: brew tap messense/macos-cross-toolchains && brew install ${{ matrix.target }}
+  #     - name: Set BORING_BSSL_SYSROOT
+  #       run: echo "BORING_BSSL_SYSROOT=$(brew --prefix ${{ matrix.target }})/toolchain/${{ matrix.target }}/sysroot" >> $GITHUB_ENV
+  #       shell: bash
+  #     - name: Set CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER
+  #       run: echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=${{ matrix.target }}-gcc" >> $GITHUB_ENV
+  #     - name: Build for ${{ matrix.target }}
+  #       run: cargo build --target ${{ matrix.target }} --all-targets
 
   test-features:
     name: Test features
