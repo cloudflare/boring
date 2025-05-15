@@ -478,7 +478,7 @@ fn run_command(command: &mut Command) -> io::Result<Output> {
             None => format!("{:?} was terminated by signal", command),
         };
 
-        return Err(io::Error::new(io::ErrorKind::Other, err));
+        return Err(io::Error::other(err));
     }
 
     Ok(out)
