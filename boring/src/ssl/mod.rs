@@ -1633,9 +1633,8 @@ impl SslContextBuilder {
 
     /// Registers a certificate compression algorithm.
     ///
-    /// Corresponds to [`SSL_CTX_add_cert_compression_alg`].
-    ///
     /// [`SSL_CTX_add_cert_compression_alg`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_add_cert_compression_alg
+    #[corresponds(SSL_CTX_add_cert_compression_alg)]
     pub fn add_certificate_compression_algorithm<C>(
         &mut self,
         compressor: C,
