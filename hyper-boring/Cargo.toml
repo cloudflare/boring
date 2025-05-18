@@ -31,7 +31,7 @@ fips = ["tokio-boring/fips"]
 #
 # TODO(cjpatton) Delete this feature and modify "fips" so that it doesn't imply
 # "fips-compat".
-fips-no-compat = ["tokio-boring/fips-no-compat"]
+fips-precompiled = ["tokio-boring/fips-precompiled"]
 
 # Link with precompiled FIPS-validated `bcm.o` module.
 fips-link-precompiled = ["tokio-boring/fips-link-precompiled"]

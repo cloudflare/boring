@@ -662,13 +662,14 @@ fn main() {
     let bssl_dir = built_boring_source_path(&config);
     let build_path = get_boringssl_platform_output_path(&config);
 
-    if config.is_bazel || (config.features.fips && config.env.path.is_some()) {
+    if config.is_bazel || (config.features.is_fips_like() && config.env.path.is_some()) {
         println!(
             "cargo:rustc-link-search=native={}/lib/{}",
             bssl_dir.display(),
             build_path
         );
     } else {
+        // todo(rmehra): clean this up, I think these are pretty redundant
         println!(
             "cargo:rustc-link-search=native={}/build/crypto/{}",
             bssl_dir.display(),
@@ -760,7 +761,7 @@ fn main() {
         "des.h",
         "dtls1.h",
         "hkdf.h",
-        #[cfg(not(any(feature = "fips", feature = "fips-no-compat")))]
+        #[cfg(not(feature = "fips"))]
         "hpke.h",
         "hmac.h",
         "hrss.h",

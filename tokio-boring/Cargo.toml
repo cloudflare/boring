@@ -27,7 +27,7 @@ fips = ["boring/fips", "boring-sys/fips"]
 #
 # TODO(cjpatton) Delete this feature and modify "fips" so that it doesn't imply
 # "fips-compat".
-fips-no-compat = ["boring/fips-no-compat"]
+fips-precompiled = ["boring/fips-precompiled"]
 
 # Link with precompiled FIPS-validated `bcm.o` module.
 fips-link-precompiled = ["boring/fips-link-precompiled", "boring-sys/fips-link-precompiled"]
