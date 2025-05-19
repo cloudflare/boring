@@ -56,17 +56,29 @@ fn no_error_when_trusted_and_callback_returns_true() {
 
 #[test]
 fn callback_receives_correct_certificate() {
-    let server = Server::builder().build();
+    // Server sends the full chain (leaf + root)...
+    let server = Server::builder_full_chain().build();
+    // but client doesn't load the root as trusted.
+    // So we expect an error.
     let mut client = server.client();
-    let expected = "59172d9313e84459bcff27f967e79e6e9217e584";
+    let leaf_sha1 = "59172d9313e84459bcff27f967e79e6e9217e584";
+    let root_sha1 = "c0cbdf7cdd03c9773e5468e1f6d2da7d5cbb1875";
     client.ctx().set_verify(SslVerifyMode::PEER);
     client.ctx().set_cert_verify_callback(move |x509| {
         assert!(!x509.verify_cert().unwrap());
+        // This is set to the root, since that's the problematic cert.
         assert!(x509.current_cert().is_some());
+        // This is set to the leaf, since that's the cert we're verifying.
+        assert!(x509.cert().is_some());
         assert!(x509.verify_result().is_err());
-        let cert = x509.current_cert().unwrap();
-        let digest = cert.digest(MessageDigest::sha1()).unwrap();
-        assert_eq!(hex::encode(digest), expected);
+
+        let root = x509.current_cert().unwrap();
+        let digest = root.digest(MessageDigest::sha1()).unwrap();
+        assert_eq!(hex::encode(digest), root_sha1);
+
+        let leaf = x509.cert().unwrap();
+        let digest = leaf.digest(MessageDigest::sha1()).unwrap();
+        assert_eq!(hex::encode(digest), leaf_sha1);
         true
     });
 
