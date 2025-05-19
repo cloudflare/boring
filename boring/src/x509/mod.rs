@@ -209,6 +209,20 @@ impl X509StoreContextRef {
             }
         }
     }
+
+    /// Returns a reference to the certificate being verified.
+    /// May return None if a raw public key is being verified.
+    #[corresponds(X509_STORE_CTX_get0_cert)]
+    pub fn cert(&self) -> Option<&X509Ref> {
+        unsafe {
+            let ptr = ffi::X509_STORE_CTX_get0_cert(self.as_ptr());
+            if ptr.is_null() {
+                None
+            } else {
+                Some(X509Ref::from_ptr(ptr))
+            }
+        }
+    }
 }
 
 /// A builder used to construct an `X509`.
