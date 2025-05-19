@@ -36,6 +36,24 @@ impl Server {
         }
     }
 
+    /// Serves the leaf and the root together.
+    pub fn builder_full_chain() -> Builder {
+        let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
+        // Uses certs.pem instead of cert.pem.
+        ctx.set_certificate_chain_file("test/certs.pem").unwrap();
+        ctx.set_private_key_file("test/key.pem", SslFiletype::PEM)
+            .unwrap();
+
+        Builder {
+            ctx,
+            ssl_cb: Box::new(|_| {}),
+            io_cb: Box::new(|_| {}),
+            err_cb: Box::new(|_| {}),
+            should_error: false,
+            expected_connections_count: 1,
+        }
+    }
+
     pub fn client(&self) -> ClientBuilder {
         ClientBuilder {
             ctx: SslContext::builder(SslMethod::tls()).unwrap(),
