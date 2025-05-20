@@ -85,10 +85,7 @@ pub unsafe extern "C" fn take_stream<S>(bio: *mut BIO) -> S {
 
 pub unsafe fn set_dtls_mtu_size<S>(bio: *mut BIO, mtu_size: usize) {
     if mtu_size as u64 > c_long::MAX as u64 {
-        panic!(
-            "Given MTU size {} can't be represented in a positive `c_long` range",
-            mtu_size
-        )
+        panic!("Given MTU size {mtu_size} can't be represented in a positive `c_long` range")
     }
     state::<S>(bio).dtls_mtu_size = mtu_size as c_long;
 }

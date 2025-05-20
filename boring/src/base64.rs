@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn test_encode_block() {
-        assert_eq!("".to_string(), encode_block(b""));
+        assert_eq!(String::new(), encode_block(b""));
         assert_eq!("Zg==".to_string(), encode_block(b"f"));
         assert_eq!("Zm8=".to_string(), encode_block(b"fo"));
         assert_eq!("Zm9v".to_string(), encode_block(b"foo"));

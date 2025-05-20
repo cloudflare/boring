@@ -152,9 +152,9 @@ impl Env {
             let kind = if host == target { "HOST" } else { "TARGET" };
 
             // TODO(rmehra): look for just `name` first, as most people just set that
-            var(&format!("{}_{}", name, target))
-                .or_else(|| var(&format!("{}_{}", name, target_with_underscores)))
-                .or_else(|| var(&format!("{}_{}", kind, name)))
+            var(&format!("{name}_{target}"))
+                .or_else(|| var(&format!("{name}_{target_with_underscores}")))
+                .or_else(|| var(&format!("{kind}_{name}")))
                 .or_else(|| var(name))
         };
 
