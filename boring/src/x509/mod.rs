@@ -1516,7 +1516,7 @@ impl X509VerifyError {
         ffi::init();
 
         unsafe {
-            let s = ffi::X509_verify_cert_error_string(self.0 as c_long);
+            let s = ffi::X509_verify_cert_error_string(c_long::from(self.0));
             str::from_utf8(CStr::from_ptr(s).to_bytes()).unwrap()
         }
     }
