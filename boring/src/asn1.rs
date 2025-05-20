@@ -143,11 +143,13 @@ impl Asn1Type {
     pub const BMPSTRING: Asn1Type = Asn1Type(ffi::V_ASN1_BMPSTRING);
 
     /// Constructs an `Asn1Type` from a raw OpenSSL value.
+    #[must_use]
     pub fn from_raw(value: c_int) -> Self {
         Asn1Type(value)
     }
 
     /// Returns the raw OpenSSL value represented by this type.
+    #[must_use]
     pub fn as_raw(&self) -> c_int {
         self.0
     }
@@ -415,17 +417,20 @@ impl Asn1StringRef {
     ///
     /// [`as_utf8`]: struct.Asn1String.html#method.as_utf8
     #[corresponds(ASN1_STRING_get0_data)]
+    #[must_use]
     pub fn as_slice(&self) -> &[u8] {
         unsafe { slice::from_raw_parts(ASN1_STRING_get0_data(self.as_ptr()), self.len()) }
     }
 
     /// Returns the number of bytes in the string.
     #[corresponds(ASN1_STRING_length)]
+    #[must_use]
     pub fn len(&self) -> usize {
         unsafe { ffi::ASN1_STRING_length(self.as_ptr()) as usize }
     }
 
     /// Determines if the string is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -473,6 +478,7 @@ impl Asn1IntegerRef {
     #[allow(clippy::unnecessary_cast)]
     #[allow(missing_docs)]
     #[deprecated(since = "0.10.6", note = "use to_bn instead")]
+    #[must_use]
     pub fn get(&self) -> i64 {
         unsafe { crate::ffi::ASN1_INTEGER_get(self.as_ptr()) as i64 }
     }
@@ -520,17 +526,20 @@ foreign_type_and_impl_send_sync! {
 impl Asn1BitStringRef {
     /// Returns the Asn1BitString as a slice.
     #[corresponds(ASN1_STRING_get0_data)]
+    #[must_use]
     pub fn as_slice(&self) -> &[u8] {
         unsafe { slice::from_raw_parts(ASN1_STRING_get0_data(self.as_ptr() as *mut _), self.len()) }
     }
 
     /// Returns the number of bytes in the string.
     #[corresponds(ASN1_STRING_length)]
+    #[must_use]
     pub fn len(&self) -> usize {
         unsafe { ffi::ASN1_STRING_length(self.as_ptr() as *const _) as usize }
     }
 
     /// Determines if the string is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -576,6 +585,7 @@ impl Asn1Object {
 
 impl Asn1ObjectRef {
     /// Returns the NID associated with this OID.
+    #[must_use]
     pub fn nid(&self) -> Nid {
         unsafe { Nid::from_raw(ffi::OBJ_obj2nid(self.as_ptr())) }
     }

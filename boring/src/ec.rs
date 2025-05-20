@@ -167,18 +167,21 @@ impl EcGroupRef {
     /// Returns the degree of the curve.
     #[corresponds(EC_GROUP_get_degree)]
     #[allow(clippy::unnecessary_cast)]
+    #[must_use]
     pub fn degree(&self) -> u32 {
         unsafe { ffi::EC_GROUP_get_degree(self.as_ptr()) as u32 }
     }
 
     /// Returns the number of bits in the group order.
     #[corresponds(EC_GROUP_order_bits)]
+    #[must_use]
     pub fn order_bits(&self) -> u32 {
         unsafe { ffi::EC_GROUP_order_bits(self.as_ptr()) as u32 }
     }
 
     /// Returns the generator for the given curve as a [`EcPoint`].
     #[corresponds(EC_GROUP_get0_generator)]
+    #[must_use]
     pub fn generator(&self) -> &EcPointRef {
         unsafe {
             let ptr = ffi::EC_GROUP_get0_generator(self.as_ptr());
@@ -216,6 +219,7 @@ impl EcGroupRef {
 
     /// Returns the name of the curve, if a name is associated.
     #[corresponds(EC_GROUP_get_curve_name)]
+    #[must_use]
     pub fn curve_name(&self) -> Option<Nid> {
         let nid = unsafe { ffi::EC_GROUP_get_curve_name(self.as_ptr()) };
         if nid > 0 {
@@ -498,6 +502,7 @@ where
 
     /// Return [`EcPoint`] associated with the private key
     #[corresponds(EC_KEY_get0_private_key)]
+    #[must_use]
     pub fn private_key(&self) -> &BigNumRef {
         unsafe {
             let ptr = ffi::EC_KEY_get0_private_key(self.as_ptr());
@@ -512,6 +517,7 @@ where
 {
     /// Returns the public key.
     #[corresponds(EC_KEY_get0_public_key)]
+    #[must_use]
     pub fn public_key(&self) -> &EcPointRef {
         unsafe {
             let ptr = ffi::EC_KEY_get0_public_key(self.as_ptr());
@@ -542,6 +548,7 @@ where
 {
     /// Return [`EcGroup`] of the `EcKey`
     #[corresponds(EC_KEY_get0_group)]
+    #[must_use]
     pub fn group(&self) -> &EcGroupRef {
         unsafe {
             let ptr = ffi::EC_KEY_get0_group(self.as_ptr());

@@ -80,6 +80,7 @@ impl Pkcs12 {
     /// * `nid_cert` - `nid::PBE_WITHSHA1AND40BITRC2_CBC`
     /// * `iter` - `2048`
     /// * `mac_iter` - `2048`
+    #[must_use]
     pub fn builder() -> Pkcs12Builder {
         ffi::init();
 

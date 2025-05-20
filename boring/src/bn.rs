@@ -198,6 +198,7 @@ impl BigNumRef {
     /// Returns `true` if the `n`th bit of `self` is set to 1, `false` otherwise.
     #[corresponds(BN_is_bit_set)]
     #[allow(clippy::useless_conversion)]
+    #[must_use]
     pub fn is_bit_set(&self, n: i32) -> bool {
         unsafe { ffi::BN_is_bit_set(self.as_ptr(), n.into()) == 1 }
     }
@@ -279,23 +280,27 @@ impl BigNumRef {
     /// assert_eq!(s.ucmp(&o), Ordering::Equal);
     /// ```
     #[corresponds(BN_ucmp)]
+    #[must_use]
     pub fn ucmp(&self, oth: &BigNumRef) -> Ordering {
         unsafe { ffi::BN_ucmp(self.as_ptr(), oth.as_ptr()).cmp(&0) }
     }
 
     /// Returns `true` if `self` is negative.
     #[corresponds(BN_is_negative)]
+    #[must_use]
     pub fn is_negative(&self) -> bool {
         unsafe { BN_is_negative(self.as_ptr()) == 1 }
     }
 
     /// Returns the number of significant bits in `self`.
     #[corresponds(BN_num_bits)]
+    #[must_use]
     pub fn num_bits(&self) -> i32 {
         unsafe { ffi::BN_num_bits(self.as_ptr()) as i32 }
     }
 
     /// Returns the size of `self` in bytes. Implemented natively.
+    #[must_use]
     pub fn num_bytes(&self) -> i32 {
         (self.num_bits() + 7) / 8
     }
@@ -732,6 +737,7 @@ impl BigNumRef {
     /// assert_eq!(BigNum::from_slice(&s_vec).unwrap(), r);
     /// ```
     #[corresponds(BN_bn2bin)]
+    #[must_use]
     pub fn to_vec(&self) -> Vec<u8> {
         let size = self.num_bytes() as usize;
         let mut v = Vec::with_capacity(size);

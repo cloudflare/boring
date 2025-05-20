@@ -112,6 +112,7 @@ impl X509VerifyParamRef {
 
     /// Gets verification flags.
     #[corresponds(X509_VERIFY_PARAM_get_flags)]
+    #[must_use]
     pub fn flags(&self) -> X509VerifyFlags {
         let bits = unsafe { ffi::X509_VERIFY_PARAM_get_flags(self.as_ptr()) };
         X509VerifyFlags::from_bits_retain(bits)

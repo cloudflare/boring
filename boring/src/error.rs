@@ -33,7 +33,8 @@ use crate::ffi;
 pub struct ErrorStack(Vec<Error>);
 
 impl ErrorStack {
-    /// Returns the contents of the OpenSSL error stack.
+    /// Pop the contents of the OpenSSL error stack, and returns it.
+    #[allow(clippy::must_use_candidate)]
     pub fn get() -> ErrorStack {
         let mut vec = vec![];
         while let Some(err) = Error::get() {
@@ -58,6 +59,7 @@ impl ErrorStack {
 
 impl ErrorStack {
     /// Returns the errors in the stack.
+    #[must_use]
     pub fn errors(&self) -> &[Error] {
         &self.0
     }
@@ -114,7 +116,8 @@ unsafe impl Send for Error {}
 static BORING_INTERNAL: &CStr = c"boring-rust";
 
 impl Error {
-    /// Returns the first error on the OpenSSL error stack.
+    /// Pops the first error off the OpenSSL error stack.
+    #[allow(clippy::must_use_candidate)]
     pub fn get() -> Option<Error> {
         unsafe {
             ffi::init();
@@ -177,11 +180,13 @@ impl Error {
     }
 
     /// Returns the raw OpenSSL error code for this error.
+    #[must_use]
     pub fn code(&self) -> c_uint {
         self.code
     }
 
     /// Returns the name of the library reporting the error, if available.
+    #[must_use]
     pub fn library(&self) -> Option<&'static str> {
         if self.is_internal() {
             return None;
@@ -198,11 +203,13 @@ impl Error {
 
     /// Returns the raw OpenSSL error constant for the library reporting the
     /// error.
+    #[must_use]
     pub fn library_code(&self) -> libc::c_int {
         ffi::ERR_GET_LIB(self.code)
     }
 
     /// Returns the name of the function reporting the error.
+    #[must_use]
     pub fn function(&self) -> Option<&'static str> {
         if self.is_internal() {
             return None;
@@ -218,6 +225,7 @@ impl Error {
     }
 
     /// Returns the reason for the error.
+    #[must_use]
     pub fn reason(&self) -> Option<&'static str> {
         unsafe {
             let cstr = ffi::ERR_reason_error_string(self.code);
@@ -230,11 +238,13 @@ impl Error {
     }
 
     /// Returns the raw OpenSSL error constant for the reason for the error.
+    #[must_use]
     pub fn reason_code(&self) -> libc::c_int {
         ffi::ERR_GET_REASON(self.code)
     }
 
     /// Returns the name of the source file which encountered the error.
+    #[must_use]
     pub fn file(&self) -> &'static str {
         unsafe {
             if self.file.is_null() {
@@ -247,11 +257,13 @@ impl Error {
 
     /// Returns the line in the source file which encountered the error.
     #[allow(clippy::unnecessary_cast)]
+    #[must_use]
     pub fn line(&self) -> u32 {
         self.line as u32
     }
 
     /// Returns additional data describing the error.
+    #[must_use]
     pub fn data(&self) -> Option<&str> {
         self.data.as_deref()
     }

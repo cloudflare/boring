@@ -137,11 +137,13 @@ impl SslConnector {
     }
 
     /// Consumes the `SslConnector`, returning the inner raw `SslContext`.
+    #[must_use]
     pub fn into_context(self) -> SslContext {
         self.0
     }
 
     /// Returns a shared reference to the inner raw `SslContext`.
+    #[must_use]
     pub fn context(&self) -> &SslContextRef {
         &self.0
     }
@@ -152,6 +154,7 @@ pub struct SslConnectorBuilder(SslContextBuilder);
 
 impl SslConnectorBuilder {
     /// Consumes the builder, returning an `SslConnector`.
+    #[must_use]
     pub fn build(self) -> SslConnector {
         SslConnector(self.0.build())
     }
@@ -180,6 +183,7 @@ pub struct ConnectConfiguration {
 
 impl ConnectConfiguration {
     /// A builder-style version of `set_use_server_name_indication`.
+    #[must_use]
     pub fn use_server_name_indication(mut self, use_sni: bool) -> ConnectConfiguration {
         self.set_use_server_name_indication(use_sni);
         self
@@ -193,6 +197,7 @@ impl ConnectConfiguration {
     }
 
     /// A builder-style version of `set_verify_hostname`.
+    #[must_use]
     pub fn verify_hostname(mut self, verify_hostname: bool) -> ConnectConfiguration {
         self.set_verify_hostname(verify_hostname);
         self
@@ -396,11 +401,13 @@ impl SslAcceptor {
     }
 
     /// Consumes the `SslAcceptor`, returning the inner raw `SslContext`.
+    #[must_use]
     pub fn into_context(self) -> SslContext {
         self.0
     }
 
     /// Returns a shared reference to the inner raw `SslContext`.
+    #[must_use]
     pub fn context(&self) -> &SslContextRef {
         &self.0
     }
@@ -411,6 +418,7 @@ pub struct SslAcceptorBuilder(SslContextBuilder);
 
 impl SslAcceptorBuilder {
     /// Consumes the builder, returning a `SslAcceptor`.
+    #[must_use]
     pub fn build(self) -> SslAcceptor {
         SslAcceptor(self.0.build())
     }

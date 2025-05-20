@@ -42,7 +42,7 @@ static KEY: &[u8] = include_bytes!("../../../test/key.pem");
 #[test]
 fn get_ctx_options() {
     let ctx = SslContext::builder(SslMethod::tls()).unwrap();
-    ctx.options();
+    let _ = ctx.options();
 }
 
 #[test]

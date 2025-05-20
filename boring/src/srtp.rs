@@ -20,9 +20,12 @@ impl Stackable for SrtpProtectionProfile {
 }
 
 impl SrtpProtectionProfileRef {
+    #[must_use]
     pub fn id(&self) -> SrtpProfileId {
         SrtpProfileId::from_raw(unsafe { (*self.as_ptr()).id })
     }
+
+    #[must_use]
     pub fn name(&self) -> &'static str {
         unsafe { CStr::from_ptr((*self.as_ptr()).name as *const _) }
             .to_str()
@@ -47,12 +50,14 @@ impl SrtpProfileId {
     pub const SRTP_NULL_SHA1_32: SrtpProfileId = SrtpProfileId(ffi::SRTP_NULL_SHA1_32 as _);
 
     /// Creates a `SrtpProfileId` from an integer representation.
+    #[must_use]
     pub fn from_raw(value: c_ulong) -> SrtpProfileId {
         SrtpProfileId(value)
     }
 
     /// Returns the integer representation of `SrtpProfileId`.
     #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[must_use]
     pub fn as_raw(&self) -> c_ulong {
         self.0
     }

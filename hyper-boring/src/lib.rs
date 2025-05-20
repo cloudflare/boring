@@ -30,6 +30,7 @@ pub struct HttpsLayerSettings {
 
 impl HttpsLayerSettings {
     /// Constructs an [`HttpsLayerSettingsBuilder`] for configuring settings
+    #[must_use]
     pub fn builder() -> HttpsLayerSettingsBuilder {
         HttpsLayerSettingsBuilder(HttpsLayerSettings::default())
     }
@@ -54,6 +55,7 @@ impl HttpsLayerSettingsBuilder {
     }
 
     /// Consumes the builder, returning a new [`HttpsLayerSettings`]
+    #[must_use]
     pub fn build(self) -> HttpsLayerSettings {
         self.0
     }
