@@ -606,7 +606,7 @@ impl TryFrom<u16> for SslVersion {
     type Error = &'static str;
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
-        match value as i32 {
+        match i32::from(value) {
             ffi::SSL3_VERSION
             | ffi::TLS1_VERSION
             | ffi::TLS1_1_VERSION
@@ -921,7 +921,7 @@ impl SslInfoCallbackAlert {
 
     /// The value of the SSL alert.
     pub fn alert(&self) -> SslAlert {
-        let value = self.0 & (u8::MAX as i32);
+        let value = self.0 & i32::from(u8::MAX);
         SslAlert(value)
     }
 }
@@ -1239,7 +1239,7 @@ impl SslContextBuilder {
     #[corresponds(SSL_CTX_set_read_ahead)]
     pub fn set_read_ahead(&mut self, read_ahead: bool) {
         unsafe {
-            ffi::SSL_CTX_set_read_ahead(self.as_ptr(), read_ahead as c_int);
+            ffi::SSL_CTX_set_read_ahead(self.as_ptr(), c_int::from(read_ahead));
         }
     }
 
