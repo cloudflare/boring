@@ -701,6 +701,11 @@ fn main() {
     println!("cargo:rustc-link-lib=static=crypto");
     println!("cargo:rustc-link-lib=static=ssl");
 
+    if config.target_os == "windows" {
+        // Rust 1.87.0 compat - https://github.com/rust-lang/rust/pull/138233
+        println!("cargo:rustc-link-lib=advapi32");
+    }
+
     let include_path = config.env.include_path.clone().unwrap_or_else(|| {
         if let Some(bssl_path) = &config.env.path {
             return bssl_path.join("include");
