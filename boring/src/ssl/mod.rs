@@ -3943,9 +3943,7 @@ impl<S: Read + Write> SslStream<S> {
                 }
                 Err(ref e) if e.code() == ErrorCode::WANT_READ && e.io_error().is_none() => {}
                 Err(e) => {
-                    return Err(e
-                        .into_io_error()
-                        .unwrap_or_else(|e| io::Error::new(io::ErrorKind::Other, e)));
+                    return Err(e.into_io_error().unwrap_or_else(io::Error::other));
                 }
             }
         }
@@ -4167,9 +4165,7 @@ impl<S: Read + Write> Write for SslStream<S> {
                 Ok(n) => return Ok(n),
                 Err(ref e) if e.code() == ErrorCode::WANT_READ && e.io_error().is_none() => {}
                 Err(e) => {
-                    return Err(e
-                        .into_io_error()
-                        .unwrap_or_else(|e| io::Error::new(io::ErrorKind::Other, e)));
+                    return Err(e.into_io_error().unwrap_or_else(io::Error::other));
                 }
             }
         }
