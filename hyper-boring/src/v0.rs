@@ -259,10 +259,10 @@ where
                 let last = host.len() - 1;
                 let mut chars = host.chars();
 
-                if let (Some('['), Some(']')) = (chars.next(), chars.last()) {
-                    if host[1..last].parse::<net::Ipv6Addr>().is_ok() {
-                        host = &host[1..last];
-                    }
+                if (chars.next(), chars.last()) == (Some('['), Some(']'))
+                    && host[1..last].parse::<net::Ipv6Addr>().is_ok()
+                {
+                    host = &host[1..last];
                 }
             }
 

@@ -341,7 +341,7 @@ impl Crypter {
                     }
                     iv.as_ptr() as *mut _
                 }
-                (Some(_), None) | (None, None) => ptr::null_mut(),
+                (Some(_) | None, None) => ptr::null_mut(),
                 (None, Some(_)) => panic!("an IV is required for this cipher"),
             };
             cvt(ffi::EVP_CipherInit_ex(
@@ -363,7 +363,7 @@ impl Crypter {
     /// be a multiple of the cipher's block size.
     pub fn pad(&mut self, padding: bool) {
         unsafe {
-            ffi::EVP_CIPHER_CTX_set_padding(self.ctx, padding as c_int);
+            ffi::EVP_CIPHER_CTX_set_padding(self.ctx, c_int::from(padding));
         }
     }
 
