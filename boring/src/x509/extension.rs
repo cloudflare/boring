@@ -78,7 +78,7 @@ impl BasicConstraints {
             value.push_str("FALSE");
         }
         if let Some(pathlen) = self.pathlen {
-            write!(value, ",pathlen:{}", pathlen).unwrap();
+            write!(value, ",pathlen:{pathlen}").unwrap();
         }
         X509Extension::new_nid(None, None, Nid::BASIC_CONSTRAINTS, &value)
     }

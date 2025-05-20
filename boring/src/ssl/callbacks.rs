@@ -40,7 +40,7 @@ where
     // because there is no `X509StoreContextRef::ssl_mut(&mut self)` method.
     let verify = unsafe { &*(verify as *const F) };
 
-    verify(preverify_ok != 0, ctx) as c_int
+    c_int::from(verify(preverify_ok != 0, ctx))
 }
 
 pub(super) unsafe extern "C" fn raw_custom_verify<F>(
@@ -89,7 +89,7 @@ where
     // so the callback can't replace itself.
     let verify = unsafe { &*(verify as *const F) };
 
-    verify(ctx) as c_int
+    c_int::from(verify(ctx))
 }
 
 pub(super) unsafe extern "C" fn ssl_raw_custom_verify<F>(
@@ -235,7 +235,7 @@ where
         .expect("BUG: ssl verify callback missing")
         .clone();
 
-    callback(preverify_ok != 0, ctx) as c_int
+    c_int::from(callback(preverify_ok != 0, ctx))
 }
 
 pub(super) unsafe extern "C" fn raw_sni<F>(

@@ -308,7 +308,7 @@ impl DerefMut for DigestBytes {
 impl AsRef<[u8]> for DigestBytes {
     #[inline]
     fn as_ref(&self) -> &[u8] {
-        self.deref()
+        self
     }
 }
 
@@ -455,7 +455,7 @@ mod tests {
 
     #[test]
     fn test_md5() {
-        for test in MD5_TESTS.iter() {
+        for test in &MD5_TESTS {
             hash_test(MessageDigest::md5(), test);
         }
     }
@@ -463,7 +463,7 @@ mod tests {
     #[test]
     fn test_md5_recycle() {
         let mut h = Hasher::new(MessageDigest::md5()).unwrap();
-        for test in MD5_TESTS.iter() {
+        for test in &MD5_TESTS {
             hash_recycle_test(&mut h, test);
         }
     }
@@ -514,7 +514,7 @@ mod tests {
     fn test_sha1() {
         let tests = [("616263", "a9993e364706816aba3e25717850c26c9cd0d89d")];
 
-        for test in tests.iter() {
+        for test in &tests {
             hash_test(MessageDigest::sha1(), test);
         }
     }
@@ -526,7 +526,7 @@ mod tests {
             "23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7",
         )];
 
-        for test in tests.iter() {
+        for test in &tests {
             hash_test(MessageDigest::sha224(), test);
         }
     }
@@ -538,7 +538,7 @@ mod tests {
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
         )];
 
-        for test in tests.iter() {
+        for test in &tests {
             hash_test(MessageDigest::sha256(), test);
         }
     }
@@ -551,7 +551,7 @@ mod tests {
              192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f",
         )];
 
-        for test in tests.iter() {
+        for test in &tests {
             hash_test(MessageDigest::sha512(), test);
         }
     }
@@ -563,7 +563,7 @@ mod tests {
             "53048e2681941ef99b2e29b76b4c7dabe4c2d0c634fc6d46e0e2f13107e7af23",
         )];
 
-        for test in tests.iter() {
+        for test in &tests {
             hash_test(MessageDigest::sha512_256(), test);
         }
     }
