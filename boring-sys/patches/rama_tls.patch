@@ -60,6 +60,14 @@ index dde04dd7e..d3d7efb8e 100644
  // ExtensionType value from RFC 4507
  #define TLSEXT_TYPE_session_ticket 35
  
+@@ -166,6 +169,7 @@ extern "C" {
+ // From https://www.rfc-editor.org/rfc/rfc8879.html#section-3
+ #define TLSEXT_cert_compression_zlib 1
+ #define TLSEXT_cert_compression_brotli 2
++#define TLSEXT_cert_compression_zstd 3
+ 
+ #define TLSEXT_MAXLEN_host_name 255
+ 
 diff --git a/ssl/extensions.cc b/ssl/extensions.cc
 index ec505e370..eb5d9f146 100644
 --- a/ssl/extensions.cc

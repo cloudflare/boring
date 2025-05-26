@@ -771,8 +771,8 @@ pub struct CertificateCompressionAlgorithm(u16);
 
 impl CertificateCompressionAlgorithm {
     pub const ZLIB: Self = Self(ffi::TLSEXT_cert_compression_zlib as u16);
-
     pub const BROTLI: Self = Self(ffi::TLSEXT_cert_compression_brotli as u16);
+    pub const ZSTD: Self = Self(ffi::TLSEXT_cert_compression_zstd as u16);
 }
 
 /// A standard implementation of protocol selection for Application Layer Protocol Negotiation
