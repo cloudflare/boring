@@ -150,6 +150,9 @@ impl X509StoreRef {
 
 #[test]
 #[allow(dead_code)]
+// X509Store must not implement Clone because `SslContextBuilder::cert_store_mut` lets
+// you get a mutable reference to a store that could have been cloned before being
+// passed to `SslContextBuilder::set_cert_store`.
 fn no_clone_for_x509store() {
     trait MustNotImplementClone {}
     impl<T: Clone> MustNotImplementClone for T {}
