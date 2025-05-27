@@ -147,3 +147,11 @@ impl X509StoreRef {
         self.objects().len()
     }
 }
+
+#[test]
+#[allow(dead_code)]
+fn no_clone_for_x509store() {
+    trait MustNotImplementClone {}
+    impl<T: Clone> MustNotImplementClone for T {}
+    impl MustNotImplementClone for X509Store {}
+}
