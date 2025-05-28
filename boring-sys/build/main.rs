@@ -165,7 +165,7 @@ fn get_boringssl_platform_output_path(config: &Config) -> String {
         let deb_info = match debug_env_var.to_str() {
             Some("false") => false,
             Some("true") => true,
-            _ => panic!("Unknown DEBUG={:?} env var.", debug_env_var),
+            _ => panic!("Unknown DEBUG={debug_env_var:?} env var."),
         };
 
         let opt_env_var = config
@@ -184,12 +184,12 @@ fn get_boringssl_platform_output_path(config: &Config) -> String {
                 }
             }
             Some("s" | "z") => "MinSizeRel",
-            _ => panic!("Unknown OPT_LEVEL={:?} env var.", opt_env_var),
+            _ => panic!("Unknown OPT_LEVEL={opt_env_var:?} env var."),
         };
 
         subdir.to_string()
     } else {
-        "".to_string()
+        String::new()
     }
 }
 
@@ -242,7 +242,7 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
             }
             let toolchain_file = android_ndk_home.join("build/cmake/android.toolchain.cmake");
             let toolchain_file = toolchain_file.to_str().unwrap();
-            eprintln!("android toolchain={}", toolchain_file);
+            eprintln!("android toolchain={toolchain_file}");
             boringssl_cmake.define("CMAKE_TOOLCHAIN_FILE", toolchain_file);
 
             // 21 is the minimum level tested. You can give higher value.
@@ -273,7 +273,7 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                 ""
             };
 
-            let cflag = format!("{} {}", bitcode_cflag, target_cflag);
+            let cflag = format!("{bitcode_cflag} {target_cflag}");
             boringssl_cmake.define("CMAKE_ASM_FLAGS", &cflag);
             boringssl_cmake.cflag(&cflag);
         }
@@ -339,7 +339,7 @@ fn verify_fips_clang_version() -> (&'static str, &'static str) {
         let output = match Command::new(tool).arg("--version").output() {
             Ok(o) => o,
             Err(e) => {
-                eprintln!("warning: missing {}, trying other compilers: {}", tool, e);
+                eprintln!("warning: missing {tool}, trying other compilers: {e}");
                 // NOTE: hard-codes that the loop below checks the version
                 return None;
             }
@@ -369,13 +369,11 @@ fn verify_fips_clang_version() -> (&'static str, &'static str) {
             return (cc, cxx);
         } else if cc == "cc" {
             panic!(
-                "unsupported clang version \"{}\": FIPS requires clang {}",
-                cc_version, REQUIRED_CLANG_VERSION
+                "unsupported clang version \"{cc_version}\": FIPS requires clang {REQUIRED_CLANG_VERSION}"
             );
         } else if !cc_version.is_empty() {
             eprintln!(
-                "warning: FIPS requires clang version {}, skipping incompatible version \"{}\"",
-                REQUIRED_CLANG_VERSION, cc_version
+                "warning: FIPS requires clang version {REQUIRED_CLANG_VERSION}, skipping incompatible version \"{cc_version}\""
             );
         }
     }
@@ -425,7 +423,7 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
                 .unwrap();
             if !output.status.success() {
                 if let Some(exit_code) = output.status.code() {
-                    eprintln!("xcrun failed: exit code {}", exit_code);
+                    eprintln!("xcrun failed: exit code {exit_code}");
                 } else {
                     eprintln!("xcrun failed: killed");
                 }
@@ -452,8 +450,7 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
                 Ok(toolchain) => toolchain,
                 Err(e) => {
                     eprintln!(
-                        "warning: failed to find prebuilt Android NDK toolchain for bindgen: {}",
-                        e
+                        "warning: failed to find prebuilt Android NDK toolchain for bindgen: {e}"
                     );
                     // Uh... let's try anyway, I guess?
                     return params;
@@ -537,8 +534,8 @@ fn run_command(command: &mut Command) -> io::Result<Output> {
 
     if !out.status.success() {
         let err = match out.status.code() {
-            Some(code) => format!("{:?} exited with status: {}", command, code),
-            None => format!("{:?} was terminated by signal", command),
+            Some(code) => format!("{command:?} exited with status: {code}"),
+            None => format!("{command:?} was terminated by signal"),
         };
 
         return Err(io::Error::other(err));
@@ -696,7 +693,7 @@ fn main() {
     }
 
     if let Some(cpp_lib) = get_cpp_runtime_lib(&config) {
-        println!("cargo:rustc-link-lib={}", cpp_lib);
+        println!("cargo:rustc-link-lib={cpp_lib}");
     }
     println!("cargo:rustc-link-lib=static=crypto");
     println!("cargo:rustc-link-lib=static=ssl");

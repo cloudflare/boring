@@ -304,7 +304,8 @@ impl Asn1Time {
 
     /// Creates a new time on specified interval in days from now
     pub fn days_from_now(days: u32) -> Result<Asn1Time, ErrorStack> {
-        Asn1Time::from_period(days as c_long * 60 * 60 * 24)
+        // the type varies between platforms, so both into() and try_into() trigger Clippy lints
+        Self::from_period((days * 60 * 60 * 24) as _)
     }
 
     /// Creates a new time from the specified `time_t` value
@@ -494,7 +495,13 @@ impl Asn1IntegerRef {
     /// [`bn`]: ../bn/struct.BigNumRef.html#method.to_asn1_integer
     #[corresponds(ASN1_INTEGER_set)]
     pub fn set(&mut self, value: i32) -> Result<(), ErrorStack> {
-        unsafe { cvt(crate::ffi::ASN1_INTEGER_set(self.as_ptr(), value as c_long)).map(|_| ()) }
+        unsafe {
+            cvt(crate::ffi::ASN1_INTEGER_set(
+                self.as_ptr(),
+                c_long::from(value),
+            ))
+            .map(|_| ())
+        }
     }
 }
 

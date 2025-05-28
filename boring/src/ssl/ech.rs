@@ -35,7 +35,7 @@ impl SslEchKeysBuilder {
         unsafe {
             cvt_0i(ffi::SSL_ECH_KEYS_add(
                 self.keys.as_ptr(),
-                is_retry_config as c_int,
+                c_int::from(is_retry_config),
                 ech_config.as_ptr(),
                 ech_config.len(),
                 key.as_ptr(),

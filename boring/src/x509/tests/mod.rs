@@ -37,7 +37,7 @@ fn test_cert_loading() {
 fn test_debug() {
     let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
-    let debugged = format!("{:#?}", cert);
+    let debugged = format!("{cert:#?}");
 
     assert!(debugged.contains(r#"serial_number: "8771f7bdee982fa5""#));
     assert!(debugged.contains(r#"signature_algorithm: sha256WithRSAEncryption"#));
@@ -485,7 +485,7 @@ fn test_save_subject_der() {
     let cert = X509::from_pem(cert).unwrap();
 
     let der = cert.subject_name().to_der().unwrap();
-    println!("der: {:?}", der);
+    println!("der: {der:?}");
     assert!(!der.is_empty());
 }
 
