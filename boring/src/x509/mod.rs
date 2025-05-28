@@ -210,6 +210,21 @@ impl X509StoreContextRef {
         }
     }
 
+    /// Returns a reference to the `X509` certificates used to initialize the
+    /// [`X509StoreContextRef`].
+    #[corresponds(X509_STORE_CTX_get0_untrusted)]
+    pub fn untrusted(&self) -> Option<&StackRef<X509>> {
+        unsafe {
+            let certs = ffi::X509_STORE_CTX_get0_untrusted(self.as_ptr());
+
+            if certs.is_null() {
+                None
+            } else {
+                Some(StackRef::from_ptr(certs))
+            }
+        }
+    }
+
     /// Returns a reference to the certificate being verified.
     /// May return None if a raw public key is being verified.
     #[corresponds(X509_STORE_CTX_get0_cert)]
