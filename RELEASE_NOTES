@@ -1,4 +1,20 @@
 
+4.17.0
+- 2025-05-27 Revert "feat(x509): Implement `Clone` for `X509Store` (#339)" (#353)
+- 2025-05-14 Update bindgen from 0.70.1 -> 0.71.1.
+- 2025-05-19 Add `X509_STORE_CTX_get0_cert` interface
+- 2025-05-18 boring(ssl): use `corresponds` macro in `add_certificate_compression_algorithm`
+- 2025-02-14 Update Cargo.toml
+- 2025-02-13 build: Fix the build for 32-bit Linux platform
+- 2025-05-20 rustfmt ;(
+- 2025-05-20 Fix linking SystemFunction036 from advapi32 in Rust 1.87
+- 2025-05-20 Clippy
+- 2025-05-01 add SslCurve::X25519_MLKEM768 constant
+- 2025-04-17 Use ubuntu-latest for all ci jobs
+- 2025-04-16 fix clippy error
+- 2025-04-15 expose SSL_set_compliance_policy
+- 2025-04-07 feat(x509): Implement `Clone` for `X509Store` (#339)
+
 4.16.0
 - 2025-03-31 Add fips-precompiled feature to support newer versions of FIPS (#338)
 - 2025-03-18 Document linking to C++ standard library (#335)
