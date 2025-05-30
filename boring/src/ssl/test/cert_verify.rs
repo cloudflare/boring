@@ -72,13 +72,34 @@ fn callback_receives_correct_certificate() {
         assert!(x509.cert().is_some());
         assert!(x509.verify_result().is_err());
 
-        let root = x509.current_cert().unwrap();
-        let digest = root.digest(MessageDigest::sha1()).unwrap();
-        assert_eq!(hex::encode(digest), root_sha1);
+        let root = x509
+            .current_cert()
+            .unwrap()
+            .digest(MessageDigest::sha1())
+            .unwrap();
+        assert_eq!(hex::encode(root), root_sha1);
 
-        let leaf = x509.cert().unwrap();
-        let digest = leaf.digest(MessageDigest::sha1()).unwrap();
-        assert_eq!(hex::encode(digest), leaf_sha1);
+        let leaf = x509.cert().unwrap().digest(MessageDigest::sha1()).unwrap();
+        assert_eq!(hex::encode(leaf), leaf_sha1);
+
+        // Test that `untrusted` is set to the original chain.
+        assert_eq!(x509.untrusted().unwrap().len(), 2);
+        let leaf = x509
+            .untrusted()
+            .unwrap()
+            .get(0)
+            .unwrap()
+            .digest(MessageDigest::sha1())
+            .unwrap();
+        assert_eq!(hex::encode(leaf), leaf_sha1);
+        let root = x509
+            .untrusted()
+            .unwrap()
+            .get(1)
+            .unwrap()
+            .digest(MessageDigest::sha1())
+            .unwrap();
+        assert_eq!(hex::encode(root), root_sha1);
         true
     });
 
