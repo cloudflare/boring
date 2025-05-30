@@ -148,6 +148,12 @@ impl X509StoreContextRef {
         unsafe { X509VerifyParamRef::from_ptr_mut(ffi::X509_STORE_CTX_get0_param(self.as_ptr())) }
     }
 
+    /// Sets the X509 verifification configuration on the X509_STORE_CTX.
+    #[corresponds(X509_STORE_CTX_set0_param)]
+    pub fn set_verify_param(&mut self, param: &mut X509VerifyParamRef) {
+        unsafe { ffi::X509_STORE_CTX_set0_param(self.as_ptr(), param.as_ptr()) }
+    }
+
     /// Verifies the stored certificate.
     ///
     /// Returns `true` if verification succeeds. The `error` method will return the specific
