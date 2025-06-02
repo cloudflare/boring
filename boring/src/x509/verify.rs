@@ -182,4 +182,12 @@ impl X509VerifyParamRef {
     pub fn set_depth(&mut self, depth: c_int) {
         unsafe { ffi::X509_VERIFY_PARAM_set_depth(self.as_ptr(), depth) }
     }
+
+    /// Copies parameters from `src`.
+    ///
+    /// If a parameter is unset in `src`, the existing value in `self`` is preserved.
+    #[corresponds(X509_VERIFY_PARAM_set1)]
+    pub fn copy_from(&mut self, src: &Self) -> Result<(), ErrorStack> {
+        unsafe { cvt(ffi::X509_VERIFY_PARAM_set1(self.as_ptr(), src.as_ptr())).map(|_| ()) }
+    }
 }
