@@ -130,14 +130,15 @@ impl X509StoreContextRef {
         }
 
         unsafe {
+            let cleanup = Cleanup(self);
+
             cvt(ffi::X509_STORE_CTX_init(
-                self.as_ptr(),
+                cleanup.0.as_ptr(),
                 trust.as_ptr(),
                 cert.as_ptr(),
                 cert_chain.as_ptr(),
             ))?;
 
-            let cleanup = Cleanup(self);
             with_context(cleanup.0)
         }
     }
