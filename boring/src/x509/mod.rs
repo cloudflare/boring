@@ -21,6 +21,7 @@ use std::path::Path;
 use std::ptr;
 use std::slice;
 use std::str;
+use std::sync::{LazyLock, Once};
 
 use crate::asn1::{
     Asn1BitStringRef, Asn1IntegerRef, Asn1Object, Asn1ObjectRef, Asn1StringRef, Asn1TimeRef,
@@ -47,6 +48,15 @@ pub mod verify;
 
 #[cfg(test)]
 mod tests;
+
+static STORE_INDEX: LazyLock<Index<X509StoreContext, store::X509Store>> =
+    LazyLock::new(|| X509StoreContext::new_ex_index().unwrap());
+
+static CERT_INDEX: LazyLock<Index<X509StoreContext, X509>> =
+    LazyLock::new(|| X509StoreContext::new_ex_index().unwrap());
+
+static CERT_CHAIN_INDEX: LazyLock<Index<X509StoreContext, Stack<X509>>> =
+    LazyLock::new(|| X509StoreContext::new_ex_index().unwrap());
 
 foreign_type_and_impl_send_sync! {
     type CType = ffi::X509_STORE_CTX;
@@ -195,6 +205,38 @@ impl X509StoreContextRef {
 
             with_context(cleanup.0)
         }
+    }
+
+    pub fn init_without_cleanup(
+        &mut self,
+        trust: store::X509Store,
+        cert: X509,
+        cert_chain: Stack<X509>,
+    ) -> Result<(), ErrorStack> {
+        unsafe {
+            if let Err(e) = cvt(ffi::X509_STORE_CTX_init(
+                self.as_ptr(),
+                trust.as_ptr(),
+                cert.as_ptr(),
+                cert_chain.as_ptr(),
+            )) {
+                ffi::X509_STORE_CTX_cleanup(self.as_ptr());
+
+                return Err(e);
+            }
+        }
+
+        self.set_ex_data(*STORE_INDEX, trust);
+        self.set_ex_data(*CERT_INDEX, cert);
+        self.set_ex_data(*CERT_CHAIN_INDEX, cert_chain);
+
+        Ok(())
+    }
+
+    /// Returns a reference to the X509 verification configuration.
+    #[corresponds(X509_STORE_CTX_get0_param)]
+    pub fn verify_param(&mut self) -> &X509VerifyParamRef {
+        unsafe { X509VerifyParamRef::from_ptr(ffi::X509_STORE_CTX_get0_param(self.as_ptr())) }
     }
 
     /// Returns a mutable reference to the X509 verification configuration.
