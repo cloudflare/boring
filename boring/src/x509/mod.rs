@@ -30,7 +30,6 @@ use crate::bio::{MemBio, MemBioSlice};
 use crate::conf::ConfRef;
 use crate::error::ErrorStack;
 use crate::ex_data::Index;
-use crate::ffi;
 use crate::hash::{DigestBytes, MessageDigest};
 use crate::nid::Nid;
 use crate::pkey::{HasPrivate, HasPublic, PKey, PKeyRef, Public};
@@ -40,6 +39,7 @@ use crate::string::OpensslString;
 use crate::util::ForeignTypeRefExt;
 use crate::x509::verify::{X509VerifyParam, X509VerifyParamRef};
 use crate::{cvt, cvt_n, cvt_p};
+use crate::{ffi, free_data_box};
 
 pub mod extension;
 pub mod store;
@@ -72,6 +72,22 @@ impl X509StoreContext {
             cvt_p(ffi::X509_STORE_CTX_new()).map(|p| X509StoreContext::from_ptr(p))
         }
     }
+
+    /// Returns a new extra data index.
+    ///
+    /// Each invocation of this function is guaranteed to return a distinct index. These can be used
+    /// to store data in the context that can be retrieved later by callbacks, for example.
+    #[corresponds(SSL_CTX_get_ex_new_index)]
+    pub fn new_ex_index<T>() -> Result<Index<X509StoreContext, T>, ErrorStack>
+    where
+        T: 'static + Sync + Send,
+    {
+        unsafe {
+            ffi::init();
+            let idx = cvt_n(get_new_x509_store_ctx_idx(Some(free_data_box::<T>)))?;
+            Ok(Index::from_raw(idx))
+        }
+    }
 }
 
 impl X509StoreContextRef {
@@ -85,6 +101,44 @@ impl X509StoreContextRef {
             } else {
                 Some(&*(data as *const T))
             }
+        }
+    }
+
+    /// Returns a mutable reference to the extra data at the specified index.
+    #[corresponds(X509_STORE_CTX_get_ex_data)]
+    pub fn ex_data_mut<T>(&mut self, index: Index<X509StoreContext, T>) -> Option<&mut T> {
+        unsafe {
+            let data = ffi::X509_STORE_CTX_get_ex_data(self.as_ptr(), index.as_raw());
+            if data.is_null() {
+                None
+            } else {
+                Some(&mut *(data as *mut T))
+            }
+        }
+    }
+
+    /// Sets or overwrites the extra data at the specified index.
+    ///
+    /// This can be used to provide data to callbacks registered with the context. Use the
+    /// `Ssl::new_ex_index` method to create an `Index`.
+    ///
+    /// The previous value, if any, will be returned.
+    #[corresponds(X509_STORE_CTX_set_ex_data)]
+    pub fn set_ex_data<T>(&mut self, index: Index<X509StoreContext, T>, data: T) {
+        if let Some(old) = self.ex_data_mut(index) {
+            *old = data;
+
+            return;
+        }
+
+        unsafe {
+            let data = Box::new(data);
+
+            ffi::X509_STORE_CTX_set_ex_data(
+                self.as_ptr(),
+                index.as_raw(),
+                Box::into_raw(data) as *mut c_void,
+            );
         }
     }
 
@@ -1687,4 +1741,15 @@ use crate::ffi::X509_OBJECT_get0_X509;
 unsafe fn X509_OBJECT_free(x: *mut ffi::X509_OBJECT) {
     ffi::X509_OBJECT_free_contents(x);
     ffi::OPENSSL_free(x as *mut libc::c_void);
+}
+
+unsafe fn get_new_x509_store_ctx_idx(f: ffi::CRYPTO_EX_free) -> c_int {
+    // hack around https://rt.openssl.org/Ticket/Display.html?id=3710&user=guest&pass=guest
+    static ONCE: Once = Once::new();
+
+    ONCE.call_once(|| {
+        ffi::X509_STORE_CTX_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, None);
+    });
+
+    ffi::X509_STORE_CTX_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, f)
 }

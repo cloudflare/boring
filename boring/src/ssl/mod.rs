@@ -58,7 +58,7 @@
 //! }
 //! ```
 use foreign_types::{ForeignType, ForeignTypeRef, Opaque};
-use libc::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
+use libc::{c_char, c_int, c_uchar, c_uint, c_void};
 use openssl_macros::corresponds;
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -81,7 +81,6 @@ use crate::dh::DhRef;
 use crate::ec::EcKeyRef;
 use crate::error::ErrorStack;
 use crate::ex_data::Index;
-use crate::ffi;
 use crate::nid::Nid;
 use crate::pkey::{HasPrivate, PKeyRef, Params, Private};
 use crate::srtp::{SrtpProtectionProfile, SrtpProtectionProfileRef};
@@ -95,6 +94,7 @@ use crate::x509::{
     X509Name, X509Ref, X509StoreContextRef, X509VerifyError, X509VerifyResult, X509,
 };
 use crate::{cvt, cvt_0i, cvt_n, cvt_p, init};
+use crate::{ffi, free_data_box};
 
 pub use self::async_callbacks::{
     AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError, BoxCustomVerifyFinish,
@@ -438,19 +438,6 @@ static SESSION_CTX_INDEX: LazyLock<Index<Ssl, SslContext>> =
 #[cfg(feature = "rpk")]
 static RPK_FLAG_INDEX: LazyLock<Index<SslContext, bool>> =
     LazyLock::new(|| SslContext::new_ex_index().unwrap());
-
-unsafe extern "C" fn free_data_box<T>(
-    _parent: *mut c_void,
-    ptr: *mut c_void,
-    _ad: *mut ffi::CRYPTO_EX_DATA,
-    _idx: c_int,
-    _argl: c_long,
-    _argp: *mut c_void,
-) {
-    if !ptr.is_null() {
-        drop(Box::<T>::from_raw(ptr as *mut T));
-    }
-}
 
 /// An error returned from the SNI callback.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
