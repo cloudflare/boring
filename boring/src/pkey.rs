@@ -56,7 +56,7 @@ use crate::ec::EcKey;
 use crate::error::ErrorStack;
 use crate::rsa::Rsa;
 use crate::util::{invoke_passwd_cb, CallbackState};
-use crate::{cvt, cvt_p};
+use crate::{cvt, cvt_0i, cvt_p};
 
 /// A tag type indicating that a key only has parameters.
 pub enum Params {}
@@ -222,6 +222,26 @@ where
     {
         unsafe { ffi::EVP_PKEY_cmp(self.as_ptr(), other.as_ptr()) == 1 }
     }
+
+    /// Outputs a copy of the "raw" form of the public key. Only supported for certain key types.
+    ///
+    /// Returns the number of bytes written, or the size of the raw form if `out` is empty.
+    #[corresponds(EVP_PKEY_get_raw_public_key)]
+    pub fn raw_public_key(&self, out: &mut [u8]) -> Result<usize, ErrorStack> {
+        unsafe {
+            let mut size = out.len();
+            _ = cvt_0i(ffi::EVP_PKEY_get_raw_public_key(
+                self.as_ptr(),
+                if size == 0 {
+                    std::ptr::null_mut()
+                } else {
+                    out.as_mut_ptr()
+                },
+                &mut size,
+            ))?;
+            Ok(size)
+        }
+    }
 }
 
 impl<T> PKeyRef<T>
@@ -259,6 +279,26 @@ where
         #[corresponds(i2d_PKCS8PrivateKey_bio)]
         private_key_to_der_pkcs8_passphrase,
         ffi::i2d_PKCS8PrivateKey_bio
+    }
+
+    /// Outputs a copy of the "raw" form of the private key. Only supported for certain key types.
+    ///
+    /// Returns the number of bytes written, or the size of the raw form if `out` is empty.
+    #[corresponds(EVP_PKEY_get_raw_private_key)]
+    pub fn raw_private_key(&self, out: &mut [u8]) -> Result<usize, ErrorStack> {
+        unsafe {
+            let mut size = out.len();
+            _ = cvt_0i(ffi::EVP_PKEY_get_raw_private_key(
+                self.as_ptr(),
+                if size == 0 {
+                    std::ptr::null_mut()
+                } else {
+                    out.as_mut_ptr()
+                },
+                &mut size,
+            ))?;
+            Ok(size)
+        }
     }
 }
 
@@ -445,6 +485,8 @@ use crate::ffi::EVP_PKEY_up_ref;
 
 #[cfg(test)]
 mod tests {
+    use hex::FromHex as _;
+
     use crate::ec::EcKey;
     use crate::nid::Nid;
     use crate::rsa::Rsa;
@@ -554,5 +596,29 @@ mod tests {
         pkey.ec_key().unwrap();
         assert_eq!(pkey.id(), Id::EC);
         assert!(pkey.rsa().is_err());
+    }
+
+    #[test]
+    fn test_raw_accessors() {
+        const ED25519_PRIVATE_KEY_DER: &str = concat!(
+            "302e020100300506032b6570042204207c8c6497f9960d5595d7815f550569e5",
+            "f77764ac97e63e339aaa68cc1512b683"
+        );
+        let pkey =
+            PKey::private_key_from_der(&Vec::from_hex(ED25519_PRIVATE_KEY_DER).unwrap()).unwrap();
+        assert_eq!(pkey.id(), Id::ED25519);
+
+        let priv_len = pkey.raw_private_key(&mut []).unwrap();
+        assert_eq!(priv_len, 32);
+        let mut raw_private_key = [0; 32];
+        _ = pkey.raw_private_key(&mut raw_private_key).unwrap();
+        assert_ne!(raw_private_key, [0; 32]);
+
+        let pub_len = pkey.raw_public_key(&mut []).unwrap();
+        assert_eq!(pub_len, 32);
+        let mut raw_public_key = [0; 32];
+        _ = pkey.raw_public_key(&mut raw_public_key).unwrap();
+        assert_ne!(raw_public_key, [0; 32]);
+        assert_ne!(raw_public_key, raw_private_key);
     }
 }
