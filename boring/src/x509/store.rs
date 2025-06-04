@@ -115,6 +115,14 @@ impl X509StoreBuilderRef {
     pub fn set_param(&mut self, param: &X509VerifyParamRef) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::X509_STORE_set1_param(self.as_ptr(), param.as_ptr())).map(|_| ()) }
     }
+
+    /// For testing only
+    #[cfg(test)]
+    pub fn objects_len(&self) -> usize {
+        unsafe {
+            StackRef::<X509Object>::from_ptr(ffi::X509_STORE_get0_objects(self.as_ptr())).len()
+        }
+    }
 }
 
 foreign_type_and_impl_send_sync! {
