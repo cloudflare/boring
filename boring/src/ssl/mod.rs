@@ -88,7 +88,7 @@ use crate::ssl::bio::BioMethod;
 use crate::ssl::callbacks::*;
 use crate::ssl::error::InnerError;
 use crate::stack::{Stack, StackRef, Stackable};
-use crate::x509::store::{X509Store, X509StoreBuilderRef, X509StoreRef};
+use crate::x509::store::{X509Store, X509StoreBuilder, X509StoreBuilderRef, X509StoreRef};
 use crate::x509::verify::X509VerifyParamRef;
 use crate::x509::{
     X509Name, X509Ref, X509StoreContextRef, X509VerifyError, X509VerifyResult, X509,
@@ -933,6 +933,8 @@ extern "C" fn rpk_verify_failure_callback(
 /// A builder for `SslContext`s.
 pub struct SslContextBuilder {
     ctx: SslContext,
+    /// If it's not shared, it can be exposed as mutable
+    has_shared_cert_store: bool,
     #[cfg(feature = "rpk")]
     is_rpk: bool,
 }
@@ -1006,7 +1008,11 @@ impl SslContextBuilder {
     #[cfg(feature = "rpk")]
     pub unsafe fn from_ptr(ctx: *mut ffi::SSL_CTX, is_rpk: bool) -> SslContextBuilder {
         let ctx = SslContext::from_ptr(ctx);
-        let mut builder = SslContextBuilder { ctx, is_rpk };
+        let mut builder = SslContextBuilder {
+            ctx,
+            is_rpk,
+            has_shared_cert_store: false,
+        };
 
         builder.set_ex_data(*RPK_FLAG_INDEX, is_rpk);
 
@@ -1022,6 +1028,7 @@ impl SslContextBuilder {
     pub unsafe fn from_ptr(ctx: *mut ffi::SSL_CTX) -> SslContextBuilder {
         SslContextBuilder {
             ctx: SslContext::from_ptr(ctx),
+            has_shared_cert_store: false,
         }
     }
 
@@ -1206,14 +1213,45 @@ impl SslContextBuilder {
         }
     }
 
+    /// Use [`set_cert_store_builder`] or [`set_cert_store_ref`] instead.
+    ///
     /// Replaces the context's certificate store.
     #[corresponds(SSL_CTX_set_cert_store)]
+    #[deprecated(note = "Use set_cert_store_builder or set_cert_store_ref instead")]
     pub fn set_cert_store(&mut self, cert_store: X509Store) {
         #[cfg(feature = "rpk")]
         assert!(!self.is_rpk, "This API is not supported for RPK");
 
+        self.has_shared_cert_store = false;
         unsafe {
             ffi::SSL_CTX_set_cert_store(self.as_ptr(), cert_store.into_ptr());
+        }
+    }
+
+    /// Replaces the context's certificate store, and allows mutating the store afterwards.
+    #[corresponds(SSL_CTX_set_cert_store)]
+    pub fn set_cert_store_builder(&mut self, cert_store: X509StoreBuilder) {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
+        self.has_shared_cert_store = false;
+        unsafe {
+            ffi::SSL_CTX_set_cert_store(self.as_ptr(), cert_store.into_ptr());
+        }
+    }
+
+    /// Replaces the context's certificate store, and keeps it immutable.
+    ///
+    /// This method allows sharing the `X509Store`, but calls to `cert_store_mut` will panic.
+    #[corresponds(SSL_CTX_set_cert_store)]
+    pub fn set_cert_store_ref(&mut self, cert_store: &X509Store) {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
+        self.has_shared_cert_store = true;
+        unsafe {
+            ffi::X509_STORE_up_ref(cert_store.as_ptr());
+            ffi::SSL_CTX_set_cert_store(self.as_ptr(), cert_store.as_ptr());
         }
     }
 
@@ -1701,10 +1739,24 @@ impl SslContextBuilder {
     }
 
     /// Returns a mutable reference to the context's certificate store.
+    ///
+    /// Newly-created `SslContextBuilder` will have its own default mutable store.
+    ///
+    /// ## Panics
+    ///
+    /// * If a shared store has been set via [`set_cert_store_ref`]
+    /// * If context has been created for Raw Public Key verification (requires `rpk` Cargo feature)
+    ///
     #[corresponds(SSL_CTX_get_cert_store)]
     pub fn cert_store_mut(&mut self) -> &mut X509StoreBuilderRef {
         #[cfg(feature = "rpk")]
         assert!(!self.is_rpk, "This API is not supported for RPK");
+
+        assert!(
+            !self.has_shared_cert_store,
+            "Shared X509Store can't be mutated. Make a new store"
+        );
+        // OTOH, it's not safe to return a shared &X509Store when the builder owns it exclusively
 
         unsafe { X509StoreBuilderRef::from_ptr_mut(ffi::SSL_CTX_get_cert_store(self.as_ptr())) }
     }
