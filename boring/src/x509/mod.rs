@@ -131,8 +131,6 @@ impl X509StoreContextRef {
     ///
     /// This can be used to provide data to callbacks registered with the context. Use the
     /// `Ssl::new_ex_index` method to create an `Index`.
-    ///
-    /// The previous value, if any, will be returned.
     #[corresponds(X509_STORE_CTX_set_ex_data)]
     pub fn set_ex_data<T>(&mut self, index: Index<X509StoreContext, T>, data: T) {
         if let Some(old) = self.ex_data_mut(index) {
@@ -207,7 +205,14 @@ impl X509StoreContextRef {
         }
     }
 
-    pub fn init_without_cleanup(
+    /// Initializes this context with the given certificate, certificates chain and certificate
+    /// store.
+    ///
+    /// * `trust` - The certificate store with the trusted certificates.
+    /// * `cert` - The certificate that should be verified.
+    /// * `cert_chain` - The certificates chain.
+    #[corresponds(X509_STORE_CTX_init)]
+    pub fn reset_with_context_data(
         &mut self,
         trust: store::X509Store,
         cert: X509,
