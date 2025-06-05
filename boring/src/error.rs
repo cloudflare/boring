@@ -33,7 +33,7 @@ use crate::ffi;
 pub struct ErrorStack(Vec<Error>);
 
 impl ErrorStack {
-    /// Pop the contents of the OpenSSL error stack, and returns it.
+    /// Pops the contents of the OpenSSL error stack, and returns it.
     #[allow(clippy::must_use_candidate)]
     pub fn get() -> ErrorStack {
         let mut vec = vec![];
