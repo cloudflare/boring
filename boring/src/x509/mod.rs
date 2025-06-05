@@ -894,8 +894,8 @@ impl X509Extension {
         name: &str,
         value: &str,
     ) -> Result<X509Extension, ErrorStack> {
-        let name = CString::new(name).unwrap();
-        let value = CString::new(value).unwrap();
+        let name = CString::new(name).map_err(ErrorStack::internal_error)?;
+        let value = CString::new(value).map_err(ErrorStack::internal_error)?;
         let mut ctx;
         unsafe {
             ffi::init();
@@ -940,7 +940,7 @@ impl X509Extension {
         name: Nid,
         value: &str,
     ) -> Result<X509Extension, ErrorStack> {
-        let value = CString::new(value).unwrap();
+        let value = CString::new(value).map_err(ErrorStack::internal_error)?;
         let mut ctx;
         unsafe {
             ffi::init();
@@ -1004,7 +1004,7 @@ impl X509NameBuilder {
     #[corresponds(X509_NAME_add_entry_by_txt)]
     pub fn append_entry_by_text(&mut self, field: &str, value: &str) -> Result<(), ErrorStack> {
         unsafe {
-            let field = CString::new(field).unwrap();
+            let field = CString::new(field).map_err(ErrorStack::internal_error)?;
             assert!(value.len() <= ValueLen::MAX as usize);
             cvt(ffi::X509_NAME_add_entry_by_txt(
                 self.0.as_ptr(),
@@ -1028,7 +1028,7 @@ impl X509NameBuilder {
         ty: Asn1Type,
     ) -> Result<(), ErrorStack> {
         unsafe {
-            let field = CString::new(field).unwrap();
+            let field = CString::new(field).map_err(ErrorStack::internal_error)?;
             assert!(value.len() <= ValueLen::MAX as usize);
             cvt(ffi::X509_NAME_add_entry_by_txt(
                 self.0.as_ptr(),
@@ -1116,7 +1116,8 @@ impl X509Name {
     ///
     /// This is commonly used in conjunction with `SslContextBuilder::set_client_ca_list`.
     pub fn load_client_ca_file<P: AsRef<Path>>(file: P) -> Result<Stack<X509Name>, ErrorStack> {
-        let file = CString::new(file.as_ref().as_os_str().to_str().unwrap()).unwrap();
+        let file = CString::new(file.as_ref().as_os_str().as_encoded_bytes())
+            .map_err(ErrorStack::internal_error)?;
         unsafe { cvt_p(ffi::SSL_load_client_CA_file(file.as_ptr())).map(|p| Stack::from_ptr(p)) }
     }
 

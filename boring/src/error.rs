@@ -48,6 +48,12 @@ impl ErrorStack {
             error.put();
         }
     }
+
+    /// Used to report errors from the Rust crate
+    #[cold]
+    pub(crate) fn internal_error(err: impl error::Error) -> Self {
+        Self(vec![Error::new_internal(err.to_string())])
+    }
 }
 
 impl ErrorStack {
@@ -69,7 +75,11 @@ impl fmt::Display for ErrorStack {
                 fmt.write_str(" ")?;
             }
             first = false;
-            write!(fmt, "[{}]", err.reason().unwrap_or("unknown reason"))?;
+            write!(
+                fmt,
+                "[{}]",
+                err.reason_internal().unwrap_or("unknown reason")
+            )?;
         }
         Ok(())
     }
@@ -100,6 +110,8 @@ pub struct Error {
 
 unsafe impl Sync for Error {}
 unsafe impl Send for Error {}
+
+static BORING_INTERNAL: &CStr = c"boring-rust";
 
 impl Error {
     /// Returns the first error on the OpenSSL error stack.
@@ -171,6 +183,9 @@ impl Error {
 
     /// Returns the name of the library reporting the error, if available.
     pub fn library(&self) -> Option<&'static str> {
+        if self.is_internal() {
+            return None;
+        }
         unsafe {
             let cstr = ffi::ERR_lib_error_string(self.code);
             if cstr.is_null() {
@@ -189,6 +204,9 @@ impl Error {
 
     /// Returns the name of the function reporting the error.
     pub fn function(&self) -> Option<&'static str> {
+        if self.is_internal() {
+            return None;
+        }
         unsafe {
             let cstr = ffi::ERR_func_error_string(self.code);
             if cstr.is_null() {
@@ -237,6 +255,28 @@ impl Error {
     pub fn data(&self) -> Option<&str> {
         self.data.as_deref()
     }
+
+    fn new_internal(msg: String) -> Self {
+        Self {
+            code: ffi::ERR_PACK(ffi::ERR_LIB_NONE.0 as _, 0, 0) as _,
+            file: BORING_INTERNAL.as_ptr(),
+            line: 0,
+            data: Some(msg.into()),
+        }
+    }
+
+    fn is_internal(&self) -> bool {
+        std::ptr::eq(self.file, BORING_INTERNAL.as_ptr())
+    }
+
+    // reason() needs 'static
+    fn reason_internal(&self) -> Option<&str> {
+        if self.is_internal() {
+            self.data()
+        } else {
+            self.reason()
+        }
+    }
 }
 
 impl fmt::Debug for Error {
@@ -268,7 +308,7 @@ impl fmt::Display for Error {
         write!(
             fmt,
             "{}\n\nCode: {:08X}\nLoc: {}:{}",
-            self.reason().unwrap_or("unknown TLS error"),
+            self.reason_internal().unwrap_or("unknown TLS error"),
             self.code(),
             self.file(),
             self.line()
@@ -277,3 +317,14 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {}
+
+#[test]
+fn internal_err() {
+    let e = ErrorStack::internal_error(io::Error::other("hello, boring"));
+    assert_eq!(1, e.errors().len());
+    assert!(e.to_string().contains("hello, boring"), "{e} {e:?}");
+
+    e.put();
+    let e = ErrorStack::get();
+    assert!(e.to_string().contains("hello, boring"), "{e} {e:?}");
+}

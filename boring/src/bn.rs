@@ -838,7 +838,7 @@ impl BigNum {
     pub fn from_dec_str(s: &str) -> Result<BigNum, ErrorStack> {
         unsafe {
             ffi::init();
-            let c_str = CString::new(s.as_bytes()).unwrap();
+            let c_str = CString::new(s.as_bytes()).map_err(ErrorStack::internal_error)?;
             let mut bn = ptr::null_mut();
             cvt(ffi::BN_dec2bn(&mut bn, c_str.as_ptr() as *const _))?;
             Ok(BigNum::from_ptr(bn))
@@ -850,7 +850,7 @@ impl BigNum {
     pub fn from_hex_str(s: &str) -> Result<BigNum, ErrorStack> {
         unsafe {
             ffi::init();
-            let c_str = CString::new(s.as_bytes()).unwrap();
+            let c_str = CString::new(s.as_bytes()).map_err(ErrorStack::internal_error)?;
             let mut bn = ptr::null_mut();
             cvt(ffi::BN_hex2bn(&mut bn, c_str.as_ptr() as *const _))?;
             Ok(BigNum::from_ptr(bn))
