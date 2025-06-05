@@ -71,6 +71,7 @@ impl X509StoreBuilder {
     }
 
     /// Constructs the `X509Store`.
+    #[must_use]
     pub fn build(self) -> X509Store {
         let store = X509Store(self.0);
         mem::forget(self);
@@ -144,6 +145,7 @@ impl X509StoreRef {
         note = "This method is unsound https://github.com/sfackler/rust-openssl/issues/2096"
     )]
     #[corresponds(X509_STORE_get0_objects)]
+    #[must_use]
     pub fn objects(&self) -> &StackRef<X509Object> {
         unsafe { StackRef::from_ptr(ffi::X509_STORE_get0_objects(self.as_ptr())) }
     }
@@ -151,6 +153,7 @@ impl X509StoreRef {
     /// For testing only, where it doesn't have to expose an unsafe pointer
     #[cfg(test)]
     #[allow(deprecated)]
+    #[must_use]
     pub fn objects_len(&self) -> usize {
         self.objects().len()
     }

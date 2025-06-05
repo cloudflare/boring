@@ -42,11 +42,13 @@ use crate::ffi::{
 /// Version 0.9.5a had an interim interpretation that is like the current one, except the patch level got the highest bit set, to keep continuity. The number was therefore 0x0090581f
 ///
 /// The return value of this function can be compared to the macro to make sure that the correct version of the library has been loaded, especially when using DLLs on Windows systems.
+#[must_use]
 pub fn number() -> i64 {
     unsafe { OpenSSL_version_num() as i64 }
 }
 
 /// The text variant of the version number and the release date. For example, "OpenSSL 0.9.5a 1 Apr 2000".
+#[must_use]
 pub fn version() -> &'static str {
     unsafe {
         CStr::from_ptr(OpenSSL_version(OPENSSL_VERSION))
@@ -57,6 +59,7 @@ pub fn version() -> &'static str {
 
 /// The compiler flags set for the compilation process in the form "compiler: ..." if available or
 /// "compiler: information not available" otherwise.
+#[must_use]
 pub fn c_flags() -> &'static str {
     unsafe {
         CStr::from_ptr(OpenSSL_version(OPENSSL_CFLAGS))
@@ -66,6 +69,7 @@ pub fn c_flags() -> &'static str {
 }
 
 /// The date of the build process in the form "built on: ..." if available or "built on: date not available" otherwise.
+#[must_use]
 pub fn built_on() -> &'static str {
     unsafe {
         CStr::from_ptr(OpenSSL_version(OPENSSL_BUILT_ON))
@@ -75,6 +79,7 @@ pub fn built_on() -> &'static str {
 }
 
 /// The "Configure" target of the library build in the form "platform: ..." if available or "platform: information not available" otherwise.
+#[must_use]
 pub fn platform() -> &'static str {
     unsafe {
         CStr::from_ptr(OpenSSL_version(OPENSSL_PLATFORM))
@@ -84,6 +89,7 @@ pub fn platform() -> &'static str {
 }
 
 /// The "OPENSSLDIR" setting of the library build in the form "OPENSSLDIR: "..."" if available or "OPENSSLDIR: N/A" otherwise.
+#[must_use]
 pub fn dir() -> &'static str {
     unsafe {
         CStr::from_ptr(OpenSSL_version(OPENSSL_DIR))

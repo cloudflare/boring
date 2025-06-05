@@ -83,12 +83,14 @@ impl Id {
     pub const X448: Id = Id(ffi::EVP_PKEY_X448);
 
     /// Creates a `Id` from an integer representation.
+    #[must_use]
     pub fn from_raw(value: c_int) -> Id {
         Id(value)
     }
 
     /// Returns the integer representation of the `Id`.
     #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[must_use]
     pub fn as_raw(&self) -> c_int {
         self.0
     }
@@ -176,12 +178,14 @@ impl<T> PKeyRef<T> {
 
     /// Returns the `Id` that represents the type of this key.
     #[corresponds(EVP_PKEY_id)]
+    #[must_use]
     pub fn id(&self) -> Id {
         unsafe { Id::from_raw(ffi::EVP_PKEY_id(self.as_ptr())) }
     }
 
     /// Returns the maximum size of a signature in bytes.
     #[corresponds(EVP_PKEY_size)]
+    #[must_use]
     pub fn size(&self) -> usize {
         unsafe { ffi::EVP_PKEY_size(self.as_ptr()) as usize }
     }
@@ -211,11 +215,13 @@ where
     ///
     /// This corresponds to the bit length of the modulus of an RSA key, and the bit length of the
     /// group order for an elliptic curve key, for example.
+    #[must_use]
     pub fn bits(&self) -> u32 {
         unsafe { ffi::EVP_PKEY_bits(self.as_ptr()) as u32 }
     }
 
     /// Compares the public component of this key with another.
+    #[must_use]
     pub fn public_eq<U>(&self, other: &PKeyRef<U>) -> bool
     where
         U: HasPublic,

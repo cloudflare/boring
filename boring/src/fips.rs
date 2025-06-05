@@ -8,6 +8,7 @@ use openssl_macros::corresponds;
 
 /// Determines if the library is running in the FIPS 140-2 mode of operation.
 #[corresponds(FIPS_mode)]
+#[must_use]
 pub fn enabled() -> bool {
     unsafe { ffi::FIPS_mode() != 0 }
 }

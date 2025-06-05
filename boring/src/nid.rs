@@ -51,12 +51,14 @@ pub struct Nid(c_int);
 #[allow(non_snake_case)]
 impl Nid {
     /// Create a `Nid` from an integer representation.
+    #[must_use]
     pub fn from_raw(raw: c_int) -> Nid {
         Nid(raw)
     }
 
     /// Return the integer representation of a `Nid`.
     #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[must_use]
     pub fn as_raw(&self) -> c_int {
         self.0
     }
@@ -64,6 +66,7 @@ impl Nid {
     /// Returns the `Nid`s of the digest and public key algorithms associated with a signature ID.
     #[corresponds(OBJ_find_sigid_algs)]
     #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[must_use]
     pub fn signature_algorithms(&self) -> Option<SignatureAlgorithms> {
         unsafe {
             let mut digest = 0;
