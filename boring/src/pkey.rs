@@ -408,7 +408,7 @@ impl PKey<Private> {
         unsafe {
             ffi::init();
             let bio = MemBioSlice::new(der)?;
-            let passphrase = CString::new(passphrase).unwrap();
+            let passphrase = CString::new(passphrase).map_err(ErrorStack::internal_error)?;
             cvt_p(ffi::d2i_PKCS8PrivateKey_bio(
                 bio.as_ptr(),
                 ptr::null_mut(),

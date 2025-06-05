@@ -323,7 +323,7 @@ impl Asn1Time {
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Asn1Time, ErrorStack> {
         unsafe {
-            let s = CString::new(s).unwrap();
+            let s = CString::new(s).map_err(ErrorStack::internal_error)?;
 
             let time = Asn1Time::new()?;
             cvt(ffi::ASN1_TIME_set_string(time.as_ptr(), s.as_ptr()))?;
@@ -560,7 +560,7 @@ impl Asn1Object {
     pub fn from_str(txt: &str) -> Result<Asn1Object, ErrorStack> {
         unsafe {
             ffi::init();
-            let txt = CString::new(txt).unwrap();
+            let txt = CString::new(txt).map_err(ErrorStack::internal_error)?;
             let obj: *mut ffi::ASN1_OBJECT = cvt_p(ffi::OBJ_txt2obj(txt.as_ptr() as *const _, 0))?;
             Ok(Asn1Object::from_ptr(obj))
         }

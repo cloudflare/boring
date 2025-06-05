@@ -1269,7 +1269,8 @@ impl SslContextBuilder {
         #[cfg(feature = "rpk")]
         assert!(!self.is_rpk, "This API is not supported for RPK");
 
-        let file = CString::new(file.as_ref().as_os_str().to_str().unwrap()).unwrap();
+        let file = CString::new(file.as_ref().as_os_str().as_encoded_bytes())
+            .map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt(ffi::SSL_CTX_load_verify_locations(
                 self.as_ptr(),
@@ -1340,7 +1341,8 @@ impl SslContextBuilder {
         #[cfg(feature = "rpk")]
         assert!(!self.is_rpk, "This API is not supported for RPK");
 
-        let file = CString::new(file.as_ref().as_os_str().to_str().unwrap()).unwrap();
+        let file = CString::new(file.as_ref().as_os_str().as_encoded_bytes())
+            .map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt(ffi::SSL_CTX_use_certificate_file(
                 self.as_ptr(),
@@ -1361,7 +1363,8 @@ impl SslContextBuilder {
         &mut self,
         file: P,
     ) -> Result<(), ErrorStack> {
-        let file = CString::new(file.as_ref().as_os_str().to_str().unwrap()).unwrap();
+        let file = CString::new(file.as_ref().as_os_str().as_encoded_bytes())
+            .map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt(ffi::SSL_CTX_use_certificate_chain_file(
                 self.as_ptr(),
@@ -1401,7 +1404,8 @@ impl SslContextBuilder {
         file: P,
         file_type: SslFiletype,
     ) -> Result<(), ErrorStack> {
-        let file = CString::new(file.as_ref().as_os_str().to_str().unwrap()).unwrap();
+        let file = CString::new(file.as_ref().as_os_str().as_encoded_bytes())
+            .map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt(ffi::SSL_CTX_use_PrivateKey_file(
                 self.as_ptr(),
@@ -1564,7 +1568,7 @@ impl SslContextBuilder {
     #[corresponds(SSL_CTX_set_tlsext_use_srtp)]
     pub fn set_tlsext_use_srtp(&mut self, protocols: &str) -> Result<(), ErrorStack> {
         unsafe {
-            let cstr = CString::new(protocols).unwrap();
+            let cstr = CString::new(protocols).map_err(ErrorStack::internal_error)?;
 
             let r = ffi::SSL_CTX_set_tlsext_use_srtp(self.as_ptr(), cstr.as_ptr());
             // fun fact, set_tlsext_use_srtp has a reversed return code D:
@@ -1908,7 +1912,7 @@ impl SslContextBuilder {
     /// Sets the context's supported signature algorithms.
     #[corresponds(SSL_CTX_set1_sigalgs_list)]
     pub fn set_sigalgs_list(&mut self, sigalgs: &str) -> Result<(), ErrorStack> {
-        let sigalgs = CString::new(sigalgs).unwrap();
+        let sigalgs = CString::new(sigalgs).map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt(ffi::SSL_CTX_set1_sigalgs_list(self.as_ptr(), sigalgs.as_ptr()) as c_int)
                 .map(|_| ())
@@ -1968,7 +1972,7 @@ impl SslContextBuilder {
     #[cfg(not(feature = "kx-safe-default"))]
     #[corresponds(SSL_CTX_set1_curves_list)]
     pub fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
-        let curves = CString::new(curves).unwrap();
+        let curves = CString::new(curves).map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt_0i(ffi::SSL_CTX_set1_curves_list(
                 self.as_ptr(),
@@ -2802,7 +2806,7 @@ impl SslRef {
 
     #[corresponds(SSL_set1_curves_list)]
     pub fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
-        let curves = CString::new(curves).unwrap();
+        let curves = CString::new(curves).map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt_0i(ffi::SSL_set1_curves_list(
                 self.as_ptr(),
@@ -3086,7 +3090,7 @@ impl SslRef {
     /// It has no effect for a server-side connection.
     #[corresponds(SSL_set_tlsext_host_name)]
     pub fn set_hostname(&mut self, hostname: &str) -> Result<(), ErrorStack> {
-        let cstr = CString::new(hostname).unwrap();
+        let cstr = CString::new(hostname).map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt(ffi::SSL_set_tlsext_host_name(self.as_ptr(), cstr.as_ptr() as *mut _) as c_int)
                 .map(|_| ())
@@ -3273,7 +3277,7 @@ impl SslRef {
     #[corresponds(SSL_set_tlsext_use_srtp)]
     pub fn set_tlsext_use_srtp(&mut self, protocols: &str) -> Result<(), ErrorStack> {
         unsafe {
-            let cstr = CString::new(protocols).unwrap();
+            let cstr = CString::new(protocols).map_err(ErrorStack::internal_error)?;
 
             let r = ffi::SSL_set_tlsext_use_srtp(self.as_ptr(), cstr.as_ptr());
             // fun fact, set_tlsext_use_srtp has a reversed return code D:

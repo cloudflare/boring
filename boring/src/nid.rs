@@ -84,8 +84,8 @@ impl Nid {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn long_name(&self) -> Result<&'static str, ErrorStack> {
         unsafe {
-            cvt_p(ffi::OBJ_nid2ln(self.0) as *mut c_char)
-                .map(|nameptr| str::from_utf8(CStr::from_ptr(nameptr).to_bytes()).unwrap())
+            let nameptr = cvt_p(ffi::OBJ_nid2ln(self.0) as *mut c_char)?;
+            str::from_utf8(CStr::from_ptr(nameptr).to_bytes()).map_err(ErrorStack::internal_error)
         }
     }
 
@@ -94,8 +94,8 @@ impl Nid {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn short_name(&self) -> Result<&'static str, ErrorStack> {
         unsafe {
-            cvt_p(ffi::OBJ_nid2sn(self.0) as *mut c_char)
-                .map(|nameptr| str::from_utf8(CStr::from_ptr(nameptr).to_bytes()).unwrap())
+            let nameptr = cvt_p(ffi::OBJ_nid2sn(self.0) as *mut c_char)?;
+            str::from_utf8(CStr::from_ptr(nameptr).to_bytes()).map_err(ErrorStack::internal_error)
         }
     }
 
