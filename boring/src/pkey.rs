@@ -223,23 +223,35 @@ where
         unsafe { ffi::EVP_PKEY_cmp(self.as_ptr(), other.as_ptr()) == 1 }
     }
 
+    /// Returns the length of the "raw" form of the public key. Only supported for certain key types.
+    ///
+    /// Returns the used portion of `out`.
+    #[corresponds(EVP_PKEY_get_raw_public_key)]
+    pub fn raw_public_key_len(&self) -> Result<usize, ErrorStack> {
+        unsafe {
+            let mut size = 0;
+            _ = cvt_0i(ffi::EVP_PKEY_get_raw_public_key(
+                self.as_ptr(),
+                std::ptr::null_mut(),
+                &mut size,
+            ))?;
+            Ok(size)
+        }
+    }
+
     /// Outputs a copy of the "raw" form of the public key. Only supported for certain key types.
     ///
-    /// Returns the number of bytes written, or the size of the raw form if `out` is empty.
+    /// Returns the used portion of `out`.
     #[corresponds(EVP_PKEY_get_raw_public_key)]
-    pub fn raw_public_key(&self, out: &mut [u8]) -> Result<usize, ErrorStack> {
+    pub fn raw_public_key<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], ErrorStack> {
         unsafe {
             let mut size = out.len();
             _ = cvt_0i(ffi::EVP_PKEY_get_raw_public_key(
                 self.as_ptr(),
-                if size == 0 {
-                    std::ptr::null_mut()
-                } else {
-                    out.as_mut_ptr()
-                },
+                out.as_mut_ptr(),
                 &mut size,
             ))?;
-            Ok(size)
+            Ok(&out[..size])
         }
     }
 }
@@ -281,23 +293,35 @@ where
         ffi::i2d_PKCS8PrivateKey_bio
     }
 
+    /// Returns the length of the "raw" form of the private key. Only supported for certain key types.
+    ///
+    /// Returns the used portion of `out`.
+    #[corresponds(EVP_PKEY_get_raw_private_key)]
+    pub fn raw_private_key_len(&self) -> Result<usize, ErrorStack> {
+        unsafe {
+            let mut size = 0;
+            _ = cvt_0i(ffi::EVP_PKEY_get_raw_private_key(
+                self.as_ptr(),
+                std::ptr::null_mut(),
+                &mut size,
+            ))?;
+            Ok(size)
+        }
+    }
+
     /// Outputs a copy of the "raw" form of the private key. Only supported for certain key types.
     ///
-    /// Returns the number of bytes written, or the size of the raw form if `out` is empty.
+    /// Returns the used portion of `out`.
     #[corresponds(EVP_PKEY_get_raw_private_key)]
-    pub fn raw_private_key(&self, out: &mut [u8]) -> Result<usize, ErrorStack> {
+    pub fn raw_private_key<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], ErrorStack> {
         unsafe {
             let mut size = out.len();
             _ = cvt_0i(ffi::EVP_PKEY_get_raw_private_key(
                 self.as_ptr(),
-                if size == 0 {
-                    std::ptr::null_mut()
-                } else {
-                    out.as_mut_ptr()
-                },
+                out.as_mut_ptr(),
                 &mut size,
             ))?;
-            Ok(size)
+            Ok(&out[..size])
         }
     }
 }
@@ -608,17 +632,23 @@ mod tests {
             PKey::private_key_from_der(&Vec::from_hex(ED25519_PRIVATE_KEY_DER).unwrap()).unwrap();
         assert_eq!(pkey.id(), Id::ED25519);
 
-        let priv_len = pkey.raw_private_key(&mut []).unwrap();
+        let priv_len = pkey.raw_private_key_len().unwrap();
         assert_eq!(priv_len, 32);
-        let mut raw_private_key = [0; 32];
-        _ = pkey.raw_private_key(&mut raw_private_key).unwrap();
+        let mut raw_private_key_buf = [0; 40];
+        let raw_private_key = pkey.raw_private_key(&mut raw_private_key_buf).unwrap();
+        assert_eq!(raw_private_key.len(), 32);
         assert_ne!(raw_private_key, [0; 32]);
+        pkey.raw_private_key(&mut [0; 5])
+            .expect_err("buffer too small");
 
-        let pub_len = pkey.raw_public_key(&mut []).unwrap();
+        let pub_len = pkey.raw_public_key_len().unwrap();
         assert_eq!(pub_len, 32);
-        let mut raw_public_key = [0; 32];
-        _ = pkey.raw_public_key(&mut raw_public_key).unwrap();
+        let mut raw_public_key_buf = [0; 40];
+        let raw_public_key = pkey.raw_public_key(&mut raw_public_key_buf).unwrap();
+        assert_eq!(raw_public_key.len(), 32);
         assert_ne!(raw_public_key, [0; 32]);
         assert_ne!(raw_public_key, raw_private_key);
+        pkey.raw_public_key(&mut [0; 5])
+            .expect_err("buffer too small");
     }
 }
