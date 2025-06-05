@@ -2858,7 +2858,7 @@ impl SslRef {
     #[corresponds(SSL_set1_groups)]
     pub fn set_group_nids(&mut self, group_nids: &[SslCurveNid]) -> Result<(), ErrorStack> {
         unsafe {
-            cvt_0i(ffi::SSL_set1_groups(
+            cvt_0i(ffi::SSL_set1_curves(
                 self.as_ptr(),
                 group_nids.as_ptr() as *const _,
                 group_nids.len(),
