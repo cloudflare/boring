@@ -118,9 +118,8 @@ impl Error {
                     // in the error stack, so we'll need to copy it off if it's dynamic
                     let data = if flags & ffi::ERR_FLAG_STRING != 0 {
                         let bytes = CStr::from_ptr(data as *const _).to_bytes();
-                        let data = str::from_utf8(bytes).unwrap();
-                        let data = Cow::Owned(data.to_string());
-                        Some(data)
+                        let data = String::from_utf8_lossy(bytes).into_owned();
+                        Some(data.into())
                     } else {
                         None
                     };
@@ -178,7 +177,7 @@ impl Error {
                 return None;
             }
             let bytes = CStr::from_ptr(cstr as *const _).to_bytes();
-            Some(str::from_utf8(bytes).unwrap())
+            str::from_utf8(bytes).ok()
         }
     }
 
@@ -196,7 +195,7 @@ impl Error {
                 return None;
             }
             let bytes = CStr::from_ptr(cstr as *const _).to_bytes();
-            Some(str::from_utf8(bytes).unwrap())
+            str::from_utf8(bytes).ok()
         }
     }
 
@@ -208,7 +207,7 @@ impl Error {
                 return None;
             }
             let bytes = CStr::from_ptr(cstr as *const _).to_bytes();
-            Some(str::from_utf8(bytes).unwrap())
+            str::from_utf8(bytes).ok()
         }
     }
 
@@ -220,9 +219,11 @@ impl Error {
     /// Returns the name of the source file which encountered the error.
     pub fn file(&self) -> &'static str {
         unsafe {
-            assert!(!self.file.is_null());
+            if self.file.is_null() {
+                return "";
+            }
             let bytes = CStr::from_ptr(self.file as *const _).to_bytes();
-            str::from_utf8(bytes).unwrap()
+            str::from_utf8(bytes).unwrap_or_default()
         }
     }
 
@@ -233,9 +234,8 @@ impl Error {
     }
 
     /// Returns additional data describing the error.
-    #[allow(clippy::option_as_ref_deref)]
     pub fn data(&self) -> Option<&str> {
-        self.data.as_ref().map(|s| &**s)
+        self.data.as_deref()
     }
 }
 
