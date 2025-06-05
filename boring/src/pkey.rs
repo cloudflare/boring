@@ -224,8 +224,6 @@ where
     }
 
     /// Returns the length of the "raw" form of the public key. Only supported for certain key types.
-    ///
-    /// Returns the used portion of `out`.
     #[corresponds(EVP_PKEY_get_raw_public_key)]
     pub fn raw_public_key_len(&self) -> Result<usize, ErrorStack> {
         unsafe {
@@ -294,8 +292,6 @@ where
     }
 
     /// Returns the length of the "raw" form of the private key. Only supported for certain key types.
-    ///
-    /// Returns the used portion of `out`.
     #[corresponds(EVP_PKEY_get_raw_private_key)]
     pub fn raw_private_key_len(&self) -> Result<usize, ErrorStack> {
         unsafe {
