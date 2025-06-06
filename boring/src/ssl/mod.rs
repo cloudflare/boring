@@ -697,6 +697,11 @@ impl From<u16> for SslSignatureAlgorithm {
     }
 }
 
+/// Numeric identifier of a TLS curve.
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct SslCurveNid(c_int);
+
 /// A TLS Curve.
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -767,7 +772,7 @@ impl SslCurve {
     // underlying boringssl version is upgraded, this should be removed in favor of the new
     // SSL_CTX_set1_group_ids API.
     #[allow(dead_code)]
-    fn nid(&self) -> Option<c_int> {
+    pub fn nid(&self) -> Option<SslCurveNid> {
         match self.0 {
             ffi::SSL_CURVE_SECP224R1 => Some(ffi::NID_secp224r1),
             ffi::SSL_CURVE_SECP256R1 => Some(ffi::NID_X9_62_prime256v1),
@@ -798,6 +803,7 @@ impl SslCurve {
             ffi::SSL_CURVE_X25519_MLKEM768 => Some(ffi::NID_X25519MLKEM768),
             _ => None,
         }
+        .map(SslCurveNid)
     }
 }
 
@@ -2062,7 +2068,10 @@ impl SslContextBuilder {
     #[corresponds(SSL_CTX_set1_curves)]
     #[cfg(not(feature = "kx-safe-default"))]
     pub fn set_curves(&mut self, curves: &[SslCurve]) -> Result<(), ErrorStack> {
-        let curves: Vec<i32> = curves.iter().filter_map(|curve| curve.nid()).collect();
+        let curves: Vec<i32> = curves
+            .iter()
+            .filter_map(|curve| curve.nid().map(|nid| nid.0))
+            .collect();
 
         unsafe {
             cvt_0i(ffi::SSL_CTX_set1_curves(
@@ -2909,6 +2918,25 @@ impl SslRef {
         unsafe { ffi::SSL_get_rbio(self.as_ptr()) }
     }
 
+    /// Sets the options used by the ongoing session, returning the old set.
+    ///
+    /// # Note
+    ///
+    /// This *enables* the specified options, but does not disable unspecified options. Use
+    /// `clear_options` for that.
+    #[corresponds(SSL_set_options)]
+    pub fn set_options(&mut self, option: SslOptions) -> SslOptions {
+        let bits = unsafe { ffi::SSL_set_options(self.as_ptr(), option.bits()) };
+        SslOptions::from_bits_retain(bits)
+    }
+
+    /// Clears the options used by the ongoing session, returning the old set.
+    #[corresponds(SSL_clear_options)]
+    pub fn clear_options(&mut self, option: SslOptions) -> SslOptions {
+        let bits = unsafe { ffi::SSL_clear_options(self.as_ptr(), option.bits()) };
+        SslOptions::from_bits_retain(bits)
+    }
+
     #[corresponds(SSL_set1_curves_list)]
     pub fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
         let curves = CString::new(curves).map_err(ErrorStack::internal_error)?;
@@ -2916,6 +2944,20 @@ impl SslRef {
             cvt_0i(ffi::SSL_set1_curves_list(
                 self.as_ptr(),
                 curves.as_ptr() as *const _,
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Sets the ongoing session's supported groups by their named identifiers
+    /// (formerly referred to as curves).
+    #[corresponds(SSL_set1_groups)]
+    pub fn set_group_nids(&mut self, group_nids: &[SslCurveNid]) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_set1_curves(
+                self.as_ptr(),
+                group_nids.as_ptr() as *const _,
+                group_nids.len(),
             ))
             .map(|_| ())
         }
