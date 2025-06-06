@@ -260,7 +260,7 @@ mod test {
             .unwrap();
         builder.set_subject_name(&name).unwrap();
         builder.set_issuer_name(&name).unwrap();
-        builder.append_extension(key_usage).unwrap();
+        builder.append_extension(&key_usage).unwrap();
         builder.set_pubkey(&pkey).unwrap();
         builder.sign(&pkey, MessageDigest::sha256()).unwrap();
         let cert = builder.build();
