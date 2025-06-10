@@ -36,6 +36,7 @@ pub(crate) struct Env {
     pub(crate) android_ndk_home: Option<PathBuf>,
     pub(crate) cmake_toolchain_file: Option<PathBuf>,
     pub(crate) cpp_runtime_lib: Option<OsString>,
+    pub(crate) docs_rs: bool,
 }
 
 impl Config {
@@ -185,6 +186,7 @@ impl Env {
             android_ndk_home: target_var("ANDROID_NDK_HOME").map(Into::into),
             cmake_toolchain_file: target_var("CMAKE_TOOLCHAIN_FILE").map(Into::into),
             cpp_runtime_lib: target_var("BORING_BSSL_RUST_CPPLIB"),
+            docs_rs: var("DOCS_RS").is_some(),
         }
     }
 }
