@@ -318,8 +318,8 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                 );
             }
             _ => {
-                eprintln!(
-                    "warning: no toolchain file configured by boring-sys for {}",
+                println!(
+                    "cargo:warning=no toolchain file configured by boring-sys for {}",
                     config.target
                 );
             }
@@ -339,7 +339,7 @@ fn verify_fips_clang_version() -> (&'static str, &'static str) {
         let output = match Command::new(tool).arg("--version").output() {
             Ok(o) => o,
             Err(e) => {
-                eprintln!("warning: missing {tool}, trying other compilers: {e}");
+                println!("cargo:warning=missing {tool}, trying other compilers: {e}");
                 // NOTE: hard-codes that the loop below checks the version
                 return None;
             }
@@ -372,8 +372,8 @@ fn verify_fips_clang_version() -> (&'static str, &'static str) {
                 "unsupported clang version \"{cc_version}\": FIPS requires clang {REQUIRED_CLANG_VERSION}"
             );
         } else if !cc_version.is_empty() {
-            eprintln!(
-                "warning: FIPS requires clang version {REQUIRED_CLANG_VERSION}, skipping incompatible version \"{cc_version}\""
+            println!(
+                "cargo:warning=FIPS requires clang version {REQUIRED_CLANG_VERSION}, skipping incompatible version \"{cc_version}\""
             );
         }
     }
@@ -423,9 +423,9 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
                 .unwrap();
             if !output.status.success() {
                 if let Some(exit_code) = output.status.code() {
-                    eprintln!("xcrun failed: exit code {exit_code}");
+                    println!("cargo:warning=xcrun failed: exit code {exit_code}");
                 } else {
-                    eprintln!("xcrun failed: killed");
+                    println!("cargo:warning=xcrun failed: killed");
                 }
                 std::io::stderr().write_all(&output.stderr).unwrap();
                 // Uh... let's try anyway, I guess?
@@ -449,8 +449,8 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
             let toolchain = match pick_best_android_ndk_toolchain(&android_sysroot) {
                 Ok(toolchain) => toolchain,
                 Err(e) => {
-                    eprintln!(
-                        "warning: failed to find prebuilt Android NDK toolchain for bindgen: {e}"
+                    println!(
+                        "cargo:warning=failed to find prebuilt Android NDK toolchain for bindgen: {e}"
                     );
                     // Uh... let's try anyway, I guess?
                     return params;
@@ -573,8 +573,13 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
 
         let mut cfg = get_boringssl_cmake_config(config);
 
-        if let Ok(threads) = std::thread::available_parallelism() {
-            cfg.env("CMAKE_BUILD_PARALLEL_LEVEL", threads.to_string());
+        let num_jobs = std::env::var("NUM_JOBS").ok().or_else(|| {
+            std::thread::available_parallelism()
+                .ok()
+                .map(|t| t.to_string())
+        });
+        if let Some(num_jobs) = num_jobs {
+            cfg.env("CMAKE_BUILD_PARALLEL_LEVEL", num_jobs);
         }
 
         if config.features.fips {
