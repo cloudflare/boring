@@ -656,8 +656,15 @@ fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
 
 fn main() {
     let config = Config::from_env();
-    let bssl_dir = built_boring_source_path(&config);
-    let build_path = get_boringssl_platform_output_path(&config);
+    if !config.env.docs_rs {
+        emit_link_directives(&config);
+    }
+    generate_bindings(&config);
+}
+
+fn emit_link_directives(config: &Config) {
+    let bssl_dir = built_boring_source_path(config);
+    let build_path = get_boringssl_platform_output_path(config);
 
     if config.is_bazel || (config.features.is_fips_like() && config.env.path.is_some()) {
         println!(
@@ -689,10 +696,10 @@ fn main() {
     }
 
     if config.features.fips_link_precompiled {
-        link_in_precompiled_bcm_o(&config);
+        link_in_precompiled_bcm_o(config);
     }
 
-    if let Some(cpp_lib) = get_cpp_runtime_lib(&config) {
+    if let Some(cpp_lib) = get_cpp_runtime_lib(config) {
         println!("cargo:rustc-link-lib={cpp_lib}");
     }
     println!("cargo:rustc-link-lib=static=crypto");
@@ -702,13 +709,15 @@ fn main() {
         // Rust 1.87.0 compat - https://github.com/rust-lang/rust/pull/138233
         println!("cargo:rustc-link-lib=advapi32");
     }
+}
 
+fn generate_bindings(config: &Config) {
     let include_path = config.env.include_path.clone().unwrap_or_else(|| {
         if let Some(bssl_path) = &config.env.path {
             return bssl_path.join("include");
         }
 
-        let src_path = get_boringssl_source_path(&config);
+        let src_path = get_boringssl_source_path(config);
         let candidate = src_path.join("include");
 
         if candidate.exists() {
@@ -742,7 +751,7 @@ fn main() {
         .layout_tests(supports_layout_tests)
         .prepend_enum_name(true)
         .blocklist_type("max_align_t") // Not supported by bindgen on all targets, not used by BoringSSL
-        .clang_args(get_extra_clang_args_for_bindgen(&config))
+        .clang_args(get_extra_clang_args_for_bindgen(config))
         .clang_arg("-I")
         .clang_arg(include_path.display().to_string());
 
