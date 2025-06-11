@@ -48,7 +48,7 @@ fn test_cert_loading() {
 fn test_debug() {
     let cert = include_bytes!("../../../test/cert.pem");
     let cert = X509::from_pem(cert).unwrap();
-    let debugged = format!("{:#?}", cert);
+    let debugged = format!("{cert:#?}");
 
     assert!(debugged.contains(r#"serial_number: "8771f7bdee982fa5""#));
     assert!(debugged.contains(r#"signature_algorithm: sha256WithRSAEncryption"#));
@@ -505,14 +505,26 @@ fn test_verify_cert() {
     let mut store_bldr = X509StoreBuilder::new().unwrap();
     store_bldr.add_cert(ca).unwrap();
     let store = store_bldr.build();
+    let empty_store = X509StoreBuilder::new().unwrap().build();
 
     let mut context = X509StoreContext::new().unwrap();
     assert!(context
         .init(&store, &cert, &chain, |c| c.verify_cert())
         .unwrap());
+    assert!(!context
+        .init(&empty_store, &cert, &chain, |c| c.verify_cert())
+        .unwrap());
     assert!(context
         .init(&store, &cert, &chain, |c| c.verify_cert())
         .unwrap());
+
+    context
+        .reset_with_context_data(empty_store, cert.clone(), Stack::new().unwrap())
+        .unwrap();
+    assert!(!context.verify_cert().unwrap());
+
+    context.reset_with_context_data(store, cert, chain).unwrap();
+    assert!(context.verify_cert().unwrap());
 }
 
 #[test]
@@ -808,7 +820,7 @@ fn test_save_subject_der() {
     let cert = X509::from_pem(cert).unwrap();
 
     let der = cert.subject_name().to_der().unwrap();
-    println!("der: {:?}", der);
+    println!("der: {der:?}");
     assert!(!der.is_empty());
 }
 

@@ -16,6 +16,7 @@ pub(crate) struct Config {
 
 pub(crate) struct Features {
     pub(crate) fips: bool,
+    pub(crate) fips_precompiled: bool,
     pub(crate) fips_link_precompiled: bool,
     pub(crate) pq_experimental: bool,
     pub(crate) rpk: bool,
@@ -35,6 +36,7 @@ pub(crate) struct Env {
     pub(crate) android_ndk_home: Option<PathBuf>,
     pub(crate) cmake_toolchain_file: Option<PathBuf>,
     pub(crate) cpp_runtime_lib: Option<OsString>,
+    pub(crate) docs_rs: bool,
 }
 
 impl Config {
@@ -47,11 +49,7 @@ impl Config {
         let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
 
         let features = Features::from_env();
-        let env = Env::from_env(
-            &host,
-            &target,
-            features.fips || features.fips_link_precompiled,
-        );
+        let env = Env::from_env(&host, &target, features.is_fips_like());
 
         let mut is_bazel = false;
         if let Some(src_path) = &env.source_path {
@@ -80,6 +78,10 @@ impl Config {
             panic!("`fips` and `rpk` features are mutually exclusive");
         }
 
+        if self.features.fips_precompiled && self.features.rpk {
+            panic!("`fips-precompiled` and `rpk` features are mutually exclusive");
+        }
+
         let is_precompiled_native_lib = self.env.path.is_some();
         let is_external_native_lib_source =
             !is_precompiled_native_lib && self.env.source_path.is_none();
@@ -96,10 +98,21 @@ impl Config {
             || self.features.underscore_wildcards;
 
         let patches_required = features_with_patches_enabled && !self.env.assume_patched;
-        let build_from_sources_required = self.features.fips_link_precompiled || patches_required;
 
-        if is_precompiled_native_lib && build_from_sources_required {
-            panic!("precompiled BoringSSL was provided, so FIPS configuration or optional patches can't be applied");
+        if is_precompiled_native_lib && patches_required {
+            println!(
+                "cargo:warning=precompiled BoringSSL was provided, so patches will be ignored"
+            );
+        }
+
+        // todo(rmehra): should this even be a restriction? why not let people link a custom bcm.o?
+        // precompiled boringssl will include libcrypto.a
+        if is_precompiled_native_lib && self.features.fips_link_precompiled {
+            panic!("precompiled BoringSSL was provided, so FIPS configuration can't be applied");
+        }
+
+        if !is_precompiled_native_lib && self.features.fips_precompiled {
+            panic!("`fips-precompiled` feature requires `BORING_BSSL_FIPS_PATH` to be set");
         }
     }
 }
@@ -107,6 +120,7 @@ impl Config {
 impl Features {
     fn from_env() -> Self {
         let fips = env::var_os("CARGO_FEATURE_FIPS").is_some();
+        let fips_precompiled = env::var_os("CARGO_FEATURE_FIPS_PRECOMPILED").is_some();
         let fips_link_precompiled = env::var_os("CARGO_FEATURE_FIPS_LINK_PRECOMPILED").is_some();
         let pq_experimental = env::var_os("CARGO_FEATURE_PQ_EXPERIMENTAL").is_some();
         let rpk = env::var_os("CARGO_FEATURE_RPK").is_some();
@@ -114,11 +128,16 @@ impl Features {
 
         Self {
             fips,
+            fips_precompiled,
             fips_link_precompiled,
             pq_experimental,
             rpk,
             underscore_wildcards,
         }
+    }
+
+    pub(crate) fn is_fips_like(&self) -> bool {
+        self.fips || self.fips_precompiled || self.fips_link_precompiled
     }
 }
 
@@ -133,9 +152,10 @@ impl Env {
         let target_var = |name: &str| {
             let kind = if host == target { "HOST" } else { "TARGET" };
 
-            var(&format!("{}_{}", name, target))
-                .or_else(|| var(&format!("{}_{}", name, target_with_underscores)))
-                .or_else(|| var(&format!("{}_{}", kind, name)))
+            // TODO(rmehra): look for just `name` first, as most people just set that
+            var(&format!("{name}_{target}"))
+                .or_else(|| var(&format!("{name}_{target_with_underscores}")))
+                .or_else(|| var(&format!("{kind}_{name}")))
                 .or_else(|| var(name))
         };
 
@@ -166,6 +186,7 @@ impl Env {
             android_ndk_home: target_var("ANDROID_NDK_HOME").map(Into::into),
             cmake_toolchain_file: target_var("CMAKE_TOOLCHAIN_FILE").map(Into::into),
             cpp_runtime_lib: target_var("BORING_BSSL_RUST_CPPLIB"),
+            docs_rs: var("DOCS_RS").is_some(),
         }
     }
 }

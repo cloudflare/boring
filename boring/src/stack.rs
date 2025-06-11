@@ -180,23 +180,26 @@ impl<T: Stackable> StackRef<T> {
     }
 
     /// Returns the number of items in the stack.
+    #[must_use]
     pub fn len(&self) -> usize {
         unsafe { OPENSSL_sk_num(self.as_stack()) }
     }
 
     /// Determines if the stack is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    pub fn iter(&self) -> Iter<T> {
+    #[must_use]
+    pub fn iter(&self) -> Iter<'_, T> {
         Iter {
             stack: self,
             idxs: 0..self.len(),
         }
     }
 
-    pub fn iter_mut(&mut self) -> IterMut<T> {
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
         IterMut {
             idxs: 0..self.len(),
             stack: self,
@@ -205,6 +208,7 @@ impl<T: Stackable> StackRef<T> {
 
     /// Returns a reference to the element at the given index in the
     /// stack or `None` if the index is out of bounds
+    #[must_use]
     pub fn get(&self, idx: usize) -> Option<&T::Ref> {
         unsafe {
             if idx >= self.len() {

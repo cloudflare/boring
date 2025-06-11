@@ -33,7 +33,8 @@ use crate::ffi;
 pub struct ErrorStack(Vec<Error>);
 
 impl ErrorStack {
-    /// Returns the contents of the OpenSSL error stack.
+    /// Pops the contents of the OpenSSL error stack, and returns it.
+    #[allow(clippy::must_use_candidate)]
     pub fn get() -> ErrorStack {
         let mut vec = vec![];
         while let Some(err) = Error::get() {
@@ -48,10 +49,17 @@ impl ErrorStack {
             error.put();
         }
     }
+
+    /// Used to report errors from the Rust crate
+    #[cold]
+    pub(crate) fn internal_error(err: impl error::Error) -> Self {
+        Self(vec![Error::new_internal(err.to_string())])
+    }
 }
 
 impl ErrorStack {
     /// Returns the errors in the stack.
+    #[must_use]
     pub fn errors(&self) -> &[Error] {
         &self.0
     }
@@ -69,7 +77,11 @@ impl fmt::Display for ErrorStack {
                 fmt.write_str(" ")?;
             }
             first = false;
-            write!(fmt, "[{}]", err.reason().unwrap_or("unknown reason"))?;
+            write!(
+                fmt,
+                "[{}]",
+                err.reason_internal().unwrap_or("unknown reason")
+            )?;
         }
         Ok(())
     }
@@ -79,7 +91,7 @@ impl error::Error for ErrorStack {}
 
 impl From<ErrorStack> for io::Error {
     fn from(e: ErrorStack) -> io::Error {
-        io::Error::new(io::ErrorKind::Other, e)
+        io::Error::other(e)
     }
 }
 
@@ -101,8 +113,11 @@ pub struct Error {
 unsafe impl Sync for Error {}
 unsafe impl Send for Error {}
 
+static BORING_INTERNAL: &CStr = c"boring-rust";
+
 impl Error {
-    /// Returns the first error on the OpenSSL error stack.
+    /// Pops the first error off the OpenSSL error stack.
+    #[allow(clippy::must_use_candidate)]
     pub fn get() -> Option<Error> {
         unsafe {
             ffi::init();
@@ -118,9 +133,8 @@ impl Error {
                     // in the error stack, so we'll need to copy it off if it's dynamic
                     let data = if flags & ffi::ERR_FLAG_STRING != 0 {
                         let bytes = CStr::from_ptr(data as *const _).to_bytes();
-                        let data = str::from_utf8(bytes).unwrap();
-                        let data = Cow::Owned(data.to_string());
-                        Some(data)
+                        let data = String::from_utf8_lossy(bytes).into_owned();
+                        Some(data.into())
                     } else {
                         None
                     };
@@ -166,41 +180,52 @@ impl Error {
     }
 
     /// Returns the raw OpenSSL error code for this error.
+    #[must_use]
     pub fn code(&self) -> c_uint {
         self.code
     }
 
     /// Returns the name of the library reporting the error, if available.
+    #[must_use]
     pub fn library(&self) -> Option<&'static str> {
+        if self.is_internal() {
+            return None;
+        }
         unsafe {
             let cstr = ffi::ERR_lib_error_string(self.code);
             if cstr.is_null() {
                 return None;
             }
             let bytes = CStr::from_ptr(cstr as *const _).to_bytes();
-            Some(str::from_utf8(bytes).unwrap())
+            str::from_utf8(bytes).ok()
         }
     }
 
     /// Returns the raw OpenSSL error constant for the library reporting the
     /// error.
+    #[must_use]
     pub fn library_code(&self) -> libc::c_int {
         ffi::ERR_GET_LIB(self.code)
     }
 
     /// Returns the name of the function reporting the error.
+    #[must_use]
     pub fn function(&self) -> Option<&'static str> {
+        if self.is_internal() {
+            return None;
+        }
         unsafe {
             let cstr = ffi::ERR_func_error_string(self.code);
             if cstr.is_null() {
                 return None;
             }
             let bytes = CStr::from_ptr(cstr as *const _).to_bytes();
-            Some(str::from_utf8(bytes).unwrap())
+            str::from_utf8(bytes).ok()
         }
     }
 
     /// Returns the reason for the error.
+    #[must_use]
     pub fn reason(&self) -> Option<&'static str> {
         unsafe {
             let cstr = ffi::ERR_reason_error_string(self.code);
@@ -208,34 +233,61 @@ impl Error {
                 return None;
             }
             let bytes = CStr::from_ptr(cstr as *const _).to_bytes();
-            Some(str::from_utf8(bytes).unwrap())
+            str::from_utf8(bytes).ok()
         }
     }
 
     /// Returns the raw OpenSSL error constant for the reason for the error.
+    #[must_use]
     pub fn reason_code(&self) -> libc::c_int {
         ffi::ERR_GET_REASON(self.code)
     }
 
     /// Returns the name of the source file which encountered the error.
+    #[must_use]
     pub fn file(&self) -> &'static str {
         unsafe {
-            assert!(!self.file.is_null());
+            if self.file.is_null() {
+                return "";
+            }
             let bytes = CStr::from_ptr(self.file as *const _).to_bytes();
-            str::from_utf8(bytes).unwrap()
+            str::from_utf8(bytes).unwrap_or_default()
         }
     }
 
     /// Returns the line in the source file which encountered the error.
     #[allow(clippy::unnecessary_cast)]
+    #[must_use]
     pub fn line(&self) -> u32 {
         self.line as u32
     }
 
     /// Returns additional data describing the error.
-    #[allow(clippy::option_as_ref_deref)]
+    #[must_use]
     pub fn data(&self) -> Option<&str> {
-        self.data.as_ref().map(|s| &**s)
+        self.data.as_deref()
+    }
+
+    fn new_internal(msg: String) -> Self {
+        Self {
+            code: ffi::ERR_PACK(ffi::ERR_LIB_NONE.0 as _, 0, 0) as _,
+            file: BORING_INTERNAL.as_ptr(),
+            line: 0,
+            data: Some(msg.into()),
+        }
+    }
+
+    fn is_internal(&self) -> bool {
+        std::ptr::eq(self.file, BORING_INTERNAL.as_ptr())
+    }
+
+    // reason() needs 'static
+    fn reason_internal(&self) -> Option<&str> {
+        if self.is_internal() {
+            self.data()
+        } else {
+            self.reason()
+        }
     }
 }
 
@@ -268,7 +320,7 @@ impl fmt::Display for Error {
         write!(
             fmt,
             "{}\n\nCode: {:08X}\nLoc: {}:{}",
-            self.reason().unwrap_or("unknown TLS error"),
+            self.reason_internal().unwrap_or("unknown TLS error"),
             self.code(),
             self.file(),
             self.line()
@@ -277,3 +329,14 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {}
+
+#[test]
+fn internal_err() {
+    let e = ErrorStack::internal_error(io::Error::other("hello, boring"));
+    assert_eq!(1, e.errors().len());
+    assert!(e.to_string().contains("hello, boring"), "{e} {e:?}");
+
+    e.put();
+    let e = ErrorStack::get();
+    assert!(e.to_string().contains("hello, boring"), "{e} {e:?}");
+}

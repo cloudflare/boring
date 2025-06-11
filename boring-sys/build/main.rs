@@ -165,7 +165,7 @@ fn get_boringssl_platform_output_path(config: &Config) -> String {
         let deb_info = match debug_env_var.to_str() {
             Some("false") => false,
             Some("true") => true,
-            _ => panic!("Unknown DEBUG={:?} env var.", debug_env_var),
+            _ => panic!("Unknown DEBUG={debug_env_var:?} env var."),
         };
 
         let opt_env_var = config
@@ -184,12 +184,12 @@ fn get_boringssl_platform_output_path(config: &Config) -> String {
                 }
             }
             Some("s" | "z") => "MinSizeRel",
-            _ => panic!("Unknown OPT_LEVEL={:?} env var.", opt_env_var),
+            _ => panic!("Unknown OPT_LEVEL={opt_env_var:?} env var."),
         };
 
         subdir.to_string()
     } else {
-        "".to_string()
+        String::new()
     }
 }
 
@@ -242,7 +242,7 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
             }
             let toolchain_file = android_ndk_home.join("build/cmake/android.toolchain.cmake");
             let toolchain_file = toolchain_file.to_str().unwrap();
-            eprintln!("android toolchain={}", toolchain_file);
+            eprintln!("android toolchain={toolchain_file}");
             boringssl_cmake.define("CMAKE_TOOLCHAIN_FILE", toolchain_file);
 
             // 21 is the minimum level tested. You can give higher value.
@@ -273,7 +273,7 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                 ""
             };
 
-            let cflag = format!("{} {}", bitcode_cflag, target_cflag);
+            let cflag = format!("{bitcode_cflag} {target_cflag}");
             boringssl_cmake.define("CMAKE_ASM_FLAGS", &cflag);
             boringssl_cmake.cflag(&cflag);
         }
@@ -318,8 +318,8 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                 );
             }
             _ => {
-                eprintln!(
-                    "warning: no toolchain file configured by boring-sys for {}",
+                println!(
+                    "cargo:warning=no toolchain file configured by boring-sys for {}",
                     config.target
                 );
             }
@@ -339,7 +339,7 @@ fn verify_fips_clang_version() -> (&'static str, &'static str) {
         let output = match Command::new(tool).arg("--version").output() {
             Ok(o) => o,
             Err(e) => {
-                eprintln!("warning: missing {}, trying other compilers: {}", tool, e);
+                println!("cargo:warning=missing {tool}, trying other compilers: {e}");
                 // NOTE: hard-codes that the loop below checks the version
                 return None;
             }
@@ -369,13 +369,11 @@ fn verify_fips_clang_version() -> (&'static str, &'static str) {
             return (cc, cxx);
         } else if cc == "cc" {
             panic!(
-                "unsupported clang version \"{}\": FIPS requires clang {}",
-                cc_version, REQUIRED_CLANG_VERSION
+                "unsupported clang version \"{cc_version}\": FIPS requires clang {REQUIRED_CLANG_VERSION}"
             );
         } else if !cc_version.is_empty() {
-            eprintln!(
-                "warning: FIPS requires clang version {}, skipping incompatible version \"{}\"",
-                REQUIRED_CLANG_VERSION, cc_version
+            println!(
+                "cargo:warning=FIPS requires clang version {REQUIRED_CLANG_VERSION}, skipping incompatible version \"{cc_version}\""
             );
         }
     }
@@ -425,9 +423,9 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
                 .unwrap();
             if !output.status.success() {
                 if let Some(exit_code) = output.status.code() {
-                    eprintln!("xcrun failed: exit code {}", exit_code);
+                    println!("cargo:warning=xcrun failed: exit code {exit_code}");
                 } else {
-                    eprintln!("xcrun failed: killed");
+                    println!("cargo:warning=xcrun failed: killed");
                 }
                 std::io::stderr().write_all(&output.stderr).unwrap();
                 // Uh... let's try anyway, I guess?
@@ -451,9 +449,8 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
             let toolchain = match pick_best_android_ndk_toolchain(&android_sysroot) {
                 Ok(toolchain) => toolchain,
                 Err(e) => {
-                    eprintln!(
-                        "warning: failed to find prebuilt Android NDK toolchain for bindgen: {}",
-                        e
+                    println!(
+                        "cargo:warning=failed to find prebuilt Android NDK toolchain for bindgen: {e}"
                     );
                     // Uh... let's try anyway, I guess?
                     return params;
@@ -537,11 +534,11 @@ fn run_command(command: &mut Command) -> io::Result<Output> {
 
     if !out.status.success() {
         let err = match out.status.code() {
-            Some(code) => format!("{:?} exited with status: {}", command, code),
-            None => format!("{:?} was terminated by signal", command),
+            Some(code) => format!("{command:?} exited with status: {code}"),
+            None => format!("{command:?} was terminated by signal"),
         };
 
-        return Err(io::Error::new(io::ErrorKind::Other, err));
+        return Err(io::Error::other(err));
     }
 
     Ok(out)
@@ -576,8 +573,13 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
 
         let mut cfg = get_boringssl_cmake_config(config);
 
-        if let Ok(threads) = std::thread::available_parallelism() {
-            cfg.env("CMAKE_BUILD_PARALLEL_LEVEL", threads.to_string());
+        let num_jobs = std::env::var("NUM_JOBS").ok().or_else(|| {
+            std::thread::available_parallelism()
+                .ok()
+                .map(|t| t.to_string())
+        });
+        if let Some(num_jobs) = num_jobs {
+            cfg.env("CMAKE_BUILD_PARALLEL_LEVEL", num_jobs);
         }
 
         if config.features.fips {
@@ -659,16 +661,24 @@ fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
 
 fn main() {
     let config = Config::from_env();
-    let bssl_dir = built_boring_source_path(&config);
-    let build_path = get_boringssl_platform_output_path(&config);
+    if !config.env.docs_rs {
+        emit_link_directives(&config);
+    }
+    generate_bindings(&config);
+}
 
-    if config.is_bazel || (config.features.fips && config.env.path.is_some()) {
+fn emit_link_directives(config: &Config) {
+    let bssl_dir = built_boring_source_path(config);
+    let build_path = get_boringssl_platform_output_path(config);
+
+    if config.is_bazel || (config.features.is_fips_like() && config.env.path.is_some()) {
         println!(
             "cargo:rustc-link-search=native={}/lib/{}",
             bssl_dir.display(),
             build_path
         );
     } else {
+        // todo(rmehra): clean this up, I think these are pretty redundant
         println!(
             "cargo:rustc-link-search=native={}/build/crypto/{}",
             bssl_dir.display(),
@@ -691,21 +701,28 @@ fn main() {
     }
 
     if config.features.fips_link_precompiled {
-        link_in_precompiled_bcm_o(&config);
+        link_in_precompiled_bcm_o(config);
     }
 
-    if let Some(cpp_lib) = get_cpp_runtime_lib(&config) {
-        println!("cargo:rustc-link-lib={}", cpp_lib);
+    if let Some(cpp_lib) = get_cpp_runtime_lib(config) {
+        println!("cargo:rustc-link-lib={cpp_lib}");
     }
     println!("cargo:rustc-link-lib=static=crypto");
     println!("cargo:rustc-link-lib=static=ssl");
 
+    if config.target_os == "windows" {
+        // Rust 1.87.0 compat - https://github.com/rust-lang/rust/pull/138233
+        println!("cargo:rustc-link-lib=advapi32");
+    }
+}
+
+fn generate_bindings(config: &Config) {
     let include_path = config.env.include_path.clone().unwrap_or_else(|| {
         if let Some(bssl_path) = &config.env.path {
             return bssl_path.join("include");
         }
 
-        let src_path = get_boringssl_source_path(&config);
+        let src_path = get_boringssl_source_path(config);
         let candidate = src_path.join("include");
 
         if candidate.exists() {
@@ -718,9 +735,12 @@ fn main() {
     // bindgen 0.70 replaced the run-time layout tests with compile-time ones,
     // but they depend on std::mem::offset_of, stabilized in 1.77.
     let supports_layout_tests = autocfg::new().probe_rustc_version(1, 77);
+    let Ok(target_rust_version) = bindgen::RustTarget::stable(68, 0) else {
+        panic!("bindgen does not recognize target rust version");
+    };
 
     let mut builder = bindgen::Builder::default()
-        .rust_target(bindgen::RustTarget::Stable_1_68) // bindgen MSRV is 1.70, so this is enough
+        .rust_target(target_rust_version) // bindgen MSRV is 1.70, so this is enough
         .derive_copy(true)
         .derive_debug(true)
         .derive_default(true)
@@ -736,7 +756,7 @@ fn main() {
         .layout_tests(supports_layout_tests)
         .prepend_enum_name(true)
         .blocklist_type("max_align_t") // Not supported by bindgen on all targets, not used by BoringSSL
-        .clang_args(get_extra_clang_args_for_bindgen(&config))
+        .clang_args(get_extra_clang_args_for_bindgen(config))
         .clang_arg("-I")
         .clang_arg(include_path.display().to_string());
 

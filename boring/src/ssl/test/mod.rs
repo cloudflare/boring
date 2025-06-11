@@ -1,4 +1,4 @@
-use hex;
+use foreign_types::{ForeignType, ForeignTypeRef};
 use std::io;
 use std::io::prelude::*;
 use std::mem;
@@ -18,6 +18,7 @@ use crate::ssl::{
     ExtensionType, ShutdownResult, ShutdownState, Ssl, SslAcceptor, SslAcceptorBuilder,
     SslConnector, SslContext, SslFiletype, SslMethod, SslOptions, SslStream, SslVerifyMode,
 };
+use crate::x509::store::X509StoreBuilder;
 use crate::x509::verify::X509CheckFlags;
 use crate::x509::{X509Name, X509};
 
@@ -41,7 +42,7 @@ static KEY: &[u8] = include_bytes!("../../../test/key.pem");
 #[test]
 fn get_ctx_options() {
     let ctx = SslContext::builder(SslMethod::tls()).unwrap();
-    ctx.options();
+    let _ = ctx.options();
 }
 
 #[test]
@@ -306,6 +307,52 @@ fn test_select_cert_ok() {
 
     let client = server.client();
     client.connect();
+}
+
+#[test]
+fn test_mutable_store() {
+    #![allow(deprecated)]
+
+    let cert = include_bytes!("../../../test/cert.pem");
+    let cert = X509::from_pem(cert).unwrap();
+    let cert2 = include_bytes!("../../../test/root-ca.pem");
+    let cert2 = X509::from_pem(cert2).unwrap();
+
+    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
+    ctx.cert_store_mut().add_cert(cert.clone()).unwrap();
+    assert_eq!(1, ctx.cert_store().objects_len());
+
+    ctx.set_cert_store_builder(X509StoreBuilder::new().unwrap());
+    assert_eq!(0, ctx.cert_store().objects_len());
+
+    ctx.cert_store_mut().add_cert(cert.clone()).unwrap();
+    assert_eq!(1, ctx.cert_store().objects_len());
+
+    let mut new_store = X509StoreBuilder::new().unwrap();
+    new_store.add_cert(cert).unwrap();
+    new_store.add_cert(cert2).unwrap();
+    let new_store = new_store.build();
+    assert_eq!(2, new_store.objects_len());
+
+    ctx.set_cert_store_ref(&new_store);
+    assert_eq!(2, ctx.cert_store().objects_len());
+    assert!(std::ptr::eq(new_store.as_ptr(), ctx.cert_store().as_ptr()));
+
+    let ctx = ctx.build();
+    assert!(std::ptr::eq(new_store.as_ptr(), ctx.cert_store().as_ptr()));
+
+    drop(new_store);
+    assert_eq!(2, ctx.cert_store().objects_len());
+}
+
+#[test]
+#[should_panic(expected = "mutated")]
+fn shared_store_must_not_be_mutated() {
+    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
+
+    let shared = X509StoreBuilder::new().unwrap().build();
+    ctx.set_cert_store_ref(&shared);
+    ctx.cert_store_mut();
 }
 
 #[test]
@@ -1069,4 +1116,53 @@ fn test_info_callback() {
 
     client.connect();
     assert!(CALLED_BACK.load(Ordering::Relaxed));
+}
+
+#[cfg(not(feature = "fips-compat"))]
+#[test]
+fn test_ssl_set_compliance() {
+    let ctx = SslContext::builder(SslMethod::tls()).unwrap().build();
+    let mut ssl = Ssl::new(&ctx).unwrap();
+    ssl.set_compliance_policy(CompliancePolicy::FIPS_202205)
+        .unwrap();
+
+    assert_eq!(ssl.max_proto_version().unwrap(), SslVersion::TLS1_3);
+    assert_eq!(ssl.min_proto_version().unwrap(), SslVersion::TLS1_2);
+
+    const FIPS_CIPHERS: [&str; 4] = [
+        "ECDHE-ECDSA-AES128-GCM-SHA256",
+        "ECDHE-RSA-AES128-GCM-SHA256",
+        "ECDHE-ECDSA-AES256-GCM-SHA384",
+        "ECDHE-RSA-AES256-GCM-SHA384",
+    ];
+
+    let ciphers = ssl.ciphers();
+    assert_eq!(ciphers.len(), FIPS_CIPHERS.len());
+
+    for cipher in ciphers.into_iter().zip(FIPS_CIPHERS) {
+        assert_eq!(cipher.0.name(), cipher.1)
+    }
+
+    let ctx = SslContext::builder(SslMethod::tls()).unwrap().build();
+    let mut ssl = Ssl::new(&ctx).unwrap();
+    ssl.set_compliance_policy(CompliancePolicy::WPA3_192_202304)
+        .unwrap();
+
+    assert_eq!(ssl.max_proto_version().unwrap(), SslVersion::TLS1_3);
+    assert_eq!(ssl.min_proto_version().unwrap(), SslVersion::TLS1_2);
+
+    const WPA3_192_CIPHERS: [&str; 2] = [
+        "ECDHE-ECDSA-AES256-GCM-SHA384",
+        "ECDHE-RSA-AES256-GCM-SHA384",
+    ];
+
+    let ciphers = ssl.ciphers();
+    assert_eq!(ciphers.len(), WPA3_192_CIPHERS.len());
+
+    for cipher in ciphers.into_iter().zip(WPA3_192_CIPHERS) {
+        assert_eq!(cipher.0.name(), cipher.1)
+    }
+
+    ssl.set_compliance_policy(CompliancePolicy::NONE)
+        .expect_err("Testing expect err if set compliance policy to NONE");
 }

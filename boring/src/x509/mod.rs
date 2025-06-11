@@ -21,6 +21,7 @@ use std::path::Path;
 use std::ptr;
 use std::slice;
 use std::str;
+use std::sync::{LazyLock, Once};
 
 use crate::asn1::{
     Asn1BitStringRef, Asn1IntegerRef, Asn1Object, Asn1ObjectRef, Asn1StringRef, Asn1TimeRef,
@@ -30,7 +31,6 @@ use crate::bio::{MemBio, MemBioSlice};
 use crate::conf::ConfRef;
 use crate::error::ErrorStack;
 use crate::ex_data::Index;
-use crate::ffi;
 use crate::hash::{DigestBytes, MessageDigest};
 use crate::nid::Nid;
 use crate::pkey::{HasPrivate, HasPublic, PKey, PKeyRef, Public};
@@ -39,8 +39,9 @@ use crate::stack::{Stack, StackRef, Stackable};
 use crate::string::OpensslString;
 use crate::util::ForeignTypeRefExt;
 use crate::x509::crl::X509CRL;
-use crate::x509::verify::X509VerifyParamRef;
+use crate::x509::verify::{X509VerifyParam, X509VerifyParamRef};
 use crate::{cvt, cvt_n, cvt_p};
+use crate::{ffi, free_data_box};
 
 pub mod crl;
 pub mod extension;
@@ -49,6 +50,15 @@ pub mod verify;
 
 #[cfg(test)]
 mod tests;
+
+static STORE_INDEX: LazyLock<Index<X509StoreContext, store::X509Store>> =
+    LazyLock::new(|| X509StoreContext::new_ex_index().unwrap());
+
+static CERT_INDEX: LazyLock<Index<X509StoreContext, X509>> =
+    LazyLock::new(|| X509StoreContext::new_ex_index().unwrap());
+
+static CERT_CHAIN_INDEX: LazyLock<Index<X509StoreContext, Stack<X509>>> =
+    LazyLock::new(|| X509StoreContext::new_ex_index().unwrap());
 
 foreign_type_and_impl_send_sync! {
     type CType = ffi::X509_STORE_CTX;
@@ -74,11 +84,28 @@ impl X509StoreContext {
             cvt_p(ffi::X509_STORE_CTX_new()).map(|p| X509StoreContext::from_ptr(p))
         }
     }
+
+    /// Returns a new extra data index.
+    ///
+    /// Each invocation of this function is guaranteed to return a distinct index. These can be used
+    /// to store data in the context that can be retrieved later by callbacks, for example.
+    #[corresponds(SSL_CTX_get_ex_new_index)]
+    pub fn new_ex_index<T>() -> Result<Index<X509StoreContext, T>, ErrorStack>
+    where
+        T: 'static + Sync + Send,
+    {
+        unsafe {
+            ffi::init();
+            let idx = cvt_n(get_new_x509_store_ctx_idx(Some(free_data_box::<T>)))?;
+            Ok(Index::from_raw(idx))
+        }
+    }
 }
 
 impl X509StoreContextRef {
     /// Returns application data pertaining to an `X509` store context.
     #[corresponds(X509_STORE_CTX_get_ex_data)]
+    #[must_use]
     pub fn ex_data<T>(&self, index: Index<X509StoreContext, T>) -> Option<&T> {
         unsafe {
             let data = ffi::X509_STORE_CTX_get_ex_data(self.as_ptr(), index.as_raw());
@@ -87,6 +114,42 @@ impl X509StoreContextRef {
             } else {
                 Some(&*(data as *const T))
             }
+        }
+    }
+
+    /// Returns a mutable reference to the extra data at the specified index.
+    #[corresponds(X509_STORE_CTX_get_ex_data)]
+    pub fn ex_data_mut<T>(&mut self, index: Index<X509StoreContext, T>) -> Option<&mut T> {
+        unsafe {
+            let data = ffi::X509_STORE_CTX_get_ex_data(self.as_ptr(), index.as_raw());
+            if data.is_null() {
+                None
+            } else {
+                Some(&mut *(data as *mut T))
+            }
+        }
+    }
+
+    /// Sets or overwrites the extra data at the specified index.
+    ///
+    /// This can be used to provide data to callbacks registered with the context. Use the
+    /// `Ssl::new_ex_index` method to create an `Index`.
+    #[corresponds(X509_STORE_CTX_set_ex_data)]
+    pub fn set_ex_data<T>(&mut self, index: Index<X509StoreContext, T>, data: T) {
+        if let Some(old) = self.ex_data_mut(index) {
+            *old = data;
+
+            return;
+        }
+
+        unsafe {
+            let data = Box::new(data);
+
+            ffi::X509_STORE_CTX_set_ex_data(
+                self.as_ptr(),
+                index.as_raw(),
+                Box::into_raw(data) as *mut c_void,
+            );
         }
     }
 
@@ -132,22 +195,68 @@ impl X509StoreContextRef {
         }
 
         unsafe {
+            let cleanup = Cleanup(self);
+
             cvt(ffi::X509_STORE_CTX_init(
-                self.as_ptr(),
+                cleanup.0.as_ptr(),
                 trust.as_ptr(),
                 cert.as_ptr(),
                 cert_chain.as_ptr(),
             ))?;
 
-            let cleanup = Cleanup(self);
             with_context(cleanup.0)
         }
+    }
+
+    /// Initializes this context with the given certificate, certificates chain and certificate
+    /// store.
+    ///
+    /// * `trust` - The certificate store with the trusted certificates.
+    /// * `cert` - The certificate that should be verified.
+    /// * `cert_chain` - The certificates chain.
+    #[corresponds(X509_STORE_CTX_init)]
+    pub fn reset_with_context_data(
+        &mut self,
+        trust: store::X509Store,
+        cert: X509,
+        cert_chain: Stack<X509>,
+    ) -> Result<(), ErrorStack> {
+        unsafe {
+            if let Err(e) = cvt(ffi::X509_STORE_CTX_init(
+                self.as_ptr(),
+                trust.as_ptr(),
+                cert.as_ptr(),
+                cert_chain.as_ptr(),
+            )) {
+                ffi::X509_STORE_CTX_cleanup(self.as_ptr());
+
+                return Err(e);
+            }
+        }
+
+        self.set_ex_data(*STORE_INDEX, trust);
+        self.set_ex_data(*CERT_INDEX, cert);
+        self.set_ex_data(*CERT_CHAIN_INDEX, cert_chain);
+
+        Ok(())
+    }
+
+    /// Returns a reference to the X509 verification configuration.
+    #[corresponds(X509_STORE_CTX_get0_param)]
+    pub fn verify_param(&mut self) -> &X509VerifyParamRef {
+        unsafe { X509VerifyParamRef::from_ptr(ffi::X509_STORE_CTX_get0_param(self.as_ptr())) }
     }
 
     /// Returns a mutable reference to the X509 verification configuration.
     #[corresponds(X509_STORE_CTX_get0_param)]
     pub fn verify_param_mut(&mut self) -> &mut X509VerifyParamRef {
         unsafe { X509VerifyParamRef::from_ptr_mut(ffi::X509_STORE_CTX_get0_param(self.as_ptr())) }
+    }
+
+    /// Sets the X509 verification configuration.
+    #[corresponds(X509_STORE_CTX_set0_param)]
+    pub fn set_verify_param(&mut self, param: X509VerifyParam) {
+        unsafe { ffi::X509_STORE_CTX_set0_param(self.as_ptr(), param.as_ptr()) }
     }
 
     /// Verifies the stored certificate.
@@ -204,6 +313,7 @@ impl X509StoreContextRef {
     /// Returns a reference to the certificate which caused the error or None if
     /// no certificate is relevant to the error.
     #[corresponds(X509_STORE_CTX_get_current_cert)]
+    #[must_use]
     pub fn current_cert(&self) -> Option<&X509Ref> {
         unsafe {
             let ptr = ffi::X509_STORE_CTX_get_current_cert(self.as_ptr());
@@ -220,12 +330,14 @@ impl X509StoreContextRef {
     /// entity certificate, one if it is the certificate which signed the end
     /// entity certificate and so on.
     #[corresponds(X509_STORE_CTX_get_error_depth)]
+    #[must_use]
     pub fn error_depth(&self) -> u32 {
         unsafe { ffi::X509_STORE_CTX_get_error_depth(self.as_ptr()) as u32 }
     }
 
     /// Returns a reference to a complete valid `X509` certificate chain.
     #[corresponds(X509_STORE_CTX_get0_chain)]
+    #[must_use]
     pub fn chain(&self) -> Option<&StackRef<X509>> {
         unsafe {
             let chain = X509_STORE_CTX_get0_chain(self.as_ptr());
@@ -234,6 +346,37 @@ impl X509StoreContextRef {
                 None
             } else {
                 Some(StackRef::from_ptr(chain))
+            }
+        }
+    }
+
+    /// Returns a reference to the `X509` certificates used to initialize the
+    /// [`X509StoreContextRef`].
+    #[corresponds(X509_STORE_CTX_get0_untrusted)]
+    #[must_use]
+    pub fn untrusted(&self) -> Option<&StackRef<X509>> {
+        unsafe {
+            let certs = ffi::X509_STORE_CTX_get0_untrusted(self.as_ptr());
+
+            if certs.is_null() {
+                None
+            } else {
+                Some(StackRef::from_ptr(certs))
+            }
+        }
+    }
+
+    /// Returns a reference to the certificate being verified.
+    /// May return None if a raw public key is being verified.
+    #[corresponds(X509_STORE_CTX_get0_cert)]
+    #[must_use]
+    pub fn cert(&self) -> Option<&X509Ref> {
+        unsafe {
+            let ptr = ffi::X509_STORE_CTX_get0_cert(self.as_ptr());
+            if ptr.is_null() {
+                None
+            } else {
+                Some(X509Ref::from_ptr(ptr))
             }
         }
     }
@@ -339,6 +482,7 @@ impl X509Builder {
     ///
     /// Set `issuer` to `None` if the certificate will be self-signed.
     #[corresponds(X509V3_set_ctx)]
+    #[must_use]
     pub fn x509v3_context<'a>(
         &'a self,
         issuer: Option<&'a X509Ref>,
@@ -396,6 +540,7 @@ impl X509Builder {
     }
 
     /// Consumes the builder, returning the certificate.
+    #[must_use]
     pub fn build(self) -> X509 {
         self.0
     }
@@ -412,6 +557,7 @@ foreign_type_and_impl_send_sync! {
 impl X509Ref {
     /// Returns this certificate's subject name.
     #[corresponds(X509_get_subject_name)]
+    #[must_use]
     pub fn subject_name(&self) -> &X509NameRef {
         unsafe {
             let name = ffi::X509_get_subject_name(self.as_ptr());
@@ -421,12 +567,14 @@ impl X509Ref {
 
     /// Returns the hash of the certificates subject
     #[corresponds(X509_subject_name_hash)]
+    #[must_use]
     pub fn subject_name_hash(&self) -> u32 {
         unsafe { ffi::X509_subject_name_hash(self.as_ptr()) as u32 }
     }
 
     /// Returns this certificate's subject alternative name entries, if they exist.
     #[corresponds(X509_get_ext_d2i)]
+    #[must_use]
     pub fn subject_alt_names(&self) -> Option<Stack<GeneralName>> {
         unsafe {
             let stack = ffi::X509_get_ext_d2i(
@@ -445,6 +593,7 @@ impl X509Ref {
 
     /// Returns this certificate's issuer name.
     #[corresponds(X509_get_issuer_name)]
+    #[must_use]
     pub fn issuer_name(&self) -> &X509NameRef {
         unsafe {
             let name = ffi::X509_get_issuer_name(self.as_ptr());
@@ -454,6 +603,7 @@ impl X509Ref {
 
     /// Returns this certificate's issuer alternative name entries, if they exist.
     #[corresponds(X509_get_ext_d2i)]
+    #[must_use]
     pub fn issuer_alt_names(&self) -> Option<Stack<GeneralName>> {
         unsafe {
             let stack = ffi::X509_get_ext_d2i(
@@ -472,6 +622,7 @@ impl X509Ref {
 
     /// Returns this certificate's subject key id, if it exists.
     #[corresponds(X509_get0_subject_key_id)]
+    #[must_use]
     pub fn subject_key_id(&self) -> Option<&Asn1StringRef> {
         unsafe {
             let data = ffi::X509_get0_subject_key_id(self.as_ptr());
@@ -481,6 +632,7 @@ impl X509Ref {
 
     /// Returns this certificate's authority key id, if it exists.
     #[corresponds(X509_get0_authority_key_id)]
+    #[must_use]
     pub fn authority_key_id(&self) -> Option<&Asn1StringRef> {
         unsafe {
             let data = ffi::X509_get0_authority_key_id(self.as_ptr());
@@ -524,6 +676,7 @@ impl X509Ref {
 
     /// Returns the certificate's Not After validity period.
     #[corresponds(X509_getm_notAfter)]
+    #[must_use]
     pub fn not_after(&self) -> &Asn1TimeRef {
         unsafe {
             let date = X509_getm_notAfter(self.as_ptr());
@@ -534,6 +687,7 @@ impl X509Ref {
 
     /// Returns the certificate's Not Before validity period.
     #[corresponds(X509_getm_notBefore)]
+    #[must_use]
     pub fn not_before(&self) -> &Asn1TimeRef {
         unsafe {
             let date = X509_getm_notBefore(self.as_ptr());
@@ -544,6 +698,7 @@ impl X509Ref {
 
     /// Returns the certificate's signature
     #[corresponds(X509_get0_signature)]
+    #[must_use]
     pub fn signature(&self) -> &Asn1BitStringRef {
         unsafe {
             let mut signature = ptr::null();
@@ -555,6 +710,7 @@ impl X509Ref {
 
     /// Returns the certificate's signature algorithm.
     #[corresponds(X509_get0_signature)]
+    #[must_use]
     pub fn signature_algorithm(&self) -> &X509AlgorithmRef {
         unsafe {
             let mut algor = ptr::null();
@@ -596,6 +752,7 @@ impl X509Ref {
 
     /// Returns this certificate's serial number.
     #[corresponds(X509_get_serialNumber)]
+    #[must_use]
     pub fn serial_number(&self) -> &Asn1IntegerRef {
         unsafe {
             let r = ffi::X509_get_serialNumber(self.as_ptr());
@@ -766,6 +923,7 @@ impl Stackable for X509 {
 pub struct X509v3Context<'a>(ffi::X509V3_CTX, PhantomData<(&'a X509Ref, &'a ConfRef)>);
 
 impl X509v3Context<'_> {
+    #[must_use]
     pub fn as_ptr(&self) -> *mut ffi::X509V3_CTX {
         &self.0 as *const _ as *mut _
     }
@@ -800,8 +958,8 @@ impl X509Extension {
         name: &str,
         value: &str,
     ) -> Result<X509Extension, ErrorStack> {
-        let name = CString::new(name).unwrap();
-        let value = CString::new(value).unwrap();
+        let name = CString::new(name).map_err(ErrorStack::internal_error)?;
+        let value = CString::new(value).map_err(ErrorStack::internal_error)?;
         let mut ctx;
         unsafe {
             ffi::init();
@@ -846,7 +1004,7 @@ impl X509Extension {
         name: Nid,
         value: &str,
     ) -> Result<X509Extension, ErrorStack> {
-        let value = CString::new(value).unwrap();
+        let value = CString::new(value).map_err(ErrorStack::internal_error)?;
         let mut ctx;
         unsafe {
             ffi::init();
@@ -951,7 +1109,7 @@ impl X509NameBuilder {
     #[corresponds(X509_NAME_add_entry_by_txt)]
     pub fn append_entry_by_text(&mut self, field: &str, value: &str) -> Result<(), ErrorStack> {
         unsafe {
-            let field = CString::new(field).unwrap();
+            let field = CString::new(field).map_err(ErrorStack::internal_error)?;
             assert!(value.len() <= ValueLen::MAX as usize);
             cvt(ffi::X509_NAME_add_entry_by_txt(
                 self.0.as_ptr(),
@@ -975,7 +1133,7 @@ impl X509NameBuilder {
         ty: Asn1Type,
     ) -> Result<(), ErrorStack> {
         unsafe {
-            let field = CString::new(field).unwrap();
+            let field = CString::new(field).map_err(ErrorStack::internal_error)?;
             assert!(value.len() <= ValueLen::MAX as usize);
             cvt(ffi::X509_NAME_add_entry_by_txt(
                 self.0.as_ptr(),
@@ -1032,6 +1190,7 @@ impl X509NameBuilder {
     }
 
     /// Return an `X509Name`.
+    #[must_use]
     pub fn build(self) -> X509Name {
         // Round-trip through bytes because OpenSSL is not const correct and
         // names in a "modified" state compute various things lazily. This can
@@ -1063,7 +1222,8 @@ impl X509Name {
     ///
     /// This is commonly used in conjunction with `SslContextBuilder::set_client_ca_list`.
     pub fn load_client_ca_file<P: AsRef<Path>>(file: P) -> Result<Stack<X509Name>, ErrorStack> {
-        let file = CString::new(file.as_ref().as_os_str().to_str().unwrap()).unwrap();
+        let file = CString::new(file.as_ref().as_os_str().as_encoded_bytes())
+            .map_err(ErrorStack::internal_error)?;
         unsafe { cvt_p(ffi::SSL_load_client_CA_file(file.as_ptr())).map(|p| Stack::from_ptr(p)) }
     }
 
@@ -1083,6 +1243,7 @@ impl Stackable for X509Name {
 
 impl X509NameRef {
     /// Returns the name entries by the nid.
+    #[must_use]
     pub fn entries_by_nid(&self, nid: Nid) -> X509NameEntries<'_> {
         X509NameEntries {
             name: self,
@@ -1092,6 +1253,7 @@ impl X509NameRef {
     }
 
     /// Returns an iterator over all `X509NameEntry` values
+    #[must_use]
     pub fn entries(&self) -> X509NameEntries<'_> {
         X509NameEntries {
             name: self,
@@ -1104,6 +1266,7 @@ impl X509NameRef {
     ///
     /// This function will return `None` if the underlying string contains invalid utf-8.
     #[corresponds(X509_NAME_print_ex)]
+    #[must_use]
     pub fn print_ex(&self, flags: i32) -> Option<String> {
         unsafe {
             let bio = MemBio::new().ok()?;
@@ -1177,6 +1340,7 @@ foreign_type_and_impl_send_sync! {
 impl X509NameEntryRef {
     /// Returns the field value of an `X509NameEntry`.
     #[corresponds(X509_NAME_ENTRY_get_data)]
+    #[must_use]
     pub fn data(&self) -> &Asn1StringRef {
         unsafe {
             let data = ffi::X509_NAME_ENTRY_get_data(self.as_ptr());
@@ -1187,6 +1351,7 @@ impl X509NameEntryRef {
     /// Returns the `Asn1Object` value of an `X509NameEntry`.
     /// This is useful for finding out about the actual `Nid` when iterating over all `X509NameEntries`.
     #[corresponds(X509_NAME_ENTRY_get_object)]
+    #[must_use]
     pub fn object(&self) -> &Asn1ObjectRef {
         unsafe {
             let object = ffi::X509_NAME_ENTRY_get_object(self.as_ptr());
@@ -1249,6 +1414,7 @@ impl X509ReqBuilder {
 
     /// Return an `X509v3Context`. This context object can be used to construct
     /// certain `X509` extensions.
+    #[must_use]
     pub fn x509v3_context<'a>(&'a self, conf: Option<&'a ConfRef>) -> X509v3Context<'a> {
         unsafe {
             let mut ctx = mem::zeroed();
@@ -1302,6 +1468,7 @@ impl X509ReqBuilder {
     }
 
     /// Returns the `X509Req`.
+    #[must_use]
     pub fn build(self) -> X509Req {
         self.0
     }
@@ -1360,12 +1527,14 @@ impl X509ReqRef {
 
     /// Returns the numerical value of the version field of the certificate request.
     #[corresponds(X509_REQ_get_version)]
+    #[must_use]
     pub fn version(&self) -> i32 {
         unsafe { X509_REQ_get_version(self.as_ptr()) as i32 }
     }
 
     /// Returns the subject name of the certificate request.
     #[corresponds(X509_REQ_get_subject_name)]
+    #[must_use]
     pub fn subject_name(&self) -> &X509NameRef {
         unsafe {
             let name = X509_REQ_get_subject_name(self.as_ptr());
@@ -1451,6 +1620,7 @@ impl X509VerifyError {
 
     /// Return the integer representation of an [`X509VerifyError`].
     #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[must_use]
     pub fn as_raw(&self) -> c_int {
         self.0
     }
@@ -1458,11 +1628,12 @@ impl X509VerifyError {
     /// Return a human readable error string from the verification error.
     #[corresponds(X509_verify_cert_error_string)]
     #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[must_use]
     pub fn error_string(&self) -> &'static str {
         ffi::init();
 
         unsafe {
-            let s = ffi::X509_verify_cert_error_string(self.0 as c_long);
+            let s = ffi::X509_verify_cert_error_string(c_long::from(self.0));
             str::from_utf8(CStr::from_ptr(s).to_bytes()).unwrap()
         }
     }
@@ -1627,21 +1798,25 @@ impl GeneralNameRef {
     }
 
     /// Returns the contents of this `GeneralName` if it is an `rfc822Name`.
+    #[must_use]
     pub fn email(&self) -> Option<&str> {
         self.ia5_string(ffi::GEN_EMAIL)
     }
 
     /// Returns the contents of this `GeneralName` if it is a `dNSName`.
+    #[must_use]
     pub fn dnsname(&self) -> Option<&str> {
         self.ia5_string(ffi::GEN_DNS)
     }
 
     /// Returns the contents of this `GeneralName` if it is an `uniformResourceIdentifier`.
+    #[must_use]
     pub fn uri(&self) -> Option<&str> {
         self.ia5_string(ffi::GEN_URI)
     }
 
     /// Returns the contents of this `GeneralName` if it is an `iPAddress`.
+    #[must_use]
     pub fn ipaddress(&self) -> Option<&[u8]> {
         unsafe {
             if (*self.as_ptr()).type_ != ffi::GEN_IPADD {
@@ -1687,6 +1862,7 @@ foreign_type_and_impl_send_sync! {
 
 impl X509AlgorithmRef {
     /// Returns the ASN.1 OID of this algorithm.
+    #[must_use]
     pub fn object(&self) -> &Asn1ObjectRef {
         unsafe {
             let mut oid = ptr::null();
@@ -1706,6 +1882,7 @@ foreign_type_and_impl_send_sync! {
 }
 
 impl X509ObjectRef {
+    #[must_use]
     pub fn x509(&self) -> Option<&X509Ref> {
         unsafe {
             let ptr = X509_OBJECT_get0_X509(self.as_ptr());
@@ -1735,4 +1912,15 @@ use crate::ffi::X509_OBJECT_get0_X509;
 unsafe fn X509_OBJECT_free(x: *mut ffi::X509_OBJECT) {
     ffi::X509_OBJECT_free_contents(x);
     ffi::OPENSSL_free(x as *mut libc::c_void);
+}
+
+unsafe fn get_new_x509_store_ctx_idx(f: ffi::CRYPTO_EX_free) -> c_int {
+    // hack around https://rt.openssl.org/Ticket/Display.html?id=3710&user=guest&pass=guest
+    static ONCE: Once = Once::new();
+
+    ONCE.call_once(|| {
+        ffi::X509_STORE_CTX_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, None);
+    });
+
+    ffi::X509_STORE_CTX_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, f)
 }

@@ -19,6 +19,7 @@ impl ConfMethod {
     }
 
     /// Convert to raw pointer.
+    #[must_use]
     pub fn as_ptr(&self) -> *mut c_void {
         self.0
     }

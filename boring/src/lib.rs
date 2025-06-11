@@ -61,6 +61,13 @@
 //! Note that `BORING_BSSL_PRECOMPILED_BCM_O` is never used, as linking BoringSSL with precompiled non-FIPS
 //! module is not supported.
 //!
+//! ## Linking with a C++ standard library
+//!
+//! Recent versions of boringssl require some C++ standard library features, so boring needs to link
+//! with a STL implementation. This can be controlled using the BORING_BSSL_RUST_CPPLIB variable. If
+//! no library is specified, libc++ is used on macOS and iOS whereas libstdc++ is used on other Unix
+//! systems.
+//!
 //! # Optional patches
 //!
 //! ## Raw Public Key
@@ -81,10 +88,10 @@
 //!   before the end of 2024.
 //! - `X25519Kyber768Draft00Old` is the same as `X25519Kyber768Draft00`, but under its old codepoint.
 //! - `X25519Kyber512Draft00`. Similar to `X25519Kyber768Draft00`, but uses level 1 parameter set for
-//!    Kyber. Not recommended. It's useful to test whether the shorter ClientHello upsets fewer middle
-//!    boxes.
+//!   Kyber. Not recommended. It's useful to test whether the shorter ClientHello upsets fewer middle
+//!   boxes.
 //! - `P256Kyber768Draft00`. Similar again to `X25519Kyber768Draft00`, but uses P256 as classical
-//!    part. It uses a non-standard codepoint. Not recommended.
+//!   part. It uses a non-standard codepoint. Not recommended.
 //!
 //! Presently all these key agreements are deployed by Cloudflare, but we do not guarantee continued
 //! support for them.
@@ -100,6 +107,8 @@ extern crate libc;
 
 #[cfg(test)]
 extern crate hex;
+
+use std::ffi::{c_long, c_void};
 
 #[doc(inline)]
 pub use crate::ffi::init;
@@ -184,5 +193,18 @@ fn cvt_n(r: c_int) -> Result<c_int, ErrorStack> {
         Err(ErrorStack::get())
     } else {
         Ok(r)
+    }
+}
+
+unsafe extern "C" fn free_data_box<T>(
+    _parent: *mut c_void,
+    ptr: *mut c_void,
+    _ad: *mut ffi::CRYPTO_EX_DATA,
+    _idx: c_int,
+    _argl: c_long,
+    _argp: *mut c_void,
+) {
+    if !ptr.is_null() {
+        drop(Box::<T>::from_raw(ptr as *mut T));
     }
 }

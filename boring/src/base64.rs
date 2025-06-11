@@ -11,6 +11,7 @@ use openssl_macros::corresponds;
 ///
 /// Panics if the input length or computed output length overflow a signed C integer.
 #[corresponds(EVP_EncodeBlock)]
+#[must_use]
 pub fn encode_block(src: &[u8]) -> String {
     assert!(src.len() <= c_int::MAX as usize);
     let src_len = src.len();
@@ -101,7 +102,7 @@ mod tests {
 
     #[test]
     fn test_encode_block() {
-        assert_eq!("".to_string(), encode_block(b""));
+        assert_eq!(String::new(), encode_block(b""));
         assert_eq!("Zg==".to_string(), encode_block(b"f"));
         assert_eq!("Zm8=".to_string(), encode_block(b"fo"));
         assert_eq!("Zm9v".to_string(), encode_block(b"foo"));

@@ -8,14 +8,23 @@ use openssl_macros::corresponds;
 
 /// Determines if the library is running in the FIPS 140-2 mode of operation.
 #[corresponds(FIPS_mode)]
+#[must_use]
 pub fn enabled() -> bool {
     unsafe { ffi::FIPS_mode() != 0 }
 }
 
 #[test]
 fn is_enabled() {
-    #[cfg(any(feature = "fips", feature = "fips-link-precompiled"))]
+    #[cfg(any(
+        feature = "fips",
+        feature = "fips-precompiled",
+        feature = "fips-link-precompiled"
+    ))]
     assert!(enabled());
-    #[cfg(not(any(feature = "fips", feature = "fips-link-precompiled")))]
+    #[cfg(not(any(
+        feature = "fips",
+        feature = "fips-precompiled",
+        feature = "fips-link-precompiled"
+    )))]
     assert!(!enabled());
 }

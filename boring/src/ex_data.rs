@@ -21,11 +21,13 @@ impl<T, U> Index<T, U> {
     /// # Safety
     ///
     /// The caller must ensure that the index correctly maps to a `U` value stored in a `T`.
+    #[must_use]
     pub unsafe fn from_raw(idx: c_int) -> Index<T, U> {
         Index(idx, PhantomData)
     }
 
     #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[must_use]
     pub fn as_raw(&self) -> c_int {
         self.0
     }

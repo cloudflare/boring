@@ -60,6 +60,7 @@ impl RsaPssSaltlen {
     }
 
     /// Sets the salt length to the given value.
+    #[must_use]
     pub fn custom(val: c_int) -> RsaPssSaltlen {
         RsaPssSaltlen(val)
     }

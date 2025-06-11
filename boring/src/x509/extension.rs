@@ -38,6 +38,7 @@ impl Default for BasicConstraints {
 
 impl BasicConstraints {
     /// Construct a new `BasicConstraints` extension.
+    #[must_use]
     pub fn new() -> BasicConstraints {
         BasicConstraints {
             critical: false,
@@ -78,7 +79,7 @@ impl BasicConstraints {
             value.push_str("FALSE");
         }
         if let Some(pathlen) = self.pathlen {
-            write!(value, ",pathlen:{}", pathlen).unwrap();
+            write!(value, ",pathlen:{pathlen}").unwrap();
         }
         X509Extension::new_nid(None, None, Nid::BASIC_CONSTRAINTS, &value)
     }
@@ -106,6 +107,7 @@ impl Default for KeyUsage {
 
 impl KeyUsage {
     /// Construct a new `KeyUsage` extension.
+    #[must_use]
     pub fn new() -> KeyUsage {
         KeyUsage {
             critical: false,
@@ -234,6 +236,7 @@ impl Default for ExtendedKeyUsage {
 
 impl ExtendedKeyUsage {
     /// Construct a new `ExtendedKeyUsage` extension.
+    #[must_use]
     pub fn new() -> ExtendedKeyUsage {
         ExtendedKeyUsage {
             critical: false,
@@ -329,6 +332,7 @@ impl Default for SubjectKeyIdentifier {
 
 impl SubjectKeyIdentifier {
     /// Construct a new `SubjectKeyIdentifier` extension.
+    #[must_use]
     pub fn new() -> SubjectKeyIdentifier {
         SubjectKeyIdentifier { critical: false }
     }
@@ -365,6 +369,7 @@ impl Default for AuthorityKeyIdentifier {
 
 impl AuthorityKeyIdentifier {
     /// Construct a new `AuthorityKeyIdentifier` extension.
+    #[must_use]
     pub fn new() -> AuthorityKeyIdentifier {
         AuthorityKeyIdentifier {
             critical: false,
@@ -433,6 +438,7 @@ impl Default for SubjectAlternativeName {
 
 impl SubjectAlternativeName {
     /// Construct a new `SubjectAlternativeName` extension.
+    #[must_use]
     pub fn new() -> SubjectAlternativeName {
         SubjectAlternativeName {
             critical: false,

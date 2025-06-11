@@ -1,3 +1,49 @@
+4.18.0
+- 2025-05-29 Add set_verify_param
+- 2025-05-28 Add support for X509_STORE_CTX_get0_untrusted
+- 2025-06-02 Add X509VerifyParamRef::copy_from (#361)
+- 2025-06-02 Fix X509VerifyContextRef::set_verify_param (#358)
+- 2025-06-02 Ensure we call X509_STORE_CTX_cleanup on error path too (#360)
+- 2025-06-02 Add mutable ex_data APIs for X509StoreContext
+- 2025-06-02 Add X509StoreContextRef::init_without_cleanup
+- 2025-06-04 Rename to reset_with_context_data
+- 2025-06-05 Avoid panicking in error handling
+- 2025-06-05 Don't unwrap when Result can be returned instead
+- 2025-06-04 Make X509Store shareable between contexts
+- 2025-06-05 Sprinkle #[must_use] (#368)
+- 2025-06-05 Expose SSL_set1_groups to Efficiently Set Curves on SSL Session (#346)
+- 2025-06-09 Upgrade bindgen to v0.72.0
+- 2025-06-13 Expose PKey::raw_{private,public}_key (#364)
+- 2025-06-10 Don't link binaries on docs.rs
+- 2025-06-11 Use cargo:warning for warnings
+
+4.17.0
+- 2025-05-27 Revert "feat(x509): Implement `Clone` for `X509Store` (#339)" (#353)
+- 2025-05-14 Update bindgen from 0.70.1 -> 0.71.1.
+- 2025-05-19 Add `X509_STORE_CTX_get0_cert` interface
+- 2025-05-18 boring(ssl): use `corresponds` macro in `add_certificate_compression_algorithm`
+- 2025-02-14 Update Cargo.toml
+- 2025-02-13 build: Fix the build for 32-bit Linux platform
+- 2025-05-20 rustfmt ;(
+- 2025-05-20 Fix linking SystemFunction036 from advapi32 in Rust 1.87
+- 2025-05-20 Clippy
+- 2025-05-01 add SslCurve::X25519_MLKEM768 constant
+- 2025-04-17 Use ubuntu-latest for all ci jobs
+- 2025-04-16 fix clippy error
+- 2025-04-15 expose SSL_set_compliance_policy
+- 2025-04-07 feat(x509): Implement `Clone` for `X509Store` (#339)
+
+4.16.0
+- 2025-03-31 Add fips-precompiled feature to support newer versions of FIPS (#338)
+- 2025-03-18 Document linking to C++ standard library (#335)
+- 2025-03-18 Revert "Remove "fips-no-compat", decouple "fips-compat" from "fips"" (#334)
+- 2025-03-11 boring: Disable `SslCurve` API with "fips" feature
+- 2025-03-11 boring-sys: Ignore patches when boringSSL is precompiled
+- 2025-03-13 Remove "fips-no-compat", decouple "fips-compat" from "fips"
+- 2025-03-14 Add feature "fips-no-compat"
+- 2025-03-10 Advertise X25519MLKEM768 with "kx-client-pq-preferred" (#329)
+- 2025-03-10 Update to actions/cache@v4 (#328)
+- 2025-02-28 Add missing release notes entry (#324)
 
 4.15.0
 - 2025-02-27 Expose API to enable certificate compression. (#241)

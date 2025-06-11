@@ -19,6 +19,8 @@ use std::os::raw::{c_char, c_int, c_uint, c_ulong};
 #[allow(
     clippy::useless_transmute,
     clippy::derive_partial_eq_without_eq,
+    clippy::ptr_offset_with_cast,
+    unpredictable_function_pointer_comparisons, // TODO: remove Eq/PartialEq in v5
     dead_code
 )]
 mod generated {
@@ -31,18 +33,22 @@ pub type BN_ULONG = u64;
 #[cfg(target_pointer_width = "32")]
 pub type BN_ULONG = u32;
 
+#[must_use]
 pub const fn ERR_PACK(l: c_int, f: c_int, r: c_int) -> c_ulong {
     ((l as c_ulong & 0x0FF) << 24) | ((f as c_ulong & 0xFFF) << 12) | (r as c_ulong & 0xFFF)
 }
 
+#[must_use]
 pub const fn ERR_GET_LIB(l: c_uint) -> c_int {
     ((l >> 24) & 0x0FF) as c_int
 }
 
+#[must_use]
 pub const fn ERR_GET_FUNC(l: c_uint) -> c_int {
     ((l >> 12) & 0xFFF) as c_int
 }
 
+#[must_use]
 pub const fn ERR_GET_REASON(l: c_uint) -> c_int {
     (l & 0xFFF) as c_int
 }

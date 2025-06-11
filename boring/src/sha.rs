@@ -55,6 +55,7 @@ use std::mem::MaybeUninit;
 /// compatibility with existing systems.
 #[inline]
 #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+#[must_use]
 pub fn sha1(data: &[u8]) -> [u8; 20] {
     unsafe {
         let mut hash: MaybeUninit<[u8; 20]> = MaybeUninit::uninit();
@@ -66,6 +67,7 @@ pub fn sha1(data: &[u8]) -> [u8; 20] {
 /// Computes the SHA224 hash of some data.
 #[inline]
 #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+#[must_use]
 pub fn sha224(data: &[u8]) -> [u8; 28] {
     unsafe {
         let mut hash: MaybeUninit<[u8; 28]> = MaybeUninit::uninit();
@@ -77,6 +79,7 @@ pub fn sha224(data: &[u8]) -> [u8; 28] {
 /// Computes the SHA256 hash of some data.
 #[inline]
 #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+#[must_use]
 pub fn sha256(data: &[u8]) -> [u8; 32] {
     unsafe {
         let mut hash: MaybeUninit<[u8; 32]> = MaybeUninit::uninit();
@@ -88,6 +91,7 @@ pub fn sha256(data: &[u8]) -> [u8; 32] {
 /// Computes the SHA384 hash of some data.
 #[inline]
 #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+#[must_use]
 pub fn sha384(data: &[u8]) -> [u8; 48] {
     unsafe {
         let mut hash: MaybeUninit<[u8; 48]> = MaybeUninit::uninit();
@@ -99,6 +103,7 @@ pub fn sha384(data: &[u8]) -> [u8; 48] {
 /// Computes the SHA512 hash of some data.
 #[inline]
 #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+#[must_use]
 pub fn sha512(data: &[u8]) -> [u8; 64] {
     unsafe {
         let mut hash: MaybeUninit<[u8; 64]> = MaybeUninit::uninit();
@@ -110,6 +115,7 @@ pub fn sha512(data: &[u8]) -> [u8; 64] {
 /// Computes the SHA512-256 hash of some data.
 #[inline]
 #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+#[must_use]
 pub fn sha512_256(data: &[u8]) -> [u8; 32] {
     unsafe {
         let mut hash: MaybeUninit<[u8; 32]> = MaybeUninit::uninit();
@@ -138,6 +144,7 @@ impl Sha1 {
     /// Creates a new hasher.
     #[inline]
     #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+    #[must_use]
     pub fn new() -> Sha1 {
         unsafe {
             let mut ctx = MaybeUninit::uninit();
@@ -159,6 +166,7 @@ impl Sha1 {
     /// Returns the hash of the data.
     #[inline]
     #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+    #[must_use]
     pub fn finish(mut self) -> [u8; 20] {
         unsafe {
             let mut hash: MaybeUninit<[u8; 20]> = MaybeUninit::uninit();
@@ -183,6 +191,7 @@ impl Sha224 {
     /// Creates a new hasher.
     #[inline]
     #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+    #[must_use]
     pub fn new() -> Sha224 {
         unsafe {
             let mut ctx = MaybeUninit::uninit();
@@ -204,6 +213,7 @@ impl Sha224 {
     /// Returns the hash of the data.
     #[inline]
     #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+    #[must_use]
     pub fn finish(mut self) -> [u8; 28] {
         unsafe {
             let mut hash: MaybeUninit<[u8; 28]> = MaybeUninit::uninit();
@@ -228,6 +238,7 @@ impl Sha256 {
     /// Creates a new hasher.
     #[inline]
     #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+    #[must_use]
     pub fn new() -> Sha256 {
         unsafe {
             let mut ctx = MaybeUninit::uninit();
@@ -249,6 +260,7 @@ impl Sha256 {
     /// Returns the hash of the data.
     #[inline]
     #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+    #[must_use]
     pub fn finish(mut self) -> [u8; 32] {
         unsafe {
             let mut hash: MaybeUninit<[u8; 32]> = MaybeUninit::uninit();
@@ -273,6 +285,7 @@ impl Sha384 {
     /// Creates a new hasher.
     #[inline]
     #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+    #[must_use]
     pub fn new() -> Sha384 {
         unsafe {
             let mut ctx = MaybeUninit::uninit();
@@ -294,6 +307,7 @@ impl Sha384 {
     /// Returns the hash of the data.
     #[inline]
     #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+    #[must_use]
     pub fn finish(mut self) -> [u8; 48] {
         unsafe {
             let mut hash: MaybeUninit<[u8; 48]> = MaybeUninit::uninit();
@@ -318,6 +332,7 @@ impl Sha512 {
     /// Creates a new hasher.
     #[inline]
     #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+    #[must_use]
     pub fn new() -> Sha512 {
         unsafe {
             let mut ctx = MaybeUninit::uninit();
@@ -339,6 +354,7 @@ impl Sha512 {
     /// Returns the hash of the data.
     #[inline]
     #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+    #[must_use]
     pub fn finish(mut self) -> [u8; 64] {
         unsafe {
             let mut hash: MaybeUninit<[u8; 64]> = MaybeUninit::uninit();
@@ -363,6 +379,7 @@ impl Sha512_256 {
     /// Creates a new hasher.
     #[inline]
     #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+    #[must_use]
     pub fn new() -> Sha512_256 {
         unsafe {
             let mut ctx = MaybeUninit::uninit();
@@ -384,6 +401,7 @@ impl Sha512_256 {
     /// Returns the hash of the data.
     #[inline]
     #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
+    #[must_use]
     pub fn finish(mut self) -> [u8; 32] {
         unsafe {
             let mut hash: MaybeUninit<[u8; 32]> = MaybeUninit::uninit();

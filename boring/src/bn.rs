@@ -121,19 +121,19 @@ impl BigNumRef {
     /// Adds a `u32` to `self`.
     #[corresponds(BN_add_word)]
     pub fn add_word(&mut self, w: u32) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_add_word(self.as_ptr(), w as ffi::BN_ULONG)).map(|_| ()) }
+        unsafe { cvt(ffi::BN_add_word(self.as_ptr(), ffi::BN_ULONG::from(w))).map(|_| ()) }
     }
 
     /// Subtracts a `u32` from `self`.
     #[corresponds(BN_sub_word)]
     pub fn sub_word(&mut self, w: u32) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_sub_word(self.as_ptr(), w as ffi::BN_ULONG)).map(|_| ()) }
+        unsafe { cvt(ffi::BN_sub_word(self.as_ptr(), ffi::BN_ULONG::from(w))).map(|_| ()) }
     }
 
     /// Multiplies a `u32` by `self`.
     #[corresponds(BN_mul_word)]
     pub fn mul_word(&mut self, w: u32) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_mul_word(self.as_ptr(), w as ffi::BN_ULONG)).map(|_| ()) }
+        unsafe { cvt(ffi::BN_mul_word(self.as_ptr(), ffi::BN_ULONG::from(w))).map(|_| ()) }
     }
 
     /// Divides `self` by a `u32`, returning the remainder.
@@ -198,6 +198,7 @@ impl BigNumRef {
     /// Returns `true` if the `n`th bit of `self` is set to 1, `false` otherwise.
     #[corresponds(BN_is_bit_set)]
     #[allow(clippy::useless_conversion)]
+    #[must_use]
     pub fn is_bit_set(&self, n: i32) -> bool {
         unsafe { ffi::BN_is_bit_set(self.as_ptr(), n.into()) == 1 }
     }
@@ -263,7 +264,7 @@ impl BigNumRef {
     /// `self` positive.
     #[corresponds(BN_set_negative)]
     pub fn set_negative(&mut self, negative: bool) {
-        unsafe { ffi::BN_set_negative(self.as_ptr(), negative as c_int) }
+        unsafe { ffi::BN_set_negative(self.as_ptr(), c_int::from(negative)) }
     }
 
     /// Compare the absolute values of `self` and `oth`.
@@ -279,23 +280,27 @@ impl BigNumRef {
     /// assert_eq!(s.ucmp(&o), Ordering::Equal);
     /// ```
     #[corresponds(BN_ucmp)]
+    #[must_use]
     pub fn ucmp(&self, oth: &BigNumRef) -> Ordering {
         unsafe { ffi::BN_ucmp(self.as_ptr(), oth.as_ptr()).cmp(&0) }
     }
 
     /// Returns `true` if `self` is negative.
     #[corresponds(BN_is_negative)]
+    #[must_use]
     pub fn is_negative(&self) -> bool {
         unsafe { BN_is_negative(self.as_ptr()) == 1 }
     }
 
     /// Returns the number of significant bits in `self`.
     #[corresponds(BN_num_bits)]
+    #[must_use]
     pub fn num_bits(&self) -> i32 {
         unsafe { ffi::BN_num_bits(self.as_ptr()) as i32 }
     }
 
     /// Returns the size of `self` in bytes. Implemented natively.
+    #[must_use]
     pub fn num_bytes(&self) -> i32 {
         (self.num_bits() + 7) / 8
     }
@@ -332,7 +337,7 @@ impl BigNumRef {
                 self.as_ptr(),
                 bits.into(),
                 msb.0,
-                odd as c_int,
+                c_int::from(odd),
             ))
             .map(|_| ())
         }
@@ -347,7 +352,7 @@ impl BigNumRef {
                 self.as_ptr(),
                 bits.into(),
                 msb.0,
-                odd as c_int,
+                c_int::from(odd),
             ))
             .map(|_| ())
         }
@@ -388,7 +393,7 @@ impl BigNumRef {
             cvt(ffi::BN_generate_prime_ex(
                 self.as_ptr(),
                 bits as c_int,
-                safe as c_int,
+                c_int::from(safe),
                 add.map(|n| n.as_ptr()).unwrap_or(ptr::null_mut()),
                 rem.map(|n| n.as_ptr()).unwrap_or(ptr::null_mut()),
                 ptr::null_mut(),
@@ -712,7 +717,7 @@ impl BigNumRef {
                 self.as_ptr(),
                 checks.into(),
                 ctx.as_ptr(),
-                do_trial_division as c_int,
+                c_int::from(do_trial_division),
                 ptr::null_mut(),
             ))
             .map(|r| r != 0)
@@ -732,6 +737,7 @@ impl BigNumRef {
     /// assert_eq!(BigNum::from_slice(&s_vec).unwrap(), r);
     /// ```
     #[corresponds(BN_bn2bin)]
+    #[must_use]
     pub fn to_vec(&self) -> Vec<u8> {
         let size = self.num_bytes() as usize;
         let mut v = Vec::with_capacity(size);
@@ -829,7 +835,7 @@ impl BigNum {
     #[corresponds(BN_set_word)]
     pub fn from_u32(n: u32) -> Result<BigNum, ErrorStack> {
         BigNum::new().and_then(|v| unsafe {
-            cvt(ffi::BN_set_word(v.as_ptr(), n as ffi::BN_ULONG)).map(|_| v)
+            cvt(ffi::BN_set_word(v.as_ptr(), ffi::BN_ULONG::from(n))).map(|_| v)
         })
     }
 
@@ -838,7 +844,7 @@ impl BigNum {
     pub fn from_dec_str(s: &str) -> Result<BigNum, ErrorStack> {
         unsafe {
             ffi::init();
-            let c_str = CString::new(s.as_bytes()).unwrap();
+            let c_str = CString::new(s.as_bytes()).map_err(ErrorStack::internal_error)?;
             let mut bn = ptr::null_mut();
             cvt(ffi::BN_dec2bn(&mut bn, c_str.as_ptr() as *const _))?;
             Ok(BigNum::from_ptr(bn))
@@ -850,7 +856,7 @@ impl BigNum {
     pub fn from_hex_str(s: &str) -> Result<BigNum, ErrorStack> {
         unsafe {
             ffi::init();
-            let c_str = CString::new(s.as_bytes()).unwrap();
+            let c_str = CString::new(s.as_bytes()).map_err(ErrorStack::internal_error)?;
             let mut bn = ptr::null_mut();
             cvt(ffi::BN_hex2bn(&mut bn, c_str.as_ptr() as *const _))?;
             Ok(BigNum::from_ptr(bn))
@@ -928,7 +934,7 @@ impl PartialEq<BigNumRef> for BigNumRef {
 
 impl PartialEq<BigNum> for BigNumRef {
     fn eq(&self, oth: &BigNum) -> bool {
-        self.eq(oth.deref())
+        self.eq(&**oth)
     }
 }
 
@@ -956,7 +962,7 @@ impl PartialOrd<BigNumRef> for BigNumRef {
 
 impl PartialOrd<BigNum> for BigNumRef {
     fn partial_cmp(&self, oth: &BigNum) -> Option<Ordering> {
-        Some(self.cmp(oth.deref()))
+        Some(self.cmp(&**oth))
     }
 }
 
@@ -980,7 +986,7 @@ impl PartialOrd<BigNumRef> for BigNum {
 
 impl Ord for BigNum {
     fn cmp(&self, oth: &BigNum) -> Ordering {
-        self.deref().cmp(oth.deref())
+        self.deref().cmp(&**oth)
     }
 }
 

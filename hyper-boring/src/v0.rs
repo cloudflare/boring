@@ -21,7 +21,7 @@ use std::{fmt, io};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tower_layer::Layer;
 
-/// A Connector using OpenSSL to support `http` and `https` schemes.
+/// A Connector using BoringSSL to support `http` and `https` schemes.
 #[derive(Clone)]
 pub struct HttpsConnector<T> {
     http: T,
@@ -259,10 +259,10 @@ where
                 let last = host.len() - 1;
                 let mut chars = host.chars();
 
-                if let (Some('['), Some(']')) = (chars.next(), chars.last()) {
-                    if host[1..last].parse::<net::Ipv6Addr>().is_ok() {
-                        host = &host[1..last];
-                    }
+                if (chars.next(), chars.last()) == (Some('['), Some(']'))
+                    && host[1..last].parse::<net::Ipv6Addr>().is_ok()
+                {
+                    host = &host[1..last];
                 }
             }
 
