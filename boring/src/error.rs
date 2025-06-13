@@ -132,9 +132,9 @@ impl Error {
                     // The memory referenced by data is only valid until that slot is overwritten
                     // in the error stack, so we'll need to copy it off if it's dynamic
                     let data = if flags & ffi::ERR_FLAG_STRING != 0 {
-                        let bytes = CStr::from_ptr(data as *const _).to_bytes();
-                        let data = String::from_utf8_lossy(bytes).into_owned();
-                        Some(data.into())
+                        Some(Cow::Owned(
+                            CStr::from_ptr(data.cast()).to_string_lossy().into_owned(),
+                        ))
                     } else {
                         None
                     };
@@ -196,8 +196,10 @@ impl Error {
             if cstr.is_null() {
                 return None;
             }
-            let bytes = CStr::from_ptr(cstr as *const _).to_bytes();
-            str::from_utf8(bytes).ok()
+            CStr::from_ptr(cstr.cast())
+                .to_str()
+                .ok()
+                .filter(|&msg| msg != "unknown library")
         }
     }
 
@@ -232,8 +234,7 @@ impl Error {
             if cstr.is_null() {
                 return None;
             }
-            let bytes = CStr::from_ptr(cstr as *const _).to_bytes();
-            str::from_utf8(bytes).ok()
+            CStr::from_ptr(cstr.cast()).to_str().ok()
         }
     }
 
@@ -250,8 +251,9 @@ impl Error {
             if self.file.is_null() {
                 return "";
             }
-            let bytes = CStr::from_ptr(self.file as *const _).to_bytes();
-            str::from_utf8(bytes).unwrap_or_default()
+            CStr::from_ptr(self.file.cast())
+                .to_str()
+                .unwrap_or_default()
         }
     }
 
