@@ -35,7 +35,8 @@ pub struct ErrorStack(Vec<Error>);
 
 impl ErrorStack {
     /// Pops the contents of the OpenSSL error stack, and returns it.
-    #[allow(clippy::must_use_candidate)]
+    #[corresponds(ERR_get_error_line_data)]
+    #[must_use = "Use ErrorStack::clear() to drop the error stack"]
     pub fn get() -> ErrorStack {
         let mut vec = vec![];
         while let Some(err) = Error::get() {
@@ -45,6 +46,7 @@ impl ErrorStack {
     }
 
     /// Pushes the errors back onto the OpenSSL error stack.
+    #[corresponds(ERR_put_error)]
     pub fn put(&self) {
         for error in self.errors() {
             error.put();
@@ -55,6 +57,14 @@ impl ErrorStack {
     #[cold]
     pub(crate) fn internal_error(err: impl error::Error) -> Self {
         Self(vec![Error::new_internal(err.to_string())])
+    }
+
+    /// Empties the current thread's error queue.
+    #[corresponds(ERR_clear_error)]
+    pub(crate) fn clear() {
+        unsafe {
+            ffi::ERR_clear_error();
+        }
     }
 }
 
@@ -120,7 +130,8 @@ static BORING_INTERNAL: &CStr = c"boring-rust";
 
 impl Error {
     /// Pops the first error off the OpenSSL error stack.
-    #[allow(clippy::must_use_candidate)]
+    #[must_use = "Use ErrorStack::clear() to drop the error stack"]
+    #[corresponds(ERR_get_error_line_data)]
     pub fn get() -> Option<Error> {
         unsafe {
             ffi::init();
@@ -153,6 +164,7 @@ impl Error {
     }
 
     /// Pushes the error back onto the OpenSSL error stack.
+    #[corresponds(ERR_put_error)]
     pub fn put(&self) {
         unsafe {
             ffi::ERR_put_error(
