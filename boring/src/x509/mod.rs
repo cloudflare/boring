@@ -816,7 +816,7 @@ impl X509 {
                     if ffi::ERR_GET_LIB(err) == ffi::ERR_LIB_PEM.0.try_into().unwrap()
                         && ffi::ERR_GET_REASON(err) == ffi::PEM_R_NO_START_LINE
                     {
-                        ffi::ERR_clear_error();
+                        ErrorStack::clear();
                         break;
                     }
 
