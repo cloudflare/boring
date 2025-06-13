@@ -208,20 +208,9 @@ impl Error {
         ffi::ERR_GET_LIB(self.code)
     }
 
-    /// Returns the name of the function reporting the error.
-    #[must_use]
+    /// Returns `None`. Boring doesn't use function codes.
     pub fn function(&self) -> Option<&'static str> {
-        if self.is_internal() {
-            return None;
-        }
-        unsafe {
-            let cstr = ffi::ERR_func_error_string(self.code);
-            if cstr.is_null() {
-                return None;
-            }
-            let bytes = CStr::from_ptr(cstr as *const _).to_bytes();
-            str::from_utf8(bytes).ok()
-        }
+        None
     }
 
     /// Returns the reason for the error.
@@ -256,6 +245,8 @@ impl Error {
     }
 
     /// Returns the line in the source file which encountered the error.
+    ///
+    /// 0 if unknown
     #[allow(clippy::unnecessary_cast)]
     #[must_use]
     pub fn line(&self) -> u32 {
@@ -299,9 +290,6 @@ impl fmt::Debug for Error {
             builder.field("library", &library);
         }
         builder.field("library_code", &self.library_code());
-        if let Some(function) = self.function() {
-            builder.field("function", &function);
-        }
         if let Some(reason) = self.reason() {
             builder.field("reason", &reason);
         }
