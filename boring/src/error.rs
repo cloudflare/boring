@@ -27,6 +27,8 @@ use std::str;
 
 use crate::ffi;
 
+pub use crate::ffi::ErrLib;
+
 /// Collection of [`Error`]s from OpenSSL.
 ///
 /// [`Error`]: struct.Error.html
@@ -194,11 +196,23 @@ impl Error {
         }
     }
 
+    /// Get `{lib}_R_{reason}` reason code for the given library, or `None` if the error is from a different library.
+    ///
+    /// Libraries are identified by [`ERR_LIB_{name}`(ffi::ERR_LIB_SSL) constants.
+    #[inline]
+    #[must_use]
+    #[track_caller]
+    pub fn library_reason(&self, library_code: ErrLib) -> Option<c_int> {
+        debug_assert!(library_code.0 < ffi::ERR_NUM_LIBS.0);
+        (self.library_code() == library_code.0 as c_int).then_some(self.reason_code())
+    }
+
     /// Returns a raw OpenSSL **packed** error code for this error, which **can't be reliably compared to any error constant**.
     ///
-    /// Use [`Error::library_code()`] and [`Error::reason_code()`] instead.
+    /// Use [`Error::library_code()`] and [`Error::library_reason()`] instead.
     /// Packed error codes are different than [SSL error codes](crate::ssl::ErrorCode).
     #[must_use]
+    #[deprecated(note = "use library_reason() to compare error codes")]
     pub fn code(&self) -> c_uint {
         self.code
     }
@@ -223,7 +237,7 @@ impl Error {
 
     /// Returns the raw OpenSSL error constant for the library reporting the error (`ERR_LIB_{name}`).
     ///
-    /// Error [reason codes](Error::reason_code) are not globally unique, but scoped to each library.
+    /// Error [reason codes](Error::library_reason) are not globally unique, but scoped to each library.
     #[must_use]
     pub fn library_code(&self) -> c_int {
         ffi::ERR_GET_LIB(self.code)
@@ -249,6 +263,7 @@ impl Error {
     /// Returns [library-specific](Error::library_code) reason code corresponding to some of the `{lib}_R_{reason}` constants.
     ///
     /// Reason codes are ambiguous, and different libraries reuse the same numeric values for different errors.
+    /// Use [`Error::library_reason`] to compare error codes.
     ///
     /// For `ERR_LIB_SYS` the reason code is `errno`. `ERR_LIB_USER` can use any values.
     /// Other libraries may use [`ERR_R_*`](ffi::ERR_R_FATAL) or their own codes.
