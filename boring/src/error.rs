@@ -15,7 +15,8 @@
 //!     Err(e) => println!("Parsing Error: {:?}", e),
 //! }
 //! ```
-use libc::{c_char, c_uint};
+use libc::{c_char, c_int, c_uint};
+use openssl_macros::corresponds;
 use std::borrow::Cow;
 use std::error;
 use std::ffi::CStr;
@@ -80,7 +81,9 @@ impl fmt::Display for ErrorStack {
             write!(
                 fmt,
                 "[{}]",
-                err.reason_internal().unwrap_or("unknown reason")
+                err.reason_internal()
+                    .or_else(|| err.library())
+                    .unwrap_or("unknown reason")
             )?;
         }
         Ok(())
@@ -101,7 +104,7 @@ impl From<ErrorStack> for fmt::Error {
     }
 }
 
-/// An error reported from OpenSSL.
+/// A detailed error reported as part of an [`ErrorStack`].
 #[derive(Clone)]
 pub struct Error {
     code: c_uint,
@@ -179,7 +182,10 @@ impl Error {
         }
     }
 
-    /// Returns the raw OpenSSL error code for this error.
+    /// Returns a raw OpenSSL **packed** error code for this error, which **can't be reliably compared to any error constant**.
+    ///
+    /// Use [`Error::library_code()`] and [`Error::reason_code()`] instead.
+    /// Packed error codes are different than [SSL error codes](crate::ssl::ErrorCode).
     #[must_use]
     pub fn code(&self) -> c_uint {
         self.code
@@ -201,10 +207,11 @@ impl Error {
         }
     }
 
-    /// Returns the raw OpenSSL error constant for the library reporting the
-    /// error.
+    /// Returns the raw OpenSSL error constant for the library reporting the error (`ERR_LIB_{name}`).
+    ///
+    /// Error [reason codes](Error::reason_code) are not globally unique, but scoped to each library.
     #[must_use]
-    pub fn library_code(&self) -> libc::c_int {
+    pub fn library_code(&self) -> c_int {
         ffi::ERR_GET_LIB(self.code)
     }
 
@@ -226,9 +233,14 @@ impl Error {
         }
     }
 
-    /// Returns the raw OpenSSL error constant for the reason for the error.
+    /// Returns [library-specific](Error::library_code) reason code corresponding to some of the `{lib}_R_{reason}` constants.
+    ///
+    /// Reason codes are ambiguous, and different libraries reuse the same numeric values for different errors.
+    ///
+    /// For `ERR_LIB_SYS` the reason code is `errno`. `ERR_LIB_USER` can use any values.
+    /// Other libraries may use [`ERR_R_*`](ffi::ERR_R_FATAL) or their own codes.
     #[must_use]
-    pub fn reason_code(&self) -> libc::c_int {
+    pub fn reason_code(&self) -> c_int {
         ffi::ERR_GET_REASON(self.code)
     }
 
@@ -285,17 +297,19 @@ impl Error {
 impl fmt::Debug for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let mut builder = fmt.debug_struct("Error");
-        builder.field("code", &self.code());
-        if let Some(library) = self.library() {
-            builder.field("library", &library);
+        builder.field("code", &self.code);
+        if !self.is_internal() {
+            if let Some(library) = self.library() {
+                builder.field("library", &library);
+            }
+            builder.field("library_code", &self.library_code());
+            if let Some(reason) = self.reason() {
+                builder.field("reason", &reason);
+            }
+            builder.field("reason_code", &self.reason_code());
+            builder.field("file", &self.file());
+            builder.field("line", &self.line());
         }
-        builder.field("library_code", &self.library_code());
-        if let Some(reason) = self.reason() {
-            builder.field("reason", &reason);
-        }
-        builder.field("reason_code", &self.reason_code());
-        builder.field("file", &self.file());
-        builder.field("line", &self.line());
         if let Some(data) = self.data() {
             builder.field("data", &data);
         }
@@ -309,7 +323,7 @@ impl fmt::Display for Error {
             fmt,
             "{}\n\nCode: {:08X}\nLoc: {}:{}",
             self.reason_internal().unwrap_or("unknown TLS error"),
-            self.code(),
+            &self.code,
             self.file(),
             self.line()
         )
