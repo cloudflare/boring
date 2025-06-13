@@ -478,7 +478,7 @@ impl<'a> Verifier<'a> {
             match r {
                 1 => Ok(true),
                 0 => {
-                    ErrorStack::get(); // discard error stack
+                    ErrorStack::clear(); // discard error stack
                     Ok(false)
                 }
                 _ => Err(ErrorStack::get()),
@@ -500,7 +500,7 @@ impl<'a> Verifier<'a> {
             match r {
                 1 => Ok(true),
                 0 => {
-                    ErrorStack::get();
+                    ErrorStack::clear();
                     Ok(false)
                 }
                 _ => Err(ErrorStack::get()),

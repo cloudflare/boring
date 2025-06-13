@@ -1,16 +1,20 @@
 use crate::ffi;
 use crate::x509::X509VerifyError;
 use libc::c_int;
+use openssl_macros::corresponds;
 use std::error;
 use std::error::Error as StdError;
+use std::ffi::CStr;
 use std::fmt;
 use std::io;
 
 use crate::error::ErrorStack;
 use crate::ssl::MidHandshakeSslStream;
 
-/// An error code returned from SSL functions.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+/// `SSL_ERROR_*` error code returned from SSL functions.
+///
+/// This is different than [packed error codes](crate::error::Error).
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct ErrorCode(c_int);
 
 impl ErrorCode {
@@ -50,15 +54,51 @@ impl ErrorCode {
     /// An error occurred in the SSL library.
     pub const SSL: ErrorCode = ErrorCode(ffi::SSL_ERROR_SSL);
 
+    /// Wrap an `SSL_ERROR_*` error code.
+    ///
+    /// This is different than [packed error codes](crate::error::Error).
     #[must_use]
+    #[inline]
+    #[cfg_attr(debug_assertions, track_caller)]
     pub fn from_raw(raw: c_int) -> ErrorCode {
-        ErrorCode(raw)
+        let code = ErrorCode(raw);
+        debug_assert!(
+            raw < 64 || code.description().is_some(),
+            "{raw} is not an SSL_ERROR_* code"
+        );
+        code
     }
 
+    /// An `SSL_ERROR_*` error code.
+    ///
+    /// This is different than [packed error codes](crate::error::Error).
     #[allow(clippy::trivially_copy_pass_by_ref)]
     #[must_use]
     pub fn as_raw(&self) -> c_int {
         self.0
+    }
+
+    #[corresponds(SSL_error_description)]
+    pub fn description(self) -> Option<&'static str> {
+        unsafe {
+            let msg = ffi::SSL_error_description(self.0);
+            if msg.is_null() {
+                return None;
+            }
+            CStr::from_ptr(msg).to_str().ok()
+        }
+    }
+}
+
+impl fmt::Display for ErrorCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} ({})", self.description().unwrap_or("error"), self.0)
+    }
+}
+
+impl fmt::Debug for ErrorCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
     }
 }
 
@@ -68,7 +108,7 @@ pub(crate) enum InnerError {
     Ssl(ErrorStack),
 }
 
-/// An SSL error.
+/// A general SSL error, based on [`SSL_ERROR_*` error codes](ErrorCode).
 #[derive(Debug)]
 pub struct Error {
     pub(crate) code: ErrorCode,
@@ -76,6 +116,7 @@ pub struct Error {
 }
 
 impl Error {
+    /// An `SSL_ERROR_*` error code.
     #[must_use]
     pub fn code(&self) -> ErrorCode {
         self.code
@@ -96,6 +137,7 @@ impl Error {
         }
     }
 
+    /// Stack of [library-specific errors](crate::error::Error), if available.
     #[must_use]
     pub fn ssl_error(&self) -> Option<&ErrorStack> {
         match self.cause {
@@ -131,26 +173,27 @@ impl From<ErrorStack> for Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match self.code {
-            ErrorCode::ZERO_RETURN => fmt.write_str("the SSL session has been shut down"),
+        let msg = match self.code {
+            ErrorCode::ZERO_RETURN => "the SSL session has been shut down",
             ErrorCode::WANT_READ => match self.io_error() {
-                Some(_) => fmt.write_str("a nonblocking read call would have blocked"),
-                None => fmt.write_str("the operation should be retried"),
+                Some(_) => "a nonblocking read call would have blocked",
+                None => "the operation should be retried",
             },
             ErrorCode::WANT_WRITE => match self.io_error() {
-                Some(_) => fmt.write_str("a nonblocking write call would have blocked"),
-                None => fmt.write_str("the operation should be retried"),
+                Some(_) => "a nonblocking write call would have blocked",
+                None => "the operation should be retried",
             },
             ErrorCode::SYSCALL => match self.io_error() {
-                Some(err) => write!(fmt, "{err}"),
-                None => fmt.write_str("unexpected EOF"),
+                Some(err) => return err.fmt(fmt),
+                None => "unexpected EOF",
             },
             ErrorCode::SSL => match self.ssl_error() {
-                Some(e) => write!(fmt, "{e}"),
-                None => fmt.write_str("unknown BoringSSL error"),
+                Some(err) => return err.fmt(fmt),
+                None => "unknown BoringSSL error",
             },
-            ErrorCode(code) => write!(fmt, "unknown error code {code}"),
-        }
+            ErrorCode(code) => return code.fmt(fmt),
+        };
+        fmt.write_str(msg)
     }
 }
 
