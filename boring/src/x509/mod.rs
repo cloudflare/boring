@@ -28,7 +28,7 @@ use crate::asn1::{
 };
 use crate::bio::{MemBio, MemBioSlice};
 use crate::conf::ConfRef;
-use crate::error::ErrorStack;
+use crate::error::{Error as PackedError, ErrorStack};
 use crate::ex_data::Index;
 use crate::hash::{DigestBytes, MessageDigest};
 use crate::nid::Nid;
@@ -809,10 +809,9 @@ impl X509 {
                 let r =
                     ffi::PEM_read_bio_X509(bio.as_ptr(), ptr::null_mut(), None, ptr::null_mut());
                 if r.is_null() {
-                    let err = ffi::ERR_peek_last_error();
-
-                    if ffi::ERR_GET_LIB(err) == ffi::ERR_LIB_PEM.0.try_into().unwrap()
-                        && ffi::ERR_GET_REASON(err) == ffi::PEM_R_NO_START_LINE
+                    if PackedError::peek()
+                        .and_then(|err| err.library_reason(ffi::ERR_LIB_PEM))
+                        .is_some_and(|code| code == ffi::PEM_R_NO_START_LINE)
                     {
                         ErrorStack::clear();
                         break;

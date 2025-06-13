@@ -4078,7 +4078,9 @@ impl<S: Read + Write> SslStream<S> {
                 if e.code() == ErrorCode::SSL {
                     if let Some(stack) = e.ssl_error() {
                         if let Some(first) = stack.errors().first() {
-                            if first.code() as i32 == boring_sys::SSL_R_PROTOCOL_IS_SHUTDOWN {
+                            if first.library_reason(ffi::ERR_LIB_SSL)
+                                == Some(ffi::SSL_R_PROTOCOL_IS_SHUTDOWN)
+                            {
                                 return Ok(ShutdownResult::Received);
                             }
                         }
