@@ -810,7 +810,24 @@ fn generate_bindings(config: &Config) {
     }
 
     let bindings = builder.generate().expect("Unable to generate bindings");
+    let mut source_code = Vec::new();
     bindings
-        .write_to_file(config.out_dir.join("bindings.rs"))
-        .expect("Couldn't write bindings!");
+        .write(Box::new(&mut source_code))
+        .expect("Couldn't serialize bindings!");
+    ensure_err_lib_enum_is_named(&mut source_code);
+    fs::write(config.out_dir.join("bindings.rs"), source_code).expect("Couldn't write bindings!");
+}
+
+/// err.h has anonymous `enum { ERR_LIB_NONE = 1 }`, which makes a dodgy `_bindgen_ty_1` name
+fn ensure_err_lib_enum_is_named(source_code: &mut Vec<u8>) {
+    let src = String::from_utf8_lossy(source_code);
+    let enum_type = src
+        .split_once("ERR_LIB_SSL:")
+        .and_then(|(_, def)| Some(def.split_once("=")?.0))
+        .unwrap_or("_bindgen_ty_1");
+
+    source_code.extend_from_slice(
+        format!("\n/// Newtype for [`ERR_LIB_SSL`] constants\npub use {enum_type} as ErrLib;\n")
+            .as_bytes(),
+    );
 }
