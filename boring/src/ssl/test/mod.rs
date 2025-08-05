@@ -992,7 +992,6 @@ fn get_curve() {
 
 #[test]
 fn get_curve_name() {
-    assert_eq!(SslCurve::SECP224R1.name(), Some("P-224"));
     assert_eq!(SslCurve::SECP256R1.name(), Some("P-256"));
     assert_eq!(SslCurve::SECP384R1.name(), Some("P-384"));
     assert_eq!(SslCurve::SECP521R1.name(), Some("P-521"));
@@ -1002,13 +1001,8 @@ fn get_curve_name() {
 #[test]
 fn set_curves() {
     let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
-    ctx.set_curves(&[
-        SslCurve::SECP224R1,
-        SslCurve::SECP256R1,
-        SslCurve::SECP384R1,
-        SslCurve::X25519,
-    ])
-    .expect("Failed to set curves");
+    ctx.set_curves(&[SslCurve::SECP256R1, SslCurve::SECP384R1, SslCurve::X25519])
+        .expect("Failed to set curves");
 }
 
 #[test]

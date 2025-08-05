@@ -694,8 +694,6 @@ impl From<u16> for SslSignatureAlgorithm {
 pub struct SslCurve(c_int);
 
 impl SslCurve {
-    pub const SECP224R1: SslCurve = SslCurve(ffi::SSL_CURVE_SECP224R1 as _);
-
     pub const SECP256R1: SslCurve = SslCurve(ffi::SSL_CURVE_SECP256R1 as _);
 
     pub const SECP384R1: SslCurve = SslCurve(ffi::SSL_CURVE_SECP384R1 as _);
@@ -735,7 +733,6 @@ impl SslCurve {
     #[allow(dead_code)]
     fn nid(&self) -> Option<c_int> {
         match self.0 {
-            ffi::SSL_CURVE_SECP224R1 => Some(ffi::NID_secp224r1),
             ffi::SSL_CURVE_SECP256R1 => Some(ffi::NID_X9_62_prime256v1),
             ffi::SSL_CURVE_SECP384R1 => Some(ffi::NID_secp384r1),
             ffi::SSL_CURVE_SECP521R1 => Some(ffi::NID_secp521r1),
