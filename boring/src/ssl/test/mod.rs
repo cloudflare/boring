@@ -1166,3 +1166,86 @@ fn test_ssl_set_compliance() {
     ssl.set_compliance_policy(CompliancePolicy::NONE)
         .expect_err("Testing expect err if set compliance policy to NONE");
 }
+
+
+#[test]
+fn set_extension_permutation() {
+    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
+    // firefox extension permutation
+    ctx.set_extension_permutation(&[
+        ExtensionType::SERVER_NAME,
+        ExtensionType::EXTENDED_MASTER_SECRET,
+        ExtensionType::RENEGOTIATE,
+        ExtensionType::SUPPORTED_GROUPS,
+        ExtensionType::EC_POINT_FORMATS,
+        ExtensionType::SESSION_TICKET,
+        ExtensionType::APPLICATION_LAYER_PROTOCOL_NEGOTIATION,
+        ExtensionType::STATUS_REQUEST,
+        ExtensionType::DELEGATED_CREDENTIAL,
+        ExtensionType::CERTIFICATE_TIMESTAMP,
+        ExtensionType::KEY_SHARE,
+        ExtensionType::SUPPORTED_VERSIONS,
+        ExtensionType::SIGNATURE_ALGORITHMS,
+        ExtensionType::PSK_KEY_EXCHANGE_MODES,
+        ExtensionType::RECORD_SIZE_LIMIT,
+        ExtensionType::CERT_COMPRESSION,
+        ExtensionType::ENCRYPTED_CLIENT_HELLO,
+    ])
+    .unwrap();
+}
+
+
+#[test]
+fn test_connect_with_set_extension_permutation_client_ctx() {
+    let server = Server::builder();
+    let server = server.build();
+
+    let mut client = server.client();
+    // firefox extension permutation
+    client
+        .ctx()
+        .set_extension_permutation(&[
+            ExtensionType::SERVER_NAME,
+            ExtensionType::EXTENDED_MASTER_SECRET,
+            ExtensionType::RENEGOTIATE,
+            ExtensionType::SUPPORTED_GROUPS,
+            ExtensionType::EC_POINT_FORMATS,
+            ExtensionType::SESSION_TICKET,
+            ExtensionType::APPLICATION_LAYER_PROTOCOL_NEGOTIATION,
+            ExtensionType::STATUS_REQUEST,
+            ExtensionType::DELEGATED_CREDENTIAL,
+            ExtensionType::CERTIFICATE_TIMESTAMP,
+            ExtensionType::KEY_SHARE,
+            ExtensionType::SUPPORTED_VERSIONS,
+            ExtensionType::SIGNATURE_ALGORITHMS,
+            ExtensionType::PSK_KEY_EXCHANGE_MODES,
+            ExtensionType::RECORD_SIZE_LIMIT,
+            ExtensionType::CERT_COMPRESSION,
+            ExtensionType::ENCRYPTED_CLIENT_HELLO,
+        ])
+        .unwrap();
+    let _ = client.connect();
+}
+
+#[test]
+fn test_connect_with_set_extension_permutation_empty_client_ctx() {
+    let server = Server::builder();
+    let server = server.build();
+
+    let mut client = server.client();
+    client.ctx().set_extension_permutation(&[]).unwrap();
+    let _ = client.connect();
+}
+
+#[test]
+fn test_connect_with_set_extension_permutation_server_name_client_ctx() {
+    let server = Server::builder();
+    let server = server.build();
+
+    let mut client = server.client();
+    client
+        .ctx()
+        .set_extension_permutation(&[ExtensionType::SERVER_NAME])
+        .unwrap();
+    let _ = client.connect();
+}

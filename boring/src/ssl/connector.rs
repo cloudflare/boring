@@ -1,13 +1,16 @@
 use std::io::{Read, Write};
 use std::ops::{Deref, DerefMut};
 
+use foreign_types::ForeignTypeRef;
+use openssl_macros::corresponds;
+
 use crate::dh::Dh;
 use crate::error::ErrorStack;
 use crate::ssl::{
     HandshakeError, Ssl, SslContext, SslContextBuilder, SslContextRef, SslMethod, SslMode,
     SslOptions, SslRef, SslStream, SslVerifyMode,
 };
-use crate::version;
+use crate::{cvt, version};
 use std::net::IpAddr;
 
 use super::MidHandshakeSslStream;
@@ -83,6 +86,18 @@ impl SslConnector {
             "DEFAULT:!aNULL:!eNULL:!MD5:!3DES:!DES:!RC4:!IDEA:!SEED:!aDSS:!SRP:!PSK",
         )?;
         setup_verify(&mut ctx);
+
+        Ok(SslConnectorBuilder(ctx))
+    }
+
+    /// Creates a new builder for TLS connections with no verification.
+    ///
+    /// This is useful for testing and other purposes where you want to skip verification.
+    pub fn no_default_verify_builder(method: SslMethod) -> Result<SslConnectorBuilder, ErrorStack> {
+        let mut ctx = ctx(ContextType::WithMethod(method))?;
+        ctx.set_cipher_list(
+            "DEFAULT:!aNULL:!eNULL:!MD5:!3DES:!DES:!RC4:!IDEA:!SEED:!aDSS:!SRP:!PSK",
+        )?;
 
         Ok(SslConnectorBuilder(ctx))
     }
@@ -267,6 +282,60 @@ impl ConnectConfiguration {
         self.setup_connect(domain, stream)
             .map_err(HandshakeError::SetupFailure)?
             .handshake()
+    }
+}
+
+impl ConnectConfiguration {
+    /// Enables or disables ECH grease.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set_enable_ech_grease)]
+    pub fn set_enable_ech_grease(&mut self, enable: bool) {
+        unsafe { ffi::SSL_set_enable_ech_grease(self.as_ptr(), enable as _) }
+    }
+
+    /// Sets whether the aes hardware override should be enabled.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set_aes_hw_override)]
+    pub fn set_aes_hw_override(&mut self, enable: bool) {
+        unsafe { ffi::SSL_set_aes_hw_override(self.as_ptr(), enable as _) }
+    }
+
+    /// Sets whether the ChaCha20 preference should be enabled.
+    ///
+    /// Controls the priority of TLS 1.3 cipher suites. When set to `true`, the client prefers:
+    /// AES_128_GCM, CHACHA20_POLY1305, then AES_256_GCM. Useful in environments with specific
+    /// encryption requirements.
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set_prefer_chacha20)]
+    pub fn set_prefer_chacha20(&mut self, enable: bool) {
+        unsafe { ffi::SSL_set_prefer_chacha20(self.as_ptr(), enable as _) }
+    }
+
+    /// Sets application settings flag for ALPS (Application-Layer Protocol Negotiation).
+    #[corresponds(SSL_add_application_settings)]
+    pub fn add_application_settings(&mut self, alps: &[u8]) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt(ffi::SSL_add_application_settings(
+                self.as_ptr(),
+                alps.as_ptr(),
+                alps.len(),
+                std::ptr::null(),
+                0,
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Sets the ALPS use new codepoint flag.
+    #[corresponds(SSL_set_alps_use_new_codepoint)]
+    pub fn set_alps_use_new_codepoint(&mut self, use_new: bool) {
+        unsafe { ffi::SSL_set_alps_use_new_codepoint(self.as_ptr(), use_new as _) }
+    }
+
+    /// Sets the SSL options.
+    #[corresponds(SSL_set_options)]
+    pub fn set_options(&mut self, options: SslOptions) -> Result<(), ErrorStack> {
+        unsafe { cvt(ffi::SSL_set_options(self.as_ptr(), options.bits()) as _).map(|_| ()) }
     }
 }
 
