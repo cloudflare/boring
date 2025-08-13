@@ -21,7 +21,7 @@ use std::{fmt, io};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tower_layer::Layer;
 
-/// A Connector using OpenSSL to support `http` and `https` schemes.
+/// A Connector using BoringSSL to support `http` and `https` schemes.
 #[derive(Clone)]
 pub struct HttpsConnector<T> {
     http: T,
