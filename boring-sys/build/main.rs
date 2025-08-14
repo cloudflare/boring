@@ -445,14 +445,14 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
 
 fn apply_patch(config: &Config, patch_name: &str) -> io::Result<()> {
     let src_path = get_boringssl_source_path(config);
-    #[cfg(not(windows))]
+    #[cfg(not(target_os = "windows"))]
     let cmd_path = config
         .manifest_dir
         .join("patches")
         .join(patch_name)
         .canonicalize()?;
 
-    #[cfg(windows)]
+    #[cfg(target_os = "windows")]
     let cmd_path = config.manifest_dir.join("patches").join(patch_name);
 
     run_command(
