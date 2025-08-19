@@ -40,8 +40,8 @@ antidote = "1.0.0"
 http = "1"
 http-body-util = "0.1.2"
 http_old = { package = "http", version = "0.2" }
-hyper = { git = "https://github.com/scraptors/hyper" }
-hyper-util = { git = "https://github.com/scraptors/hyper-util" }
+hyper = { git = "https://github.com/scraptors/hyper", rev = "892332bd58c05ae549a97147ebb46d78ae6e1abf" }
+hyper-util = { git = "https://github.com/scraptors/hyper-util", rev = "840cc5ae3ff65a907d4f86aead5dfe4475dcb013" }
 hyper_old = { package = "hyper", version = "0.14", default-features = false }
 linked_hash_set = "0.1"
 openssl-macros = "0.1.1"
