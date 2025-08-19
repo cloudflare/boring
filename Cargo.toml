@@ -40,8 +40,8 @@ antidote = "1.0.0"
 http = "1"
 http-body-util = "0.1.2"
 http_old = { package = "http", version = "0.2" }
-hyper = "1"
-hyper-util = "0.1.6"
+hyper = { git = "https://github.com/sjcobb2022/hyper" }
+hyper-util = { git = "https://github.com/sjcobb2022/hyper-util" }
 hyper_old = { package = "hyper", version = "0.14", default-features = false }
 linked_hash_set = "0.1"
 openssl-macros = "0.1.1"
