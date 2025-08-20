@@ -41,7 +41,7 @@ http = "1"
 http-body-util = "0.1.2"
 http_old = { package = "http", version = "0.2" }
 hyper = { git = "https://github.com/scraptors/hyper", rev = "c0f5afc323a932bf0677d740c9cd8a10417caf34" }
-hyper-util = { git = "https://github.com/scraptors/hyper-util", rev = "d11ff8ae03e19a294729d3ae597905c8f5c663f5" }
+hyper-util = { git = "https://github.com/scraptors/hyper-util", rev = "7f57135a14f1a5f92a34d831b9e219865f306805" }
 hyper_old = { package = "hyper", version = "0.14", default-features = false }
 linked_hash_set = "0.1"
 openssl-macros = "0.1.1"
