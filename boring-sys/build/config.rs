@@ -36,6 +36,9 @@ pub(crate) struct Env {
     pub(crate) android_ndk_home: Option<PathBuf>,
     pub(crate) cmake_toolchain_file: Option<PathBuf>,
     pub(crate) cpp_runtime_lib: Option<OsString>,
+    /// C compiler (ignored if using FIPS)
+    pub(crate) cc: Option<OsString>,
+    pub(crate) cxx: Option<OsString>,
     pub(crate) docs_rs: bool,
 }
 
@@ -146,18 +149,15 @@ impl Env {
         const NORMAL_PREFIX: &str = "BORING_BSSL";
         const FIPS_PREFIX: &str = "BORING_BSSL_FIPS";
 
+        let var_prefix = if host == target { "HOST" } else { "TARGET" };
         let target_with_underscores = target.replace('-', "_");
 
-        // Logic stolen from cmake-rs.
-        let target_var = |name: &str| {
-            let kind = if host == target { "HOST" } else { "TARGET" };
-
-            // TODO(rmehra): look for just `name` first, as most people just set that
+        let target_only_var = |name: &str| {
             var(&format!("{name}_{target}"))
                 .or_else(|| var(&format!("{name}_{target_with_underscores}")))
-                .or_else(|| var(&format!("{kind}_{name}")))
-                .or_else(|| var(name))
+                .or_else(|| var(&format!("{var_prefix}_{name}")))
         };
+        let target_var = |name: &str| target_only_var(name).or_else(|| var(name));
 
         let boringssl_var = |name: &str| {
             // The passed name is the non-fips version of the environment variable,
@@ -186,6 +186,9 @@ impl Env {
             android_ndk_home: target_var("ANDROID_NDK_HOME").map(Into::into),
             cmake_toolchain_file: target_var("CMAKE_TOOLCHAIN_FILE").map(Into::into),
             cpp_runtime_lib: target_var("BORING_BSSL_RUST_CPPLIB"),
+            // matches the `cc` crate
+            cc: target_only_var("CC"),
+            cxx: target_only_var("CXX"),
             docs_rs: var("DOCS_RS").is_some(),
         }
     }
