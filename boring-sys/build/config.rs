@@ -142,7 +142,7 @@ impl Features {
 }
 
 impl Env {
-    fn from_env(target: &str, host: &str, is_fips_like: bool) -> Self {
+    fn from_env(host: &str, target: &str, is_fips_like: bool) -> Self {
         const NORMAL_PREFIX: &str = "BORING_BSSL";
         const FIPS_PREFIX: &str = "BORING_BSSL_FIPS";
 
