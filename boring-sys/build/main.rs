@@ -479,11 +479,10 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
         run_command(Command::new("git").arg("init").current_dir(src_path))?;
     }
 
-    println!("cargo:warning=applying impersonation patch to boringssl");
-    apply_patch(
-        config,
-        "boringssl-impersonation.patch",
-    )?;
+    if config.features.pq_experimental {
+        println!("cargo:warning=applying experimental post quantum crypto and impersonation patch to boringssl");
+        apply_patch(config, "boring-pq.patch")?;
+    }
 
     if config.features.rpk {
         println!("cargo:warning=applying RPK patch to boringssl");
