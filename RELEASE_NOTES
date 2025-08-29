@@ -1,3 +1,21 @@
+4.18.0
+- 2025-05-29 Add set_verify_param
+- 2025-05-28 Add support for X509_STORE_CTX_get0_untrusted
+- 2025-06-02 Add X509VerifyParamRef::copy_from (#361)
+- 2025-06-02 Fix X509VerifyContextRef::set_verify_param (#358)
+- 2025-06-02 Ensure we call X509_STORE_CTX_cleanup on error path too (#360)
+- 2025-06-02 Add mutable ex_data APIs for X509StoreContext
+- 2025-06-02 Add X509StoreContextRef::init_without_cleanup
+- 2025-06-04 Rename to reset_with_context_data
+- 2025-06-05 Avoid panicking in error handling
+- 2025-06-05 Don't unwrap when Result can be returned instead
+- 2025-06-04 Make X509Store shareable between contexts
+- 2025-06-05 Sprinkle #[must_use] (#368)
+- 2025-06-05 Expose SSL_set1_groups to Efficiently Set Curves on SSL Session (#346)
+- 2025-06-09 Upgrade bindgen to v0.72.0
+- 2025-06-13 Expose PKey::raw_{private,public}_key (#364)
+- 2025-06-10 Don't link binaries on docs.rs
+- 2025-06-11 Use cargo:warning for warnings
 
 4.17.0
 - 2025-05-27 Revert "feat(x509): Implement `Clone` for `X509Store` (#339)" (#353)
