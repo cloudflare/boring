@@ -745,6 +745,13 @@ impl X509Ref {
         }
     }
 
+    #[corresponds(X509_check_ip_asc)]
+    pub fn check_ip_asc(&self, address: &str) -> Result<bool, ErrorStack> {
+        let c_str = CString::new(address).map_err(ErrorStack::internal_error)?;
+
+        unsafe { cvt_n(ffi::X509_check_ip_asc(self.as_ptr(), c_str.as_ptr(), 0)).map(|n| n == 1) }
+    }
+
     to_pem! {
         /// Serializes the certificate into a PEM-encoded X509 structure.
         ///
