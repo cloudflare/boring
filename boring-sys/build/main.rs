@@ -468,6 +468,24 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
 }
 
 fn ensure_patches_applied(config: &Config) -> io::Result<()> {
+    if config.env.assume_patched || config.env.path.is_some() {
+        println!(
+            "cargo:warning=skipping git patches application, provided\
+            native BoringSSL is expected to have the patches included"
+        );
+        return Ok(());
+    } else if config.env.source_path.is_some()
+        && (config.features.rpk
+            || config.features.pq_experimental
+            || config.features.underscore_wildcards)
+    {
+        panic!(
+            "BORING_BSSL_ASSUME_PATCHED must be set when setting
+               BORING_BSSL_SOURCE_PATH and using any of the following
+               features: rpk, pq-experimental, underscore-wildcards"
+        );
+    }
+
     let mut lock_file = LockFile::open(&config.out_dir.join(".patch_lock"))?;
     let src_path = get_boringssl_source_path(config);
     let has_git = src_path.join(".git").exists();
@@ -552,25 +570,6 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
     static BUILD_SOURCE_PATH: OnceLock<PathBuf> = OnceLock::new();
 
     BUILD_SOURCE_PATH.get_or_init(|| {
-        if config.env.assume_patched {
-            println!(
-                "cargo:warning=skipping git patches application, provided\
-                native BoringSSL is expected to have the patches included"
-            );
-        } else if config.env.source_path.is_some()
-            && (config.features.rpk
-                || config.features.pq_experimental
-                || config.features.underscore_wildcards)
-        {
-            panic!(
-                "BORING_BSSL_ASSUME_PATCHED must be set when setting
-                   BORING_BSSL_SOURCE_PATH and using any of the following
-                   features: rpk, pq-experimental, underscore-wildcards"
-            );
-        } else {
-            ensure_patches_applied(config).unwrap();
-        }
-
         let mut cfg = get_boringssl_cmake_config(config);
 
         let num_jobs = std::env::var("NUM_JOBS").ok().or_else(|| {
@@ -661,6 +660,7 @@ fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
 
 fn main() {
     let config = Config::from_env();
+    ensure_patches_applied(&config).unwrap();
     if !config.env.docs_rs {
         emit_link_directives(&config);
     }
