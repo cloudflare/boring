@@ -58,6 +58,10 @@ jobs:
           key: clippy-target-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
       - name: Run clippy
         run: cargo clippy --all --all-targets
+      - name: Check docs
+        run: cargo doc --no-deps -p boring -p boring-sys --features rpk,pq-experimental,underscore-wildcards
+        env:
+          - DOCS_RS: 1
   test:
     name: Test
     runs-on: ${{ matrix.os }}
