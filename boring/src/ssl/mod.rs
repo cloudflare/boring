@@ -2564,7 +2564,7 @@ impl SslCipherRef {
             CStr::from_ptr(ptr as *const _)
         };
 
-        str::from_utf8(version.to_bytes()).unwrap()
+        version.to_str().unwrap()
     }
 
     /// Returns the number of bits used for the cipher.
@@ -2590,7 +2590,7 @@ impl SslCipherRef {
             // SSL_CIPHER_description requires a buffer of at least 128 bytes.
             let mut buf = [0; 128];
             let ptr = ffi::SSL_CIPHER_description(self.as_ptr(), buf.as_mut_ptr(), 128);
-            String::from_utf8(CStr::from_ptr(ptr as *const _).to_bytes().to_vec()).unwrap()
+            CStr::from_ptr(ptr.cast()).to_string_lossy().into_owned()
         }
     }
 
@@ -3216,6 +3216,8 @@ impl SslRef {
     }
 
     /// Returns a short string describing the state of the session.
+    ///
+    /// Returns empty string if the state wasn't valid UTF-8
     #[corresponds(SSL_state_string)]
     #[must_use]
     pub fn state_string(&self) -> &'static str {
@@ -3224,10 +3226,12 @@ impl SslRef {
             CStr::from_ptr(ptr as *const _)
         };
 
-        str::from_utf8(state.to_bytes()).unwrap()
+        state.to_str().unwrap_or_default()
     }
 
     /// Returns a longer string describing the state of the session.
+    ///
+    /// Returns empty string if the state wasn't valid UTF-8
     #[corresponds(SSL_state_string_long)]
     #[must_use]
     pub fn state_string_long(&self) -> &'static str {
@@ -3236,7 +3240,7 @@ impl SslRef {
             CStr::from_ptr(ptr as *const _)
         };
 
-        str::from_utf8(state.to_bytes()).unwrap()
+        state.to_str().unwrap_or_default()
     }
 
     /// Sets the host name to be sent to the server for Server Name Indication (SNI).
@@ -3348,6 +3352,8 @@ impl SslRef {
     }
 
     /// Returns a string describing the protocol version of the session.
+    ///
+    /// This may panic if the string isn't valid UTF-8 for some reason. Use [`Self::version2`] instead.
     #[corresponds(SSL_get_version)]
     #[must_use]
     pub fn version_str(&self) -> &'static str {
@@ -3356,7 +3362,7 @@ impl SslRef {
             CStr::from_ptr(ptr as *const _)
         };
 
-        str::from_utf8(version.to_bytes()).unwrap()
+        version.to_str().unwrap()
     }
 
     /// Sets the minimum supported protocol version.
