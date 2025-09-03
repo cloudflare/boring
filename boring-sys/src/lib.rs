@@ -26,6 +26,10 @@ use std::os::raw::{c_char, c_int, c_uint, c_ulong};
 mod generated {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
+
+// `ErrLib` alias for compatibility between different versions of boring and boring-sys
+// Takes priority over wildcard globs
+pub use generated::ErrLib as _bindgen_ty_1;
 pub use generated::*;
 
 #[cfg(target_pointer_width = "64")]
