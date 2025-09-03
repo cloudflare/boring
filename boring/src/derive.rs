@@ -51,7 +51,6 @@ impl<'a> Deriver<'a> {
     ///
     /// It can be used to size the buffer passed to [`Deriver::derive`].
     #[corresponds(EVP_PKEY_derive)]
-    /// [`EVP_PKEY_derive`]: https://www.openssl.org/docs/man1.0.2/crypto/EVP_PKEY_derive_init.html
     pub fn len(&mut self) -> Result<usize, ErrorStack> {
         unsafe {
             let mut len = 0;
