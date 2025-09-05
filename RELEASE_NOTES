@@ -1,3 +1,12 @@
+4.19.0
+- 2025-09-03 Add binding for X509_check_ip_asc
+- 2025-06-13 Use ERR_clear_error
+- 2025-06-13 Error descriptions and docs
+- 2025-06-13 Boring doesn't use function codes
+- 2025-09-03 Fix patched docs.rs builds
+- 2025-09-03 Test docs.rs docs
+- 2025-09-03 Fix doc links
+
 4.18.0
 - 2025-05-29 Add set_verify_param
 - 2025-05-28 Add support for X509_STORE_CTX_get0_untrusted
