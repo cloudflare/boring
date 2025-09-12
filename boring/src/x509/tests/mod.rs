@@ -513,3 +513,16 @@ fn test_load_subject_der() {
     ];
     X509Name::from_der(SUBJECT_DER).unwrap();
 }
+
+#[test]
+fn test_check_ip_asc() {
+    // Covers 127.0.0.1 and 0:0:0:0:0:0:0:1
+    let cert = include_bytes!("../../../test/alt_name_cert.pem");
+    let cert = X509::from_pem(cert).unwrap();
+
+    assert!(cert.check_ip_asc("127.0.0.1").unwrap());
+    assert!(!cert.check_ip_asc("127.0.0.2").unwrap());
+
+    assert!(cert.check_ip_asc("0:0:0:0:0:0:0:1").unwrap());
+    assert!(!cert.check_ip_asc("0:0:0:0:0:0:0:2").unwrap());
+}
