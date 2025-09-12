@@ -319,7 +319,7 @@ impl ConnectConfiguration {
     /// A builder-style version of `set_prefer_chacha20`
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_set_prefer_chacha20)]
-    pub fn prefer_chacha20(mut self, enable: bool) {
+    pub fn prefer_chacha20(mut self, enable: bool) -> Self {
         self.set_prefer_chacha20(enable);
         self
     }
@@ -338,7 +338,7 @@ impl ConnectConfiguration {
     /// A builder-style version of `add_application_settings`
     #[corresponds(SSL_add_application_settings)]
     pub fn application_settings(mut self, alps: &[u8]) -> Result<Self, ErrorStack> {
-        self.add_application_settings(alps).map(|_| self);
+        self.add_application_settings(alps).map(|_| self)
     }
 
     /// Sets application settings flag for ALPS (Application-Layer Protocol Negotiation).
