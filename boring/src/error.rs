@@ -15,7 +15,8 @@
 //!     Err(e) => println!("Parsing Error: {:?}", e),
 //! }
 //! ```
-use libc::{c_char, c_uint};
+use libc::{c_char, c_int, c_uint};
+use openssl_macros::corresponds;
 use std::borrow::Cow;
 use std::error;
 use std::ffi::CStr;
@@ -34,7 +35,8 @@ pub struct ErrorStack(Vec<Error>);
 
 impl ErrorStack {
     /// Pops the contents of the OpenSSL error stack, and returns it.
-    #[allow(clippy::must_use_candidate)]
+    #[corresponds(ERR_get_error_line_data)]
+    #[must_use = "Use ErrorStack::clear() to drop the error stack"]
     pub fn get() -> ErrorStack {
         let mut vec = vec![];
         while let Some(err) = Error::get() {
@@ -44,6 +46,7 @@ impl ErrorStack {
     }
 
     /// Pushes the errors back onto the OpenSSL error stack.
+    #[corresponds(ERR_put_error)]
     pub fn put(&self) {
         for error in self.errors() {
             error.put();
@@ -54,6 +57,14 @@ impl ErrorStack {
     #[cold]
     pub(crate) fn internal_error(err: impl error::Error) -> Self {
         Self(vec![Error::new_internal(err.to_string())])
+    }
+
+    /// Empties the current thread's error queue.
+    #[corresponds(ERR_clear_error)]
+    pub(crate) fn clear() {
+        unsafe {
+            ffi::ERR_clear_error();
+        }
     }
 }
 
@@ -80,7 +91,9 @@ impl fmt::Display for ErrorStack {
             write!(
                 fmt,
                 "[{}]",
-                err.reason_internal().unwrap_or("unknown reason")
+                err.reason_internal()
+                    .or_else(|| err.library())
+                    .unwrap_or("unknown reason")
             )?;
         }
         Ok(())
@@ -101,7 +114,7 @@ impl From<ErrorStack> for fmt::Error {
     }
 }
 
-/// An error reported from OpenSSL.
+/// A detailed error reported as part of an [`ErrorStack`].
 #[derive(Clone)]
 pub struct Error {
     code: c_uint,
@@ -117,7 +130,8 @@ static BORING_INTERNAL: &CStr = c"boring-rust";
 
 impl Error {
     /// Pops the first error off the OpenSSL error stack.
-    #[allow(clippy::must_use_candidate)]
+    #[must_use = "Use ErrorStack::clear() to drop the error stack"]
+    #[corresponds(ERR_get_error_line_data)]
     pub fn get() -> Option<Error> {
         unsafe {
             ffi::init();
@@ -150,6 +164,7 @@ impl Error {
     }
 
     /// Pushes the error back onto the OpenSSL error stack.
+    #[corresponds(ERR_put_error)]
     pub fn put(&self) {
         unsafe {
             ffi::ERR_put_error(
@@ -179,7 +194,10 @@ impl Error {
         }
     }
 
-    /// Returns the raw OpenSSL error code for this error.
+    /// Returns a raw OpenSSL **packed** error code for this error, which **can't be reliably compared to any error constant**.
+    ///
+    /// Use [`Error::library_code()`] and [`Error::reason_code()`] instead.
+    /// Packed error codes are different than [SSL error codes](crate::ssl::ErrorCode).
     #[must_use]
     pub fn code(&self) -> c_uint {
         self.code
@@ -201,27 +219,17 @@ impl Error {
         }
     }
 
-    /// Returns the raw OpenSSL error constant for the library reporting the
-    /// error.
+    /// Returns the raw OpenSSL error constant for the library reporting the error (`ERR_LIB_{name}`).
+    ///
+    /// Error [reason codes](Error::reason_code) are not globally unique, but scoped to each library.
     #[must_use]
-    pub fn library_code(&self) -> libc::c_int {
+    pub fn library_code(&self) -> c_int {
         ffi::ERR_GET_LIB(self.code)
     }
 
-    /// Returns the name of the function reporting the error.
-    #[must_use]
+    /// Returns `None`. Boring doesn't use function codes.
     pub fn function(&self) -> Option<&'static str> {
-        if self.is_internal() {
-            return None;
-        }
-        unsafe {
-            let cstr = ffi::ERR_func_error_string(self.code);
-            if cstr.is_null() {
-                return None;
-            }
-            let bytes = CStr::from_ptr(cstr as *const _).to_bytes();
-            str::from_utf8(bytes).ok()
-        }
+        None
     }
 
     /// Returns the reason for the error.
@@ -237,9 +245,14 @@ impl Error {
         }
     }
 
-    /// Returns the raw OpenSSL error constant for the reason for the error.
+    /// Returns [library-specific](Error::library_code) reason code corresponding to some of the `{lib}_R_{reason}` constants.
+    ///
+    /// Reason codes are ambiguous, and different libraries reuse the same numeric values for different errors.
+    ///
+    /// For `ERR_LIB_SYS` the reason code is `errno`. `ERR_LIB_USER` can use any values.
+    /// Other libraries may use [`ERR_R_*`](ffi::ERR_R_FATAL) or their own codes.
     #[must_use]
-    pub fn reason_code(&self) -> libc::c_int {
+    pub fn reason_code(&self) -> c_int {
         ffi::ERR_GET_REASON(self.code)
     }
 
@@ -256,6 +269,8 @@ impl Error {
     }
 
     /// Returns the line in the source file which encountered the error.
+    ///
+    /// 0 if unknown
     #[allow(clippy::unnecessary_cast)]
     #[must_use]
     pub fn line(&self) -> u32 {
@@ -294,20 +309,19 @@ impl Error {
 impl fmt::Debug for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let mut builder = fmt.debug_struct("Error");
-        builder.field("code", &self.code());
-        if let Some(library) = self.library() {
-            builder.field("library", &library);
+        builder.field("code", &self.code);
+        if !self.is_internal() {
+            if let Some(library) = self.library() {
+                builder.field("library", &library);
+            }
+            builder.field("library_code", &self.library_code());
+            if let Some(reason) = self.reason() {
+                builder.field("reason", &reason);
+            }
+            builder.field("reason_code", &self.reason_code());
+            builder.field("file", &self.file());
+            builder.field("line", &self.line());
         }
-        builder.field("library_code", &self.library_code());
-        if let Some(function) = self.function() {
-            builder.field("function", &function);
-        }
-        if let Some(reason) = self.reason() {
-            builder.field("reason", &reason);
-        }
-        builder.field("reason_code", &self.reason_code());
-        builder.field("file", &self.file());
-        builder.field("line", &self.line());
         if let Some(data) = self.data() {
             builder.field("data", &data);
         }
@@ -321,7 +335,7 @@ impl fmt::Display for Error {
             fmt,
             "{}\n\nCode: {:08X}\nLoc: {}:{}",
             self.reason_internal().unwrap_or("unknown TLS error"),
-            self.code(),
+            &self.code,
             self.file(),
             self.line()
         )
