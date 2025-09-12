@@ -286,6 +286,14 @@ impl ConnectConfiguration {
 }
 
 impl ConnectConfiguration {
+    /// A builder-style version of `set_enable_ech_grease`
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set_enable_ech_grease)]
+    pub fn enable_ech_grease(mut self, enable: bool) -> Self {
+        self.set_enable_ech_grease(enable);
+        self
+    }
+
     /// Enables or disables ECH grease.
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_set_enable_ech_grease)]
@@ -293,11 +301,27 @@ impl ConnectConfiguration {
         unsafe { ffi::SSL_set_enable_ech_grease(self.as_ptr(), enable as _) }
     }
 
+    /// A builder-style version of `set_aes_hw_override`
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set_aes_hw_override)]
+    pub fn aes_hw_override(mut self, enable: bool) -> Self {
+        self.set_aes_hw_override(enable);
+        self
+    }
+
     /// Sets whether the aes hardware override should be enabled.
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_set_aes_hw_override)]
     pub fn set_aes_hw_override(&mut self, enable: bool) {
         unsafe { ffi::SSL_set_aes_hw_override(self.as_ptr(), enable as _) }
+    }
+
+    /// A builder-style version of `set_prefer_chacha20`
+    #[cfg(not(feature = "fips"))]
+    #[corresponds(SSL_set_prefer_chacha20)]
+    pub fn prefer_chacha20(mut self, enable: bool) {
+        self.set_prefer_chacha20(enable);
+        self
     }
 
     /// Sets whether the ChaCha20 preference should be enabled.
@@ -309,6 +333,12 @@ impl ConnectConfiguration {
     #[corresponds(SSL_set_prefer_chacha20)]
     pub fn set_prefer_chacha20(&mut self, enable: bool) {
         unsafe { ffi::SSL_set_prefer_chacha20(self.as_ptr(), enable as _) }
+    }
+
+    /// A builder-style version of `add_application_settings`
+    #[corresponds(SSL_add_application_settings)]
+    pub fn application_settings(mut self, alps: &[u8]) -> Result<Self, ErrorStack> {
+        self.add_application_settings(alps).map(|_| self);
     }
 
     /// Sets application settings flag for ALPS (Application-Layer Protocol Negotiation).
@@ -326,16 +356,17 @@ impl ConnectConfiguration {
         }
     }
 
+    /// A builder-style version of `set_alps_use_new_codepoint`
+    #[corresponds(SSL_set_alps_use_new_codepoint)]
+    pub fn alps_use_new_codepoint(mut self, use_new: bool) -> Self {
+        self.set_alps_use_new_codepoint(use_new);
+        self
+    }
+
     /// Sets the ALPS use new codepoint flag.
     #[corresponds(SSL_set_alps_use_new_codepoint)]
     pub fn set_alps_use_new_codepoint(&mut self, use_new: bool) {
         unsafe { ffi::SSL_set_alps_use_new_codepoint(self.as_ptr(), use_new as _) }
-    }
-
-    /// Sets the SSL options.
-    #[corresponds(SSL_set_options)]
-    pub fn set_options(&mut self, options: SslOptions) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_set_options(self.as_ptr(), options.bits()) as _).map(|_| ()) }
     }
 }
 
