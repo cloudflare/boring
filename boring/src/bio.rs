@@ -68,7 +68,10 @@ impl MemBio {
         unsafe {
             let mut ptr = ptr::null_mut();
             let len = ffi::BIO_get_mem_data(self.0, &mut ptr);
-            slice::from_raw_parts(ptr as *const _ as *const _, len as usize)
+            if ptr.is_null() {
+                return &[];
+            }
+            slice::from_raw_parts(ptr.cast_const().cast(), len as usize)
         }
     }
 }
