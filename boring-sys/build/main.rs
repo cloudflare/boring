@@ -582,11 +582,14 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
         }
 
         if config.features.fips {
-            let (clang, clangxx) = verify_fips_clang_version();
-            cfg.define("CMAKE_C_COMPILER", clang)
-                .define("CMAKE_CXX_COMPILER", clangxx)
-                .define("CMAKE_ASM_COMPILER", clang)
-                .define("FIPS", "1");
+            cfg.define("FIPS", "1");
+
+            if std::env::var_os("BORING_BSSL_FIPS_SKIP_CLANG_CHECK").is_none() {
+                let (clang, clangxx) = verify_fips_clang_version();
+                cfg.define("CMAKE_C_COMPILER", clang)
+                    .define("CMAKE_CXX_COMPILER", clangxx)
+                    .define("CMAKE_ASM_COMPILER", clang);
+            }
         }
 
         if config.features.fips_link_precompiled {
