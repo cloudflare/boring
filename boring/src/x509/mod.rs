@@ -1120,9 +1120,9 @@ impl X509NameBuilder {
     }
 }
 
-#[cfg(not(feature = "fips-compat"))]
+#[cfg(not(feature = "legacy-compat-deprecated"))]
 type ValueLen = isize;
-#[cfg(feature = "fips-compat")]
+#[cfg(feature = "legacy-compat-deprecated")]
 type ValueLen = i32;
 
 foreign_type_and_impl_send_sync! {
