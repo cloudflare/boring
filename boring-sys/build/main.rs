@@ -783,7 +783,6 @@ fn generate_bindings(config: &Config) {
         "des.h",
         "dtls1.h",
         "hkdf.h",
-        #[cfg(not(feature = "fips"))]
         "hpke.h",
         "hmac.h",
         "hrss.h",
