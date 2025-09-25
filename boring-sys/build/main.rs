@@ -50,6 +50,7 @@ const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
         &[
             ("CMAKE_OSX_ARCHITECTURES", "arm64"),
             ("CMAKE_OSX_SYSROOT", "iphoneos"),
+            ("CMAKE_MACOSX_BUNDLE", "OFF"),
         ],
     ),
     (
@@ -57,6 +58,7 @@ const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
         &[
             ("CMAKE_OSX_ARCHITECTURES", "arm64"),
             ("CMAKE_OSX_SYSROOT", "iphonesimulator"),
+            ("CMAKE_MACOSX_BUNDLE", "OFF"),
         ],
     ),
     (
@@ -64,6 +66,7 @@ const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
         &[
             ("CMAKE_OSX_ARCHITECTURES", "x86_64"),
             ("CMAKE_OSX_SYSROOT", "iphonesimulator"),
+            ("CMAKE_MACOSX_BUNDLE", "OFF"),
         ],
     ),
     // macOS
@@ -114,11 +117,7 @@ fn get_boringssl_source_path(config: &Config) -> &PathBuf {
     static SOURCE_PATH: OnceLock<PathBuf> = OnceLock::new();
 
     SOURCE_PATH.get_or_init(|| {
-        let submodule_dir = if config.features.fips {
-            "boringssl-fips"
-        } else {
-            "boringssl"
-        };
+        let submodule_dir = "boringssl";
 
         let src_path = config.out_dir.join(submodule_dir);
 
@@ -304,7 +303,7 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                     config
                         .manifest_dir
                         .join(src_path)
-                        .join("src/util/32-bit-toolchain.cmake")
+                        .join("util/32-bit-toolchain.cmake")
                         .as_os_str(),
                 );
             }
@@ -338,55 +337,6 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
     }
 
     boringssl_cmake
-}
-
-/// Verify that the toolchains match <https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf>
-/// See "Installation Instructions" under section 12.1.
-// TODO: maybe this should also verify the Go and Ninja versions? But those haven't been an issue in practice ...
-fn verify_fips_clang_version() -> (&'static str, &'static str) {
-    fn version(tool: &str) -> Option<String> {
-        let output = match Command::new(tool).arg("--version").output() {
-            Ok(o) => o,
-            Err(e) => {
-                println!("cargo:warning=missing {tool}, trying other compilers: {e}");
-                // NOTE: hard-codes that the loop below checks the version
-                return None;
-            }
-        };
-        if !output.status.success() {
-            return Some(String::new());
-        }
-        let output = std::str::from_utf8(&output.stdout).expect("invalid utf8 output");
-        Some(output.lines().next().expect("empty output").to_string())
-    }
-
-    const REQUIRED_CLANG_VERSION: &str = "12.0.0";
-    for (cc, cxx) in [
-        ("clang-12", "clang++-12"),
-        ("clang", "clang++"),
-        ("cc", "c++"),
-    ] {
-        let (Some(cc_version), Some(cxx_version)) = (version(cc), version(cxx)) else {
-            continue;
-        };
-
-        if cc_version.contains(REQUIRED_CLANG_VERSION) {
-            assert!(
-                cxx_version.contains(REQUIRED_CLANG_VERSION),
-                "mismatched versions of cc and c++"
-            );
-            return (cc, cxx);
-        } else if cc == "cc" {
-            panic!(
-                "unsupported clang version \"{cc_version}\": FIPS requires clang {REQUIRED_CLANG_VERSION}"
-            );
-        } else if !cc_version.is_empty() {
-            println!(
-                "cargo:warning=FIPS requires clang version {REQUIRED_CLANG_VERSION}, skipping incompatible version \"{cc_version}\""
-            );
-        }
-    }
-    unreachable!()
 }
 
 fn pick_best_android_ndk_toolchain(toolchains_dir: &Path) -> std::io::Result<OsString> {
@@ -591,64 +541,15 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
         }
 
         if config.features.fips {
-            let (clang, clangxx) = verify_fips_clang_version();
-            cfg.define("CMAKE_C_COMPILER", clang)
-                .define("CMAKE_CXX_COMPILER", clangxx)
-                .define("CMAKE_ASM_COMPILER", clang)
+            cfg.define("CMAKE_C_COMPILER", "clang")
+                .define("CMAKE_CXX_COMPILER", "clang++")
+                .define("CMAKE_ASM_COMPILER", "clang")
                 .define("FIPS", "1");
-        }
-
-        if config.features.fips_link_precompiled {
-            cfg.define("FIPS", "1");
         }
 
         cfg.build_target("ssl").build();
         cfg.build_target("crypto").build()
     })
-}
-
-fn link_in_precompiled_bcm_o(config: &Config) {
-    println!("cargo:warning=linking in precompiled `bcm.o` module");
-
-    let bssl_dir = built_boring_source_path(config);
-    let bcm_o_src_path = config.env.precompiled_bcm_o.as_ref()
-        .expect("`fips-link-precompiled` requires `BORING_BSSL_FIPS_PRECOMPILED_BCM_O` env variable to be specified");
-
-    let libcrypto_path = bssl_dir
-        .join("build/crypto/libcrypto.a")
-        .canonicalize()
-        .unwrap();
-
-    let bcm_o_dst_path = bssl_dir.join("build/bcm-fips.o");
-
-    fs::copy(bcm_o_src_path, &bcm_o_dst_path).unwrap();
-
-    // check that fips module is named as expected
-    let out = run_command(
-        Command::new("ar")
-            .arg("t")
-            .arg(&libcrypto_path)
-            .arg("bcm.o"),
-    )
-    .unwrap();
-
-    assert_eq!(
-        String::from_utf8(out.stdout).unwrap().trim(),
-        "bcm.o",
-        "failed to verify FIPS module name"
-    );
-
-    // insert fips bcm.o before bcm.o into libcrypto.a,
-    // so for all duplicate symbols the older fips bcm.o is used
-    // (this causes the need for extra linker flags to deal with duplicate symbols)
-    // (as long as the newer module does not define new symbols, one may also remove it,
-    // but once there are new symbols it would cause missing symbols at linking stage)
-    run_command(
-        Command::new("ar")
-            .args(["rb", "bcm.o"])
-            .args([&libcrypto_path, &bcm_o_dst_path]),
-    )
-    .unwrap();
 }
 
 fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
@@ -707,10 +608,6 @@ fn emit_link_directives(config: &Config) {
             "cargo:rustc-link-search=native={}/build",
             bssl_dir.display(),
         );
-    }
-
-    if config.features.fips_link_precompiled {
-        link_in_precompiled_bcm_o(config);
     }
 
     if let Some(cpp_lib) = get_cpp_runtime_lib(config) {
@@ -785,7 +682,6 @@ fn generate_bindings(config: &Config) {
         "des.h",
         "dtls1.h",
         "hkdf.h",
-        #[cfg(not(feature = "fips"))]
         "hpke.h",
         "hmac.h",
         "hrss.h",

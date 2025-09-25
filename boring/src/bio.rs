@@ -19,9 +19,9 @@ impl Drop for MemBioSlice<'_> {
 
 impl<'a> MemBioSlice<'a> {
     pub fn new(buf: &'a [u8]) -> Result<MemBioSlice<'a>, ErrorStack> {
-        #[cfg(not(feature = "fips-compat"))]
+        #[cfg(not(feature = "legacy-compat-deprecated"))]
         type BufLen = isize;
-        #[cfg(feature = "fips-compat")]
+        #[cfg(feature = "legacy-compat-deprecated")]
         type BufLen = libc::c_int;
 
         ffi::init();
