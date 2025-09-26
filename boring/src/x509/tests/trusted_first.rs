@@ -61,7 +61,7 @@ fn test_verify_cert() {
         Ok(()),
         verify(&leaf, &[&root1], &[&intermediate, &root1_cross], |param| {
             param.clear_flags(X509Flags::TRUSTED_FIRST)
-        },)
+        })
     );
 }
 

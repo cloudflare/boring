@@ -95,7 +95,7 @@ impl SslContextBuilder {
             let finish = fut_result.or(Err(SelectCertError::ERROR))?;
 
             finish(client_hello).or(Err(SelectCertError::ERROR))
-        })
+        });
     }
 
     /// Configures a custom private key method on the context.
@@ -144,7 +144,7 @@ impl SslContextBuilder {
             }
         };
 
-        self.set_get_session_callback(async_callback)
+        self.set_get_session_callback(async_callback);
     }
 
     /// Configures certificate verification.
@@ -167,7 +167,7 @@ impl SslContextBuilder {
     where
         F: Fn(&mut SslRef) -> Result<BoxCustomVerifyFuture, SslAlert> + Send + Sync + 'static,
     {
-        self.set_custom_verify_callback(mode, async_custom_verify_callback(callback))
+        self.set_custom_verify_callback(mode, async_custom_verify_callback(callback));
     }
 }
 
@@ -176,7 +176,7 @@ impl SslRef {
     where
         F: Fn(&mut SslRef) -> Result<BoxCustomVerifyFuture, SslAlert> + Send + Sync + 'static,
     {
-        self.set_custom_verify_callback(mode, async_custom_verify_callback(callback))
+        self.set_custom_verify_callback(mode, async_custom_verify_callback(callback));
     }
 
     /// Sets the task waker to be used in async callbacks installed on this `Ssl`.

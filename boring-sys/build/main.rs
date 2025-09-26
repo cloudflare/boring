@@ -152,7 +152,7 @@ fn get_boringssl_source_path(config: &Config) -> &PathBuf {
 ///
 /// MSVC generator on Windows place static libs in a target sub-folder,
 /// so adjust library location based on platform and build target.
-/// See issue: https://github.com/alexcrichton/cmake-rs/issues/18
+/// See issue: <https://github.com/alexcrichton/cmake-rs/issues/18>
 fn get_boringssl_platform_output_path(config: &Config) -> String {
     if config.target.ends_with("-msvc") {
         // Code under this branch should match the logic in cmake-rs
@@ -193,7 +193,7 @@ fn get_boringssl_platform_output_path(config: &Config) -> String {
     }
 }
 
-/// Returns a new cmake::Config for building BoringSSL.
+/// Returns a new `cmake::Config` for building BoringSSL.
 ///
 /// It will add platform-specific parameters if needed.
 fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
@@ -340,7 +340,7 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
     boringssl_cmake
 }
 
-/// Verify that the toolchains match https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf
+/// Verify that the toolchains match <https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf>
 /// See "Installation Instructions" under section 12.1.
 // TODO: maybe this should also verify the Go and Ninja versions? But those haven't been an issue in practice ...
 fn verify_fips_clang_version() -> (&'static str, &'static str) {

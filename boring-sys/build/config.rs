@@ -54,10 +54,10 @@ impl Config {
         let features = Features::from_env();
         let env = Env::from_env(&host, &target, features.is_fips_like());
 
-        let mut is_bazel = false;
-        if let Some(src_path) = &env.source_path {
-            is_bazel = src_path.join("src").exists();
-        }
+        let is_bazel = env
+            .source_path
+            .as_ref()
+            .is_some_and(|path| path.join("src").exists());
 
         let config = Self {
             manifest_dir,

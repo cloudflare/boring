@@ -864,7 +864,7 @@ impl fmt::Debug for X509 {
 
         if let Ok(public_key) = &self.public_key() {
             debug_struct.field("public_key", public_key);
-        };
+        }
         // TODO: Print extensions once they are supported on the X509 struct.
 
         debug_struct.finish()
@@ -1535,7 +1535,7 @@ impl X509VerifyError {
 
     /// Return a human readable error string from the verification error.
     ///
-    /// Returns empty string if the message was not UTF-8
+    /// Returns empty string if the message was not UTF-8.
     #[corresponds(X509_verify_cert_error_string)]
     #[allow(clippy::trivially_copy_pass_by_ref)]
     #[must_use]
