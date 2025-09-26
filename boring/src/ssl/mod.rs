@@ -1841,7 +1841,7 @@ impl SslContextBuilder {
             + Sync
             + Send,
     {
-        self.set_psk_client_callback(callback)
+        self.set_psk_client_callback(callback);
     }
 
     /// Sets the callback for providing an identity and pre-shared key for a TLS-PSK server.
@@ -3217,7 +3217,7 @@ impl SslRef {
 
     /// Returns a short string describing the state of the session.
     ///
-    /// Returns empty string if the state wasn't valid UTF-8
+    /// Returns empty string if the state wasn't valid UTF-8.
     #[corresponds(SSL_state_string)]
     #[must_use]
     pub fn state_string(&self) -> &'static str {
@@ -3231,7 +3231,7 @@ impl SslRef {
 
     /// Returns a longer string describing the state of the session.
     ///
-    /// Returns empty string if the state wasn't valid UTF-8
+    /// Returns empty string if the state wasn't valid UTF-8.
     #[corresponds(SSL_state_string_long)]
     #[must_use]
     pub fn state_string_long(&self) -> &'static str {
@@ -4034,10 +4034,11 @@ impl<S> MidHandshakeSslStream<S> {
             Ok(self.stream)
         } else {
             self.error = self.stream.make_error(ret);
-            match self.error.would_block() {
-                true => Err(HandshakeError::WouldBlock(self)),
-                false => Err(HandshakeError::Failure(self)),
-            }
+            Err(if self.error.would_block() {
+                HandshakeError::WouldBlock(self)
+            } else {
+                HandshakeError::Failure(self)
+            })
         }
     }
 }
@@ -4461,16 +4462,11 @@ where
             Ok(stream)
         } else {
             let error = stream.make_error(ret);
-            match error.would_block() {
-                true => Err(HandshakeError::WouldBlock(MidHandshakeSslStream {
-                    stream,
-                    error,
-                })),
-                false => Err(HandshakeError::Failure(MidHandshakeSslStream {
-                    stream,
-                    error,
-                })),
-            }
+            Err(if error.would_block() {
+                HandshakeError::WouldBlock(MidHandshakeSslStream { stream, error })
+            } else {
+                HandshakeError::Failure(MidHandshakeSslStream { stream, error })
+            })
         }
     }
 }

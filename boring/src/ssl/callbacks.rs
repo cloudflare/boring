@@ -399,7 +399,7 @@ pub(super) unsafe extern "C" fn raw_remove_session<F>(
         .ex_data(SslContext::cached_ex_index::<F>())
         .expect("BUG: remove session callback missing");
 
-    callback(ctx, session)
+    callback(ctx, session);
 }
 
 type DataPtr = *const c_uchar;

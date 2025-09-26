@@ -15,7 +15,7 @@ foreign_type_and_impl_send_sync! {
 
     /// # Safety
     ///
-    /// MUST be UTF-8
+    /// MUST be UTF-8.
     pub struct OpensslString;
 }
 
