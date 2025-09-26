@@ -942,7 +942,11 @@ impl SslContextBuilder {
             init();
             let ctx = cvt_p(ffi::SSL_CTX_new(SslMethod::tls_with_buffer().as_ptr()))?;
 
-            Ok(SslContextBuilder::from_ptr(ctx, true))
+            let mut builder = SslContextBuilder::from_ptr(ctx);
+            builder.is_rpk = true;
+            builder.set_ex_data(*RPK_FLAG_INDEX, true);
+
+            Ok(builder)
         }
     }
 
@@ -981,48 +985,28 @@ impl SslContextBuilder {
         unsafe {
             init();
             let ctx = cvt_p(ffi::SSL_CTX_new(method.as_ptr()))?;
-
-            #[cfg(feature = "rpk")]
-            {
-                Ok(SslContextBuilder::from_ptr(ctx, false))
-            }
-
-            #[cfg(not(feature = "rpk"))]
-            {
-                Ok(SslContextBuilder::from_ptr(ctx))
-            }
+            Ok(SslContextBuilder::from_ptr(ctx))
         }
     }
 
     /// Creates an `SslContextBuilder` from a pointer to a raw OpenSSL value.
     ///
-    /// # Safety
-    ///
-    /// The caller must ensure that the pointer is valid and uniquely owned by the builder.
-    #[cfg(feature = "rpk")]
-    pub unsafe fn from_ptr(ctx: *mut ffi::SSL_CTX, is_rpk: bool) -> SslContextBuilder {
-        let ctx = SslContext::from_ptr(ctx);
-        let mut builder = SslContextBuilder {
-            ctx,
-            is_rpk,
-            has_shared_cert_store: false,
-        };
-
-        builder.set_ex_data(*RPK_FLAG_INDEX, is_rpk);
-
-        builder
-    }
-
-    /// Creates an `SslContextBuilder` from a pointer to a raw OpenSSL value.
+    #[cfg_attr(
+        feature = "rpk",
+        doc = "Keeps previous RPK state. Use `new_rpk()` to enable RPK."
+    )]
     ///
     /// # Safety
     ///
     /// The caller must ensure that the pointer is valid and uniquely owned by the builder.
-    #[cfg(not(feature = "rpk"))]
+    /// The context must own its cert store exclusively.
     pub unsafe fn from_ptr(ctx: *mut ffi::SSL_CTX) -> SslContextBuilder {
+        let ctx = SslContext::from_ptr(ctx);
         SslContextBuilder {
-            ctx: SslContext::from_ptr(ctx),
+            #[cfg(feature = "rpk")]
+            is_rpk: ctx.is_rpk(),
             has_shared_cert_store: false,
+            ctx,
         }
     }
 
