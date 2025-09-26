@@ -13,6 +13,7 @@ build = "build/main.rs"
 readme = "README.md"
 categories = ["cryptography", "external-ffi-bindings"]
 edition = { workspace = true }
+rust-version = "1.77"
 include = [
     "/*.md",
     "/*.toml",
@@ -89,7 +90,6 @@ pq-experimental = []
 underscore-wildcards = []
 
 [build-dependencies]
-autocfg = { workspace = true }
 bindgen = { workspace = true }
 cmake = { workspace = true }
 fs_extra = { workspace = true }

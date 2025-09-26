@@ -741,12 +741,8 @@ fn generate_bindings(config: &Config) {
         }
     });
 
-    // bindgen 0.70 replaced the run-time layout tests with compile-time ones,
-    // but they depend on std::mem::offset_of, stabilized in 1.77.
-    let supports_layout_tests = autocfg::new().probe_rustc_version(1, 77);
-    let Ok(target_rust_version) = bindgen::RustTarget::stable(68, 0) else {
-        panic!("bindgen does not recognize target rust version");
-    };
+    let target_rust_version =
+        bindgen::RustTarget::stable(77, 0).expect("bindgen does not recognize target rust version");
 
     let mut builder = bindgen::Builder::default()
         .rust_target(target_rust_version) // bindgen MSRV is 1.70, so this is enough
@@ -762,7 +758,7 @@ fn generate_bindings(config: &Config) {
         .generate_comments(true)
         .fit_macro_constants(false)
         .size_t_is_usize(true)
-        .layout_tests(supports_layout_tests)
+        .layout_tests(config.env.debug.is_some())
         .prepend_enum_name(true)
         .blocklist_type("max_align_t") // Not supported by bindgen on all targets, not used by BoringSSL
         .clang_args(get_extra_clang_args_for_bindgen(config))
