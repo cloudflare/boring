@@ -610,7 +610,6 @@ fn verify_reject_underscore_hostname_with_wildcard() {
     client.connect_err();
 }
 
-#[cfg(feature = "underscore-wildcards")]
 #[test]
 fn verify_allow_underscore_hostname_with_wildcard() {
     let mut server = Server::builder();

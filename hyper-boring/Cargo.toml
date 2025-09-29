@@ -12,15 +12,12 @@ exclude = ["test/*"]
 rust-version = "1.80"
 
 [package.metadata.docs.rs]
-features = ["pq-experimental"]
+features = []
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 # Use a FIPS-validated version of boringssl.
 fips = ["boring/fips", "tokio-boring/fips"]
-
-# Enables experimental post-quantum crypto (https://blog.cloudflare.com/post-quantum-for-all/)
-pq-experimental = ["tokio-boring/pq-experimental"]
 
 [dependencies]
 antidote = { workspace = true }

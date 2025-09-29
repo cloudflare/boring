@@ -433,15 +433,10 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
             native BoringSSL is expected to have the patches included"
         );
         return Ok(());
-    } else if config.env.source_path.is_some()
-        && (config.features.rpk
-            || config.features.pq_experimental
-            || config.features.underscore_wildcards)
-    {
+    } else if config.env.source_path.is_some() && config.features.rpk {
         panic!(
             "BORING_BSSL_ASSUME_PATCHED must be set when setting
-               BORING_BSSL_SOURCE_PATH and using any of the following
-               features: rpk, pq-experimental, underscore-wildcards"
+               BORING_BSSL_SOURCE_PATH and using the rpk feature"
         );
     }
 
@@ -456,20 +451,16 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
         run_command(Command::new("git").arg("init").current_dir(src_path))?;
     }
 
-    if config.features.pq_experimental {
-        println!("cargo:warning=applying experimental post quantum crypto patch to boringssl");
-        apply_patch(config, "boring-pq.patch")?;
-    }
+    println!("cargo:warning=applying experimental post quantum crypto patch to boringssl");
+    apply_patch(config, "boring-pq.patch")?;
 
     if config.features.rpk {
         println!("cargo:warning=applying RPK patch to boringssl");
         apply_patch(config, "rpk.patch")?;
     }
 
-    if config.features.underscore_wildcards {
-        println!("cargo:warning=applying underscore wildcards patch to boringssl");
-        apply_patch(config, "underscore-wildcards.patch")?;
-    }
+    println!("cargo:warning=applying underscore wildcards patch to boringssl");
+    apply_patch(config, "underscore-wildcards.patch")?;
 
     Ok(())
 }
