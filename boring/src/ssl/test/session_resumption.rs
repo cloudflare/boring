@@ -57,9 +57,11 @@ fn custom_callback_success() {
 
     let mut server = Server::builder();
     server.expected_connections_count(2);
-    server
-        .ctx()
-        .set_ticket_key_callback(test_success_tickey_key_callback);
+    unsafe {
+        server
+            .ctx()
+            .set_ticket_key_callback_unsafe(test_success_tickey_key_callback)
+    };
     let server = server.build();
 
     let mut client = server.client();
@@ -100,9 +102,11 @@ fn custom_callback_unrecognized_decryption_ticket() {
 
     let mut server = Server::builder();
     server.expected_connections_count(2);
-    server
-        .ctx()
-        .set_ticket_key_callback(test_noop_tickey_key_callback);
+    unsafe {
+        server
+            .ctx()
+            .set_ticket_key_callback_unsafe(test_noop_tickey_key_callback)
+    };
     let server = server.build();
 
     let mut client = server.client();
@@ -141,14 +145,14 @@ fn custom_callback_unrecognized_decryption_ticket() {
 // TicketKeyCallbackResult::Noop in decryption mode.
 fn test_noop_tickey_key_callback(
     _ssl: &SslRef,
-    _key_name: &mut [u8; 16],
-    _iv: *mut u8,
+    key_name: &mut [u8; 16],
+    iv: &mut [u8; ffi::EVP_MAX_IV_LENGTH as usize],
     evp_ctx: *mut ffi::EVP_CIPHER_CTX,
     hmac_ctx: *mut ffi::HMAC_CTX,
     encrypt: bool,
 ) -> TicketKeyCallbackResult {
     // These should only be used for testing purposes.
-    const TEST_CBC_IV: [u8; 16] = [1; 16];
+    const TEST_CBC_IV: [u8; ffi::EVP_MAX_IV_LENGTH as usize] = [1; ffi::EVP_MAX_IV_LENGTH as usize];
     const TEST_AES_128_CBC_KEY: [u8; 16] = [2; 16];
     const TEST_HMAC_KEY: [u8; 32] = [3; 32];
 
@@ -156,6 +160,9 @@ fn test_noop_tickey_key_callback(
     let cipher = Cipher::aes_128_cbc();
 
     if encrypt {
+        assert_eq!(key_name, &[0; 16]);
+        assert_eq!(iv, &[0; 16]);
+
         NOOP_ENCRYPTION_CALLED_BACK.fetch_add(1, Ordering::SeqCst);
         // Set the encryption context.
         let ret = unsafe {
@@ -193,14 +200,14 @@ fn test_noop_tickey_key_callback(
 // Custom callback to encrypt and decrypt session tickets
 fn test_success_tickey_key_callback(
     _ssl: &SslRef,
-    _key_name: &mut [u8; 16],
-    _iv: *mut u8,
+    key_name: &mut [u8; 16],
+    iv: &mut [u8; ffi::EVP_MAX_IV_LENGTH as usize],
     evp_ctx: *mut ffi::EVP_CIPHER_CTX,
     hmac_ctx: *mut ffi::HMAC_CTX,
     encrypt: bool,
 ) -> TicketKeyCallbackResult {
     // These should only be used for testing purposes.
-    const TEST_CBC_IV: [u8; 16] = [1; 16];
+    const TEST_CBC_IV: [u8; ffi::EVP_MAX_IV_LENGTH as usize] = [1; ffi::EVP_MAX_IV_LENGTH as usize];
     const TEST_AES_128_CBC_KEY: [u8; 16] = [2; 16];
     const TEST_HMAC_KEY: [u8; 32] = [3; 32];
 
@@ -208,6 +215,9 @@ fn test_success_tickey_key_callback(
     let cipher = Cipher::aes_128_cbc();
 
     if encrypt {
+        assert_eq!(key_name, &[0; 16]);
+        assert_eq!(iv, &[0; 16]);
+
         SUCCESS_ENCRYPTION_CALLED_BACK.fetch_add(1, Ordering::SeqCst);
         // Set the encryption context.
         let ret = unsafe {
@@ -236,6 +246,7 @@ fn test_success_tickey_key_callback(
         assert!(ret == 1);
     } else {
         SUCCESS_DECRYPTION_CALLED_BACK.fetch_add(1, Ordering::SeqCst);
+        // Set the decryption context.
         let ret = unsafe {
             ffi::EVP_DecryptInit_ex(
                 evp_ctx,
