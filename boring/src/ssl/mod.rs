@@ -695,86 +695,6 @@ impl From<u16> for SslSignatureAlgorithm {
     }
 }
 
-/// Numeric identifier of a TLS curve.
-#[repr(transparent)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct SslCurveNid(c_int);
-
-/// A TLS Curve.
-#[repr(transparent)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct SslCurve(c_int);
-
-impl SslCurve {
-    pub const SECP224R1: SslCurve = SslCurve(ffi::SSL_GROUP_SECP224R1 as _);
-
-    pub const SECP256R1: SslCurve = SslCurve(ffi::SSL_GROUP_SECP256R1 as _);
-
-    pub const SECP384R1: SslCurve = SslCurve(ffi::SSL_GROUP_SECP384R1 as _);
-
-    pub const SECP521R1: SslCurve = SslCurve(ffi::SSL_GROUP_SECP521R1 as _);
-
-    pub const X25519: SslCurve = SslCurve(ffi::SSL_GROUP_X25519 as _);
-
-    pub const X25519_KYBER768_DRAFT00: SslCurve =
-        SslCurve(ffi::SSL_GROUP_X25519_KYBER768_DRAFT00 as _);
-
-    #[cfg(feature = "pq-experimental")]
-    pub const X25519_KYBER768_DRAFT00_OLD: SslCurve =
-        SslCurve(ffi::SSL_GROUP_X25519_KYBER768_DRAFT00_OLD as _);
-
-    #[cfg(feature = "pq-experimental")]
-    pub const X25519_KYBER512_DRAFT00: SslCurve =
-        SslCurve(ffi::SSL_GROUP_X25519_KYBER512_DRAFT00 as _);
-
-    #[cfg(feature = "pq-experimental")]
-    pub const P256_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::SSL_GROUP_P256_KYBER768_DRAFT00 as _);
-
-    #[cfg(feature = "pq-experimental")]
-    pub const X25519_MLKEM768: SslCurve = SslCurve(ffi::SSL_GROUP_X25519_MLKEM768 as _);
-
-    /// Returns the curve name
-    #[corresponds(SSL_get_curve_name)]
-    #[must_use]
-    pub fn name(&self) -> Option<&'static str> {
-        unsafe {
-            let ptr = ffi::SSL_get_curve_name(self.0 as u16);
-            if ptr.is_null() {
-                return None;
-            }
-
-            CStr::from_ptr(ptr).to_str().ok()
-        }
-    }
-
-    // **NOTE**: This function only exists because the version of boringssl we currently use does
-    // not expose SSL_CTX_set1_group_ids. Because `SslRef::curve()` returns the public SSL_GROUP id
-    // as opposed to the internal NID, but `SslContextBuilder::set_curves()` requires the internal
-    // NID, we need this mapping in place to avoid breaking changes to the public API. Once the
-    // underlying boringssl version is upgraded, this should be removed in favor of the new
-    // SSL_CTX_set1_group_ids API.
-    pub fn nid(&self) -> Option<SslCurveNid> {
-        match self.0 {
-            ffi::SSL_GROUP_SECP224R1 => Some(ffi::NID_secp224r1),
-            ffi::SSL_GROUP_SECP256R1 => Some(ffi::NID_X9_62_prime256v1),
-            ffi::SSL_GROUP_SECP384R1 => Some(ffi::NID_secp384r1),
-            ffi::SSL_GROUP_SECP521R1 => Some(ffi::NID_secp521r1),
-            ffi::SSL_GROUP_X25519 => Some(ffi::NID_X25519),
-            ffi::SSL_GROUP_X25519_KYBER768_DRAFT00 => Some(ffi::NID_X25519Kyber768Draft00),
-            #[cfg(feature = "pq-experimental")]
-            ffi::SSL_GROUP_X25519_KYBER768_DRAFT00_OLD => Some(ffi::NID_X25519Kyber768Draft00Old),
-            #[cfg(feature = "pq-experimental")]
-            ffi::SSL_GROUP_X25519_KYBER512_DRAFT00 => Some(ffi::NID_X25519Kyber512Draft00),
-            #[cfg(feature = "pq-experimental")]
-            ffi::SSL_GROUP_P256_KYBER768_DRAFT00 => Some(ffi::NID_P256Kyber768Draft00),
-            #[cfg(feature = "pq-experimental")]
-            ffi::SSL_GROUP_X25519_MLKEM768 => Some(ffi::NID_X25519MLKEM768),
-            _ => None,
-        }
-        .map(SslCurveNid)
-    }
-}
-
 /// A compliance policy.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct CompliancePolicy(ffi::ssl_compliance_policy_t);
@@ -2025,24 +1945,6 @@ impl SslContextBuilder {
         }
     }
 
-    /// Sets the context's supported curves.
-    #[corresponds(SSL_CTX_set1_curves)]
-    pub fn set_curves(&mut self, curves: &[SslCurve]) -> Result<(), ErrorStack> {
-        let curves: Vec<i32> = curves
-            .iter()
-            .filter_map(|curve| curve.nid().map(|nid| nid.0))
-            .collect();
-
-        unsafe {
-            cvt_0i(ffi::SSL_CTX_set1_curves(
-                self.as_ptr(),
-                curves.as_ptr() as *const _,
-                curves.len(),
-            ))
-            .map(|_| ())
-        }
-    }
-
     /// Sets the context's compliance policy.
     ///
     /// This feature isn't available in the certified version of BoringSSL.
@@ -2885,31 +2787,6 @@ impl SslRef {
             ))
             .map(|_| ())
         }
-    }
-
-    /// Sets the ongoing session's supported groups by their named identifiers
-    /// (formerly referred to as curves).
-    #[corresponds(SSL_set1_groups)]
-    pub fn set_group_nids(&mut self, group_nids: &[SslCurveNid]) -> Result<(), ErrorStack> {
-        unsafe {
-            cvt_0i(ffi::SSL_set1_curves(
-                self.as_ptr(),
-                group_nids.as_ptr() as *const _,
-                group_nids.len(),
-            ))
-            .map(|_| ())
-        }
-    }
-
-    /// Returns the [`SslCurve`] used for this `SslRef`.
-    #[corresponds(SSL_get_curve_id)]
-    #[must_use]
-    pub fn curve(&self) -> Option<SslCurve> {
-        let curve_id = unsafe { ffi::SSL_get_curve_id(self.as_ptr()) };
-        if curve_id == 0 {
-            return None;
-        }
-        Some(SslCurve(curve_id.into()))
     }
 
     /// Returns an `ErrorCode` value for the most recent operation on this `SslRef`.

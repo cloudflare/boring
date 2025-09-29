@@ -13,9 +13,8 @@ use crate::pkey::PKey;
 use crate::srtp::SrtpProfileId;
 use crate::ssl::test::server::Server;
 use crate::ssl::SslVersion;
-use crate::ssl::{self, SslCurve};
 use crate::ssl::{
-    ExtensionType, ShutdownResult, ShutdownState, Ssl, SslAcceptor, SslAcceptorBuilder,
+    self, ExtensionType, ShutdownResult, ShutdownState, Ssl, SslAcceptor, SslAcceptorBuilder,
     SslConnector, SslContext, SslFiletype, SslMethod, SslOptions, SslStream, SslVerifyMode,
 };
 use crate::x509::store::X509StoreBuilder;
@@ -950,36 +949,6 @@ fn sni_callback_swapped_ctx() {
     server.client().connect();
 
     assert!(CALLED_BACK.load(Ordering::SeqCst));
-}
-
-#[test]
-fn get_curve() {
-    let server = Server::builder().build();
-    let client = server.client_with_root_ca();
-    let client_stream = client.connect();
-    let curve = client_stream.ssl().curve().expect("curve");
-    assert!(curve.name().is_some());
-}
-
-#[test]
-fn get_curve_name() {
-    assert_eq!(SslCurve::SECP224R1.name(), Some("P-224"));
-    assert_eq!(SslCurve::SECP256R1.name(), Some("P-256"));
-    assert_eq!(SslCurve::SECP384R1.name(), Some("P-384"));
-    assert_eq!(SslCurve::SECP521R1.name(), Some("P-521"));
-    assert_eq!(SslCurve::X25519.name(), Some("X25519"));
-}
-
-#[test]
-fn set_curves() {
-    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
-    ctx.set_curves(&[
-        SslCurve::SECP224R1,
-        SslCurve::SECP256R1,
-        SslCurve::SECP384R1,
-        SslCurve::X25519,
-    ])
-    .expect("Failed to set curves");
 }
 
 #[test]
