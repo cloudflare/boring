@@ -1895,10 +1895,6 @@ impl SslContextBuilder {
     }
 
     /// Configures whether ClientHello extensions should be permuted.
-    ///
-    /// Note: This is gated to non-fips because the fips feature builds with a separate
-    /// version of BoringSSL which doesn't yet include these APIs.
-    /// Once the submoduled fips commit is upgraded, these gates can be removed.
     #[corresponds(SSL_CTX_set_permute_extensions)]
     pub fn set_permute_extensions(&mut self, enabled: bool) {
         unsafe { ffi::SSL_CTX_set_permute_extensions(self.as_ptr(), enabled as _) }
@@ -2938,10 +2934,6 @@ impl SslRef {
 
     /// Configures whether ClientHello extensions should be permuted.
     #[corresponds(SSL_set_permute_extensions)]
-    ///
-    /// Note: This is gated to non-fips because the fips feature builds with a separate
-    /// version of BoringSSL which doesn't yet include these APIs.
-    /// Once the submoduled fips commit is upgraded, these gates can be removed.
     pub fn set_permute_extensions(&mut self, enabled: bool) {
         unsafe { ffi::SSL_set_permute_extensions(self.as_ptr(), enabled as _) }
     }
