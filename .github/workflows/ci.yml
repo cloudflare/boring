@@ -60,7 +60,7 @@ jobs:
       - name: Run clippy
         run: cargo clippy --all --all-targets
       - name: Check docs
-        run: cargo doc --no-deps -p boring -p boring-sys --features rpk,pq-experimental,underscore-wildcards
+        run: cargo doc --no-deps -p boring -p boring-sys --features rpk
         env:
           DOCS_RS: 1
   test:
@@ -357,15 +357,3 @@ jobs:
       shell: bash
     - run: cargo test --features rpk
       name: Run `rpk` tests
-    - run: cargo test --features pq-experimental
-      name: Run `pq-experimental` tests
-    - run: cargo test --features underscore-wildcards
-      name: Run `underscore-wildcards` tests
-    - run: cargo test --features pq-experimental,rpk
-      name: Run `pq-experimental,rpk` tests
-    - run: cargo test --features pq-experimental,underscore-wildcards
-      name: Run `pq-experimental,underscore-wildcards` tests
-    - run: cargo test --features rpk,underscore-wildcards
-      name: Run `rpk,underscore-wildcards` tests
-    - run: cargo test --features pq-experimental,rpk,underscore-wildcards
-      name: Run `pq-experimental,rpk,underscore-wildcards` tests

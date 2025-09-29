@@ -719,18 +719,14 @@ impl SslCurve {
     pub const X25519_KYBER768_DRAFT00: SslCurve =
         SslCurve(ffi::SSL_GROUP_X25519_KYBER768_DRAFT00 as _);
 
-    #[cfg(feature = "pq-experimental")]
     pub const X25519_KYBER768_DRAFT00_OLD: SslCurve =
         SslCurve(ffi::SSL_GROUP_X25519_KYBER768_DRAFT00_OLD as _);
 
-    #[cfg(feature = "pq-experimental")]
     pub const X25519_KYBER512_DRAFT00: SslCurve =
         SslCurve(ffi::SSL_GROUP_X25519_KYBER512_DRAFT00 as _);
 
-    #[cfg(feature = "pq-experimental")]
     pub const P256_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::SSL_GROUP_P256_KYBER768_DRAFT00 as _);
 
-    #[cfg(feature = "pq-experimental")]
     pub const X25519_MLKEM768: SslCurve = SslCurve(ffi::SSL_GROUP_X25519_MLKEM768 as _);
 
     /// Returns the curve name
@@ -761,13 +757,9 @@ impl SslCurve {
             ffi::SSL_GROUP_SECP521R1 => Some(ffi::NID_secp521r1),
             ffi::SSL_GROUP_X25519 => Some(ffi::NID_X25519),
             ffi::SSL_GROUP_X25519_KYBER768_DRAFT00 => Some(ffi::NID_X25519Kyber768Draft00),
-            #[cfg(feature = "pq-experimental")]
             ffi::SSL_GROUP_X25519_KYBER768_DRAFT00_OLD => Some(ffi::NID_X25519Kyber768Draft00Old),
-            #[cfg(feature = "pq-experimental")]
             ffi::SSL_GROUP_X25519_KYBER512_DRAFT00 => Some(ffi::NID_X25519Kyber512Draft00),
-            #[cfg(feature = "pq-experimental")]
             ffi::SSL_GROUP_P256_KYBER768_DRAFT00 => Some(ffi::NID_P256Kyber768Draft00),
-            #[cfg(feature = "pq-experimental")]
             ffi::SSL_GROUP_X25519_MLKEM768 => Some(ffi::NID_X25519MLKEM768),
             _ => None,
         }

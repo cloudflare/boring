@@ -12,15 +12,12 @@ An implementation of SSL streams for Tokio backed by BoringSSL
 """
 
 [package.metadata.docs.rs]
-features = ["rpk", "pq-experimental"]
+features = ["rpk"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 # Use a FIPS-validated version of boringssl.
 fips = ["boring/fips", "boring-sys/fips"]
-
-# Enables experimental post-quantum crypto (https://blog.cloudflare.com/post-quantum-for-all/)
-pq-experimental = ["boring/pq-experimental"]
 
 # Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
 rpk = ["boring/rpk"]
