@@ -282,7 +282,7 @@ where
     F: Fn(
             &SslRef,
             &mut [u8; 16],
-            *mut u8,
+            &mut [u8; ffi::EVP_MAX_IV_LENGTH as usize],
             *mut ffi::EVP_CIPHER_CTX,
             *mut ffi::HMAC_CTX,
             bool,
@@ -304,8 +304,22 @@ where
         unsafe { slice::from_raw_parts_mut(key_name, ffi::SSL_TICKET_KEY_NAME_LEN as usize) };
     let key_name = <&mut [u8; 16]>::try_from(key_name).expect("boring provides a 16-byte key name");
 
+    // SAFETY: the callback provides 16 bytes iv
+    //
+    // https://github.com/google/boringssl/blob/main/ssl/ssl_session.cc#L331
+    let iv = unsafe { core::slice::from_raw_parts_mut(iv, ffi::EVP_MAX_IV_LENGTH as usize) };
+    let iv = <&mut [u8; ffi::EVP_MAX_IV_LENGTH as usize]>::try_from(iv)
+        .expect("boring provides a 16-byte iv");
+
     // When encrypting a new ticket, encrypt will be one.
     let encrypt = encrypt == 1;
+
+    // Zero-initialize the key_name and iv, since the application is expected to populate these
+    // fields in the encrypt mode.
+    if encrypt {
+        unsafe { ptr::write(key_name, [0; 16]) };
+        unsafe { ptr::write(iv, [0; ffi::EVP_MAX_IV_LENGTH as usize]) };
+    }
 
     callback(ssl, key_name, iv, evp_ctx, hmac_ctx, encrypt).into()
 }

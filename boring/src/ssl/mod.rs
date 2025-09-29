@@ -1240,13 +1240,20 @@ impl SslContextBuilder {
     /// # Panics
     ///
     /// This method panics if this `Ssl` is associated with a RPK context.
+    ///
+    /// # Safety
+    ///
+    /// The application is responsible for correctly setting the key_name, iv, encryption context
+    /// and hmac context. See the [`SSL_CTX_set_tlsext_ticket_key_cb`] docs for additional info.
+    ///
+    /// [`SSL_CTX_set_tlsext_ticket_key_cb`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set_tlsext_ticket_key_cb
     #[corresponds(SSL_CTX_set_tlsext_ticket_key_cb)]
-    pub fn set_ticket_key_callback<F>(&mut self, callback: F)
+    pub unsafe fn set_ticket_key_callback_unsafe<F>(&mut self, callback: F)
     where
         F: Fn(
                 &SslRef,
                 &mut [u8; 16],
-                *mut u8,
+                &mut [u8; ffi::EVP_MAX_IV_LENGTH as usize],
                 *mut ffi::EVP_CIPHER_CTX,
                 *mut ffi::HMAC_CTX,
                 bool,
