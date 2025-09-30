@@ -747,16 +747,12 @@ impl SslCurve {
         }
     }
 
-    // We need to allow dead_code here because `SslRef::set_curves` is conditionally compiled
-    // against the absence of the `kx-safe-default` feature and thus this function is never used.
-    //
     // **NOTE**: This function only exists because the version of boringssl we currently use does
     // not expose SSL_CTX_set1_group_ids. Because `SslRef::curve()` returns the public SSL_GROUP id
     // as opposed to the internal NID, but `SslContextBuilder::set_curves()` requires the internal
     // NID, we need this mapping in place to avoid breaking changes to the public API. Once the
     // underlying boringssl version is upgraded, this should be removed in favor of the new
     // SSL_CTX_set1_group_ids API.
-    #[allow(dead_code)]
     pub fn nid(&self) -> Option<SslCurveNid> {
         match self.0 {
             ffi::SSL_GROUP_SECP224R1 => Some(ffi::NID_secp224r1),
@@ -2017,11 +2013,6 @@ impl SslContextBuilder {
     }
 
     /// Sets the context's supported curves.
-    //
-    // If the "kx-*" flags are used to set key exchange preference, then don't allow the user to
-    // set them here. This ensures we don't override the user's preference without telling them:
-    // when the flags are used, the preferences are set just before connecting or accepting.
-    #[cfg(not(feature = "kx-safe-default"))]
     #[corresponds(SSL_CTX_set1_curves_list)]
     pub fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
         let curves = CString::new(curves).map_err(ErrorStack::internal_error)?;
@@ -2035,12 +2026,7 @@ impl SslContextBuilder {
     }
 
     /// Sets the context's supported curves.
-    //
-    // If the "kx-*" flags are used to set key exchange preference, then don't allow the user to
-    // set them here. This ensures we don't override the user's preference without telling them:
-    // when the flags are used, the preferences are set just before connecting or accepting.
     #[corresponds(SSL_CTX_set1_curves)]
-    #[cfg(not(feature = "kx-safe-default"))]
     pub fn set_curves(&mut self, curves: &[SslCurve]) -> Result<(), ErrorStack> {
         let curves: Vec<i32> = curves
             .iter()
@@ -2913,40 +2899,6 @@ impl SslRef {
             ))
             .map(|_| ())
         }
-    }
-
-    #[cfg(feature = "kx-safe-default")]
-    fn client_set_default_curves_list(&mut self) {
-        let curves = if cfg!(feature = "kx-client-pq-preferred") {
-            if cfg!(feature = "kx-client-nist-required") {
-                "P256Kyber768Draft00:P-256:P-384:P-521"
-            } else {
-                "X25519MLKEM768:X25519Kyber768Draft00:X25519:P256Kyber768Draft00:P-256:P-384:P-521"
-            }
-        } else if cfg!(feature = "kx-client-pq-supported") {
-            if cfg!(feature = "kx-client-nist-required") {
-                "P-256:P-384:P-521:P256Kyber768Draft00"
-            } else {
-                "X25519:P-256:P-384:P-521:X25519MLKEM768:X25519Kyber768Draft00:P256Kyber768Draft00"
-            }
-        } else {
-            if cfg!(feature = "kx-client-nist-required") {
-                "P-256:P-384:P-521"
-            } else {
-                "X25519:P-256:P-384:P-521"
-            }
-        };
-
-        self.set_curves_list(curves)
-            .expect("invalid default client curves list");
-    }
-
-    #[cfg(feature = "kx-safe-default")]
-    fn server_set_default_curves_list(&mut self) {
-        self.set_curves_list(
-            "X25519MLKEM768:X25519Kyber768Draft00:P256Kyber768Draft00:X25519:P-256:P-384",
-        )
-        .expect("invalid default server curves list");
     }
 
     /// Returns the [`SslCurve`] used for this `SslRef`.
@@ -4341,9 +4293,6 @@ where
     pub fn setup_connect(mut self) -> MidHandshakeSslStream<S> {
         self.set_connect_state();
 
-        #[cfg(feature = "kx-safe-default")]
-        self.inner.ssl.client_set_default_curves_list();
-
         MidHandshakeSslStream {
             stream: self.inner,
             error: Error {
@@ -4372,9 +4321,6 @@ where
     #[must_use]
     pub fn setup_accept(mut self) -> MidHandshakeSslStream<S> {
         self.set_accept_state();
-
-        #[cfg(feature = "kx-safe-default")]
-        self.inner.ssl.server_set_default_curves_list();
 
         MidHandshakeSslStream {
             stream: self.inner,

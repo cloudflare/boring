@@ -363,8 +363,6 @@ jobs:
       name: Run `underscore-wildcards` tests
     - run: cargo test --features pq-experimental,rpk
       name: Run `pq-experimental,rpk` tests
-    - run: cargo test --features kx-safe-default,pq-experimental
-      name: Run `kx-safe-default` tests
     - run: cargo test --features pq-experimental,underscore-wildcards
       name: Run `pq-experimental,underscore-wildcards` tests
     - run: cargo test --features rpk,underscore-wildcards
