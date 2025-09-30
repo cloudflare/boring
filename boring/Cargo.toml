@@ -13,7 +13,7 @@ edition = { workspace = true }
 rust-version = "1.80"
 
 [package.metadata.docs.rs]
-features = ["rpk", "pq-experimental", "underscore-wildcards"]
+features = ["rpk", "underscore-wildcards"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -32,16 +32,11 @@ legacy-compat-deprecated = []
 # `BORING_BSSL{,_FIPS}_SOURCE_PATH` and `BORING_BSSL{,_FIPS}_ASSUME_PATCHED`.
 rpk = ["boring-sys/rpk"]
 
-# Applies a patch to the boringSSL source code that enables support for PQ key
-# exchange. This feature is necessary in order to compile the bindings for the
-# default branch of boringSSL. Alternatively, a version of boringSSL that
-# implements the same feature set can be provided by setting
-# `BORING_BSSL{,_FIPS}_SOURCE_PATH` and `BORING_BSSL{,_FIPS}_ASSUME_PATCHED`.
-pq-experimental = ["boring-sys/pq-experimental"]
-
-# Applies a patch to enable
-# `ffi::X509_CHECK_FLAG_UNDERSCORE_WILDCARDS`. Same caveats as
-# those for `pq-experimental` feature apply.
+# Applies a patch to enable `ffi::X509_CHECK_FLAG_UNDERSCORE_WILDCARDS`. This
+# feature is necessary in order to compile the bindings for the default branch
+# of boringSSL. Alternatively, a version of boringSSL that implements the same
+# feature set can be provided by setting `BORING_BSSL{,_FIPS}_SOURCE_PATH` and
+# `BORING_BSSL{,_FIPS}_ASSUME_PATCHED`.
 underscore-wildcards = ["boring-sys/underscore-wildcards"]
 
 [dependencies]
