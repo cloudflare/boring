@@ -8,13 +8,15 @@ use super::{
 };
 use crate::error::ErrorStack;
 use crate::ffi;
+use crate::hmac::HmacCtx;
 use crate::ssl::TicketKeyCallbackResult;
+use crate::symm::CipherCtx;
 use crate::x509::{X509StoreContext, X509StoreContextRef};
 use foreign_types::ForeignType;
 use foreign_types::ForeignTypeRef;
 use libc::{c_char, c_int, c_uchar, c_uint, c_void};
 use std::ffi::CStr;
-use std::mem::MaybeUninit;
+use std::mem::{ManuallyDrop, MaybeUninit};
 use std::ptr;
 use std::slice;
 use std::str;
@@ -288,8 +290,8 @@ where
             &SslRef,
             &mut [u8; 16],
             &mut [u8; ffi::EVP_MAX_IV_LENGTH as usize],
-            *mut ffi::EVP_CIPHER_CTX,
-            *mut ffi::HMAC_CTX,
+            &mut CipherCtx,
+            &mut HmacCtx,
             bool,
         ) -> TicketKeyCallbackResult
         + 'static
@@ -325,7 +327,11 @@ where
     let key_name = unsafe { key_name.assume_init_mut() };
     let iv = unsafe { iv.assume_init_mut() };
 
-    callback(ssl, key_name, iv, evp_ctx, hmac_ctx, encrypt).into()
+    // The EVP_CIPHER_CTX and HMAC_CTX are owned by boringSSL.
+    let mut evp_ctx = ManuallyDrop::new(unsafe { CipherCtx::from_ptr(evp_ctx) });
+    let mut hmac_ctx = ManuallyDrop::new(unsafe { HmacCtx::from_ptr(hmac_ctx) });
+
+    callback(ssl, key_name, iv, &mut evp_ctx, &mut hmac_ctx, encrypt).into()
 }
 
 pub(super) unsafe extern "C" fn raw_alpn_select<F>(

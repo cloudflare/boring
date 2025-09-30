@@ -53,6 +53,7 @@
 //! ```
 
 use crate::ffi;
+use foreign_types::ForeignType;
 use libc::{c_int, c_uint};
 use openssl_macros::corresponds;
 use std::cmp;
@@ -66,6 +67,77 @@ use crate::{cvt, cvt_p};
 pub enum Mode {
     Encrypt,
     Decrypt,
+}
+
+foreign_type_and_impl_send_sync! {
+    type CType = ffi::EVP_CIPHER_CTX;
+    fn drop = ffi::EVP_CIPHER_CTX_free;
+
+    pub struct CipherCtx;
+}
+
+impl CipherCtx {
+    /// Configures CipherCtx for a fresh encryption operation using `cipher`.
+    ///
+    /// https://commondatastorage.googleapis.com/chromium-boringssl-docs/cipher.h.html#EVP_EncryptInit_ex
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure EVP_CIPHER_CTX has been initalized.
+    ///
+    /// The caller is responsible for ensuring the length of `key` and `iv` are appropriate for the
+    /// chosen Cipher.
+    pub unsafe fn init_encrypt(
+        &mut self,
+        cipher: &Cipher,
+        key: &[u8],
+        iv: &[u8; ffi::EVP_MAX_IV_LENGTH as usize],
+    ) -> Result<(), ErrorStack> {
+        ffi::init();
+
+        unsafe {
+            cvt(ffi::EVP_EncryptInit_ex(
+                self.as_ptr(),
+                cipher.as_ptr(),
+                // ENGINE api is deprecated
+                ptr::null_mut(),
+                key.as_ptr(),
+                iv.as_ptr(),
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Configures CipherCtx for a fresh decryption operation using `cipher`.
+    ///
+    /// https://commondatastorage.googleapis.com/chromium-boringssl-docs/cipher.h.html#EVP_DecryptInit_ex
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure EVP_CIPHER_CTX has been initalized.
+    ///
+    /// The caller is responsible for ensuring the length of `key` and `iv` are appropriate for the
+    /// chosen Cipher.
+    pub unsafe fn init_decrypt(
+        &mut self,
+        cipher: &Cipher,
+        key: &[u8],
+        iv: &[u8; ffi::EVP_MAX_IV_LENGTH as usize],
+    ) -> Result<(), ErrorStack> {
+        ffi::init();
+
+        unsafe {
+            cvt(ffi::EVP_DecryptInit_ex(
+                self.as_ptr(),
+                cipher.as_ptr(),
+                // ENGINE api is deprecated
+                ptr::null_mut(),
+                key.as_ptr(),
+                iv.as_ptr(),
+            ))
+            .map(|_| ())
+        }
+    }
 }
 
 /// Represents a particular cipher algorithm.
