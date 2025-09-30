@@ -44,28 +44,6 @@ pq-experimental = ["boring-sys/pq-experimental"]
 # those for `pq-experimental` feature apply.
 underscore-wildcards = ["boring-sys/underscore-wildcards"]
 
-# Controlling key exchange preferences at compile time
-
-# Choose key exchange preferences at compile time. This prevents the user from
-# choosing their own preferences.
-kx-safe-default = []
-
-# Support PQ key exchange. The client will prefer classical key exchange, but
-# will upgrade to PQ key exchange if requested by the server. This is the
-# safest option if you don't know if the peer supports PQ key exchange. This
-# feature implies "kx-safe-default".
-kx-client-pq-supported = ["kx-safe-default"]
-
-# Prefer PQ key exchange. The client will prefer PQ exchange, but fallback to
-# classical key exchange if requested by the server. This is the best option if
-# you know the peer supports PQ key exchange. This feature implies
-# "kx-safe-default" and "kx-client-pq-supported".
-kx-client-pq-preferred = ["kx-safe-default", "kx-client-pq-supported"]
-
-# Disable key exchange involving non-NIST key exchange on the client side.
-# Implies "kx-safe-default".
-kx-client-nist-required = ["kx-safe-default"]
-
 [dependencies]
 bitflags = { workspace = true }
 foreign-types = { workspace = true }
