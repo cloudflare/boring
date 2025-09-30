@@ -81,6 +81,7 @@ use crate::dh::DhRef;
 use crate::ec::EcKeyRef;
 use crate::error::ErrorStack;
 use crate::ex_data::Index;
+use crate::hmac::HmacCtx;
 use crate::nid::Nid;
 use crate::pkey::{HasPrivate, PKeyRef, Params, Private};
 use crate::srtp::{SrtpProtectionProfile, SrtpProtectionProfileRef};
@@ -88,6 +89,7 @@ use crate::ssl::bio::BioMethod;
 use crate::ssl::callbacks::*;
 use crate::ssl::error::InnerError;
 use crate::stack::{Stack, StackRef, Stackable};
+use crate::symm::CipherCtx;
 use crate::x509::store::{X509Store, X509StoreBuilder, X509StoreBuilderRef, X509StoreRef};
 use crate::x509::verify::X509VerifyParamRef;
 use crate::x509::{
@@ -1137,6 +1139,8 @@ impl SslContextBuilder {
     /// prior to TLS 1.3, retroactively decrypt all application traffic from sessions using that
     /// ticket key. Thus ticket keys must be regularly rotated for forward secrecy.
     ///
+    /// CipherCtx and HmacCtx are guaranteed to be initialized.
+    ///
     /// # Panics
     ///
     /// This method panics if this `Ssl` is associated with a RPK context.
@@ -1148,14 +1152,14 @@ impl SslContextBuilder {
     ///
     /// [`SSL_CTX_set_tlsext_ticket_key_cb`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set_tlsext_ticket_key_cb
     #[corresponds(SSL_CTX_set_tlsext_ticket_key_cb)]
-    pub unsafe fn set_ticket_key_callback_unsafe<F>(&mut self, callback: F)
+    pub unsafe fn set_ticket_key_callback<F>(&mut self, callback: F)
     where
         F: Fn(
                 &SslRef,
                 &mut [u8; 16],
                 &mut [u8; ffi::EVP_MAX_IV_LENGTH as usize],
-                *mut ffi::EVP_CIPHER_CTX,
-                *mut ffi::HMAC_CTX,
+                &mut CipherCtx,
+                &mut HmacCtx,
                 bool,
             ) -> TicketKeyCallbackResult
             + 'static

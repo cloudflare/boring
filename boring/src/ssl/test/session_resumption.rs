@@ -1,11 +1,12 @@
 use super::server::Server;
 use crate::ssl::test::MessageDigest;
+use crate::ssl::HmacCtx;
 use crate::ssl::SslRef;
 use crate::ssl::SslSession;
 use crate::ssl::SslSessionCacheMode;
 use crate::ssl::TicketKeyCallbackResult;
 use crate::symm::Cipher;
-use std::ffi::c_void;
+use crate::symm::CipherCtx;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::OnceLock;
 
@@ -60,7 +61,7 @@ fn custom_callback_success() {
     unsafe {
         server
             .ctx()
-            .set_ticket_key_callback_unsafe(test_success_tickey_key_callback)
+            .set_ticket_key_callback(test_success_tickey_key_callback)
     };
     let server = server.build();
 
@@ -105,7 +106,7 @@ fn custom_callback_unrecognized_decryption_ticket() {
     unsafe {
         server
             .ctx()
-            .set_ticket_key_callback_unsafe(test_noop_tickey_key_callback)
+            .set_ticket_key_callback(test_noop_tickey_key_callback)
     };
     let server = server.build();
 
@@ -147,8 +148,8 @@ fn test_noop_tickey_key_callback(
     _ssl: &SslRef,
     key_name: &mut [u8; 16],
     iv: &mut [u8; ffi::EVP_MAX_IV_LENGTH as usize],
-    evp_ctx: *mut ffi::EVP_CIPHER_CTX,
-    hmac_ctx: *mut ffi::HMAC_CTX,
+    evp_ctx: &mut CipherCtx,
+    hmac_ctx: &mut HmacCtx,
     encrypt: bool,
 ) -> TicketKeyCallbackResult {
     // These should only be used for testing purposes.
@@ -164,31 +165,16 @@ fn test_noop_tickey_key_callback(
         assert_eq!(iv, &[0; 16]);
 
         NOOP_ENCRYPTION_CALLED_BACK.fetch_add(1, Ordering::SeqCst);
+
         // Set the encryption context.
-        let ret = unsafe {
-            ffi::EVP_EncryptInit_ex(
-                evp_ctx,
-                cipher.as_ptr(),
-                // ENGINE api is deprecated
-                core::ptr::null_mut(),
-                TEST_AES_128_CBC_KEY.as_ptr(),
-                TEST_CBC_IV.as_ptr(),
-            )
+        unsafe {
+            evp_ctx
+                .init_encrypt(&cipher, &TEST_AES_128_CBC_KEY, &TEST_CBC_IV)
+                .unwrap()
         };
-        assert!(ret == 1);
 
         // Set the hmac context.
-        let ret = unsafe {
-            ffi::HMAC_Init_ex(
-                hmac_ctx,
-                TEST_HMAC_KEY.as_ptr() as *const c_void,
-                TEST_HMAC_KEY.len(),
-                digest.as_ptr(),
-                // ENGINE api is deprecated
-                core::ptr::null_mut(),
-            )
-        };
-        assert!(ret == 1);
+        unsafe { hmac_ctx.init(&TEST_HMAC_KEY, &digest).unwrap() };
 
         TicketKeyCallbackResult::Success
     } else {
@@ -202,8 +188,8 @@ fn test_success_tickey_key_callback(
     _ssl: &SslRef,
     key_name: &mut [u8; 16],
     iv: &mut [u8; ffi::EVP_MAX_IV_LENGTH as usize],
-    evp_ctx: *mut ffi::EVP_CIPHER_CTX,
-    hmac_ctx: *mut ffi::HMAC_CTX,
+    evp_ctx: &mut CipherCtx,
+    hmac_ctx: &mut HmacCtx,
     encrypt: bool,
 ) -> TicketKeyCallbackResult {
     // These should only be used for testing purposes.
@@ -219,58 +205,27 @@ fn test_success_tickey_key_callback(
         assert_eq!(iv, &[0; 16]);
 
         SUCCESS_ENCRYPTION_CALLED_BACK.fetch_add(1, Ordering::SeqCst);
+
         // Set the encryption context.
-        let ret = unsafe {
-            ffi::EVP_EncryptInit_ex(
-                evp_ctx,
-                cipher.as_ptr(),
-                // ENGINE api is deprecated
-                core::ptr::null_mut(),
-                TEST_AES_128_CBC_KEY.as_ptr(),
-                TEST_CBC_IV.as_ptr(),
-            )
+        unsafe {
+            evp_ctx
+                .init_encrypt(&cipher, &TEST_AES_128_CBC_KEY, &TEST_CBC_IV)
+                .unwrap()
         };
-        assert!(ret == 1);
 
         // Set the hmac context.
-        let ret = unsafe {
-            ffi::HMAC_Init_ex(
-                hmac_ctx,
-                TEST_HMAC_KEY.as_ptr() as *const c_void,
-                TEST_HMAC_KEY.len(),
-                digest.as_ptr(),
-                // ENGINE api is deprecated
-                core::ptr::null_mut(),
-            )
-        };
-        assert!(ret == 1);
+        unsafe { hmac_ctx.init(&TEST_HMAC_KEY, &digest).unwrap() };
     } else {
         SUCCESS_DECRYPTION_CALLED_BACK.fetch_add(1, Ordering::SeqCst);
         // Set the decryption context.
-        let ret = unsafe {
-            ffi::EVP_DecryptInit_ex(
-                evp_ctx,
-                cipher.as_ptr(),
-                // ENGINE api is deprecated
-                core::ptr::null_mut(),
-                TEST_AES_128_CBC_KEY.as_ptr(),
-                TEST_CBC_IV.as_ptr(),
-            )
+        unsafe {
+            evp_ctx
+                .init_decrypt(&cipher, &TEST_AES_128_CBC_KEY, &TEST_CBC_IV)
+                .unwrap()
         };
-        assert!(ret == 1);
 
         // Set the hmac context.
-        let ret = unsafe {
-            ffi::HMAC_Init_ex(
-                hmac_ctx,
-                TEST_HMAC_KEY.as_ptr() as *const c_void,
-                TEST_HMAC_KEY.len(),
-                digest.as_ptr(),
-                // ENGINE api is deprecated
-                core::ptr::null_mut(),
-            )
-        };
-        assert!(ret == 1);
+        unsafe { hmac_ctx.init(&TEST_HMAC_KEY, &digest).unwrap() };
     }
 
     TicketKeyCallbackResult::Success
