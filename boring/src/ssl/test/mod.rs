@@ -952,6 +952,15 @@ fn sni_callback_swapped_ctx() {
 }
 
 #[test]
+fn get_curve() {
+    let server = Server::builder().build();
+    let client = server.client_with_root_ca();
+    let client_stream = client.connect();
+    let curve = client_stream.ssl().curve();
+    assert!(curve.is_some());
+}
+
+#[test]
 fn test_get_ciphers() {
     let ctx_builder = SslContext::builder(SslMethod::tls()).unwrap();
     let ctx_builder_ciphers: Vec<&str> = ctx_builder
