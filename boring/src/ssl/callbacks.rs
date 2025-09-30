@@ -12,9 +12,9 @@ use crate::ssl::TicketKeyCallbackResult;
 use crate::x509::{X509StoreContext, X509StoreContextRef};
 use foreign_types::ForeignType;
 use foreign_types::ForeignTypeRef;
-use libc::c_char;
-use libc::{c_int, c_uchar, c_uint, c_void};
+use libc::{c_char, c_int, c_uchar, c_uint, c_void};
 use std::ffi::CStr;
+use std::mem::MaybeUninit;
 use std::ptr;
 use std::slice;
 use std::str;
@@ -270,6 +270,11 @@ where
     }
 }
 
+unsafe fn to_uninit<'a, T: 'a>(ptr: *mut T) -> &'a mut MaybeUninit<T> {
+    assert!(!ptr.is_null());
+    unsafe { &mut *ptr.cast::<MaybeUninit<T>>() }
+}
+
 pub(super) unsafe extern "C" fn raw_ticket_key<F>(
     ssl: *mut ffi::SSL,
     key_name: *mut u8,
@@ -301,15 +306,12 @@ where
 
     // SAFETY: the callback guarantees that key_name is 16 bytes
     let key_name =
-        unsafe { slice::from_raw_parts_mut(key_name, ffi::SSL_TICKET_KEY_NAME_LEN as usize) };
-    let key_name = <&mut [u8; 16]>::try_from(key_name).expect("boring provides a 16-byte key name");
+        unsafe { to_uninit(key_name.cast::<[u8; ffi::SSL_TICKET_KEY_NAME_LEN as usize]>()) };
 
     // SAFETY: the callback provides 16 bytes iv
     //
     // https://github.com/google/boringssl/blob/main/ssl/ssl_session.cc#L331
-    let iv = unsafe { core::slice::from_raw_parts_mut(iv, ffi::EVP_MAX_IV_LENGTH as usize) };
-    let iv = <&mut [u8; ffi::EVP_MAX_IV_LENGTH as usize]>::try_from(iv)
-        .expect("boring provides a 16-byte iv");
+    let iv = unsafe { to_uninit(iv.cast::<[u8; ffi::EVP_MAX_IV_LENGTH as usize]>()) };
 
     // When encrypting a new ticket, encrypt will be one.
     let encrypt = encrypt == 1;
@@ -317,9 +319,11 @@ where
     // Zero-initialize the key_name and iv, since the application is expected to populate these
     // fields in the encrypt mode.
     if encrypt {
-        unsafe { ptr::write(key_name, [0; 16]) };
-        unsafe { ptr::write(iv, [0; ffi::EVP_MAX_IV_LENGTH as usize]) };
+        *key_name = MaybeUninit::zeroed();
+        *iv = MaybeUninit::zeroed();
     }
+    let key_name = unsafe { key_name.assume_init_mut() };
+    let iv = unsafe { iv.assume_init_mut() };
 
     callback(ssl, key_name, iv, evp_ctx, hmac_ctx, encrypt).into()
 }
