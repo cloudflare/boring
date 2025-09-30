@@ -2785,6 +2785,17 @@ impl SslRef {
         }
     }
 
+    /// Returns the curve ID (aka group ID) used for this `SslRef`.
+    #[corresponds(SSL_get_curve_id)]
+    #[must_use]
+    pub fn curve(&self) -> Option<u16> {
+        let curve_id = unsafe { ffi::SSL_get_curve_id(self.as_ptr()) };
+        if curve_id == 0 {
+            return None;
+        }
+        Some(curve_id)
+    }
+
     /// Returns an `ErrorCode` value for the most recent operation on this `SslRef`.
     #[corresponds(SSL_get_error)]
     #[must_use]
