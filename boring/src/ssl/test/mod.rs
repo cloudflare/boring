@@ -958,6 +958,8 @@ fn get_curve() {
     let client_stream = client.connect();
     let curve = client_stream.ssl().curve();
     assert!(curve.is_some());
+    let curve_name = client_stream.ssl().curve_name();
+    assert!(curve_name.is_some());
 }
 
 #[test]
