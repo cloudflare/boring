@@ -3018,6 +3018,21 @@ impl SslRef {
         Some(SslCurve(curve_id.into()))
     }
 
+    /// Returns the curve name used for this `SslRef`.
+    #[corresponds(SSL_get_curve_name)]
+    #[must_use]
+    pub fn curve_name(&self) -> Option<&'static str> {
+        unsafe {
+            let curve_id = ffi::SSL_get_curve_id(self.as_ptr());
+            let ptr = ffi::SSL_get_curve_name(curve_id);
+            if ptr.is_null() {
+                return None;
+            }
+
+            CStr::from_ptr(ptr).to_str().ok()
+        }
+    }
+
     /// Returns an `ErrorCode` value for the most recent operation on this `SslRef`.
     #[corresponds(SSL_get_error)]
     #[must_use]
