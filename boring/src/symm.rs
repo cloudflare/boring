@@ -89,7 +89,7 @@ impl CipherCtxRef {
         ffi::init();
 
         if key.len() != cipher.key_len() {
-            return Err(ErrorStack::get());
+            return Err(ErrorStack::internal_error_str("invalid key size"));
         }
 
         unsafe {
@@ -117,7 +117,7 @@ impl CipherCtxRef {
         ffi::init();
 
         if key.len() != cipher.key_len() {
-            return Err(ErrorStack::get());
+            return Err(ErrorStack::internal_error_str("invalid key size"));
         }
 
         unsafe {
