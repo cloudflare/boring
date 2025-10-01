@@ -153,6 +153,7 @@ fn test_noop_tickey_key_callback(
     encrypt: bool,
 ) -> TicketKeyCallbackResult {
     // These should only be used for testing purposes.
+    const TEST_KEY_NAME: [u8; 16] = [5; 16];
     const TEST_CBC_IV: [u8; ffi::EVP_MAX_IV_LENGTH as usize] = [1; ffi::EVP_MAX_IV_LENGTH as usize];
     const TEST_AES_128_CBC_KEY: [u8; 16] = [2; 16];
     const TEST_HMAC_KEY: [u8; 32] = [3; 32];
@@ -161,24 +162,29 @@ fn test_noop_tickey_key_callback(
     let cipher = Cipher::aes_128_cbc();
 
     if encrypt {
-        assert_eq!(key_name, &[0; 16]);
-        assert_eq!(iv, &[0; 16]);
-
         NOOP_ENCRYPTION_CALLED_BACK.fetch_add(1, Ordering::SeqCst);
 
+        // Ensure key_name and iv are initialized and set test values.
+        assert_eq!(key_name, &[0; 16]);
+        assert_eq!(iv, &[0; 16]);
+        key_name.copy_from_slice(&TEST_KEY_NAME);
+        iv.copy_from_slice(&TEST_CBC_IV);
+
         // Set the encryption context.
-        unsafe {
-            evp_ctx
-                .init_encrypt(&cipher, &TEST_AES_128_CBC_KEY, &TEST_CBC_IV)
-                .unwrap()
-        };
+        evp_ctx
+            .init_encrypt(&cipher, &TEST_AES_128_CBC_KEY, &TEST_CBC_IV)
+            .unwrap();
 
         // Set the hmac context.
-        unsafe { hmac_ctx.init(&TEST_HMAC_KEY, &digest).unwrap() };
+        hmac_ctx.init(&TEST_HMAC_KEY, &digest).unwrap();
 
         TicketKeyCallbackResult::Success
     } else {
         NOOP_DECRYPTION_CALLED_BACK.fetch_add(1, Ordering::SeqCst);
+
+        // Check key_name matches.
+        assert_eq!(key_name, &TEST_KEY_NAME);
+
         TicketKeyCallbackResult::Noop
     }
 }
@@ -193,6 +199,7 @@ fn test_success_tickey_key_callback(
     encrypt: bool,
 ) -> TicketKeyCallbackResult {
     // These should only be used for testing purposes.
+    const TEST_KEY_NAME: [u8; 16] = [5; 16];
     const TEST_CBC_IV: [u8; ffi::EVP_MAX_IV_LENGTH as usize] = [1; ffi::EVP_MAX_IV_LENGTH as usize];
     const TEST_AES_128_CBC_KEY: [u8; 16] = [2; 16];
     const TEST_HMAC_KEY: [u8; 32] = [3; 32];
@@ -201,31 +208,34 @@ fn test_success_tickey_key_callback(
     let cipher = Cipher::aes_128_cbc();
 
     if encrypt {
-        assert_eq!(key_name, &[0; 16]);
-        assert_eq!(iv, &[0; 16]);
-
         SUCCESS_ENCRYPTION_CALLED_BACK.fetch_add(1, Ordering::SeqCst);
 
+        // Ensure key_name and iv are initialized and set test values.
+        assert_eq!(key_name, &[0; 16]);
+        assert_eq!(iv, &[0; 16]);
+        key_name.copy_from_slice(&TEST_KEY_NAME);
+        iv.copy_from_slice(&TEST_CBC_IV);
+
         // Set the encryption context.
-        unsafe {
-            evp_ctx
-                .init_encrypt(&cipher, &TEST_AES_128_CBC_KEY, &TEST_CBC_IV)
-                .unwrap()
-        };
+        evp_ctx
+            .init_encrypt(&cipher, &TEST_AES_128_CBC_KEY, &TEST_CBC_IV)
+            .unwrap();
 
         // Set the hmac context.
-        unsafe { hmac_ctx.init(&TEST_HMAC_KEY, &digest).unwrap() };
+        hmac_ctx.init(&TEST_HMAC_KEY, &digest).unwrap();
     } else {
         SUCCESS_DECRYPTION_CALLED_BACK.fetch_add(1, Ordering::SeqCst);
+
+        // Check key_name matches.
+        assert_eq!(key_name, &TEST_KEY_NAME);
+
         // Set the decryption context.
-        unsafe {
-            evp_ctx
-                .init_decrypt(&cipher, &TEST_AES_128_CBC_KEY, &TEST_CBC_IV)
-                .unwrap()
-        };
+        evp_ctx
+            .init_decrypt(&cipher, &TEST_AES_128_CBC_KEY, iv)
+            .unwrap();
 
         // Set the hmac context.
-        unsafe { hmac_ctx.init(&TEST_HMAC_KEY, &digest).unwrap() };
+        hmac_ctx.init(&TEST_HMAC_KEY, &digest).unwrap();
     }
 
     TicketKeyCallbackResult::Success

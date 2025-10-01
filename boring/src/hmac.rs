@@ -14,11 +14,7 @@ impl HmacCtxRef {
     /// Configures HmacCtx to use `md` as the hash function and `key` as the key.
     ///
     /// https://commondatastorage.googleapis.com/chromium-boringssl-docs/hmac.h.html#HMAC_Init_ex
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure HMAC_CTX has been initalized.
-    pub unsafe fn init(&mut self, key: &[u8], md: &MessageDigest) -> Result<(), ErrorStack> {
+    pub fn init(&mut self, key: &[u8], md: &MessageDigest) -> Result<(), ErrorStack> {
         ffi::init();
 
         unsafe {
