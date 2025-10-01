@@ -53,7 +53,7 @@
 //! ```
 
 use crate::ffi;
-use foreign_types::ForeignType;
+use foreign_types::ForeignTypeRef;
 use libc::{c_int, c_uint};
 use openssl_macros::corresponds;
 use std::cmp;
@@ -76,7 +76,7 @@ foreign_type_and_impl_send_sync! {
     pub struct CipherCtx;
 }
 
-impl CipherCtx {
+impl CipherCtxRef {
     /// Configures CipherCtx for a fresh encryption operation using `cipher`.
     ///
     /// https://commondatastorage.googleapis.com/chromium-boringssl-docs/cipher.h.html#EVP_EncryptInit_ex

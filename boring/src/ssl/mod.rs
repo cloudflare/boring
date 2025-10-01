@@ -81,7 +81,7 @@ use crate::dh::DhRef;
 use crate::ec::EcKeyRef;
 use crate::error::ErrorStack;
 use crate::ex_data::Index;
-use crate::hmac::HmacCtx;
+use crate::hmac::HmacCtxRef;
 use crate::nid::Nid;
 use crate::pkey::{HasPrivate, PKeyRef, Params, Private};
 use crate::srtp::{SrtpProtectionProfile, SrtpProtectionProfileRef};
@@ -89,7 +89,7 @@ use crate::ssl::bio::BioMethod;
 use crate::ssl::callbacks::*;
 use crate::ssl::error::InnerError;
 use crate::stack::{Stack, StackRef, Stackable};
-use crate::symm::CipherCtx;
+use crate::symm::CipherCtxRef;
 use crate::x509::store::{X509Store, X509StoreBuilder, X509StoreBuilderRef, X509StoreRef};
 use crate::x509::verify::X509VerifyParamRef;
 use crate::x509::{
@@ -1258,8 +1258,8 @@ impl SslContextBuilder {
                 &SslRef,
                 &mut [u8; 16],
                 &mut [u8; ffi::EVP_MAX_IV_LENGTH as usize],
-                &mut CipherCtx,
-                &mut HmacCtx,
+                &mut CipherCtxRef,
+                &mut HmacCtxRef,
                 bool,
             ) -> TicketKeyCallbackResult
             + 'static

@@ -1,12 +1,12 @@
 use super::server::Server;
 use crate::ssl::test::MessageDigest;
-use crate::ssl::HmacCtx;
+use crate::ssl::HmacCtxRef;
 use crate::ssl::SslRef;
 use crate::ssl::SslSession;
 use crate::ssl::SslSessionCacheMode;
 use crate::ssl::TicketKeyCallbackResult;
 use crate::symm::Cipher;
-use crate::symm::CipherCtx;
+use crate::symm::CipherCtxRef;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::OnceLock;
 
@@ -148,8 +148,8 @@ fn test_noop_tickey_key_callback(
     _ssl: &SslRef,
     key_name: &mut [u8; 16],
     iv: &mut [u8; ffi::EVP_MAX_IV_LENGTH as usize],
-    evp_ctx: &mut CipherCtx,
-    hmac_ctx: &mut HmacCtx,
+    evp_ctx: &mut CipherCtxRef,
+    hmac_ctx: &mut HmacCtxRef,
     encrypt: bool,
 ) -> TicketKeyCallbackResult {
     // These should only be used for testing purposes.
@@ -188,8 +188,8 @@ fn test_success_tickey_key_callback(
     _ssl: &SslRef,
     key_name: &mut [u8; 16],
     iv: &mut [u8; ffi::EVP_MAX_IV_LENGTH as usize],
-    evp_ctx: &mut CipherCtx,
-    hmac_ctx: &mut HmacCtx,
+    evp_ctx: &mut CipherCtxRef,
+    hmac_ctx: &mut HmacCtxRef,
     encrypt: bool,
 ) -> TicketKeyCallbackResult {
     // These should only be used for testing purposes.
