@@ -80,20 +80,17 @@ impl CipherCtxRef {
     /// Configures CipherCtx for a fresh encryption operation using `cipher`.
     ///
     /// https://commondatastorage.googleapis.com/chromium-boringssl-docs/cipher.h.html#EVP_EncryptInit_ex
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure EVP_CIPHER_CTX has been initalized.
-    ///
-    /// The caller is responsible for ensuring the length of `key` and `iv` are appropriate for the
-    /// chosen Cipher.
-    pub unsafe fn init_encrypt(
+    pub fn init_encrypt(
         &mut self,
         cipher: &Cipher,
         key: &[u8],
         iv: &[u8; ffi::EVP_MAX_IV_LENGTH as usize],
     ) -> Result<(), ErrorStack> {
         ffi::init();
+
+        if key.len() != cipher.key_len() {
+            return Err(ErrorStack::get());
+        }
 
         unsafe {
             cvt(ffi::EVP_EncryptInit_ex(
@@ -111,20 +108,17 @@ impl CipherCtxRef {
     /// Configures CipherCtx for a fresh decryption operation using `cipher`.
     ///
     /// https://commondatastorage.googleapis.com/chromium-boringssl-docs/cipher.h.html#EVP_DecryptInit_ex
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure EVP_CIPHER_CTX has been initalized.
-    ///
-    /// The caller is responsible for ensuring the length of `key` and `iv` are appropriate for the
-    /// chosen Cipher.
-    pub unsafe fn init_decrypt(
+    pub fn init_decrypt(
         &mut self,
         cipher: &Cipher,
         key: &[u8],
         iv: &[u8; ffi::EVP_MAX_IV_LENGTH as usize],
     ) -> Result<(), ErrorStack> {
         ffi::init();
+
+        if key.len() != cipher.key_len() {
+            return Err(ErrorStack::get());
+        }
 
         unsafe {
             cvt(ffi::EVP_DecryptInit_ex(
