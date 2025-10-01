@@ -38,6 +38,9 @@ pub struct ErrorStack(Vec<Error>);
 
 impl ErrorStack {
     /// Pops the contents of the OpenSSL error stack, and returns it.
+    ///
+    /// This should be used only immediately after calling Boring FFI functions,
+    /// otherwise the stack may be empty or a leftover from unrelated calls.
     #[corresponds(ERR_get_error_line_data)]
     #[must_use = "Use ErrorStack::clear() to drop the error stack"]
     pub fn get() -> ErrorStack {
@@ -60,6 +63,12 @@ impl ErrorStack {
     #[cold]
     pub(crate) fn internal_error(err: impl error::Error) -> Self {
         Self(vec![Error::new_internal(Data::String(err.to_string()))])
+    }
+
+    /// Used to report errors from the Rust crate
+    #[cold]
+    pub(crate) fn internal_error_str(message: &'static str) -> Self {
+        Self(vec![Error::new_internal(Data::Static(message))])
     }
 
     /// Empties the current thread's error queue.
@@ -131,6 +140,7 @@ enum Data {
     None,
     CString(CString),
     String(String),
+    Static(&'static str),
 }
 
 unsafe impl Sync for Error {}
@@ -293,6 +303,7 @@ impl Error {
             Data::None => None,
             Data::CString(cstring) => cstring.to_str().ok(),
             Data::String(s) => Some(s),
+            Data::Static(s) => Some(s),
         }
     }
 
@@ -302,6 +313,7 @@ impl Error {
             Data::None => return None,
             Data::CString(cstr) => return Some(Cow::Borrowed(cstr)),
             Data::String(s) => s.as_str(),
+            Data::Static(s) => s,
         };
         CString::new(s).ok().map(Cow::Owned)
     }

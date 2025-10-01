@@ -767,7 +767,7 @@ impl<'a> CryptoBufferBuilder<'a> {
         let buffer_capacity = unsafe { ffi::CRYPTO_BUFFER_len(self.buffer) };
         if self.cursor.position() != buffer_capacity as u64 {
             // Make sure all bytes in buffer initialized as required by Boring SSL.
-            return Err(ErrorStack::get());
+            return Err(ErrorStack::internal_error_str("invalid len"));
         }
         unsafe {
             let mut result = ptr::null_mut();
