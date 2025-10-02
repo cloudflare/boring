@@ -103,7 +103,7 @@ impl fmt::Display for ErrorStack {
             write!(
                 fmt,
                 "[{}]",
-                err.reason_internal()
+                err.reason()
                     .or_else(|| err.library())
                     .unwrap_or("unknown reason")
             )?;
@@ -252,7 +252,10 @@ impl Error {
 
     /// Returns the reason for the error.
     #[must_use]
-    pub fn reason(&self) -> Option<&'static str> {
+    pub fn reason(&self) -> Option<&str> {
+        if self.is_internal() {
+            return self.data();
+        }
         unsafe {
             let cstr = ffi::ERR_reason_error_string(self.code);
             if cstr.is_null() {
@@ -330,15 +333,6 @@ impl Error {
     fn is_internal(&self) -> bool {
         std::ptr::eq(self.file, BORING_INTERNAL.as_ptr())
     }
-
-    // reason() needs 'static
-    fn reason_internal(&self) -> Option<&str> {
-        if self.is_internal() {
-            self.data()
-        } else {
-            self.reason()
-        }
-    }
 }
 
 impl fmt::Debug for Error {
@@ -369,7 +363,7 @@ impl fmt::Display for Error {
         write!(
             fmt,
             "{}\n\nCode: {:08X}\nLoc: {}:{}",
-            self.reason_internal().unwrap_or("unknown TLS error"),
+            self.reason().unwrap_or("unknown TLS error"),
             &self.code,
             self.file(),
             self.line()
