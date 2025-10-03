@@ -1,4 +1,4 @@
-From 6f1b1e1f451e61cd2bda0922eecaa8387397ac5a Mon Sep 17 00:00:00 2001
+From 969fc4fb866c94b6585c323d6e27571e5286f845 Mon Sep 17 00:00:00 2001
 From: Bas Westerbaan <bas@cloudflare.com>
 Date: Thu, 2 Oct 2025 13:07:05 +0200
 Subject: [PATCH] Add additional post-quantum key agreements
@@ -20,7 +20,7 @@ This patch adds:
 2. Supports for P256Kyber768Draft00 under 0xfe32, which we temporarily
    need for compliance reasons.  (Note that this is not the codepoint
    allocated for that exchange in the IANA table.)
-   It also enables it in FIPS mode.
+   Enables by default and in FIPS mode.
 
 3. Support for X25519Kyber768Draft00 under the old codepoint 0xfe31.
 
@@ -46,12 +46,12 @@ Cf RTG-2076 RTG-2051 RTG-2508 RTG-2707 RTG-2607 RTG-3239
  include/openssl/nid.h      |   12 +
  include/openssl/ssl.h      |    4 +
  sources.cmake              |    2 -
- ssl/extensions.cc          |    5 +
+ ssl/extensions.cc          |    6 +
  ssl/ssl_key_share.cc       |  525 ++++++-
  ssl/ssl_lib.cc             |    2 +-
  ssl/ssl_test.cc            |   29 +-
  tool/speed.cc              |  162 +-
- 18 files changed, 3082 insertions(+), 1158 deletions(-)
+ 18 files changed, 3083 insertions(+), 1158 deletions(-)
  delete mode 100644 crypto/kyber/internal.h
  create mode 100644 crypto/kyber/kyber512.c
  create mode 100644 crypto/kyber/kyber768.c
@@ -3866,7 +3866,7 @@ index ba2f5bc9e..d7ef5153a 100644
    crypto/pkcs8/test/no_encryption.p12
    crypto/pkcs8/test/nss.p12
 diff --git a/ssl/extensions.cc b/ssl/extensions.cc
-index b13400097..894396414 100644
+index b13400097..44a2d0f5c 100644
 --- a/ssl/extensions.cc
 +++ b/ssl/extensions.cc
 @@ -207,6 +207,10 @@ static bool tls1_check_duplicate_extensions(const CBS *cbs) {
@@ -3880,11 +3880,12 @@ index b13400097..894396414 100644
        return true;
      default:
        return false;
-@@ -307,6 +311,7 @@ bool ssl_client_hello_get_extension(const SSL_CLIENT_HELLO *client_hello,
+@@ -307,6 +311,8 @@ bool ssl_client_hello_get_extension(const SSL_CLIENT_HELLO *client_hello,
  }
  
  static const uint16_t kDefaultGroups[] = {
 +    SSL_GROUP_X25519_MLKEM768,
++    SSL_GROUP_P256_KYBER768_DRAFT00,
      SSL_GROUP_X25519,
      SSL_GROUP_SECP256R1,
      SSL_GROUP_SECP384R1,
