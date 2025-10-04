@@ -4085,7 +4085,7 @@ index ba2f5bc9e..d7ef5153a 100644
    crypto/pkcs8/test/no_encryption.p12
    crypto/pkcs8/test/nss.p12
 diff --git a/ssl/extensions.cc b/ssl/extensions.cc
-index b13400097..c319544de 100644
+index b13400097..52bb9d30c 100644
 --- a/ssl/extensions.cc
 +++ b/ssl/extensions.cc
 @@ -207,6 +207,11 @@ static bool tls1_check_duplicate_extensions(const CBS *cbs) {
@@ -4146,7 +4146,7 @@ index b13400097..c319544de 100644
    if (override_group_id == 0) {
      // Predict the most preferred group.
      Span<const uint16_t> groups = tls1_get_grouplist(hs);
-@@ -2254,13 +2271,14 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
+@@ -2254,16 +2271,18 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
  
      group_id = groups[0];
  
@@ -4159,14 +4159,18 @@ index b13400097..c319544de 100644
 +      if (enable_second_key_share && second_group_id == 0 && (is_custom || (is_post_quantum_group(group_id) != is_post_quantum_group(groups[i])))) {
          second_group_id = groups[i];
          assert(second_group_id != group_id);
--      }
 +      } else if (enable_three_key_shares && third_group_id == 0 && 
 +                 (is_custom || is_post_quantum_group(group_id) != is_post_quantum_group(groups[i]))) {
 +        third_group_id = groups[i];
+       }
      }
    }
- 
-@@ -2283,6 +2301,16 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
+-
++    
+   CBB key_exchange;
+   hs->key_shares[0] = SSLKeyShare::Create(group_id);
+   if (!hs->key_shares[0] ||  //
+@@ -2283,6 +2302,16 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
      }
    }
  
@@ -4183,7 +4187,7 @@ index b13400097..c319544de 100644
    return CBBFinishArray(cbb.get(), &hs->key_share_bytes);
  }
  
-@@ -2321,13 +2349,20 @@ bool ssl_ext_key_share_parse_serverhello(SSL_HANDSHAKE *hs,
+@@ -2321,13 +2350,20 @@ bool ssl_ext_key_share_parse_serverhello(SSL_HANDSHAKE *hs,
    }
  
    SSLKeyShare *key_share = hs->key_shares[0].get();
@@ -4208,7 +4212,7 @@ index b13400097..c319544de 100644
    }
  
    if (!key_share->Decap(out_secret, out_alert, ciphertext)) {
-@@ -2338,6 +2373,7 @@ bool ssl_ext_key_share_parse_serverhello(SSL_HANDSHAKE *hs,
+@@ -2338,6 +2374,7 @@ bool ssl_ext_key_share_parse_serverhello(SSL_HANDSHAKE *hs,
    hs->new_session->group_id = group_id;
    hs->key_shares[0].reset();
    hs->key_shares[1].reset();
@@ -4216,7 +4220,7 @@ index b13400097..c319544de 100644
    return true;
  }
  
-@@ -2757,6 +2793,27 @@ static bool ext_quic_transport_params_add_serverhello_legacy(SSL_HANDSHAKE *hs,
+@@ -2757,6 +2794,27 @@ static bool ext_quic_transport_params_add_serverhello_legacy(SSL_HANDSHAKE *hs,
  static bool ext_delegated_credential_add_clienthello(
      const SSL_HANDSHAKE *hs, CBB *out, CBB *out_compressible,
      ssl_client_hello_type_t type) {
@@ -4244,7 +4248,7 @@ index b13400097..c319544de 100644
    return true;
  }
  
-@@ -3108,6 +3165,39 @@ bool ssl_negotiate_alps(SSL_HANDSHAKE *hs, uint8_t *out_alert,
+@@ -3108,6 +3166,39 @@ bool ssl_negotiate_alps(SSL_HANDSHAKE *hs, uint8_t *out_alert,
    return true;
  }
  
@@ -4284,7 +4288,7 @@ index b13400097..c319544de 100644
  // kExtensions contains all the supported extensions.
  static const struct tls_extension kExtensions[] = {
    {
-@@ -3289,6 +3379,13 @@ static const struct tls_extension kExtensions[] = {
+@@ -3289,6 +3380,13 @@ static const struct tls_extension kExtensions[] = {
      ignore_parse_clienthello,
      ext_alps_add_serverhello_old,
    },
@@ -4298,7 +4302,7 @@ index b13400097..c319544de 100644
  };
  
  #define kNumExtensions (sizeof(kExtensions) / sizeof(struct tls_extension))
-@@ -3300,6 +3397,74 @@ static_assert(kNumExtensions <=
+@@ -3300,6 +3398,74 @@ static_assert(kNumExtensions <=
                    sizeof(((SSL_HANDSHAKE *)NULL)->extensions.received) * 8,
                "too many extensions for received bitset");
  
