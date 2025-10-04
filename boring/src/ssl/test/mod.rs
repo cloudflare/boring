@@ -13,26 +13,24 @@ use crate::pkey::PKey;
 use crate::srtp::SrtpProfileId;
 use crate::ssl::test::server::Server;
 use crate::ssl::SslVersion;
-use crate::ssl::{self, SslCurve};
 use crate::ssl::{
-    ExtensionType, ShutdownResult, ShutdownState, Ssl, SslAcceptor, SslAcceptorBuilder,
+    self, ExtensionType, ShutdownResult, ShutdownState, Ssl, SslAcceptor, SslAcceptorBuilder,
     SslConnector, SslContext, SslFiletype, SslMethod, SslOptions, SslStream, SslVerifyMode,
 };
 use crate::x509::store::X509StoreBuilder;
 use crate::x509::verify::X509CheckFlags;
 use crate::x509::{X509Name, X509};
 
-#[cfg(not(feature = "fips"))]
 use super::CompliancePolicy;
 
 mod cert_compressor;
 mod cert_verify;
 mod custom_verify;
-#[cfg(not(feature = "fips"))]
 mod ech;
 mod private_key_method;
 mod server;
 mod session;
+mod session_resumption;
 mod verify;
 
 static ROOT_CERT: &[u8] = include_bytes!("../../../test/root-ca.pem");
@@ -954,59 +952,15 @@ fn sni_callback_swapped_ctx() {
     assert!(CALLED_BACK.load(Ordering::SeqCst));
 }
 
-#[cfg(feature = "kx-safe-default")]
-#[test]
-fn client_set_default_curves_list() {
-    let ssl_ctx = crate::ssl::SslContextBuilder::new(SslMethod::tls())
-        .unwrap()
-        .build();
-    let mut ssl = Ssl::new(&ssl_ctx).unwrap();
-
-    // Panics if Kyber768 missing in boringSSL.
-    ssl.client_set_default_curves_list();
-}
-
-#[cfg(feature = "kx-safe-default")]
-#[test]
-fn server_set_default_curves_list() {
-    let ssl_ctx = crate::ssl::SslContextBuilder::new(SslMethod::tls())
-        .unwrap()
-        .build();
-    let mut ssl = Ssl::new(&ssl_ctx).unwrap();
-
-    // Panics if Kyber768 missing in boringSSL.
-    ssl.server_set_default_curves_list();
-}
-
 #[test]
 fn get_curve() {
     let server = Server::builder().build();
     let client = server.client_with_root_ca();
     let client_stream = client.connect();
-    let curve = client_stream.ssl().curve().expect("curve");
-    assert!(curve.name().is_some());
-}
-
-#[test]
-fn get_curve_name() {
-    assert_eq!(SslCurve::SECP224R1.name(), Some("P-224"));
-    assert_eq!(SslCurve::SECP256R1.name(), Some("P-256"));
-    assert_eq!(SslCurve::SECP384R1.name(), Some("P-384"));
-    assert_eq!(SslCurve::SECP521R1.name(), Some("P-521"));
-    assert_eq!(SslCurve::X25519.name(), Some("X25519"));
-}
-
-#[cfg(not(feature = "kx-safe-default"))]
-#[test]
-fn set_curves() {
-    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
-    ctx.set_curves(&[
-        SslCurve::SECP224R1,
-        SslCurve::SECP256R1,
-        SslCurve::SECP384R1,
-        SslCurve::X25519,
-    ])
-    .expect("Failed to set curves");
+    let curve = client_stream.ssl().curve();
+    assert!(curve.is_some());
+    let curve_name = client_stream.ssl().curve_name();
+    assert!(curve_name.is_some());
 }
 
 #[test]
@@ -1037,7 +991,6 @@ fn test_get_ciphers() {
 }
 
 #[test]
-#[cfg(not(feature = "fips"))]
 fn test_set_compliance() {
     let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
     ctx.set_compliance_policy(CompliancePolicy::FIPS_202205)
@@ -1118,7 +1071,6 @@ fn test_info_callback() {
     assert!(CALLED_BACK.load(Ordering::Relaxed));
 }
 
-#[cfg(not(feature = "fips-compat"))]
 #[test]
 fn test_ssl_set_compliance() {
     let ctx = SslContext::builder(SslMethod::tls()).unwrap().build();

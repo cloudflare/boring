@@ -43,18 +43,19 @@ fn mk_ca_cert() -> Result<(X509, PKey<Private>), ErrorStack> {
     let not_after = Asn1Time::days_from_now(365)?;
     cert_builder.set_not_after(&not_after)?;
 
-    cert_builder.append_extension(BasicConstraints::new().critical().ca().build()?)?;
+    cert_builder.append_extension(BasicConstraints::new().critical().ca().build()?.as_ref())?;
     cert_builder.append_extension(
         KeyUsage::new()
             .critical()
             .key_cert_sign()
             .crl_sign()
-            .build()?,
+            .build()?
+            .as_ref(),
     )?;
 
     let subject_key_identifier =
         SubjectKeyIdentifier::new().build(&cert_builder.x509v3_context(None, None))?;
-    cert_builder.append_extension(subject_key_identifier)?;
+    cert_builder.append_extension(&subject_key_identifier)?;
 
     cert_builder.sign(&privkey, MessageDigest::sha256())?;
     let cert = cert_builder.build();
@@ -106,7 +107,7 @@ fn mk_ca_signed_cert(
     let not_after = Asn1Time::days_from_now(365)?;
     cert_builder.set_not_after(&not_after)?;
 
-    cert_builder.append_extension(BasicConstraints::new().build()?)?;
+    cert_builder.append_extension(BasicConstraints::new().build()?.as_ref())?;
 
     cert_builder.append_extension(
         KeyUsage::new()
@@ -114,24 +115,25 @@ fn mk_ca_signed_cert(
             .non_repudiation()
             .digital_signature()
             .key_encipherment()
-            .build()?,
+            .build()?
+            .as_ref(),
     )?;
 
     let subject_key_identifier =
         SubjectKeyIdentifier::new().build(&cert_builder.x509v3_context(Some(ca_cert), None))?;
-    cert_builder.append_extension(subject_key_identifier)?;
+    cert_builder.append_extension(&subject_key_identifier)?;
 
     let auth_key_identifier = AuthorityKeyIdentifier::new()
         .keyid(false)
         .issuer(false)
         .build(&cert_builder.x509v3_context(Some(ca_cert), None))?;
-    cert_builder.append_extension(auth_key_identifier)?;
+    cert_builder.append_extension(&auth_key_identifier)?;
 
     let subject_alt_name = SubjectAlternativeName::new()
         .dns("*.example.com")
         .dns("hello.com")
         .build(&cert_builder.x509v3_context(Some(ca_cert), None))?;
-    cert_builder.append_extension(subject_alt_name)?;
+    cert_builder.append_extension(&subject_alt_name)?;
 
     cert_builder.sign(ca_privkey, MessageDigest::sha256())?;
     let cert = cert_builder.build();
@@ -147,7 +149,7 @@ fn real_main() -> Result<(), ErrorStack> {
     match ca_cert.issued(&cert) {
         Ok(()) => println!("Certificate verified!"),
         Err(ver_err) => println!("Failed to verify certificate: {ver_err}"),
-    };
+    }
 
     Ok(())
 }
@@ -156,5 +158,5 @@ fn main() {
     match real_main() {
         Ok(()) => println!("Finished."),
         Err(e) => println!("Error: {e}"),
-    };
+    }
 }

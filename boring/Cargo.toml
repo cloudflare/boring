@@ -19,29 +19,11 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 # Controlling the build
 
-# NOTE: This feature is deprecated. It is needed for the submoduled
-# boringssl-fips, which is extremely old and requires modifications to the
-# bindings, as some newer APIs don't exist and some function signatures have
-# changed. It is highly recommended to use `fips-precompiled` instead.
-#
-# This feature sets `fips-compat` on behalf of the user to guarantee bindings
-# compatibility with the submoduled boringssl-fips.
-#
 # Use a FIPS-validated version of BoringSSL.
-fips = ["fips-compat", "boring-sys/fips"]
+fips = ["boring-sys/fips"]
 
-# Build with compatibility for the submoduled boringssl-fips, without enabling
-# the `fips` feature itself (useful e.g. if `fips-link-precompiled` is used
-# with an older BoringSSL version).
-fips-compat = []
-
-# Use a precompiled FIPS-validated version of BoringSSL. Meant to be used with
-# FIPS-20230428 or newer. Users must set `BORING_BSSL_FIPS_PATH` to use this
-# feature, or else the build will fail.
-fips-precompiled = ["boring-sys/fips-precompiled"]
-
-# Link with precompiled FIPS-validated `bcm.o` module.
-fips-link-precompiled = ["boring-sys/fips-link-precompiled"]
+# **DO NOT USE** This will be removed without warning in future releases.
+legacy-compat-deprecated = []
 
 # Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
 # This feature is necessary in order to compile the bindings for the
@@ -61,28 +43,6 @@ pq-experimental = ["boring-sys/pq-experimental"]
 # `ffi::X509_CHECK_FLAG_UNDERSCORE_WILDCARDS`. Same caveats as
 # those for `pq-experimental` feature apply.
 underscore-wildcards = ["boring-sys/underscore-wildcards"]
-
-# Controlling key exchange preferences at compile time
-
-# Choose key exchange preferences at compile time. This prevents the user from
-# choosing their own preferences.
-kx-safe-default = []
-
-# Support PQ key exchange. The client will prefer classical key exchange, but
-# will upgrade to PQ key exchange if requested by the server. This is the
-# safest option if you don't know if the peer supports PQ key exchange. This
-# feature implies "kx-safe-default".
-kx-client-pq-supported = ["kx-safe-default"]
-
-# Prefer PQ key exchange. The client will prefer PQ exchange, but fallback to
-# classical key exchange if requested by the server. This is the best option if
-# you know the peer supports PQ key exchange. This feature implies
-# "kx-safe-default" and "kx-client-pq-supported".
-kx-client-pq-preferred = ["kx-safe-default", "kx-client-pq-supported"]
-
-# Disable key exchange involving non-NIST key exchange on the client side.
-# Implies "kx-safe-default".
-kx-client-nist-required = ["kx-safe-default"]
 
 [dependencies]
 bitflags = { workspace = true }

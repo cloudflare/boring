@@ -63,20 +63,19 @@ foreign_type_and_impl_send_sync! {
 
 impl fmt::Display for Asn1GeneralizedTimeRef {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        unsafe {
-            let mem_bio = match MemBio::new() {
-                Err(_) => return f.write_str("error"),
-                Ok(m) => m,
-            };
-            let print_result = cvt(ffi::ASN1_GENERALIZEDTIME_print(
-                mem_bio.as_ptr(),
-                self.as_ptr(),
-            ));
-            match print_result {
-                Err(_) => f.write_str("error"),
-                Ok(_) => f.write_str(str::from_utf8_unchecked(mem_bio.get_buf())),
-            }
-        }
+        let bio = MemBio::new().ok();
+        let msg = bio
+            .as_ref()
+            .and_then(|mem_bio| unsafe {
+                cvt(ffi::ASN1_GENERALIZEDTIME_print(
+                    mem_bio.as_ptr(),
+                    self.as_ptr(),
+                ))
+                .ok()?;
+                str::from_utf8(mem_bio.get_buf()).ok()
+            })
+            .unwrap_or("error");
+        f.write_str(msg)
     }
 }
 
@@ -528,7 +527,20 @@ impl Asn1BitStringRef {
     #[corresponds(ASN1_STRING_get0_data)]
     #[must_use]
     pub fn as_slice(&self) -> &[u8] {
-        unsafe { slice::from_raw_parts(ASN1_STRING_get0_data(self.as_ptr() as *mut _), self.len()) }
+        unsafe {
+            let ptr = ASN1_STRING_get0_data(self.as_ptr().cast());
+            if ptr.is_null() {
+                return &[];
+            }
+            slice::from_raw_parts(ptr, self.len())
+        }
+    }
+
+    /// Returns the Asn1BitString as a str, if possible.
+    #[corresponds(ASN1_STRING_get0_data)]
+    #[must_use]
+    pub fn to_str(&self) -> Option<&str> {
+        str::from_utf8(self.as_slice()).ok()
     }
 
     /// Returns the number of bytes in the string.
@@ -601,10 +613,11 @@ impl fmt::Display for Asn1ObjectRef {
                 self.as_ptr(),
                 0,
             );
-            match str::from_utf8(&buf[..len as usize]) {
-                Err(_) => fmt.write_str("error"),
-                Ok(s) => fmt.write_str(s),
-            }
+            fmt.write_str(
+                buf.get(..len as usize)
+                    .and_then(|s| str::from_utf8(s).ok())
+                    .unwrap_or("error"),
+            )
         }
     }
 }

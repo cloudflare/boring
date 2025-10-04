@@ -1,136 +1,22 @@
-diff --git a/BUILD.generated.bzl b/BUILD.generated.bzl
-index 738e1055f..9466757a2 100644
---- a/BUILD.generated.bzl
-+++ b/BUILD.generated.bzl
-@@ -253,7 +253,6 @@ crypto_internal_headers = [
-     "src/crypto/fipsmodule/tls/internal.h",
-     "src/crypto/hrss/internal.h",
-     "src/crypto/internal.h",
--    "src/crypto/kyber/internal.h",
-     "src/crypto/lhash/internal.h",
-     "src/crypto/obj/obj_dat.h",
-     "src/crypto/pkcs7/internal.h",
-@@ -382,8 +381,8 @@ crypto_sources = [
-     "src/crypto/fipsmodule/fips_shared_support.c",
-     "src/crypto/hpke/hpke.c",
-     "src/crypto/hrss/hrss.c",
--    "src/crypto/kyber/keccak.c",
--    "src/crypto/kyber/kyber.c",
-+    "src/crypto/kyber/kyber512.c",
-+    "src/crypto/kyber/kyber768.c",
-     "src/crypto/lhash/lhash.c",
-     "src/crypto/mem.c",
-     "src/crypto/obj/obj.c",
-diff --git a/BUILD.generated_tests.bzl b/BUILD.generated_tests.bzl
-index 92dec1e01..8f70dedc0 100644
---- a/BUILD.generated_tests.bzl
-+++ b/BUILD.generated_tests.bzl
-@@ -40,7 +40,6 @@ test_support_sources = [
-     "src/crypto/fipsmodule/tls/internal.h",
-     "src/crypto/hrss/internal.h",
-     "src/crypto/internal.h",
--    "src/crypto/kyber/internal.h",
-     "src/crypto/lhash/internal.h",
-     "src/crypto/obj/obj_dat.h",
-     "src/crypto/pkcs7/internal.h",
-@@ -124,7 +123,6 @@ crypto_test_sources = [
-     "src/crypto/hpke/hpke_test.cc",
-     "src/crypto/hrss/hrss_test.cc",
-     "src/crypto/impl_dispatch_test.cc",
--    "src/crypto/kyber/kyber_test.cc",
-     "src/crypto/lhash/lhash_test.cc",
-     "src/crypto/obj/obj_test.cc",
-     "src/crypto/pem/pem_test.cc",
-@@ -218,8 +216,6 @@ crypto_test_data = [
-     "src/crypto/fipsmodule/rand/ctrdrbg_vectors.txt",
-     "src/crypto/hmac_extra/hmac_tests.txt",
-     "src/crypto/hpke/hpke_test_vectors.txt",
--    "src/crypto/kyber/keccak_tests.txt",
--    "src/crypto/kyber/kyber_tests.txt",
-     "src/crypto/pkcs8/test/empty_password.p12",
-     "src/crypto/pkcs8/test/no_encryption.p12",
-     "src/crypto/pkcs8/test/nss.p12",
-diff --git a/CMakeLists.txt b/CMakeLists.txt
-index faed2befa..931c0e3a8 100644
---- a/CMakeLists.txt
-+++ b/CMakeLists.txt
-@@ -375,8 +375,8 @@ add_library(
-   src/crypto/fipsmodule/fips_shared_support.c
-   src/crypto/hpke/hpke.c
-   src/crypto/hrss/hrss.c
--  src/crypto/kyber/keccak.c
--  src/crypto/kyber/kyber.c
-+  src/crypto/kyber/kyber512.c
-+  src/crypto/kyber/kyber768.c
-   src/crypto/lhash/lhash.c
-   src/crypto/mem.c
-   src/crypto/obj/obj.c
-diff --git a/sources.json b/sources.json
-index 4c0048e1d..f6ea5c40f 100644
---- a/sources.json
-+++ b/sources.json
-@@ -111,8 +111,8 @@
-     "src/crypto/fipsmodule/fips_shared_support.c", 
-     "src/crypto/hpke/hpke.c", 
-     "src/crypto/hrss/hrss.c", 
--    "src/crypto/kyber/keccak.c", 
--    "src/crypto/kyber/kyber.c", 
-+    "src/crypto/kyber/kyber512.c", 
-+    "src/crypto/kyber/kyber768.c", 
-     "src/crypto/lhash/lhash.c", 
-     "src/crypto/mem.c", 
-     "src/crypto/obj/obj.c", 
-@@ -549,7 +549,6 @@
-     "src/crypto/hpke/hpke_test.cc", 
-     "src/crypto/hrss/hrss_test.cc", 
-     "src/crypto/impl_dispatch_test.cc", 
--    "src/crypto/kyber/kyber_test.cc", 
-     "src/crypto/lhash/lhash_test.cc", 
-     "src/crypto/obj/obj_test.cc", 
-     "src/crypto/pem/pem_test.cc", 
-@@ -634,8 +633,6 @@
-     "src/crypto/fipsmodule/rand/ctrdrbg_vectors.txt", 
-     "src/crypto/hmac_extra/hmac_tests.txt", 
-     "src/crypto/hpke/hpke_test_vectors.txt", 
--    "src/crypto/kyber/keccak_tests.txt", 
--    "src/crypto/kyber/kyber_tests.txt", 
-     "src/crypto/pkcs8/test/empty_password.p12", 
-     "src/crypto/pkcs8/test/no_encryption.p12", 
-     "src/crypto/pkcs8/test/nss.p12", 
-@@ -1060,4 +1057,4 @@
-   "urandom_test": [
-     "src/crypto/fipsmodule/rand/urandom_test.cc"
-   ]
--}
-\ No newline at end of file
-+}
-diff --git a/src/crypto/CMakeLists.txt b/src/crypto/CMakeLists.txt
-index cdb5ddca1..2052fa791 100644
---- a/src/crypto/CMakeLists.txt
-+++ b/src/crypto/CMakeLists.txt
-@@ -170,8 +170,8 @@ add_library(
-   ex_data.c
+diff --git a/crypto/CMakeLists.txt b/crypto/CMakeLists.txt
+index a594b9e9d..2aaa3371c 100644
+--- a/crypto/CMakeLists.txt
++++ b/crypto/CMakeLists.txt
+@@ -176,7 +176,9 @@ add_library(
    hpke/hpke.c
    hrss/hrss.c
--  kyber/keccak.c
+   keccak/keccak.c
 -  kyber/kyber.c
 +  kyber/kyber512.c
 +  kyber/kyber768.c
++  kyber/kyber1024.c
    lhash/lhash.c
    mem.c
    obj/obj.c
-@@ -400,7 +400,6 @@ add_executable(
-   hmac_extra/hmac_test.cc
-   hrss/hrss_test.cc
-   impl_dispatch_test.cc
--  kyber/kyber_test.cc
-   lhash/lhash_test.cc
-   obj/obj_test.cc
-   pem/pem_test.cc
-diff --git a/src/crypto/cipher_extra/e_tls.c b/src/crypto/cipher_extra/e_tls.c
-index c462a2b33..de432f9fd 100644
---- a/src/crypto/cipher_extra/e_tls.c
-+++ b/src/crypto/cipher_extra/e_tls.c
+diff --git a/crypto/cipher_extra/e_tls.c b/crypto/cipher_extra/e_tls.c
+index c462a2b33..97b1d7cd7 100644
+--- a/crypto/cipher_extra/e_tls.c
++++ b/crypto/cipher_extra/e_tls.c
 @@ -422,6 +422,21 @@ static int aead_aes_256_cbc_sha1_tls_implicit_iv_init(
                         EVP_sha1(), 1);
  }
@@ -192,7 +78,7 @@ index c462a2b33..de432f9fd 100644
  static const EVP_AEAD aead_des_ede3_cbc_sha1_tls = {
      SHA_DIGEST_LENGTH + 24,  // key len (SHA1 + 3DES)
      8,                       // nonce len (IV)
-@@ -589,6 +636,14 @@ const EVP_AEAD *EVP_aead_aes_256_cbc_sha1_tls_implicit_iv(void) {
+@@ -589,6 +636,13 @@ const EVP_AEAD *EVP_aead_aes_256_cbc_sha1_tls_implicit_iv(void) {
    return &aead_aes_256_cbc_sha1_tls_implicit_iv;
  }
  
@@ -203,16 +89,15 @@ index c462a2b33..de432f9fd 100644
 +  return &aead_aes_256_cbc_sha384_tls;
 +}
 +
-+
  const EVP_AEAD *EVP_aead_des_ede3_cbc_sha1_tls(void) {
    return &aead_des_ede3_cbc_sha1_tls;
  }
-diff --git a/src/crypto/kyber/internal.h b/src/crypto/kyber/internal.h
+diff --git a/crypto/kyber/internal.h b/crypto/kyber/internal.h
 deleted file mode 100644
-index b3bfa86b8..000000000
---- a/src/crypto/kyber/internal.h
+index b11211726..000000000
+--- a/crypto/kyber/internal.h
 +++ /dev/null
-@@ -1,91 +0,0 @@
+@@ -1,60 +0,0 @@
 -/* Copyright (c) 2023, Google Inc.
 - *
 - * Permission to use, copy, modify, and/or distribute this software for any
@@ -247,37 +132,6 @@ index b3bfa86b8..000000000
 -// necessary to generate a key.
 -#define KYBER_GENERATE_KEY_ENTROPY 64
 -
--struct BORINGSSL_keccak_st {
--  uint64_t state[25];
--  size_t rate_bytes;
--  size_t offset;
--};
--
--enum boringssl_keccak_config_t {
--  boringssl_sha3_256,
--  boringssl_sha3_512,
--  boringssl_shake128,
--  boringssl_shake256,
--};
--
--// BORINGSSL_keccak hashes |in_len| bytes from |in| and writes |out_len| bytes
--// of output to |out|. If the |config| specifies a fixed-output function, like
--// SHA3-256, then |out_len| must be the correct length for that function.
--OPENSSL_EXPORT void BORINGSSL_keccak(uint8_t *out, size_t out_len,
--                                     const uint8_t *in, size_t in_len,
--                                     enum boringssl_keccak_config_t config);
--
--// BORINGSSL_keccak_init absorbs |in_len| bytes from |in| and sets up |ctx| for
--// squeezing. The |config| must specify a SHAKE variant, otherwise callers
--// should use |BORINGSSL_keccak|.
--OPENSSL_EXPORT void BORINGSSL_keccak_init(
--    struct BORINGSSL_keccak_st *ctx, const uint8_t *in, size_t in_len,
--    enum boringssl_keccak_config_t config);
--
--// BORINGSSL_keccak_squeeze writes |out_len| bytes to |out| from |ctx|.
--OPENSSL_EXPORT void BORINGSSL_keccak_squeeze(struct BORINGSSL_keccak_st *ctx,
--                                             uint8_t *out, size_t out_len);
--
 -// KYBER_generate_key_external_entropy is a deterministic function to create a
 -// pair of Kyber768 keys, using the supplied entropy. The entropy needs to be
 -// uniformly random generated. This function is should only be used for tests,
@@ -304,221 +158,11 @@ index b3bfa86b8..000000000
 -#endif
 -
 -#endif  // OPENSSL_HEADER_CRYPTO_KYBER_INTERNAL_H
-diff --git a/src/crypto/kyber/keccak.c b/src/crypto/kyber/keccak.c
-deleted file mode 100644
-index f1c012d11..000000000
---- a/src/crypto/kyber/keccak.c
-+++ /dev/null
-@@ -1,204 +0,0 @@
--/* Copyright (c) 2023, Google Inc.
-- *
-- * Permission to use, copy, modify, and/or distribute this software for any
-- * purpose with or without fee is hereby granted, provided that the above
-- * copyright notice and this permission notice appear in all copies.
-- *
-- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
-- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
-- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
-- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
-- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
-- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
--
--#include <openssl/base.h>
--
--#include <assert.h>
--#include <stdlib.h>
--
--#include "../internal.h"
--#include "./internal.h"
--
--
--// keccak_f implements the Keccak-1600 permutation as described at
--// https://keccak.team/keccak_specs_summary.html. Each lane is represented as a
--// 64-bit value and the 5×5 lanes are stored as an array in row-major order.
--static void keccak_f(uint64_t state[25]) {
--  static const int kNumRounds = 24;
--  for (int round = 0; round < kNumRounds; round++) {
--    // θ step
--    uint64_t c[5];
--    for (int x = 0; x < 5; x++) {
--      c[x] = state[x] ^ state[x + 5] ^ state[x + 10] ^ state[x + 15] ^
--             state[x + 20];
--    }
--
--    for (int x = 0; x < 5; x++) {
--      const uint64_t d = c[(x + 4) % 5] ^ CRYPTO_rotl_u64(c[(x + 1) % 5], 1);
--      for (int y = 0; y < 5; y++) {
--        state[y * 5 + x] ^= d;
--      }
--    }
--
--    // ρ and π steps.
--    //
--    // These steps involve a mapping of the state matrix. Each input point,
--    // (x,y), is rotated and written to the point (y, 2x + 3y). In the Keccak
--    // pseudo-code a separate array is used because an in-place operation would
--    // overwrite some values that are subsequently needed. However, the mapping
--    // forms a trail through 24 of the 25 values so we can do it in place with
--    // only a single temporary variable.
--    //
--    // Start with (1, 0). The value here will be mapped and end up at (0, 2).
--    // That value will end up at (2, 1), then (1, 2), and so on. After 24
--    // steps, 24 of the 25 values have been hit (as this mapping is injective)
--    // and the sequence will repeat. All that remains is to handle the element
--    // at (0, 0), but the rotation for that element is zero, and it goes to (0,
--    // 0), so we can ignore it.
--    static const uint8_t kIndexes[24] = {10, 7,  11, 17, 18, 3,  5,  16,
--                                         8,  21, 24, 4,  15, 23, 19, 13,
--                                         12, 2,  20, 14, 22, 9,  6,  1};
--    static const uint8_t kRotations[24] = {1,  3,  6,  10, 15, 21, 28, 36,
--                                           45, 55, 2,  14, 27, 41, 56, 8,
--                                           25, 43, 62, 18, 39, 61, 20, 44};
--    uint64_t prev_value = state[1];
--    for (int i = 0; i < 24; i++) {
--      const uint64_t value = CRYPTO_rotl_u64(prev_value, kRotations[i]);
--      const size_t index = kIndexes[i];
--      prev_value = state[index];
--      state[index] = value;
--    }
--
--    // χ step
--    for (int y = 0; y < 5; y++) {
--      const int row_index = 5 * y;
--      const uint64_t orig_x0 = state[row_index];
--      const uint64_t orig_x1 = state[row_index + 1];
--      state[row_index] ^= ~orig_x1 & state[row_index + 2];
--      state[row_index + 1] ^= ~state[row_index + 2] & state[row_index + 3];
--      state[row_index + 2] ^= ~state[row_index + 3] & state[row_index + 4];
--      state[row_index + 3] ^= ~state[row_index + 4] & orig_x0;
--      state[row_index + 4] ^= ~orig_x0 & orig_x1;
--    }
--
--    // ι step
--    //
--    // From https://keccak.team/files/Keccak-reference-3.0.pdf, section
--    // 1.2, the round constants are based on the output of a LFSR. Thus, as
--    // suggested in the appendix of of
--    // https://keccak.team/keccak_specs_summary.html, the values are
--    // simply encoded here.
--    static const uint64_t kRoundConstants[24] = {
--        0x0000000000000001, 0x0000000000008082, 0x800000000000808a,
--        0x8000000080008000, 0x000000000000808b, 0x0000000080000001,
--        0x8000000080008081, 0x8000000000008009, 0x000000000000008a,
--        0x0000000000000088, 0x0000000080008009, 0x000000008000000a,
--        0x000000008000808b, 0x800000000000008b, 0x8000000000008089,
--        0x8000000000008003, 0x8000000000008002, 0x8000000000000080,
--        0x000000000000800a, 0x800000008000000a, 0x8000000080008081,
--        0x8000000000008080, 0x0000000080000001, 0x8000000080008008,
--    };
--
--    state[0] ^= kRoundConstants[round];
--  }
--}
--
--static void keccak_init(struct BORINGSSL_keccak_st *ctx,
--                        size_t *out_required_out_len, const uint8_t *in,
--                        size_t in_len, enum boringssl_keccak_config_t config) {
--  size_t capacity_bytes;
--  uint8_t terminator;
--  switch (config) {
--    case boringssl_sha3_256:
--      capacity_bytes = 512 / 8;
--      *out_required_out_len = 32;
--      terminator = 0x06;
--      break;
--    case boringssl_sha3_512:
--      capacity_bytes = 1024 / 8;
--      *out_required_out_len = 64;
--      terminator = 0x06;
--      break;
--    case boringssl_shake128:
--      capacity_bytes = 256 / 8;
--      *out_required_out_len = 0;
--      terminator = 0x1f;
--      break;
--    case boringssl_shake256:
--      capacity_bytes = 512 / 8;
--      *out_required_out_len = 0;
--      terminator = 0x1f;
--      break;
--    default:
--      abort();
--  }
--
--  OPENSSL_memset(ctx, 0, sizeof(*ctx));
--  ctx->rate_bytes = 200 - capacity_bytes;
--  assert(ctx->rate_bytes % 8 == 0);
--  const size_t rate_words = ctx->rate_bytes / 8;
--
--  while (in_len >= ctx->rate_bytes) {
--    for (size_t i = 0; i < rate_words; i++) {
--      ctx->state[i] ^= CRYPTO_load_u64_le(in + 8 * i);
--    }
--    keccak_f(ctx->state);
--    in += ctx->rate_bytes;
--    in_len -= ctx->rate_bytes;
--  }
--
--  // XOR the final block. Accessing |ctx->state| as a |uint8_t*| is allowed by
--  // strict aliasing because we require |uint8_t| to be a character type.
--  uint8_t *state_bytes = (uint8_t *)ctx->state;
--  assert(in_len < ctx->rate_bytes);
--  for (size_t i = 0; i < in_len; i++) {
--    state_bytes[i] ^= in[i];
--  }
--  state_bytes[in_len] ^= terminator;
--  state_bytes[ctx->rate_bytes - 1] ^= 0x80;
--  keccak_f(ctx->state);
--}
--
--void BORINGSSL_keccak(uint8_t *out, size_t out_len, const uint8_t *in,
--                      size_t in_len, enum boringssl_keccak_config_t config) {
--  struct BORINGSSL_keccak_st ctx;
--  size_t required_out_len;
--  keccak_init(&ctx, &required_out_len, in, in_len, config);
--  if (required_out_len != 0 && out_len != required_out_len) {
--    abort();
--  }
--  BORINGSSL_keccak_squeeze(&ctx, out, out_len);
--}
--
--void BORINGSSL_keccak_init(struct BORINGSSL_keccak_st *ctx, const uint8_t *in,
--                           size_t in_len,
--                           enum boringssl_keccak_config_t config) {
--  size_t required_out_len;
--  keccak_init(ctx, &required_out_len, in, in_len, config);
--  if (required_out_len != 0) {
--    abort();
--  }
--}
--
--void BORINGSSL_keccak_squeeze(struct BORINGSSL_keccak_st *ctx, uint8_t *out,
--                              size_t out_len) {
--  // Accessing |ctx->state| as a |uint8_t*| is allowed by strict aliasing
--  // because we require |uint8_t| to be a character type.
--  const uint8_t *state_bytes = (const uint8_t *)ctx->state;
--  while (out_len) {
--    size_t remaining = ctx->rate_bytes - ctx->offset;
--    size_t todo = out_len;
--    if (todo > remaining) {
--      todo = remaining;
--    }
--    OPENSSL_memcpy(out, &state_bytes[ctx->offset], todo);
--    out += todo;
--    out_len -= todo;
--    ctx->offset += todo;
--    if (ctx->offset == ctx->rate_bytes) {
--      keccak_f(ctx->state);
--      ctx->offset = 0;
--    }
--  }
--}
-diff --git a/src/crypto/kyber/kyber.c b/src/crypto/kyber/kyber.c
-index 776c085f9..ccb5b3d9b 100644
---- a/src/crypto/kyber/kyber.c
-+++ b/src/crypto/kyber/kyber.c
-@@ -1,833 +1,2426 @@
+diff --git a/crypto/kyber/kyber.c b/crypto/kyber/kyber.c
+index d3ea02090..74d092907 100644
+--- a/crypto/kyber/kyber.c
++++ b/crypto/kyber/kyber.c
+@@ -1,835 +1,2426 @@
 -/* Copyright (c) 2023, Google Inc.
 - *
 - * Permission to use, copy, modify, and/or distribute this software for any
@@ -577,6 +221,7 @@ index 776c085f9..ccb5b3d9b 100644
 +#include <string.h>
  
  #include "../internal.h"
+-#include "../keccak/internal.h"
 -#include "./internal.h"
 -
 -
@@ -699,7 +344,7 @@ index 776c085f9..ccb5b3d9b 100644
 -static uint16_t reduce(uint32_t x) {
 -  assert(x < kPrime + 2u * kPrime * kPrime);
 -  uint64_t product = (uint64_t)x * kBarrettMultiplier;
--  uint32_t quotient = product >> kBarrettShift;
+-  uint32_t quotient = (uint32_t)(product >> kBarrettShift);
 -  uint32_t remainder = x - quotient * kPrime;
 -  return reduce_once(remainder);
 -}
@@ -952,7 +597,7 @@ index 776c085f9..ccb5b3d9b 100644
 +  for(i=0;i<len;i++)
 +    r |= a[i] ^ b[i];
 +
-+  return (-(uint64_t)r) >> 63;
++  return (0-(uint64_t)r) >> 63;
 +}
 +
 +/*************************************************
@@ -1600,7 +1245,7 @@ index 776c085f9..ccb5b3d9b 100644
 -// operates on public inputs.
 -static void scalar_from_keccak_vartime(scalar *out,
 -                                       struct BORINGSSL_keccak_st *keccak_ctx) {
--  assert(keccak_ctx->offset == 0);
+-  assert(keccak_ctx->squeeze_offset == 0);
 -  assert(keccak_ctx->rate_bytes == 168);
 -  static_assert(168 % 3 == 0, "block and coefficient boundaries do not align");
 -
@@ -1714,8 +1359,8 @@ index 776c085f9..ccb5b3d9b 100644
 -      input[32] = i;
 -      input[33] = j;
 -      struct BORINGSSL_keccak_st keccak_ctx;
--      BORINGSSL_keccak_init(&keccak_ctx, input, sizeof(input),
--                            boringssl_shake128);
+-      BORINGSSL_keccak_init(&keccak_ctx, boringssl_shake128);
+-      BORINGSSL_keccak_absorb(&keccak_ctx, input, sizeof(input));
 -      scalar_from_keccak_vartime(&out->v[i][j], &keccak_ctx);
 -    }
 +/*************************************************
@@ -2337,9 +1982,10 @@ index 776c085f9..ccb5b3d9b 100644
 -// remainder (for rounding) and the quotient (as the result), we cannot use
 -// |reduce| here, but need to do the Barrett reduction directly.
 -static uint16_t compress(uint16_t x, int bits) {
--  uint32_t product = (uint32_t)x << bits;
--  uint32_t quotient = ((uint64_t)product * kBarrettMultiplier) >> kBarrettShift;
--  uint32_t remainder = product - quotient * kPrime;
+-  uint32_t shifted = (uint32_t)x << bits;
+-  uint64_t product = (uint64_t)shifted * kBarrettMultiplier;
+-  uint32_t quotient = (uint32_t)(product >> kBarrettShift);
+-  uint32_t remainder = shifted - quotient * kPrime;
 -
 -  // Adjust the quotient to round correctly:
 -  //   0 <= remainder <= kHalfPrime round to 0
@@ -3654,33 +3300,42 @@ index 776c085f9..ccb5b3d9b 100644
 +        const uint8_t in[KYBER_PUBLICKEYBYTES]) {
 +    memcpy(&out->opaque, in, KYBER_PUBLICKEYBYTES);
  }
-diff --git a/src/crypto/kyber/kyber512.c b/src/crypto/kyber/kyber512.c
+diff --git a/crypto/kyber/kyber1024.c b/crypto/kyber/kyber1024.c
+new file mode 100644
+index 000000000..2cdc4a100
+--- /dev/null
++++ b/crypto/kyber/kyber1024.c
+@@ -0,0 +1,3 @@
++#define KYBER_K 4
++
++#include "kyber.c"
+diff --git a/crypto/kyber/kyber512.c b/crypto/kyber/kyber512.c
 new file mode 100644
 index 000000000..21eed11a2
 --- /dev/null
-+++ b/src/crypto/kyber/kyber512.c
++++ b/crypto/kyber/kyber512.c
 @@ -0,0 +1,5 @@
 +#define KYBER_K 2
 +
 +#include "kyber.c"
 +
 +
-diff --git a/src/crypto/kyber/kyber768.c b/src/crypto/kyber/kyber768.c
+diff --git a/crypto/kyber/kyber768.c b/crypto/kyber/kyber768.c
 new file mode 100644
 index 000000000..3e572b72e
 --- /dev/null
-+++ b/src/crypto/kyber/kyber768.c
++++ b/crypto/kyber/kyber768.c
 @@ -0,0 +1,4 @@
 +#define KYBER_K 3
 +
 +#include "kyber.c"
 +
-diff --git a/src/crypto/kyber/kyber_test.cc b/src/crypto/kyber/kyber_test.cc
+diff --git a/crypto/kyber/kyber_test.cc b/crypto/kyber/kyber_test.cc
 deleted file mode 100644
-index eb76b5bd7..000000000
---- a/src/crypto/kyber/kyber_test.cc
+index b9daa87d3..000000000
+--- a/crypto/kyber/kyber_test.cc
 +++ /dev/null
-@@ -1,229 +0,0 @@
+@@ -1,184 +0,0 @@
 -/* Copyright (c) 2023, Google Inc.
 - *
 - * Permission to use, copy, modify, and/or distribute this software for any
@@ -3707,54 +3362,9 @@ index eb76b5bd7..000000000
 -
 -#include "../test/file_test.h"
 -#include "../test/test_util.h"
+-#include "../keccak/internal.h"
 -#include "./internal.h"
 -
--
--static void KeccakFileTest(FileTest *t) {
--  std::vector<uint8_t> input, sha3_256_expected, sha3_512_expected,
--      shake128_expected, shake256_expected;
--  ASSERT_TRUE(t->GetBytes(&input, "Input"));
--  ASSERT_TRUE(t->GetBytes(&sha3_256_expected, "SHA3-256"));
--  ASSERT_TRUE(t->GetBytes(&sha3_512_expected, "SHA3-512"));
--  ASSERT_TRUE(t->GetBytes(&shake128_expected, "SHAKE-128"));
--  ASSERT_TRUE(t->GetBytes(&shake256_expected, "SHAKE-256"));
--
--  uint8_t sha3_256_digest[32];
--  BORINGSSL_keccak(sha3_256_digest, sizeof(sha3_256_digest), input.data(),
--                   input.size(), boringssl_sha3_256);
--  uint8_t sha3_512_digest[64];
--  BORINGSSL_keccak(sha3_512_digest, sizeof(sha3_512_digest), input.data(),
--                   input.size(), boringssl_sha3_512);
--  uint8_t shake128_output[512];
--  BORINGSSL_keccak(shake128_output, sizeof(shake128_output), input.data(),
--                   input.size(), boringssl_shake128);
--  uint8_t shake256_output[512];
--  BORINGSSL_keccak(shake256_output, sizeof(shake256_output), input.data(),
--                   input.size(), boringssl_shake256);
--
--  EXPECT_EQ(Bytes(sha3_256_expected), Bytes(sha3_256_digest));
--  EXPECT_EQ(Bytes(sha3_512_expected), Bytes(sha3_512_digest));
--  EXPECT_EQ(Bytes(shake128_expected), Bytes(shake128_output));
--  EXPECT_EQ(Bytes(shake256_expected), Bytes(shake256_output));
--
--  struct BORINGSSL_keccak_st ctx;
--
--  BORINGSSL_keccak_init(&ctx, input.data(), input.size(), boringssl_shake128);
--  for (size_t i = 0; i < sizeof(shake128_output); i++) {
--    BORINGSSL_keccak_squeeze(&ctx, &shake128_output[i], 1);
--  }
--  EXPECT_EQ(Bytes(shake128_expected), Bytes(shake128_output));
--
--  BORINGSSL_keccak_init(&ctx, input.data(), input.size(), boringssl_shake256);
--  for (size_t i = 0; i < sizeof(shake256_output); i++) {
--    BORINGSSL_keccak_squeeze(&ctx, &shake256_output[i], 1);
--  }
--  EXPECT_EQ(Bytes(shake256_expected), Bytes(shake256_output));
--}
--
--TEST(KyberTest, KeccakTestVectors) {
--  FileTestGTest("crypto/kyber/keccak_tests.txt", KeccakFileTest);
--}
 -
 -template <typename T>
 -static std::vector<uint8_t> Marshal(int (*marshal_func)(CBB *, const T *),
@@ -3910,20 +3520,20 @@ index eb76b5bd7..000000000
 -TEST(KyberTest, TestVectors) {
 -  FileTestGTest("crypto/kyber/kyber_tests.txt", KyberFileTest);
 -}
-diff --git a/src/crypto/obj/obj_dat.h b/src/crypto/obj/obj_dat.h
-index 654b3c08e..6cef2c079 100644
---- a/src/crypto/obj/obj_dat.h
-+++ b/src/crypto/obj/obj_dat.h
+diff --git a/crypto/obj/obj_dat.h b/crypto/obj/obj_dat.h
+index 71ef2d2bd..f5ac45bf8 100644
+--- a/crypto/obj/obj_dat.h
++++ b/crypto/obj/obj_dat.h
 @@ -57,7 +57,7 @@
  /* This file is generated by crypto/obj/objects.go. */
  
  
 -#define NUM_NID 965
-+#define NUM_NID 969
++#define NUM_NID 970
  
  static const uint8_t kObjectData[] = {
      /* NID_rsadsi */
-@@ -8784,6 +8784,13 @@ static const ASN1_OBJECT kObjects[NUM_NID] = {
+@@ -8783,6 +8783,14 @@ static const ASN1_OBJECT kObjects[NUM_NID] = {
      {"HKDF", "hkdf", NID_hkdf, 0, NULL, 0},
      {"X25519Kyber768Draft00", "X25519Kyber768Draft00",
       NID_X25519Kyber768Draft00, 0, NULL, 0},
@@ -3934,10 +3544,11 @@ index 654b3c08e..6cef2c079 100644
 +    {"X25519Kyber768Draft00Old", "X25519Kyber768Draft00Old",
 +     NID_X25519Kyber768Draft00Old, 0, NULL, 0},
 +    {"X25519MLKEM768", "X25519MLKEM768", NID_X25519MLKEM768, 0, NULL, 0},
++    {"MLKEM1024", "MLKEM1024", NID_MLKEM1024, 0, NULL, 0},
  };
  
  static const uint16_t kNIDsInShortNameOrder[] = {
-@@ -8916,6 +8923,7 @@ static const uint16_t kNIDsInShortNameOrder[] = {
+@@ -8915,6 +8923,7 @@ static const uint16_t kNIDsInShortNameOrder[] = {
      18 /* OU */,
      749 /* Oakley-EC2N-3 */,
      750 /* Oakley-EC2N-4 */,
@@ -3945,9 +3556,9 @@ index 654b3c08e..6cef2c079 100644
      9 /* PBE-MD2-DES */,
      168 /* PBE-MD2-RC2-64 */,
      10 /* PBE-MD5-DES */,
-@@ -8982,7 +8990,10 @@ static const uint16_t kNIDsInShortNameOrder[] = {
+@@ -8980,7 +8989,10 @@ static const uint16_t kNIDsInShortNameOrder[] = {
+     143 /* SXNetID */,
      458 /* UID */,
-     0 /* UNDEF */,
      948 /* X25519 */,
 +    965 /* X25519Kyber512Draft00 */,
      964 /* X25519Kyber768Draft00 */,
@@ -3956,7 +3567,7 @@ index 654b3c08e..6cef2c079 100644
      961 /* X448 */,
      11 /* X500 */,
      378 /* X500algorithms */,
-@@ -9829,6 +9840,7 @@ static const uint16_t kNIDsInLongNameOrder[] = {
+@@ -9827,6 +9839,7 @@ static const uint16_t kNIDsInLongNameOrder[] = {
      366 /* OCSP Nonce */,
      371 /* OCSP Service Locator */,
      180 /* OCSP Signing */,
@@ -3964,7 +3575,7 @@ index 654b3c08e..6cef2c079 100644
      161 /* PBES2 */,
      69 /* PBKDF2 */,
      162 /* PBMAC1 */,
-@@ -9853,7 +9865,10 @@ static const uint16_t kNIDsInLongNameOrder[] = {
+@@ -9851,7 +9864,10 @@ static const uint16_t kNIDsInLongNameOrder[] = {
      133 /* Time Stamping */,
      375 /* Trust Root */,
      948 /* X25519 */,
@@ -3975,11 +3586,11 @@ index 654b3c08e..6cef2c079 100644
      961 /* X448 */,
      12 /* X509 */,
      402 /* X509v3 AC Targeting */,
-diff --git a/src/crypto/obj/obj_mac.num b/src/crypto/obj/obj_mac.num
-index a0519acee..2a46adfe8 100644
---- a/src/crypto/obj/obj_mac.num
-+++ b/src/crypto/obj/obj_mac.num
-@@ -952,3 +952,7 @@ X448		961
+diff --git a/crypto/obj/obj_mac.num b/crypto/obj/obj_mac.num
+index a0519acee..a78bcdd53 100644
+--- a/crypto/obj/obj_mac.num
++++ b/crypto/obj/obj_mac.num
+@@ -952,3 +952,8 @@ X448		961
  sha512_256		962
  hkdf		963
  X25519Kyber768Draft00		964
@@ -3987,11 +3598,12 @@ index a0519acee..2a46adfe8 100644
 +P256Kyber768Draft00		966
 +X25519Kyber768Draft00Old		967
 +X25519MLKEM768		968
-diff --git a/src/crypto/obj/objects.txt b/src/crypto/obj/objects.txt
-index 3ad32ea3d..347fc556a 100644
---- a/src/crypto/obj/objects.txt
-+++ b/src/crypto/obj/objects.txt
-@@ -1332,8 +1332,12 @@ secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
++MLKEM1024		971
+diff --git a/crypto/obj/objects.txt b/crypto/obj/objects.txt
+index 3ad32ea3d..14859cb4c 100644
+--- a/crypto/obj/objects.txt
++++ b/crypto/obj/objects.txt
+@@ -1332,8 +1332,15 @@ secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
                   : dh-std-kdf
                   : dh-cofactor-kdf
  
@@ -4002,13 +3614,16 @@ index 3ad32ea3d..347fc556a 100644
 + : P256Kyber768Draft00
 + : X25519Kyber768Draft00Old
 + : X25519MLKEM768
++
++# NIDs for post quantum (pure) KEMs in TLS (no corresponding OIDs).
++ : MLKEM1024
  
  # See RFC 8410.
  1 3 101 110 : X25519
-diff --git a/src/include/openssl/aead.h b/src/include/openssl/aead.h
+diff --git a/include/openssl/aead.h b/include/openssl/aead.h
 index 376bff17a..cedaa761f 100644
---- a/src/include/openssl/aead.h
-+++ b/src/include/openssl/aead.h
+--- a/include/openssl/aead.h
++++ b/include/openssl/aead.h
 @@ -405,6 +405,9 @@ OPENSSL_EXPORT const EVP_AEAD *EVP_aead_aes_128_cbc_sha256_tls(void);
  OPENSSL_EXPORT const EVP_AEAD *EVP_aead_aes_256_cbc_sha1_tls(void);
  OPENSSL_EXPORT const EVP_AEAD *EVP_aead_aes_256_cbc_sha1_tls_implicit_iv(void);
@@ -4019,10 +3634,10 @@ index 376bff17a..cedaa761f 100644
  OPENSSL_EXPORT const EVP_AEAD *EVP_aead_des_ede3_cbc_sha1_tls(void);
  OPENSSL_EXPORT const EVP_AEAD *EVP_aead_des_ede3_cbc_sha1_tls_implicit_iv(void);
  
-diff --git a/src/include/openssl/kyber.h b/src/include/openssl/kyber.h
-index cafae9d17..a05eb8957 100644
---- a/src/include/openssl/kyber.h
-+++ b/src/include/openssl/kyber.h
+diff --git a/include/openssl/kyber.h b/include/openssl/kyber.h
+index cafae9d17..214bdc68a 100644
+--- a/include/openssl/kyber.h
++++ b/include/openssl/kyber.h
 @@ -1,17 +1,3 @@
 -/* Copyright (c) 2023, Google Inc.
 - *
@@ -4041,17 +3656,11 @@ index cafae9d17..a05eb8957 100644
  #ifndef OPENSSL_HEADER_KYBER_H
  #define OPENSSL_HEADER_KYBER_H
  
-@@ -21,105 +7,104 @@
+@@ -21,105 +7,144 @@
  extern "C" {
  #endif
  
-+#define KYBER512_PUBLIC_KEY_BYTES  800
-+#define KYBER512_CIPHERTEXT_BYTES  768
-+#define KYBER512_PRIVATE_KEY_BYTES 1632
-+#define KYBER768_PUBLIC_KEY_BYTES  1184
-+#define KYBER768_CIPHERTEXT_BYTES  1088
-+#define KYBER768_PRIVATE_KEY_BYTES 2400
- 
+-
 -// Kyber768.
 -
 -
@@ -4062,6 +3671,16 @@ index cafae9d17..a05eb8957 100644
 -    uint8_t bytes[512 * (3 + 9) + 32 + 32];
 -    uint16_t alignment;
 -  } opaque;
++#define KYBER512_PUBLIC_KEY_BYTES  800
++#define KYBER512_CIPHERTEXT_BYTES  768
++#define KYBER512_PRIVATE_KEY_BYTES 1632
++#define KYBER768_PUBLIC_KEY_BYTES  1184
++#define KYBER768_CIPHERTEXT_BYTES  1088
++#define KYBER768_PRIVATE_KEY_BYTES 2400
++#define KYBER1024_PUBLIC_KEY_BYTES  1568
++#define KYBER1024_CIPHERTEXT_BYTES  1568
++#define KYBER1024_PRIVATE_KEY_BYTES 3168
++
 +struct KYBER512_private_key {
 +  uint8_t opaque[KYBER512_PRIVATE_KEY_BYTES];
  };
@@ -4081,6 +3700,9 @@ index cafae9d17..a05eb8957 100644
 +};
 +struct KYBER768_public_key {
 +  uint8_t opaque[KYBER768_PUBLIC_KEY_BYTES];
++};
++struct KYBER1024_public_key {
++  uint8_t opaque[KYBER1024_PUBLIC_KEY_BYTES];
  };
  
 -// KYBER_PUBLIC_KEY_BYTES is the number of bytes in an encoded Kyber768 public
@@ -4183,6 +3805,12 @@ index cafae9d17..a05eb8957 100644
 +    struct KYBER768_public_key *out_pub, struct KYBER768_private_key *out_priv,
 +    const uint8_t input[KYBER_GENERATE_KEY_BYTES]);
 +
++// KYBER1024_generate_key is a deterministic function that outputs a public and
++// private key based on the given entropy.
++OPENSSL_EXPORT void KYBER1024_generate_key(
++    struct KYBER1024_public_key *out_pub, struct KYBER1024_private_key *out_priv,
++    const uint8_t input[KYBER_GENERATE_KEY_BYTES]);
++
 +// KYBER512_encap is a deterministic function the generates and encrypts a random
 +// session key from the given entropy, writing those values to |out_shared_key|
 +// and |out_ciphertext|, respectively. If |mlkem| is 1, will use ML-KEM-512.
@@ -4198,6 +3826,15 @@ index cafae9d17..a05eb8957 100644
 +OPENSSL_EXPORT int KYBER768_encap(uint8_t out_ciphertext[KYBER768_CIPHERTEXT_BYTES],
 +                              uint8_t out_shared_key[KYBER_KEY_BYTES],
 +                              const struct KYBER768_public_key *in_pub,
++                              const uint8_t in[KYBER_ENCAP_BYTES],
++                              int mlkem);
++
++// KYBER1024_encap is a deterministic function the generates and encrypts a random
++// session key from the given entropy, writing those values to |out_shared_key|
++// and |out_ciphertext|, respectively. If |mlkem| is 1, will use ML-KEM-1024.
++OPENSSL_EXPORT int KYBER1024_encap(uint8_t out_ciphertext[KYBER1024_CIPHERTEXT_BYTES],
++                              uint8_t out_shared_key[KYBER_KEY_BYTES],
++                              const struct KYBER1024_public_key *in_pub,
 +                              const uint8_t in[KYBER_ENCAP_BYTES],
 +                              int mlkem);
 +
@@ -4223,6 +3860,17 @@ index cafae9d17..a05eb8957 100644
 +                              const uint8_t *ciphertext, size_t ciphertext_len,
 +                              int mlkem);
 +
++// KYBER1024_decap decrypts a session key from |ciphertext_len| bytes of
++// |ciphertext|. If the ciphertext is valid, the decrypted key is written to
++// |out_shared_key|. Otherwise a key derived from |ciphertext| and a secret key (kept
++// in |in_priv|) is written. If the ciphertext is the wrong length then it will
++// leak which was done via side-channels. Otherwise it should perform either
++// action in constant-time. If |mlkem| is 1, will use ML-KEM-1024.
++OPENSSL_EXPORT void KYBER1024_decap(uint8_t out_shared_key[KYBER_KEY_BYTES],
++                              const struct KYBER1024_private_key *in_priv,
++                              const uint8_t *ciphertext, size_t ciphertext_len,
++                              int mlkem);
++
 +// KYBER512_marshal_public_key serialises |in_pub| to |out|.
 +OPENSSL_EXPORT void KYBER512_marshal_public_key(
 +    uint8_t out[KYBER512_PUBLIC_KEY_BYTES], const struct KYBER512_public_key *in_pub);
@@ -4231,6 +3879,10 @@ index cafae9d17..a05eb8957 100644
 +OPENSSL_EXPORT void KYBER768_marshal_public_key(
 +    uint8_t out[KYBER768_PUBLIC_KEY_BYTES], const struct KYBER768_public_key *in_pub);
 +
++// KYBER1024_marshal_public_key serialises |in_pub| to |out|.
++OPENSSL_EXPORT void KYBER1024_marshal_public_key(
++    uint8_t out[KYBER1024_PUBLIC_KEY_BYTES], const struct KYBER1024_public_key *in_pub);
++
 +// KYBER512_parse_public_key sets |*out| to the public-key encoded in |in|.
 +OPENSSL_EXPORT void KYBER512_parse_public_key(
 +    struct KYBER512_public_key *out, const uint8_t in[KYBER512_PUBLIC_KEY_BYTES]);
@@ -4238,14 +3890,18 @@ index cafae9d17..a05eb8957 100644
 +// KYBER768_parse_public_key sets |*out| to the public-key encoded in |in|.
 +OPENSSL_EXPORT void KYBER768_parse_public_key(
 +    struct KYBER768_public_key *out, const uint8_t in[KYBER768_PUBLIC_KEY_BYTES]);
++
++// KYBER1024_parse_public_key sets |*out| to the public-key encoded in |in|.
++OPENSSL_EXPORT void KYBER1024_parse_public_key(
++    struct KYBER1024_public_key *out, const uint8_t in[KYBER1024_PUBLIC_KEY_BYTES]);
  
  #if defined(__cplusplus)
  }  // extern C
-diff --git a/src/include/openssl/nid.h b/src/include/openssl/nid.h
-index 4dd8841b1..23ffcd446 100644
---- a/src/include/openssl/nid.h
-+++ b/src/include/openssl/nid.h
-@@ -4255,6 +4255,23 @@ extern "C" {
+diff --git a/include/openssl/nid.h b/include/openssl/nid.h
+index 4dd8841b1..01b19c7a3 100644
+--- a/include/openssl/nid.h
++++ b/include/openssl/nid.h
+@@ -4255,6 +4255,26 @@ extern "C" {
  #define SN_X25519Kyber768Draft00 "X25519Kyber768Draft00"
  #define NID_X25519Kyber768Draft00 964
  
@@ -4266,14 +3922,17 @@ index 4dd8841b1..23ffcd446 100644
 +
 +#define SN_ffdhe3072 "ffdhe3072"
 +#define NID_ffdhe3072 970
++
++#define SN_MLKEM1024 "MLKEM1024"
++#define NID_MLKEM1024 971
  
  #if defined(__cplusplus)
  } /* extern C */
-diff --git a/src/include/openssl/ssl.h b/src/include/openssl/ssl.h
-index 53aa9b453..e849406e4 100644
---- a/src/include/openssl/ssl.h
-+++ b/src/include/openssl/ssl.h
-@@ -718,6 +718,12 @@ OPENSSL_EXPORT int SSL_version(const SSL *ssl);
+diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
+index 003e0a5f7..96d807ada 100644
+--- a/include/openssl/ssl.h
++++ b/include/openssl/ssl.h
+@@ -720,6 +720,12 @@ OPENSSL_EXPORT int SSL_version(const SSL *ssl);
  #define SSL_OP_NO_DTLSv1 SSL_OP_NO_TLSv1
  #define SSL_OP_NO_DTLSv1_2 SSL_OP_NO_TLSv1_2
  
@@ -4286,31 +3945,22 @@ index 53aa9b453..e849406e4 100644
  // SSL_CTX_set_options enables all options set in |options| (which should be one
  // or more of the |SSL_OP_*| values, ORed together) in |ctx|. It returns a
  // bitmask representing the resulting enabled options.
-@@ -2378,6 +2384,13 @@ OPENSSL_EXPORT int SSL_set1_curves_list(SSL *ssl, const char *curves);
- #define SSL_CURVE_SECP521R1 25
- #define SSL_CURVE_X25519 29
- #define SSL_CURVE_X25519_KYBER768_DRAFT00 0x6399
-+#define SSL_CURVE_X25519_KYBER512_DRAFT00 0xfe30
-+#define SSL_CURVE_X25519_KYBER768_DRAFT00_OLD 0xfe31
-+#define SSL_CURVE_P256_KYBER768_DRAFT00 0xfe32
-+#define SSL_CURVE_X25519_MLKEM768 0x11ec
+@@ -2363,6 +2369,14 @@ OPENSSL_EXPORT size_t SSL_CTX_get_num_tickets(const SSL_CTX *ctx);
+ #define SSL_GROUP_SECP521R1 25
+ #define SSL_GROUP_X25519 29
+ #define SSL_GROUP_X25519_KYBER768_DRAFT00 0x6399
++#define SSL_GROUP_X25519_KYBER512_DRAFT00 0xfe30
++#define SSL_GROUP_X25519_KYBER768_DRAFT00_OLD 0xfe31
++#define SSL_GROUP_P256_KYBER768_DRAFT00 0xfe32
++#define SSL_GROUP_X25519_MLKEM768 0x11ec
++#define SSL_GROUP_MLKEM1024 0x0202
 +
-+#define SSL_CURVE_DHE2048 256
-+#define SSL_CURVE_DHE3072 257
++#define SSL_GROUP_DHE2048 256
++#define SSL_GROUP_DHE3072 257
  
- // SSL_get_curve_id returns the ID of the curve used by |ssl|'s most recently
- // completed handshake or 0 if not applicable.
-@@ -3022,6 +3035,9 @@ OPENSSL_EXPORT void SSL_get0_peer_application_settings(const SSL *ssl,
- // connection and zero otherwise.
- OPENSSL_EXPORT int SSL_has_application_settings(const SSL *ssl);
- 
-+// SSL_set_alps_use_new_codepoint configures whether to use the new ALPS
-+// codepoint. By default, the old codepoint is used.
-+OPENSSL_EXPORT void SSL_set_alps_use_new_codepoint(SSL *ssl, int use_new);
- 
- // Certificate compression.
- //
-@@ -4570,6 +4586,51 @@ OPENSSL_EXPORT void SSL_CTX_set_permute_extensions(SSL_CTX *ctx, int enabled);
+ // SSL_CTX_set1_group_ids sets the preferred groups for |ctx| to |group_ids|.
+ // Each element of |group_ids| should be one of the |SSL_GROUP_*| constants. It
+@@ -4587,6 +4601,60 @@ OPENSSL_EXPORT void SSL_CTX_set_permute_extensions(SSL_CTX *ctx, int enabled);
  // permute extensions. For now, this is only implemented for the ClientHello.
  OPENSSL_EXPORT void SSL_set_permute_extensions(SSL *ssl, int enabled);
  
@@ -4329,13 +3979,12 @@ index 53aa9b453..e849406e4 100644
 +OPENSSL_EXPORT void SSL_CTX_set_record_size_limit(SSL_CTX *ctx, uint16_t limit);
 +
 +// SSL_set_key_shares_limit configures whether sockets on |ssl| should
-+// send three key shares.
++// send key shares limit.
 +OPENSSL_EXPORT void SSL_set_key_shares_limit(SSL *ssl, uint8_t limit);
 +
 +// SSL_CTX_set_key_shares_limit configures whether sockets on |ctx| should
-+// send three key shares.
++// send key shares limit.
 +OPENSSL_EXPORT void SSL_CTX_set_key_shares_limit(SSL_CTX *ctx, uint8_t limit);
-+
 +
 +// SSL_CTX_set_aes_hw_override sets |override_value| to
 +// override checking for aes hardware support. If |override_value|
@@ -4348,21 +3997,31 @@ index 53aa9b453..e849406e4 100644
 +// |SSL_CTX_set_aes_override| but only configures a single |SSL*|.
 +OPENSSL_EXPORT void SSL_set_aes_hw_override(SSL *ssl, int override_value);
 +
-+// SSL_CTX_set_prefer_chacha20 configures whether sockets on |ctx| should prefer
-+// the ChaCha20 cipher suite over AES. This is only relevant for TLS 1.3 and
-+// later, where ChaCha20 is not the default cipher suite.
-+OPENSSL_EXPORT void SSL_CTX_set_prefer_chacha20(SSL_CTX *ctx,
-+                                                  int prefer_chacha20);
++// SSL_CTX_set_preserve_tls13_cipher_list configures whether sockets on |ctx| should
++// preserve the TLS 1.3 cipher list order, retaining the original cipher suite
++// preferences. When enabled, it may prefer ChaCha20 over AES based on the
++// configured list. This is only relevant for TLS 1.3 and later, where ChaCha20
++// is not the default cipher suite.
++//
++// Note: This function must be called before |SSL_CTX_set_cipher_list| to take
++// effect.
++OPENSSL_EXPORT void SSL_CTX_set_preserve_tls13_cipher_list(SSL_CTX *ctx,
++                                                  int preserve_tls13_cipher_list);
 +
-+// SSL_set_prefer_chacha20 configures whether sockets on |ssl| should prefer
-+// the ChaCha20 cipher suite over AES. This is only relevant for TLS 1.3 and
-+// later, where ChaCha20 is not the default cipher suite.
-+OPENSSL_EXPORT void SSL_set_prefer_chacha20(SSL *ssl, int prefer_chacha20);
++// SSL_set_preserve_tls13_cipher_list configures whether sockets on |ctx| should
++// preserve the TLS 1.3 cipher list order, retaining the original cipher suite
++// preferences. When enabled, it may prefer ChaCha20 over AES based on the
++// configured list. This is only relevant for TLS 1.3 and later, where ChaCha20
++// is not the default cipher suite.
++//
++// Note: This function must be called before |SSL_set_cipher_list| to take
++// effect.
++OPENSSL_EXPORT void SSL_set_preserve_tls13_cipher_list(SSL *ssl, int preserve_tls13_cipher_list);
 +
  // SSL_max_seal_overhead returns the maximum overhead, in bytes, of sealing a
  // record with |ssl|.
  OPENSSL_EXPORT size_t SSL_max_seal_overhead(const SSL *ssl);
-@@ -4874,6 +4935,10 @@ OPENSSL_EXPORT int SSL_CTX_set1_sigalgs_list(SSL_CTX *ctx, const char *str);
+@@ -4891,6 +4959,10 @@ OPENSSL_EXPORT int SSL_CTX_set1_sigalgs_list(SSL_CTX *ctx, const char *str);
  // more convenient to codesearch for specific algorithm values.
  OPENSSL_EXPORT int SSL_set1_sigalgs_list(SSL *ssl, const char *str);
  
@@ -4373,7 +4032,7 @@ index 53aa9b453..e849406e4 100644
  #define SSL_set_app_data(s, arg) (SSL_set_ex_data(s, 0, (char *)(arg)))
  #define SSL_get_app_data(s) (SSL_get_ex_data(s, 0))
  #define SSL_SESSION_set_app_data(s, a) \
-@@ -4926,7 +4991,6 @@ DEFINE_STACK_OF(SSL_COMP)
+@@ -4943,7 +5015,6 @@ DEFINE_STACK_OF(SSL_COMP)
  #define SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG 0
  #define SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG 0
  #define SSL_OP_NO_COMPRESSION 0
@@ -4381,18 +4040,10 @@ index 53aa9b453..e849406e4 100644
  #define SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION 0
  #define SSL_OP_NO_SSLv2 0
  #define SSL_OP_NO_SSLv3 0
-@@ -5779,6 +5843,7 @@ BSSL_NAMESPACE_END
- #define SSL_R_ECH_REJECTED 319
- #define SSL_R_INVALID_OUTER_EXTENSION 320
- #define SSL_R_INCONSISTENT_ECH_NEGOTIATION 321
-+#define SSL_R_INVALID_ALPS_CODEPOINT 322
- #define SSL_R_SSLV3_ALERT_CLOSE_NOTIFY 1000
- #define SSL_R_SSLV3_ALERT_UNEXPECTED_MESSAGE 1010
- #define SSL_R_SSLV3_ALERT_BAD_RECORD_MAC 1020
-diff --git a/src/include/openssl/tls1.h b/src/include/openssl/tls1.h
-index 772fb87a3..955126a7a 100644
---- a/src/include/openssl/tls1.h
-+++ b/src/include/openssl/tls1.h
+diff --git a/include/openssl/tls1.h b/include/openssl/tls1.h
+index c1207a3b7..40f4d6f6f 100644
+--- a/include/openssl/tls1.h
++++ b/include/openssl/tls1.h
 @@ -181,6 +181,8 @@ extern "C" {
  #define TLS1_AD_NO_APPLICATION_PROTOCOL 120
  #define TLS1_AD_ECH_REQUIRED 121  // draft-ietf-tls-esni-13
@@ -4402,15 +4053,7 @@ index 772fb87a3..955126a7a 100644
  // ExtensionType values from RFC 6066
  #define TLSEXT_TYPE_server_name 0
  #define TLSEXT_TYPE_status_request 5
-@@ -245,6 +247,7 @@ extern "C" {
- // ExtensionType value from draft-vvv-tls-alps. This is not an IANA defined
- // extension number.
- #define TLSEXT_TYPE_application_settings 17513
-+#define TLSEXT_TYPE_application_settings_new 17613
- 
- // ExtensionType values from draft-ietf-tls-esni-13. This is not an IANA defined
- // extension number.
-@@ -286,6 +289,7 @@ extern "C" {
+@@ -287,6 +289,7 @@ extern "C" {
  // From https://www.rfc-editor.org/rfc/rfc8879.html#section-3
  #define TLSEXT_cert_compression_zlib 1
  #define TLSEXT_cert_compression_brotli 2
@@ -4418,35 +4061,43 @@ index 772fb87a3..955126a7a 100644
  
  #define TLSEXT_MAXLEN_host_name 255
  
-diff --git a/src/sources.cmake b/src/sources.cmake
-index 5c7e881bf..3c0770cf3 100644
---- a/src/sources.cmake
-+++ b/src/sources.cmake
-@@ -66,8 +66,6 @@ set(
-   crypto/fipsmodule/rand/ctrdrbg_vectors.txt
+diff --git a/sources.cmake b/sources.cmake
+index ba2f5bc9e..d7ef5153a 100644
+--- a/sources.cmake
++++ b/sources.cmake
+@@ -52,7 +52,6 @@ set(
+   crypto/hrss/hrss_test.cc
+   crypto/impl_dispatch_test.cc
+   crypto/keccak/keccak_test.cc
+-  crypto/kyber/kyber_test.cc
+   crypto/lhash/lhash_test.cc
+   crypto/obj/obj_test.cc
+   crypto/pem/pem_test.cc
+@@ -145,7 +144,6 @@ set(
    crypto/hmac_extra/hmac_tests.txt
    crypto/hpke/hpke_test_vectors.txt
--  crypto/kyber/keccak_tests.txt
+   crypto/keccak/keccak_tests.txt
 -  crypto/kyber/kyber_tests.txt
    crypto/pkcs8/test/empty_password.p12
    crypto/pkcs8/test/no_encryption.p12
    crypto/pkcs8/test/nss.p12
-diff --git a/src/ssl/extensions.cc b/src/ssl/extensions.cc
-index 5ee280221..55c85c852 100644
---- a/src/ssl/extensions.cc
-+++ b/src/ssl/extensions.cc
-@@ -207,6 +207,10 @@ static bool tls1_check_duplicate_extensions(const CBS *cbs) {
+diff --git a/ssl/extensions.cc b/ssl/extensions.cc
+index b13400097..c319544de 100644
+--- a/ssl/extensions.cc
++++ b/ssl/extensions.cc
+@@ -207,6 +207,11 @@ static bool tls1_check_duplicate_extensions(const CBS *cbs) {
  static bool is_post_quantum_group(uint16_t id) {
    switch (id) {
-     case SSL_CURVE_X25519_KYBER768_DRAFT00:
-+    case SSL_CURVE_X25519_KYBER768_DRAFT00_OLD:
-+    case SSL_CURVE_X25519_KYBER512_DRAFT00:
-+    case SSL_CURVE_P256_KYBER768_DRAFT00:
-+    case SSL_CURVE_X25519_MLKEM768:
+     case SSL_GROUP_X25519_KYBER768_DRAFT00:
++    case SSL_GROUP_X25519_KYBER768_DRAFT00_OLD:
++    case SSL_GROUP_X25519_KYBER512_DRAFT00:
++    case SSL_GROUP_P256_KYBER768_DRAFT00:
++    case SSL_GROUP_X25519_MLKEM768:
++    case SSL_GROUP_MLKEM1024:
        return true;
      default:
        return false;
-@@ -752,7 +756,8 @@ static bool ext_ri_add_clienthello(const SSL_HANDSHAKE *hs, CBB *out,
+@@ -701,7 +706,8 @@ static bool ext_ri_add_clienthello(const SSL_HANDSHAKE *hs, CBB *out,
    const SSL *const ssl = hs->ssl;
    // Renegotiation indication is not necessary in TLS 1.3.
    if (hs->min_version >= TLS1_3_VERSION ||
@@ -4456,7 +4107,7 @@ index 5ee280221..55c85c852 100644
      return true;
    }
  
-@@ -2125,7 +2130,7 @@ bool ssl_ext_pre_shared_key_add_serverhello(SSL_HANDSHAKE *hs, CBB *out) {
+@@ -2074,7 +2080,7 @@ bool ssl_ext_pre_shared_key_add_serverhello(SSL_HANDSHAKE *hs, CBB *out) {
  static bool ext_psk_key_exchange_modes_add_clienthello(
      const SSL_HANDSHAKE *hs, CBB *out, CBB *out_compressible,
      ssl_client_hello_type_t type) {
@@ -4465,12 +4116,13 @@ index 5ee280221..55c85c852 100644
      return true;
    }
  
-@@ -2273,7 +2278,15 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
+@@ -2222,8 +2228,17 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
    SSL *const ssl = hs->ssl;
    hs->key_shares[0].reset();
    hs->key_shares[1].reset();
 +  hs->key_shares[2].reset();
    hs->key_share_bytes.Reset();
+ 
 +  // If key_shares_limit is set, use it. Otherwise, use the default of 2.
 +  const uint8_t key_shares_limit = hs->ssl->config->key_shares_limit;
 +  // The key_shares_limit is set by the user, so it is a custom value.
@@ -4478,10 +4130,11 @@ index 5ee280221..55c85c852 100644
 +  const uint8_t limit = (key_shares_limit >= 1 && key_shares_limit <= 3) ? key_shares_limit : 2;
 +  const bool enable_second_key_share = (limit >= 2);
 +  const bool enable_three_key_shares = (limit >= 3);
- 
++
    if (hs->max_version < TLS1_3_VERSION) {
      return true;
-@@ -2295,6 +2308,8 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
+   }
+@@ -2244,6 +2259,8 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
  
    uint16_t group_id = override_group_id;
    uint16_t second_group_id = 0;
@@ -4490,7 +4143,7 @@ index 5ee280221..55c85c852 100644
    if (override_group_id == 0) {
      // Predict the most preferred group.
      Span<const uint16_t> groups = tls1_get_grouplist(hs);
-@@ -2305,16 +2320,18 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
+@@ -2254,13 +2271,14 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
  
      group_id = groups[0];
  
@@ -4503,18 +4156,14 @@ index 5ee280221..55c85c852 100644
 +      if (enable_second_key_share && second_group_id == 0 && (is_custom || (is_post_quantum_group(group_id) != is_post_quantum_group(groups[i])))) {
          second_group_id = groups[i];
          assert(second_group_id != group_id);
+-      }
 +      } else if (enable_three_key_shares && third_group_id == 0 && 
 +                 (is_custom || is_post_quantum_group(group_id) != is_post_quantum_group(groups[i]))) {
 +        third_group_id = groups[i];
-       }
      }
    }
--
-+    
-   CBB key_exchange;
-   hs->key_shares[0] = SSLKeyShare::Create(group_id);
-   if (!hs->key_shares[0] ||  //
-@@ -2334,6 +2351,16 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
+ 
+@@ -2283,6 +2301,16 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
      }
    }
  
@@ -4531,7 +4180,7 @@ index 5ee280221..55c85c852 100644
    return CBBFinishArray(cbb.get(), &hs->key_share_bytes);
  }
  
-@@ -2372,13 +2399,20 @@ bool ssl_ext_key_share_parse_serverhello(SSL_HANDSHAKE *hs,
+@@ -2321,13 +2349,20 @@ bool ssl_ext_key_share_parse_serverhello(SSL_HANDSHAKE *hs,
    }
  
    SSLKeyShare *key_share = hs->key_shares[0].get();
@@ -4556,11 +4205,7 @@ index 5ee280221..55c85c852 100644
    }
  
    if (!key_share->Decap(out_secret, out_alert, ciphertext)) {
-@@ -2386,9 +2420,11 @@ bool ssl_ext_key_share_parse_serverhello(SSL_HANDSHAKE *hs,
-     return false;
-   }
- 
-+  // choose the first one
+@@ -2338,6 +2373,7 @@ bool ssl_ext_key_share_parse_serverhello(SSL_HANDSHAKE *hs,
    hs->new_session->group_id = group_id;
    hs->key_shares[0].reset();
    hs->key_shares[1].reset();
@@ -4568,7 +4213,7 @@ index 5ee280221..55c85c852 100644
    return true;
  }
  
-@@ -2808,9 +2844,30 @@ static bool ext_quic_transport_params_add_serverhello_legacy(SSL_HANDSHAKE *hs,
+@@ -2757,6 +2793,27 @@ static bool ext_quic_transport_params_add_serverhello_legacy(SSL_HANDSHAKE *hs,
  static bool ext_delegated_credential_add_clienthello(
      const SSL_HANDSHAKE *hs, CBB *out, CBB *out_compressible,
      ssl_client_hello_type_t type) {
@@ -4592,158 +4237,11 @@ index 5ee280221..55c85c852 100644
 +    if (!CBB_flush(out)) {
 +        return false;
 +    }
++
    return true;
  }
  
-+
- static bool ext_delegated_credential_parse_clienthello(SSL_HANDSHAKE *hs,
-                                                        uint8_t *out_alert,
-                                                        CBS *contents) {
-@@ -2957,9 +3014,10 @@ bool ssl_get_local_application_settings(const SSL_HANDSHAKE *hs,
-   return false;
- }
- 
--static bool ext_alps_add_clienthello(const SSL_HANDSHAKE *hs, CBB *out,
--                                     CBB *out_compressible,
--                                     ssl_client_hello_type_t type) {
-+static bool ext_alps_add_clienthello_impl(const SSL_HANDSHAKE *hs, CBB *out,
-+                                          CBB *out_compressible,
-+                                          ssl_client_hello_type_t type,
-+                                          bool use_new_codepoint) {
-   const SSL *const ssl = hs->ssl;
-   if (// ALPS requires TLS 1.3.
-       hs->max_version < TLS1_3_VERSION ||
-@@ -2972,8 +3030,18 @@ static bool ext_alps_add_clienthello(const SSL_HANDSHAKE *hs, CBB *out,
-     return true;
-   }
- 
-+  if (use_new_codepoint != hs->config->alps_use_new_codepoint) {
-+    // Do nothing, we'll send the other codepoint.
-+    return true;
-+  }
-+
-+  uint16_t extension_type = TLSEXT_TYPE_application_settings;
-+  if (hs->config->alps_use_new_codepoint) {
-+    extension_type = TLSEXT_TYPE_application_settings_new;
-+  }
-+
-   CBB contents, proto_list, proto;
--  if (!CBB_add_u16(out_compressible, TLSEXT_TYPE_application_settings) ||
-+  if (!CBB_add_u16(out_compressible, extension_type) ||
-       !CBB_add_u16_length_prefixed(out_compressible, &contents) ||
-       !CBB_add_u16_length_prefixed(&contents, &proto_list)) {
-     return false;
-@@ -2990,8 +3058,24 @@ static bool ext_alps_add_clienthello(const SSL_HANDSHAKE *hs, CBB *out,
-   return CBB_flush(out_compressible);
- }
- 
--static bool ext_alps_parse_serverhello(SSL_HANDSHAKE *hs, uint8_t *out_alert,
--                                       CBS *contents) {
-+static bool ext_alps_add_clienthello_new(const SSL_HANDSHAKE *hs, CBB *out,
-+                                     CBB *out_compressible,
-+                                     ssl_client_hello_type_t type) {
-+  return ext_alps_add_clienthello_impl(hs, out, out_compressible, type,
-+                                       /*use_new_codepoint=*/true);
-+}
-+
-+static bool ext_alps_add_clienthello(const SSL_HANDSHAKE *hs, CBB *out,
-+                                     CBB *out_compressible,
-+                                     ssl_client_hello_type_t type) {
-+  return ext_alps_add_clienthello_impl(hs, out, out_compressible, type,
-+                                       /*use_new_codepoint=*/false);
-+}
-+
-+static bool ext_alps_parse_serverhello_impl(SSL_HANDSHAKE *hs,
-+                                            uint8_t *out_alert,
-+                                            CBS *contents,
-+                                            bool use_new_codepoint) {
-   SSL *const ssl = hs->ssl;
-   if (contents == nullptr) {
-     return true;
-@@ -3000,6 +3084,7 @@ static bool ext_alps_parse_serverhello(SSL_HANDSHAKE *hs, uint8_t *out_alert,
-   assert(!ssl->s3->initial_handshake_complete);
-   assert(!hs->config->alpn_client_proto_list.empty());
-   assert(!hs->config->alps_configs.empty());
-+  assert(use_new_codepoint == hs->config->alps_use_new_codepoint);
- 
-   // ALPS requires TLS 1.3.
-   if (ssl_protocol_version(ssl) < TLS1_3_VERSION) {
-@@ -3019,7 +3104,21 @@ static bool ext_alps_parse_serverhello(SSL_HANDSHAKE *hs, uint8_t *out_alert,
-   return true;
- }
- 
--static bool ext_alps_add_serverhello(SSL_HANDSHAKE *hs, CBB *out) {
-+static bool ext_alps_parse_serverhello_new(SSL_HANDSHAKE *hs,
-+                                           uint8_t *out_alert,
-+                                           CBS *contents) {
-+  return ext_alps_parse_serverhello_impl(hs, out_alert, contents,
-+                                         /*use_new_codepoint=*/true);
-+}
-+
-+static bool ext_alps_parse_serverhello(SSL_HANDSHAKE *hs, uint8_t *out_alert,
-+                                       CBS *contents) {
-+  return ext_alps_parse_serverhello_impl(hs, out_alert, contents,
-+                                         /*use_new_codepoint=*/false);
-+}
-+
-+static bool ext_alps_add_serverhello_impl(SSL_HANDSHAKE *hs, CBB *out,
-+                                          bool use_new_codepoint) {
-   SSL *const ssl = hs->ssl;
-   // If early data is accepted, we omit the ALPS extension. It is implicitly
-   // carried over from the previous connection.
-@@ -3029,8 +3128,18 @@ static bool ext_alps_add_serverhello(SSL_HANDSHAKE *hs, CBB *out) {
-     return true;
-   }
- 
-+   if (use_new_codepoint != hs->config->alps_use_new_codepoint) {
-+    // Do nothing, we'll send the other codepoint.
-+    return true;
-+  }
-+
-+  uint16_t extension_type = TLSEXT_TYPE_application_settings;
-+  if (hs->config->alps_use_new_codepoint) {
-+    extension_type = TLSEXT_TYPE_application_settings_new;
-+  }
-+
-   CBB contents;
--  if (!CBB_add_u16(out, TLSEXT_TYPE_application_settings) ||
-+  if (!CBB_add_u16(out, extension_type) ||
-       !CBB_add_u16_length_prefixed(out, &contents) ||
-       !CBB_add_bytes(&contents,
-                      hs->new_session->local_application_settings.data(),
-@@ -3042,6 +3151,14 @@ static bool ext_alps_add_serverhello(SSL_HANDSHAKE *hs, CBB *out) {
-   return true;
- }
- 
-+static bool ext_alps_add_serverhello_new(SSL_HANDSHAKE *hs, CBB *out) {
-+  return ext_alps_add_serverhello_impl(hs, out, /*use_new_codepoint=*/true);
-+}
-+
-+static bool ext_alps_add_serverhello(SSL_HANDSHAKE *hs, CBB *out) {
-+  return ext_alps_add_serverhello_impl(hs, out, /*use_new_codepoint=*/false);
-+}
-+
- bool ssl_negotiate_alps(SSL_HANDSHAKE *hs, uint8_t *out_alert,
-                         const SSL_CLIENT_HELLO *client_hello) {
-   SSL *const ssl = hs->ssl;
-@@ -3052,11 +3169,15 @@ bool ssl_negotiate_alps(SSL_HANDSHAKE *hs, uint8_t *out_alert,
-   // If we negotiate ALPN over TLS 1.3, try to negotiate ALPS.
-   CBS alps_contents;
-   Span<const uint8_t> settings;
-+  uint16_t extension_type = TLSEXT_TYPE_application_settings;
-+  if (hs->config->alps_use_new_codepoint) {
-+    extension_type = TLSEXT_TYPE_application_settings_new;
-+  }
-   if (ssl_protocol_version(ssl) >= TLS1_3_VERSION &&
-       ssl_get_local_application_settings(hs, &settings,
-                                          ssl->s3->alpn_selected) &&
-       ssl_client_hello_get_extension(client_hello, &alps_contents,
--                                     TLSEXT_TYPE_application_settings)) {
-+                                     extension_type)) {
-     // Check if the client supports ALPS with the selected ALPN.
-     bool found = false;
-     CBS alps_list;
-@@ -3094,6 +3215,39 @@ bool ssl_negotiate_alps(SSL_HANDSHAKE *hs, uint8_t *out_alert,
+@@ -3108,6 +3165,39 @@ bool ssl_negotiate_alps(SSL_HANDSHAKE *hs, uint8_t *out_alert,
    return true;
  }
  
@@ -4783,18 +4281,10 @@ index 5ee280221..55c85c852 100644
  // kExtensions contains all the supported extensions.
  static const struct tls_extension kExtensions[] = {
    {
-@@ -3267,6 +3421,21 @@ static const struct tls_extension kExtensions[] = {
+@@ -3289,6 +3379,13 @@ static const struct tls_extension kExtensions[] = {
      ignore_parse_clienthello,
-     ext_alps_add_serverhello,
+     ext_alps_add_serverhello_old,
    },
-+  {
-+    TLSEXT_TYPE_application_settings_new,
-+    ext_alps_add_clienthello_new,
-+    ext_alps_parse_serverhello_new,
-+    // ALPS is negotiated late in |ssl_negotiate_alpn|.
-+    ignore_parse_clienthello,
-+    ext_alps_add_serverhello_new,
-+  },
 +  {
 +    TLSEXT_TYPE_record_size_limit,
 +    record_size_limit_add_clienthello,
@@ -4805,7 +4295,7 @@ index 5ee280221..55c85c852 100644
  };
  
  #define kNumExtensions (sizeof(kExtensions) / sizeof(struct tls_extension))
-@@ -3278,6 +3447,74 @@ static_assert(kNumExtensions <=
+@@ -3300,6 +3397,74 @@ static_assert(kNumExtensions <=
                    sizeof(((SSL_HANDSHAKE *)NULL)->extensions.received) * 8,
                "too many extensions for received bitset");
  
@@ -4880,150 +4370,10 @@ index 5ee280221..55c85c852 100644
  bool ssl_setup_extension_permutation(SSL_HANDSHAKE *hs) {
    if (!hs->config->permute_extensions) {
      return true;
-diff --git a/src/ssl/handoff.cc b/src/ssl/handoff.cc
-index 6e5cc2da1..b1b31f3a7 100644
---- a/src/ssl/handoff.cc
-+++ b/src/ssl/handoff.cc
-@@ -169,46 +169,46 @@ static bool apply_remote_features(SSL *ssl, CBS *in) {
-     return false;
-   }
- 
--  CBS curves;
--  if (!CBS_get_asn1(in, &curves, CBS_ASN1_OCTETSTRING)) {
-+  CBS groups;
-+  if (!CBS_get_asn1(in, &groups, CBS_ASN1_OCTETSTRING)) {
-     return false;
-   }
--  Array<uint16_t> supported_curves;
--  if (!supported_curves.Init(CBS_len(&curves) / 2)) {
-+  Array<uint16_t> supported_groups;
-+  if (!supported_groups.Init(CBS_len(&groups) / 2)) {
-     return false;
-   }
-   size_t idx = 0;
--  while (CBS_len(&curves)) {
--    uint16_t curve;
--    if (!CBS_get_u16(&curves, &curve)) {
-+  while (CBS_len(&groups)) {
-+    uint16_t group;
-+    if (!CBS_get_u16(&groups, &group)) {
-       return false;
-     }
--    supported_curves[idx++] = curve;
-+    supported_groups[idx++] = group;
-   }
--  Span<const uint16_t> configured_curves =
-+  Span<const uint16_t> configured_groups =
-       tls1_get_grouplist(ssl->s3->hs.get());
--  Array<uint16_t> new_configured_curves;
--  if (!new_configured_curves.Init(configured_curves.size())) {
-+  Array<uint16_t> new_configured_groups;
-+  if (!new_configured_groups.Init(configured_groups.size())) {
-     return false;
-   }
-   idx = 0;
--  for (uint16_t configured_curve : configured_curves) {
-+  for (uint16_t configured_group : configured_groups) {
-     bool ok = false;
--    for (uint16_t supported_curve : supported_curves) {
--      if (supported_curve == configured_curve) {
-+    for (uint16_t supported_group : supported_groups) {
-+      if (supported_group == configured_group) {
-         ok = true;
-         break;
-       }
-     }
-     if (ok) {
--      new_configured_curves[idx++] = configured_curve;
-+      new_configured_groups[idx++] = configured_group;
-     }
-   }
-   if (idx == 0) {
-     return false;
-   }
--  new_configured_curves.Shrink(idx);
--  ssl->config->supported_group_list = std::move(new_configured_curves);
-+  new_configured_groups.Shrink(idx);
-+  ssl->config->supported_group_list = std::move(new_configured_groups);
- 
-   CBS alps;
-   CBS_init(&alps, nullptr, 0);
-@@ -222,9 +222,12 @@ static bool apply_remote_features(SSL *ssl, CBS *in) {
-     if (!CBS_get_u16(&alps, &id)) {
-       return false;
-     }
--    // For now, we only support one ALPS code point, so we only need to extract
--    // a boolean signal from the feature list.
--    if (id == TLSEXT_TYPE_application_settings) {
-+    // For now, we support two ALPS codepoints, so we need to extract both
-+    // codepoints, and then filter what the handshaker might try to send.
-+    if ((id == TLSEXT_TYPE_application_settings_new &&
-+         ssl->config->alps_use_new_codepoint) ||
-+        (id == TLSEXT_TYPE_application_settings &&
-+         !ssl->config->alps_use_new_codepoint)) {
-       supports_alps = true;
-       break;
-     }
-@@ -442,6 +445,16 @@ bool SSL_serialize_handback(const SSL *ssl, CBB *out) {
-                                    hs->early_traffic_secret().size())) {
-       return false;
-     }
-+
-+    if (session->has_application_settings) {
-+      uint16_t alps_codepoint = TLSEXT_TYPE_application_settings;
-+      if (hs->config->alps_use_new_codepoint) {
-+        alps_codepoint = TLSEXT_TYPE_application_settings_new;
-+      }
-+      if (!CBB_add_asn1_uint64(&seq, alps_codepoint)) {
-+        return false;
-+      }
-+    }
-   }
-   return CBB_flush(out);
- }
-@@ -461,7 +474,8 @@ bool SSL_apply_handback(SSL *ssl, Span<const uint8_t> handback) {
-   }
- 
-   SSL3_STATE *const s3 = ssl->s3;
--  uint64_t handback_version, unused_token_binding_param, cipher, type_u64;
-+  uint64_t handback_version, unused_token_binding_param, cipher, type_u64,
-+           alps_codepoint;
- 
-   CBS seq, read_seq, write_seq, server_rand, client_rand, read_iv, write_iv,
-       next_proto, alpn, hostname, unused_channel_id, transcript, key_share;
-@@ -561,6 +575,28 @@ bool SSL_apply_handback(SSL *ssl, Span<const uint8_t> handback) {
-         !CBS_get_asn1(&seq, &early_traffic_secret, CBS_ASN1_OCTETSTRING)) {
-       return false;
-     }
-+
-+    if (session->has_application_settings) {
-+      // Making it optional to keep compatibility with older handshakers.
-+      // Older handshakers won't send the field.
-+      if (CBS_len(&seq) == 0) {
-+        hs->config->alps_use_new_codepoint = false;
-+      } else {
-+        if (!CBS_get_asn1_uint64(&seq, &alps_codepoint)) {
-+          return false;
-+        }
-+
-+        if (alps_codepoint == TLSEXT_TYPE_application_settings_new) {
-+          hs->config->alps_use_new_codepoint = true;
-+        } else if (alps_codepoint == TLSEXT_TYPE_application_settings) {
-+          hs->config->alps_use_new_codepoint = false;
-+        } else {
-+          OPENSSL_PUT_ERROR(SSL, SSL_R_INVALID_ALPS_CODEPOINT);
-+          return false;
-+        }
-+      }
-+    }
-+
-     if (ticket_age_skew > std::numeric_limits<int32_t>::max() ||
-         ticket_age_skew < std::numeric_limits<int32_t>::min()) {
-       return false;
-diff --git a/src/ssl/handshake_client.cc b/src/ssl/handshake_client.cc
-index 971ebd0b1..c34c7c677 100644
---- a/src/ssl/handshake_client.cc
-+++ b/src/ssl/handshake_client.cc
+diff --git a/ssl/handshake_client.cc b/ssl/handshake_client.cc
+index 971ebd0b1..38fee8895 100644
+--- a/ssl/handshake_client.cc
++++ b/ssl/handshake_client.cc
 @@ -158,6 +158,8 @@
  #include <openssl/aead.h>
  #include <openssl/bn.h>
@@ -5054,15 +4404,15 @@ index 971ebd0b1..c34c7c677 100644
 -                               TLS1_3_CK_CHACHA20_POLY1305_SHA256 & 0xffff,
 -                               ssl->config->tls13_cipher_policy))) {
 -      return false;
-+    if (ssl->config->prefer_chacha20) {
-+      if (!ssl_add_tls13_cipher(&child, TLS1_3_CK_AES_128_GCM_SHA256 & 0xffff,
-+                                ssl->config->tls13_cipher_policy) ||
-+          !ssl_add_tls13_cipher(&child,
-+                                TLS1_3_CK_CHACHA20_POLY1305_SHA256 & 0xffff,
-+                                ssl->config->tls13_cipher_policy) ||
-+          !ssl_add_tls13_cipher(&child, TLS1_3_CK_AES_256_GCM_SHA384 & 0xffff,
-+                                ssl->config->tls13_cipher_policy)) {
-+        return false;
++    if (ssl->config->preserve_tls13_cipher_list &&
++      ssl->ctx->tls13_cipher_list != NULL &&
++      sk_SSL_CIPHER_num(ssl->ctx->tls13_cipher_list->ciphers.get()) >= 1) {
++       for (size_t i = 0; i < sk_SSL_CIPHER_num(ssl->ctx->tls13_cipher_list->ciphers.get()); i++) {
++        const SSL_CIPHER *cipher = sk_SSL_CIPHER_value(ssl->ctx->tls13_cipher_list->ciphers.get(), i);
++        uint16_t cipher_id = SSL_CIPHER_get_protocol_id(cipher);
++        if (!ssl_add_tls13_cipher(&child, cipher_id, ssl->config->tls13_cipher_policy)) {
++          return false;
++        }
 +      }
 +    } else {
 +      const bool has_aes_hw = ssl->config->aes_hw_override
@@ -5182,10 +4532,10 @@ index 971ebd0b1..c34c7c677 100644
    } else if (alg_k & SSL_kECDHE) {
      CBB child;
      if (!CBB_add_u8_length_prefixed(&body, &child)) {
-diff --git a/src/ssl/internal.h b/src/ssl/internal.h
-index 1e6da2153..2025dcae0 100644
---- a/src/ssl/internal.h
-+++ b/src/ssl/internal.h
+diff --git a/ssl/internal.h b/ssl/internal.h
+index c9facb699..cb82a6234 100644
+--- a/ssl/internal.h
++++ b/ssl/internal.h
 @@ -323,6 +323,19 @@ class Array {
      return true;
    }
@@ -5230,11 +4580,11 @@ index 1e6da2153..2025dcae0 100644
 +    size_ = new_size;
 +    return true;
 +  }
-+  
++
    T *data_ = nullptr;
    size_t size_ = 0;
  };
-@@ -527,10 +561,11 @@ BSSL_NAMESPACE_BEGIN
+@@ -548,10 +582,11 @@ BSSL_NAMESPACE_BEGIN
  
  // Bits for |algorithm_mkey| (key exchange algorithm).
  #define SSL_kRSA 0x00000001u
@@ -5249,14 +4599,13 @@ index 1e6da2153..2025dcae0 100644
  
  // Bits for |algorithm_auth| (server authentication).
  #define SSL_aRSA 0x00000001u
-@@ -554,8 +589,13 @@ BSSL_NAMESPACE_BEGIN
+@@ -575,8 +610,12 @@ BSSL_NAMESPACE_BEGIN
  // Bits for |algorithm_mac| (symmetric authentication).
  #define SSL_SHA1 0x00000001u
  #define SSL_SHA256 0x00000002u
-+// 
++
 +// SSL_SHA384 was removed in
 +// https://boringssl-review.googlesource.com/c/boringssl/+/27944/
-+// but restored to impersonate browsers with older ciphers.
 +#define SSL_SHA384 0x00000004u
  // SSL_AEAD is set for all AEADs.
 -#define SSL_AEAD 0x00000004u
@@ -5264,7 +4613,20 @@ index 1e6da2153..2025dcae0 100644
  
  // Bits for |algorithm_prf| (handshake digest).
  #define SSL_HANDSHAKE_MAC_DEFAULT 0x1
-@@ -1818,7 +1858,7 @@ struct SSL_HANDSHAKE {
+@@ -660,6 +699,12 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
+                             const bool has_aes_hw, const char *rule_str,
+                             bool strict);
+ 
++// ssl_create_tls13_cipher_list is like |ssl_create_cipher_list| but only
++// supports TLS 1.3 cipher suites.
++bool ssl_create_preserve_tls13_cipher_list(
++    UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
++    const char *rule_str, bool strict);
++
+ // ssl_cipher_auth_mask_for_key returns the mask of cipher |algorithm_auth|
+ // values suitable for use with |key| in TLS 1.2 and below.
+ uint32_t ssl_cipher_auth_mask_for_key(const EVP_PKEY *key);
+@@ -1843,7 +1888,7 @@ struct SSL_HANDSHAKE {
    // key_shares are the current key exchange instances. The second is only used
    // as a client if we believe that we should offer two key shares in a
    // ClientHello.
@@ -5273,7 +4635,7 @@ index 1e6da2153..2025dcae0 100644
  
    // transcript is the current handshake transcript.
    SSLTranscript transcript;
-@@ -1874,6 +1914,9 @@ struct SSL_HANDSHAKE {
+@@ -1899,6 +1944,9 @@ struct SSL_HANDSHAKE {
    // supports with delegated credentials.
    Array<uint16_t> peer_delegated_credential_sigalgs;
  
@@ -5283,7 +4645,7 @@ index 1e6da2153..2025dcae0 100644
    // peer_key is the peer's ECDH key for a TLS 1.2 client.
    Array<uint8_t> peer_key;
  
-@@ -2132,6 +2175,10 @@ bool tls13_process_new_session_ticket(SSL *ssl, const SSLMessage &msg);
+@@ -2157,6 +2205,10 @@ bool tls13_process_new_session_ticket(SSL *ssl, const SSLMessage &msg);
  bssl::UniquePtr<SSL_SESSION> tls13_create_session_with_ticket(SSL *ssl,
                                                                CBS *body);
  
@@ -5294,25 +4656,21 @@ index 1e6da2153..2025dcae0 100644
  // ssl_setup_extension_permutation computes a ClientHello extension permutation
  // for |hs|, if applicable. It returns true on success and false on error.
  bool ssl_setup_extension_permutation(SSL_HANDSHAKE *hs);
-@@ -3058,6 +3105,10 @@ struct SSL_CONFIG {
-   // verify_sigalgs, if not empty, is the set of signature algorithms
+@@ -3084,6 +3136,10 @@ struct SSL_CONFIG {
    // accepted from the peer in decreasing order of preference.
    Array<uint16_t> verify_sigalgs;
-+  
+ 
 +  // delegated_credentials, if not empty, is the set of signature algorithms
 +  // supported by the client.
 +  Array<uint16_t> delegated_credentials;
- 
++
    // srtp_profiles is the list of configured SRTP protection profiles for
    // DTLS-SRTP.
-@@ -3128,6 +3179,20 @@ struct SSL_CONFIG {
-   // of support for AES hw. The value is only considered if |aes_hw_override| is
-   // true.
-   bool aes_hw_override_value : 1;
-+
-+  // alps_use_new_codepoint if set indicates we use new ALPS extension codepoint
-+  // to negotiate and convey application settings.
-+  bool alps_use_new_codepoint : 1;
+   UniquePtr<STACK_OF(SRTP_PROTECTION_PROFILE)> srtp_profiles;
+@@ -3157,6 +3213,17 @@ struct SSL_CONFIG {
+   // alps_use_new_codepoint if set indicates we use new ALPS extension codepoint
+   // to negotiate and convey application settings.
+   bool alps_use_new_codepoint : 1;
 +
 +  // record_size_limit is whether to send record size limit extension.
 +  uint16_t record_size_limit = 0;
@@ -5320,13 +4678,14 @@ index 1e6da2153..2025dcae0 100644
 +  // key_shares_limit is the maximum number of key shares to send.
 +  uint8_t key_shares_limit = 0;
 +
-+  // prefer_chacha20 indicates that ChaCha20-Poly1305 ciphers should be
-+  // preferred over AES-GCM ciphers. It is only effective on the client side.
-+  bool prefer_chacha20 : 1;
++  // preserve_tls13_cipher_list indicates that the TLS 1.3 cipher list order should
++  // be preserved, potentially preferring ChaCha20-Poly1305 over AES-GCM ciphers.
++  // It is only effective on the client side.
++  bool preserve_tls13_cipher_list : 1;
  };
  
  // From RFC 8446, used in determining PSK modes.
-@@ -3696,6 +3761,10 @@ struct ssl_ctx_st {
+@@ -3714,6 +3781,10 @@ struct ssl_ctx_st {
    // accepted from the peer in decreasing order of preference.
    bssl::Array<uint16_t> verify_sigalgs;
  
@@ -5337,7 +4696,7 @@ index 1e6da2153..2025dcae0 100644
    // retain_only_sha256_of_client_certs is true if we should compute the SHA256
    // hash of the peer's certificate and then discard it to save memory and
    // session space. Only effective on the server side.
-@@ -3723,6 +3792,10 @@ struct ssl_ctx_st {
+@@ -3741,6 +3812,10 @@ struct ssl_ctx_st {
    // permute_extensions is whether to permute extensions when sending messages.
    bool permute_extensions : 1;
  
@@ -5348,7 +4707,7 @@ index 1e6da2153..2025dcae0 100644
    // allow_unknown_alpn_protos is whether the client allows unsolicited ALPN
    // protocols from the peer.
    bool allow_unknown_alpn_protos : 1;
-@@ -3748,6 +3821,16 @@ struct ssl_ctx_st {
+@@ -3766,6 +3841,20 @@ struct ssl_ctx_st {
    // |aes_hw_override| is true.
    bool aes_hw_override_value : 1;
  
@@ -5358,17 +4717,21 @@ index 1e6da2153..2025dcae0 100644
 +  // key_shares limit is the maximum number of key shares to send.
 +  uint8_t key_shares_limit = 0;
 +
-+  // prefer_chacha20 indicates that ChaCha20-Poly1305 ciphers should be
-+  // preferred over AES-GCM ciphers. It is only effective on the client side.
-+  bool prefer_chacha20 : 1;
++  // preserve_tls13_cipher_list indicates that the TLS 1.3 cipher list order should
++  // be preserved, potentially preferring ChaCha20-Poly1305 over AES-GCM ciphers.
++  // It is only effective on the client side.
++  bool preserve_tls13_cipher_list : 1;
++
++  // tls13_cipher_list, if non-null, is the list of ciphers to use in TLS 1.3
++  bssl::UniquePtr<bssl::SSLCipherPreferenceList> tls13_cipher_list;
 +
   private:
    ~ssl_ctx_st();
    friend OPENSSL_EXPORT void SSL_CTX_free(SSL_CTX *);
-diff --git a/src/ssl/ssl_cipher.cc b/src/ssl/ssl_cipher.cc
-index ebb075351..e272c4fed 100644
---- a/src/ssl/ssl_cipher.cc
-+++ b/src/ssl/ssl_cipher.cc
+diff --git a/ssl/ssl_cipher.cc b/ssl/ssl_cipher.cc
+index fd8cef95d..fe056da59 100644
+--- a/ssl/ssl_cipher.cc
++++ b/ssl/ssl_cipher.cc
 @@ -175,26 +175,106 @@ static constexpr SSL_CIPHER kCiphers[] = {
  
      // Cipher 2F
@@ -5622,7 +4985,7 @@ index ebb075351..e272c4fed 100644
      // GCM based TLS v1.2 ciphersuites from RFC 5289
  
      // Cipher C02B
-@@ -550,6 +730,10 @@ static const CIPHER_ALIAS kCipherAliases[] = {
+@@ -554,6 +734,10 @@ static const CIPHER_ALIAS kCipherAliases[] = {
      // MAC aliases
      {"SHA1", ~0u, ~0u, ~0u, SSL_SHA1, 0},
      {"SHA", ~0u, ~0u, ~0u, SSL_SHA1, 0},
@@ -5633,7 +4996,7 @@ index ebb075351..e272c4fed 100644
  
      // Legacy protocol minimum version aliases. "TLSv1" is intentionally the
      // same as "SSLv3".
-@@ -641,11 +825,19 @@ bool ssl_cipher_get_evp_aead(const EVP_AEAD **out_aead,
+@@ -645,11 +829,19 @@ bool ssl_cipher_get_evp_aead(const EVP_AEAD **out_aead,
    } else if (cipher->algorithm_mac == SSL_SHA256) {
      if (cipher->algorithm_enc == SSL_AES128) {
        *out_aead = EVP_aead_aes_128_cbc_sha256_tls();
@@ -5653,7 +5016,79 @@ index ebb075351..e272c4fed 100644
    } else {
      return false;
    }
-@@ -1152,13 +1344,20 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
+@@ -1131,6 +1323,71 @@ static bool ssl_cipher_process_rulestr(const char *rule_str,
+   return true;
+ }
+ 
++bool ssl_create_preserve_tls13_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
++                                  const char *rule_str, bool strict) {
++  if (rule_str == NULL || out_cipher_list == NULL) {
++    return false;
++  }
++
++  // TLS 1.3-only ciphers.
++  static const uint16_t kAESTLS13OnlyCiphers[] = {
++      TLS1_3_CK_AES_128_GCM_SHA256 & 0xffff,
++      TLS1_3_CK_AES_256_GCM_SHA384 & 0xffff,
++      TLS1_3_CK_CHACHA20_POLY1305_SHA256 & 0xffff,
++  };
++
++  // Set up a linked list of ciphers.
++  CIPHER_ORDER co_list[OPENSSL_ARRAY_SIZE(kAESTLS13OnlyCiphers)];
++  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(co_list); i++) {
++    co_list[i].next = i + 1 < OPENSSL_ARRAY_SIZE(co_list) ? &co_list[i + 1] : nullptr;
++    co_list[i].prev = i == 0 ? nullptr : &co_list[i - 1];
++    co_list[i].active = false;  // Do not pre-activate
++    co_list[i].in_group = false;
++  }
++  CIPHER_ORDER *head = &co_list[0];
++  CIPHER_ORDER *tail = &co_list[OPENSSL_ARRAY_SIZE(co_list) - 1];
++
++  // Add TLS 1.3 ciphers to the list (but do not activate yet).
++  size_t num = 0;
++  for (uint16_t id : kAESTLS13OnlyCiphers) {
++    co_list[num++].cipher = SSL_get_cipher_by_value(id);
++    assert(co_list[num - 1].cipher != nullptr);
++    // Removed: co_list[num - 1].active = true;
++  }
++  assert(num == OPENSSL_ARRAY_SIZE(co_list));
++
++  // Apply rule_str to activate and order the ciphers.
++  if (!ssl_cipher_process_rulestr(rule_str, &head, &tail, strict)) {
++    return false;
++  }
++
++  // Allocate new "cipherstack" for the result.
++  UniquePtr<STACK_OF(SSL_CIPHER)> cipherstack(sk_SSL_CIPHER_new_null());
++  Array<bool> in_group_flags;
++  if (cipherstack == nullptr || !in_group_flags.Init(OPENSSL_ARRAY_SIZE(kAESTLS13OnlyCiphers))) {
++    return false;
++  }
++
++  // Add active ciphers to the stack in the order after applying rules.
++  size_t num_in_group_flags = 0;
++  for (CIPHER_ORDER *curr = head; curr != NULL; curr = curr->next) {
++    if (curr->active) {
++      if (!sk_SSL_CIPHER_push(cipherstack.get(), curr->cipher)) {
++        return false;
++      }
++      in_group_flags[num_in_group_flags++] = curr->in_group;
++    }
++  }
++
++  UniquePtr<SSLCipherPreferenceList> pref_list = MakeUnique<SSLCipherPreferenceList>();
++  if (!pref_list || !pref_list->Init(std::move(cipherstack), MakeConstSpan(in_group_flags).subspan(0, num_in_group_flags))) {
++    return false;
++  }
++
++  *out_cipher_list = std::move(pref_list);
++  return true;
++}
++
+ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
+                             const bool has_aes_hw, const char *rule_str,
+                             bool strict) {
+@@ -1154,13 +1411,20 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
        TLS1_CK_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256 & 0xffff,
    };
    static const uint16_t kLegacyCiphers[] = {
@@ -5674,7 +5109,7 @@ index ebb075351..e272c4fed 100644
        TLS1_CK_RSA_WITH_AES_128_GCM_SHA256 & 0xffff,
        TLS1_CK_RSA_WITH_AES_256_GCM_SHA384 & 0xffff,
        TLS1_CK_RSA_WITH_AES_128_SHA & 0xffff,
-@@ -1166,6 +1365,12 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
+@@ -1168,6 +1432,12 @@ bool ssl_create_cipher_list(UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
        TLS1_CK_RSA_WITH_AES_256_SHA & 0xffff,
        TLS1_CK_PSK_WITH_AES_256_CBC_SHA & 0xffff,
        SSL3_CK_RSA_DES_192_CBC3_SHA & 0xffff,
@@ -5687,7 +5122,7 @@ index ebb075351..e272c4fed 100644
    };
  
    // Set up a linked list of ciphers.
-@@ -1403,6 +1608,8 @@ int SSL_CIPHER_get_digest_nid(const SSL_CIPHER *cipher) {
+@@ -1401,6 +1671,8 @@ int SSL_CIPHER_get_digest_nid(const SSL_CIPHER *cipher) {
        return NID_sha1;
      case SSL_SHA256:
        return NID_sha256;
@@ -5696,7 +5131,7 @@ index ebb075351..e272c4fed 100644
    }
    assert(0);
    return NID_undef;
-@@ -1655,6 +1862,10 @@ const char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf,
+@@ -1663,6 +1935,10 @@ const char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf,
        mac = "SHA256";
        break;
  
@@ -5707,10 +5142,10 @@ index ebb075351..e272c4fed 100644
      case SSL_AEAD:
        mac = "AEAD";
        break;
-diff --git a/src/ssl/ssl_key_share.cc b/src/ssl/ssl_key_share.cc
-index 09a9ad380..9c583b5ec 100644
---- a/src/ssl/ssl_key_share.cc
-+++ b/src/ssl/ssl_key_share.cc
+diff --git a/ssl/ssl_key_share.cc b/ssl/ssl_key_share.cc
+index 694bec11d..d73b2e79f 100644
+--- a/ssl/ssl_key_share.cc
++++ b/ssl/ssl_key_share.cc
 @@ -26,6 +26,7 @@
  #include <openssl/err.h>
  #include <openssl/kyber.h>
@@ -5719,7 +5154,7 @@ index 09a9ad380..9c583b5ec 100644
  #include <openssl/mem.h>
  #include <openssl/nid.h>
  #include <openssl/rand.h>
-@@ -193,63 +194,292 @@ class X25519KeyShare : public SSLKeyShare {
+@@ -191,63 +192,292 @@ class X25519KeyShare : public SSLKeyShare {
    uint8_t private_key_[32];
  };
  
@@ -5729,7 +5164,7 @@ index 09a9ad380..9c583b5ec 100644
 -  X25519Kyber768KeyShare() {}
 +  P256Kyber768Draft00KeyShare() {}
 +
-+  uint16_t GroupID() const override { return SSL_CURVE_P256_KYBER768_DRAFT00; }
++  uint16_t GroupID() const override { return SSL_GROUP_P256_KYBER768_DRAFT00; }
 +
 +  bool Generate(CBB *out) override {
 +    assert(!p256_private_key_);
@@ -5771,17 +5206,15 @@ index 09a9ad380..9c583b5ec 100644
 +
 +    uint8_t kyber_public_key_bytes[KYBER768_PUBLIC_KEY_BYTES];
 +    KYBER768_marshal_public_key(kyber_public_key_bytes, &kyber_public_key);
- 
--  uint16_t GroupID() const override {
--    return SSL_CURVE_X25519_KYBER768_DRAFT00;
++
 +    if (!CBB_add_bytes(out, kyber_public_key_bytes,
 +                       sizeof(kyber_public_key_bytes))) {
 +      return false;
 +    }
 +
 +    return true;
-   }
- 
++  }
++
 +  bool Encap(CBB *out_public_key, Array<uint8_t> *out_secret,
 +              uint8_t *out_alert, Span<const uint8_t> peer_key) override {
 +    assert(!p256_private_key_);
@@ -5883,7 +5316,9 @@ index 09a9ad380..9c583b5ec 100644
 +      OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
 +      return false;
 +    }
-+
+ 
+-  uint16_t GroupID() const override {
+-    return SSL_GROUP_X25519_KYBER768_DRAFT00;
 +    if (peer_key.size() != 65 + KYBER768_CIPHERTEXT_BYTES) {
 +      *out_alert = SSL_AD_DECODE_ERROR;
 +      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
@@ -5939,8 +5374,8 @@ index 09a9ad380..9c583b5ec 100644
 +
 +    *out_secret = std::move(secret);
 +    return true;
-+  }
-+
+   }
+ 
 + private:
 +  UniquePtr<BIGNUM> p256_private_key_;
 +  KYBER768_private_key kyber_private_key_;
@@ -5949,8 +5384,8 @@ index 09a9ad380..9c583b5ec 100644
 +class X25519Kyber768Draft00KeyShare : public SSLKeyShare {
 + public:
 +  X25519Kyber768Draft00KeyShare(uint16_t group_id) : group_id_(group_id) {
-+    assert(group_id == SSL_CURVE_X25519_KYBER768_DRAFT00
-+            || group_id == SSL_CURVE_X25519_KYBER768_DRAFT00_OLD);
++    assert(group_id == SSL_GROUP_X25519_KYBER768_DRAFT00
++            || group_id == SSL_GROUP_X25519_KYBER768_DRAFT00_OLD);
 +  }
 +
 +  uint16_t GroupID() const override { return group_id_; }
@@ -6040,36 +5475,42 @@ index 09a9ad380..9c583b5ec 100644
        return false;
      }
  
-@@ -258,30 +488,233 @@ class X25519Kyber768KeyShare : public SSLKeyShare {
+@@ -256,30 +486,310 @@ class X25519Kyber768KeyShare : public SSLKeyShare {
    }
  
    bool Decap(Array<uint8_t> *out_secret, uint8_t *out_alert,
 -             Span<const uint8_t> ciphertext) override {
 +              Span<const uint8_t> peer_key) override {
-+    *out_alert = SSL_AD_INTERNAL_ERROR;
-+
-+    Array<uint8_t> secret;
+     *out_alert = SSL_AD_INTERNAL_ERROR;
+ 
+     Array<uint8_t> secret;
+-    if (!secret.Init(32 + 32)) {
 +    if (!secret.Init(32 + KYBER_KEY_BYTES)) {
 +      OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
-+      return false;
-+    }
-+
+       return false;
+     }
+ 
+-    if (ciphertext.size() != 32 + KYBER_CIPHERTEXT_BYTES ||
+-        !X25519(secret.data(), x25519_private_key_, ciphertext.data())) {
 +    if (peer_key.size() != 32 + KYBER768_CIPHERTEXT_BYTES ||
 +        !X25519(secret.data(), x25519_private_key_, peer_key.data())) {
-+      *out_alert = SSL_AD_DECODE_ERROR;
-+      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
-+      return false;
-+    }
-+
+       *out_alert = SSL_AD_DECODE_ERROR;
+       OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
+       return false;
+     }
+ 
+-    KYBER_decap(secret.data() + 32, secret.size() - 32, ciphertext.data() + 32,
+-                &kyber_private_key_);
 +    KYBER768_decap(secret.data() + 32, &kyber_private_key_,
 +                    peer_key.data() + 32, peer_key.size() - 32, 0);
 +
-+    *out_secret = std::move(secret);
-+    return true;
-+  }
-+
-+ private:
-+  uint8_t x25519_private_key_[32];
+     *out_secret = std::move(secret);
+     return true;
+   }
+ 
+  private:
+   uint8_t x25519_private_key_[32];
+-  KYBER_private_key kyber_private_key_;
 +  KYBER768_private_key kyber_private_key_;
 +  uint16_t group_id_;
 +};
@@ -6078,7 +5519,7 @@ index 09a9ad380..9c583b5ec 100644
 + public:
 +  X25519MLKEM768KeyShare() {}
 +
-+  uint16_t GroupID() const override { return SSL_CURVE_X25519_MLKEM768; }
++  uint16_t GroupID() const override { return SSL_GROUP_X25519_MLKEM768; }
 +
 +  bool Generate(CBB *out) override {
 +    uint8_t x25519_public_key[32];
@@ -6146,27 +5587,22 @@ index 09a9ad380..9c583b5ec 100644
 +
 +  bool Decap(Array<uint8_t> *out_secret, uint8_t *out_alert,
 +              Span<const uint8_t> peer_key) override {
-     *out_alert = SSL_AD_INTERNAL_ERROR;
- 
-     Array<uint8_t> secret;
--    if (!secret.Init(32 + 32)) {
++    *out_alert = SSL_AD_INTERNAL_ERROR;
++
++    Array<uint8_t> secret;
 +    if (!secret.Init(32 + KYBER_KEY_BYTES)) {
 +      OPENSSL_PUT_ERROR(SSL, ERR_R_MALLOC_FAILURE);
-       return false;
-     }
- 
--    if (ciphertext.size() != 32 + KYBER_CIPHERTEXT_BYTES ||
--        !X25519(secret.data(), x25519_private_key_, ciphertext.data())) {
++      return false;
++    }
++
 +    if (peer_key.size() != KYBER768_CIPHERTEXT_BYTES + 32 ||
 +        !X25519(secret.data() + 32, x25519_private_key_,
 +            peer_key.data() + KYBER768_CIPHERTEXT_BYTES )) {
-       *out_alert = SSL_AD_DECODE_ERROR;
-       OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
-       return false;
-     }
- 
--    KYBER_decap(secret.data() + 32, secret.size() - 32, ciphertext.data() + 32,
--                &kyber_private_key_);
++      *out_alert = SSL_AD_DECODE_ERROR;
++      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
++      return false;
++    }
++
 +    KYBER768_decap(secret.data(), &kyber_private_key_,
 +                    peer_key.data(), peer_key.size() - 32, 1);
 +
@@ -6183,7 +5619,7 @@ index 09a9ad380..9c583b5ec 100644
 + public:
 +  X25519Kyber512Draft00KeyShare() {}
 +
-+  uint16_t GroupID() const override { return SSL_CURVE_X25519_KYBER512_DRAFT00; }
++  uint16_t GroupID() const override { return SSL_GROUP_X25519_KYBER512_DRAFT00; }
 +
 +  bool Generate(CBB *out) override {
 +    uint8_t x25519_public_key[32];
@@ -6270,63 +5706,140 @@ index 09a9ad380..9c583b5ec 100644
 +    KYBER512_decap(secret.data() + 32, &kyber_private_key_,
 +                    peer_key.data() + 32, peer_key.size() - 32, 0);
 +
-     *out_secret = std::move(secret);
-     return true;
-   }
- 
-  private:
-   uint8_t x25519_private_key_[32];
--  KYBER_private_key kyber_private_key_;
++    *out_secret = std::move(secret);
++    return true;
++  }
++
++ private:
++  uint8_t x25519_private_key_[32];
 +  KYBER512_private_key kyber_private_key_;
++};
++
++// draft-ietf-tls-mlkem-04
++class MLKEM1024KeyShare : public SSLKeyShare {
++ public:
++  MLKEM1024KeyShare() {}
++
++  uint16_t GroupID() const override { return SSL_GROUP_MLKEM1024; }
++
++  bool Generate(CBB *out) override {
++    uint8_t kyber_entropy[KYBER_GENERATE_KEY_BYTES];
++    KYBER1024_public_key kyber_public_key;
++    RAND_bytes(kyber_entropy, sizeof(kyber_entropy));
++    KYBER1024_generate_key(&kyber_public_key, &kyber_private_key_, kyber_entropy);
++
++    uint8_t kyber_public_key_bytes[KYBER1024_PUBLIC_KEY_BYTES];
++    KYBER1024_marshal_public_key(kyber_public_key_bytes, &kyber_public_key);
++
++    if (!CBB_add_bytes(out, kyber_public_key_bytes, sizeof(kyber_public_key_bytes))) {
++      return false;
++    }
++
++    return true;
++  }
++
++  bool Encap(CBB *out_ciphertext, Array<uint8_t> *out_secret,
++             uint8_t *out_alert, Span<const uint8_t> peer_key) override {
++    if (peer_key.size() != KYBER1024_PUBLIC_KEY_BYTES) {
++      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
++      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
++      return false;
++    }
++
++    KYBER1024_public_key peer_public_key;
++    KYBER1024_parse_public_key(&peer_public_key, peer_key.data());
++
++    Array<uint8_t> secret;
++    if (!secret.Init(KYBER_KEY_BYTES)) {
++      return false;
++    }
++    uint8_t ciphertext[KYBER1024_CIPHERTEXT_BYTES];
++    uint8_t entropy[KYBER_ENCAP_BYTES];
++    RAND_bytes(entropy, sizeof(entropy));
++
++    if (!KYBER1024_encap(ciphertext, secret.data(), &peer_public_key, entropy, 1)) {
++      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
++      return false;
++    }
++    if (!CBB_add_bytes(out_ciphertext, ciphertext, sizeof(ciphertext))) {
++      return false;
++    }
++    *out_secret = std::move(secret);
++    return true;
++  }
++
++  bool Decap(Array<uint8_t> *out_secret, uint8_t *out_alert,
++             Span<const uint8_t> ciphertext) override {
++    Array<uint8_t> secret;
++    if (!secret.Init(KYBER_KEY_BYTES)) {
++      *out_alert = SSL_AD_INTERNAL_ERROR;
++      return false;
++    }
++
++    if (ciphertext.size() != KYBER1024_CIPHERTEXT_BYTES) {
++      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
++      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
++      return false;
++    }
++
++    KYBER1024_decap(secret.data(), &kyber_private_key_, ciphertext.data(), ciphertext.size(), 1);
++
++    *out_secret = std::move(secret);
++    return true;
++  }
++
++ private:
++  KYBER1024_private_key kyber_private_key_;
  };
  
  constexpr NamedGroup kNamedGroups[] = {
-@@ -290,8 +723,20 @@ constexpr NamedGroup kNamedGroups[] = {
-     {NID_secp384r1, SSL_CURVE_SECP384R1, "P-384", "secp384r1"},
-     {NID_secp521r1, SSL_CURVE_SECP521R1, "P-521", "secp521r1"},
-     {NID_X25519, SSL_CURVE_X25519, "X25519", "x25519"},
-+    {NID_X25519Kyber512Draft00, SSL_CURVE_X25519_KYBER512_DRAFT00,
+@@ -288,8 +798,19 @@ constexpr NamedGroup kNamedGroups[] = {
+     {NID_secp384r1, SSL_GROUP_SECP384R1, "P-384", "secp384r1"},
+     {NID_secp521r1, SSL_GROUP_SECP521R1, "P-521", "secp521r1"},
+     {NID_X25519, SSL_GROUP_X25519, "X25519", "x25519"},
++    {NID_X25519Kyber512Draft00, SSL_GROUP_X25519_KYBER512_DRAFT00,
 +        "X25519Kyber512Draft00", "Xyber512D00"},
-     {NID_X25519Kyber768Draft00, SSL_CURVE_X25519_KYBER768_DRAFT00,
+     {NID_X25519Kyber768Draft00, SSL_GROUP_X25519_KYBER768_DRAFT00,
 -     "X25519Kyber768Draft00", ""},
 +        "X25519Kyber768Draft00", "Xyber768D00"},
-+    {NID_X25519Kyber768Draft00Old, SSL_CURVE_X25519_KYBER768_DRAFT00_OLD,
++    {NID_X25519Kyber768Draft00Old, SSL_GROUP_X25519_KYBER768_DRAFT00_OLD,
 +        "X25519Kyber768Draft00Old", "Xyber768D00Old"},
-+    {NID_P256Kyber768Draft00, SSL_CURVE_P256_KYBER768_DRAFT00,
++    {NID_P256Kyber768Draft00, SSL_GROUP_P256_KYBER768_DRAFT00,
 +        "P256Kyber768Draft00", "P256Kyber768D00"},
-+    {NID_X25519MLKEM768, SSL_CURVE_X25519_MLKEM768,
++    {NID_X25519MLKEM768, SSL_GROUP_X25519_MLKEM768,
 +        "X25519MLKEM768", "X25519MLKEM768"},
-+    
-+    // This is fake group id
-+    {NID_ffdhe2048, SSL_CURVE_DHE2048, "dhe2048", "ffdhe2048"},
-+    {NID_ffdhe3072, SSL_CURVE_DHE3072, "dhe3072", "ffdhe3072"},
++    {NID_MLKEM1024, SSL_GROUP_MLKEM1024, "MLKEM1024", "MLKEM1024"},
++    {NID_ffdhe2048, SSL_GROUP_DHE2048, "dhe2048", "ffdhe2048"},
++    {NID_ffdhe3072, SSL_GROUP_DHE3072, "dhe3072", "ffdhe3072"},
  };
  
  }  // namespace
-@@ -312,8 +757,18 @@ UniquePtr<SSLKeyShare> SSLKeyShare::Create(uint16_t group_id) {
-       return MakeUnique<ECKeyShare>(NID_secp521r1, SSL_CURVE_SECP521R1);
-     case SSL_CURVE_X25519:
+@@ -310,8 +831,20 @@ UniquePtr<SSLKeyShare> SSLKeyShare::Create(uint16_t group_id) {
+       return MakeUnique<ECKeyShare>(EC_group_p521(), SSL_GROUP_SECP521R1);
+     case SSL_GROUP_X25519:
        return MakeUnique<X25519KeyShare>();
-+    case SSL_CURVE_X25519_KYBER512_DRAFT00:
++    case SSL_GROUP_X25519_KYBER512_DRAFT00:
 +      return UniquePtr<SSLKeyShare>(New<X25519Kyber512Draft00KeyShare>());
-     case SSL_CURVE_X25519_KYBER768_DRAFT00:
+     case SSL_GROUP_X25519_KYBER768_DRAFT00:
 -      return MakeUnique<X25519Kyber768KeyShare>();
 +      return UniquePtr<SSLKeyShare>(New<X25519Kyber768Draft00KeyShare>(
 +                  group_id));
-+    case SSL_CURVE_X25519_KYBER768_DRAFT00_OLD:
++    case SSL_GROUP_X25519_KYBER768_DRAFT00_OLD:
 +      return UniquePtr<SSLKeyShare>(New<X25519Kyber768Draft00KeyShare>(
 +                  group_id));
-+    case SSL_CURVE_P256_KYBER768_DRAFT00:
++    case SSL_GROUP_P256_KYBER768_DRAFT00:
 +      return UniquePtr<SSLKeyShare>(New<P256Kyber768Draft00KeyShare>());
-+    case SSL_CURVE_X25519_MLKEM768:
++    case SSL_GROUP_X25519_MLKEM768:
 +      return UniquePtr<SSLKeyShare>(New<X25519MLKEM768KeyShare>());
++    case SSL_GROUP_MLKEM1024:
++      return UniquePtr<SSLKeyShare>(New<MLKEM1024KeyShare>());
      default:
        return nullptr;
    }
-diff --git a/src/ssl/ssl_lib.cc b/src/ssl/ssl_lib.cc
-index 838761af5..2707f0150 100644
---- a/src/ssl/ssl_lib.cc
-+++ b/src/ssl/ssl_lib.cc
+diff --git a/ssl/ssl_lib.cc b/ssl/ssl_lib.cc
+index 58b68e675..d67e7a2fd 100644
+--- a/ssl/ssl_lib.cc
++++ b/ssl/ssl_lib.cc
 @@ -537,7 +537,9 @@ ssl_ctx_st::ssl_ctx_st(const SSL_METHOD *ssl_method)
        handoff(false),
        enable_early_data(false),
@@ -6334,7 +5847,7 @@ index 838761af5..2707f0150 100644
 -      aes_hw_override_value(false) {
 +      aes_hw_override_value(false),
 +      key_shares_limit(0),
-+      prefer_chacha20(false) {
++      preserve_tls13_cipher_list(false) {
    CRYPTO_MUTEX_init(&lock);
    CRYPTO_new_ex_data(&ex_data);
  }
@@ -6343,7 +5856,7 @@ index 838761af5..2707f0150 100644
    ssl->config->aes_hw_override_value = ctx->aes_hw_override_value;
    ssl->config->tls13_cipher_policy = ctx->tls13_cipher_policy;
 +  ssl->config->key_shares_limit = ctx->key_shares_limit;
-+  ssl->config->prefer_chacha20 = ctx->prefer_chacha20;
++  ssl->config->preserve_tls13_cipher_list = ctx->preserve_tls13_cipher_list;
  
    if (!ssl->config->supported_group_list.CopyFrom(ctx->supported_group_list) ||
        !ssl->config->alpn_client_proto_list.CopyFrom(
@@ -6362,19 +5875,42 @@ index 838761af5..2707f0150 100644
    ssl->config->handoff = ctx->handoff;
    ssl->quic_method = ctx->quic_method;
  
-@@ -707,7 +713,10 @@ SSL_CONFIG::SSL_CONFIG(SSL *ssl_arg)
-       shed_handshake_config(false),
+@@ -708,7 +714,9 @@ SSL_CONFIG::SSL_CONFIG(SSL *ssl_arg)
        jdk11_workaround(false),
        quic_use_legacy_codepoint(false),
--      permute_extensions(false) {
-+      permute_extensions(false),
-+      key_shares_limit(0),
+       permute_extensions(false),
+-      alps_use_new_codepoint(false) {
 +      alps_use_new_codepoint(false),
-+      prefer_chacha20(false) {
++      key_shares_limit(0),
++      preserve_tls13_cipher_list(false) {
    assert(ssl);
  }
  
-@@ -2134,6 +2143,62 @@ void SSL_enable_ocsp_stapling(SSL *ssl) {
+@@ -2117,6 +2125,11 @@ const char *SSL_get_cipher_list(const SSL *ssl, int n) {
+ int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str) {
+   const bool has_aes_hw = ctx->aes_hw_override ? ctx->aes_hw_override_value
+                                                : EVP_has_aes_hardware();
++
++  if (ctx->preserve_tls13_cipher_list) {
++    ssl_create_preserve_tls13_cipher_list(&ctx->tls13_cipher_list, str, false /* not strict */);
++  }
++
+   return ssl_create_cipher_list(&ctx->cipher_list, has_aes_hw, str,
+                                 false /* not strict */);
+ }
+@@ -2124,6 +2137,11 @@ int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str) {
+ int SSL_CTX_set_strict_cipher_list(SSL_CTX *ctx, const char *str) {
+   const bool has_aes_hw = ctx->aes_hw_override ? ctx->aes_hw_override_value
+                                                : EVP_has_aes_hardware();
++
++  if (ctx->preserve_tls13_cipher_list) {
++    ssl_create_preserve_tls13_cipher_list(&ctx->tls13_cipher_list, str, true /* strict */);
++  }
++
+   return ssl_create_cipher_list(&ctx->cipher_list, has_aes_hw, str,
+                                 true /* strict */);
+ }
+@@ -2210,6 +2228,62 @@ void SSL_enable_ocsp_stapling(SSL *ssl) {
    ssl->config->ocsp_stapling_enabled = true;
  }
  
@@ -6418,40 +5954,26 @@ index 838761af5..2707f0150 100644
 +  ssl->config->aes_hw_override_value = !!override_value;
 +}
 +
-+void SSL_CTX_set_prefer_chacha20(SSL_CTX *ctx, int prefer_chacha20) {
++void SSL_CTX_set_preserve_tls13_cipher_list(SSL_CTX *ctx, int preserve_tls13_cipher_list) {
 +  if (!ctx) {
 +    return;
 +  }
 +  
-+  ctx->prefer_chacha20 = !!prefer_chacha20;
++  ctx->preserve_tls13_cipher_list = !!preserve_tls13_cipher_list;
 +}
 +
-+void SSL_set_prefer_chacha20(SSL *ssl, int prefer_chacha20) {
++void SSL_set_preserve_tls13_cipher_list(SSL *ssl, int preserve_tls13_cipher_list) {
 +  if (!ssl->config) {
 +    return;
 +  }
 +
-+  ssl->config->prefer_chacha20 = !!prefer_chacha20;
++  ssl->config->preserve_tls13_cipher_list = !!preserve_tls13_cipher_list;
 +}
 +
  void SSL_get0_signed_cert_timestamp_list(const SSL *ssl, const uint8_t **out,
                                           size_t *out_len) {
    SSL_SESSION *session = SSL_get_session(ssl);
-@@ -2327,6 +2392,13 @@ int SSL_has_application_settings(const SSL *ssl) {
-   return session && session->has_application_settings;
- }
- 
-+void SSL_set_alps_use_new_codepoint(SSL *ssl, int use_new) {
-+  if (!ssl->config) {
-+    return;
-+  }
-+  ssl->config->alps_use_new_codepoint = !!use_new;
-+}
-+
- int SSL_CTX_add_cert_compression_alg(SSL_CTX *ctx, uint16_t alg_id,
-                                      ssl_cert_compression_func_t compress,
-                                      ssl_cert_decompression_func_t decompress) {
-@@ -2939,6 +3011,21 @@ void SSL_set_permute_extensions(SSL *ssl, int enabled) {
+@@ -3022,6 +3096,21 @@ void SSL_set_permute_extensions(SSL *ssl, int enabled) {
    ssl->config->permute_extensions = !!enabled;
  }
  
@@ -6473,201 +5995,60 @@ index 838761af5..2707f0150 100644
  int32_t SSL_get_ticket_age_skew(const SSL *ssl) {
    return ssl->s3->ticket_age_skew;
  }
-@@ -3151,7 +3238,7 @@ namespace fips202205 {
+@@ -3260,7 +3349,7 @@ namespace fips202205 {
  // Section 3.3.1
  // "The server shall be configured to only use cipher suites that are
  // composed entirely of NIST approved algorithms"
--static const int kCurves[] = {NID_X9_62_prime256v1, NID_secp384r1};
-+static const int kCurves[] = {NID_P256Kyber768Draft00, NID_X9_62_prime256v1, NID_secp384r1};
+-static const uint16_t kGroups[] = {SSL_GROUP_SECP256R1, SSL_GROUP_SECP384R1};
++static const uint16_t kGroups[] = {SSL_GROUP_P256_KYBER768_DRAFT00, SSL_GROUP_SECP256R1, SSL_GROUP_SECP384R1};
  
  static const uint16_t kSigAlgs[] = {
      SSL_SIGN_RSA_PKCS1_SHA256,
-diff --git a/src/ssl/ssl_privkey.cc b/src/ssl/ssl_privkey.cc
-index 46bef32e8..193ca5c84 100644
---- a/src/ssl/ssl_privkey.cc
-+++ b/src/ssl/ssl_privkey.cc
-@@ -567,44 +567,49 @@ int SSL_is_signature_algorithm_rsa_pss(uint16_t sigalg) {
-   return alg != nullptr && alg->is_rsa_pss;
- }
- 
--static int compare_uint16_t(const void *p1, const void *p2) {
--  uint16_t u1 = *((const uint16_t *)p1);
--  uint16_t u2 = *((const uint16_t *)p2);
--  if (u1 < u2) {
--    return -1;
--  } else if (u1 > u2) {
--    return 1;
--  } else {
--    return 0;
--  }
--}
--
--static bool sigalgs_unique(Span<const uint16_t> in_sigalgs) {
--  if (in_sigalgs.size() < 2) {
--    return true;
--  }
--
--  Array<uint16_t> sigalgs;
--  if (!sigalgs.CopyFrom(in_sigalgs)) {
--    return false;
--  }
--
--  qsort(sigalgs.data(), sigalgs.size(), sizeof(uint16_t), compare_uint16_t);
--
--  for (size_t i = 1; i < sigalgs.size(); i++) {
--    if (sigalgs[i - 1] == sigalgs[i]) {
--      OPENSSL_PUT_ERROR(SSL, SSL_R_DUPLICATE_SIGNATURE_ALGORITHM);
--      return false;
--    }
--  }
--
--  return true;
--}
-+//  Remove the uniqueness check. Older Safari versions (15)
-+// send out duplicated algorithm prefs.
-+// static int compare_uint16_t(const void *p1, const void *p2) {
-+//   uint16_t u1 = *((const uint16_t *)p1);
-+//   uint16_t u2 = *((const uint16_t *)p2);
-+//   if (u1 < u2) {
-+//     return -1;
-+//   } else if (u1 > u2) {
-+//     return 1;
-+//   } else {
-+//     return 0;
-+//   }
-+// }
-+
-+// static bool sigalgs_unique(Span<const uint16_t> in_sigalgs) {
-+//   if (in_sigalgs.size() < 2) {
-+//     return true;
-+//   }
-+// 
-+//   Array<uint16_t> sigalgs;
-+//   if (!sigalgs.CopyFrom(in_sigalgs)) {
-+//     return false;
-+//   }
-+// 
-+//   qsort(sigalgs.data(), sigalgs.size(), sizeof(uint16_t), compare_uint16_t);
-+// 
-+//   for (size_t i = 1; i < sigalgs.size(); i++) {
-+//     if (sigalgs[i - 1] == sigalgs[i]) {
-+//       OPENSSL_PUT_ERROR(SSL, SSL_R_DUPLICATE_SIGNATURE_ALGORITHM);
-+//       return false;
-+//     }
-+//   }
-+// 
-+//   return true;
-+// }
- 
- static bool set_sigalg_prefs(Array<uint16_t> *out, Span<const uint16_t> prefs) {
--  if (!sigalgs_unique(prefs)) {
--    return false;
--  }
-+  //  Remove the uniqueness check. Older Safari versions (15)
-+  // send out duplicated algorithm prefs.
-+
-+  // if (!sigalgs_unique(prefs)) {
-+  //   return false;
-+  // }
- 
-   // Check for invalid algorithms, and filter out |SSL_SIGN_RSA_PKCS1_MD5_SHA1|.
-   Array<uint16_t> filtered;
-@@ -947,3 +952,13 @@ int SSL_set_verify_algorithm_prefs(SSL *ssl, const uint16_t *prefs,
-   return set_sigalg_prefs(&ssl->config->verify_sigalgs,
-                           MakeConstSpan(prefs, num_prefs));
- }
-+
-+int SSL_CTX_set_delegated_credentials(SSL_CTX *ctx, const char *str) {  
-+  Array<uint16_t> sigalgs;
-+  if (!parse_sigalgs_list(&sigalgs, str)) {
-+    return 0;
-+  }
-+
-+  return set_sigalg_prefs(&ctx->delegated_credentials,
-+                          MakeConstSpan(sigalgs.data(), sigalgs.size()));
-+}
-diff --git a/src/ssl/ssl_test.cc b/src/ssl/ssl_test.cc
-index ef43a9e98..22178b5f6 100644
---- a/src/ssl/ssl_test.cc
-+++ b/src/ssl/ssl_test.cc
-@@ -409,7 +409,34 @@ static const CurveTest kCurveTests[] = {
+diff --git a/ssl/ssl_test.cc b/ssl/ssl_test.cc
+index a8f4f215b..e0ebb505e 100644
+--- a/ssl/ssl_test.cc
++++ b/ssl/ssl_test.cc
+@@ -484,7 +484,34 @@ static const CurveTest kCurveTests[] = {
      "P-256:X25519Kyber768Draft00",
-     { SSL_CURVE_SECP256R1, SSL_CURVE_X25519_KYBER768_DRAFT00 },
+     { SSL_GROUP_SECP256R1, SSL_GROUP_X25519_KYBER768_DRAFT00 },
    },
 -
 +  {
 +  "Xyber512D00",
-+    { SSL_CURVE_X25519_KYBER512_DRAFT00 },
++    { SSL_GROUP_X25519_KYBER512_DRAFT00 },
 +  },
 +  {
 +  "Xyber768D00",
-+    { SSL_CURVE_X25519_KYBER768_DRAFT00 },
++    { SSL_GROUP_X25519_KYBER768_DRAFT00 },
 +  },
 +  {
 +  "Xyber768D00:Xyber768D00Old",
-+    { SSL_CURVE_X25519_KYBER768_DRAFT00, SSL_CURVE_X25519_KYBER768_DRAFT00_OLD },
++    { SSL_GROUP_X25519_KYBER768_DRAFT00, SSL_GROUP_X25519_KYBER768_DRAFT00_OLD },
 +  },
 +  {
 +  "P-256:Xyber512D00",
-+    { SSL_CURVE_SECP256R1, SSL_CURVE_X25519_KYBER512_DRAFT00 },
++    { SSL_GROUP_SECP256R1, SSL_GROUP_X25519_KYBER512_DRAFT00 },
 +  },
 +  {
 +  "P256Kyber768D00",
-+    { SSL_CURVE_P256_KYBER768_DRAFT00 },
++    { SSL_GROUP_P256_KYBER768_DRAFT00 },
 +  },
 +  {
 +  "X25519MLKEM768",
-+    { SSL_CURVE_X25519_MLKEM768 },
++    { SSL_GROUP_X25519_MLKEM768 },
 +  },
 +  {
 +  "P-256:P256Kyber768D00",
-+    { SSL_CURVE_SECP256R1, SSL_CURVE_P256_KYBER768_DRAFT00 },
++    { SSL_GROUP_SECP256R1, SSL_GROUP_P256_KYBER768_DRAFT00 },
 +  },
    {
      "P-256:P-384:P-521:X25519",
      {
-diff --git a/src/ssl/tls13_client.cc b/src/ssl/tls13_client.cc
-index 1971596c9..fbc273540 100644
---- a/src/ssl/tls13_client.cc
-+++ b/src/ssl/tls13_client.cc
-@@ -812,10 +812,14 @@ static enum ssl_hs_wait_t do_send_client_encrypted_extensions(
-       !ssl->s3->early_data_accepted) {
-     ScopedCBB cbb;
-     CBB body, extensions, extension;
-+    uint16_t extension_type = TLSEXT_TYPE_application_settings;
-+    if (hs->config->alps_use_new_codepoint) {
-+      extension_type = TLSEXT_TYPE_application_settings_new;
-+    }
-     if (!ssl->method->init_message(ssl, cbb.get(), &body,
-                                    SSL3_MT_ENCRYPTED_EXTENSIONS) ||
-         !CBB_add_u16_length_prefixed(&body, &extensions) ||
--        !CBB_add_u16(&extensions, TLSEXT_TYPE_application_settings) ||
-+        !CBB_add_u16(&extensions, extension_type) ||
-         !CBB_add_u16_length_prefixed(&extensions, &extension) ||
-         !CBB_add_bytes(&extension,
-                        hs->new_session->local_application_settings.data(),
-diff --git a/src/ssl/tls13_server.cc b/src/ssl/tls13_server.cc
-index 9d26f4e00..4ae95721a 100644
---- a/src/ssl/tls13_server.cc
-+++ b/src/ssl/tls13_server.cc
-@@ -1051,7 +1051,11 @@ static enum ssl_hs_wait_t do_read_client_encrypted_extensions(
-       return ssl_hs_error;
-     }
- 
--    SSLExtension application_settings(TLSEXT_TYPE_application_settings);
-+    uint16_t extension_type = TLSEXT_TYPE_application_settings;
-+    if (hs->config->alps_use_new_codepoint) {
-+      extension_type = TLSEXT_TYPE_application_settings_new;
-+    }
-+    SSLExtension application_settings(extension_type);
-     uint8_t alert = SSL_AD_DECODE_ERROR;
-     if (!ssl_parse_extensions(&extensions, &alert, {&application_settings},
-                               /*ignore_unknown=*/false)) {
-diff --git a/src/tool/speed.cc b/src/tool/speed.cc
-index 5b0205953..6b3c67dab 100644
---- a/src/tool/speed.cc
-+++ b/src/tool/speed.cc
-@@ -904,6 +904,116 @@ static bool SpeedScrypt(const std::string &selected) {
+diff --git a/tool/speed.cc b/tool/speed.cc
+index 942dcade1..f31e9e244 100644
+--- a/tool/speed.cc
++++ b/tool/speed.cc
+@@ -1018,6 +1018,116 @@ static bool SpeedScrypt(const std::string &selected) {
    return true;
  }
  
@@ -6784,7 +6165,7 @@ index 5b0205953..6b3c67dab 100644
  static bool SpeedHRSS(const std::string &selected) {
    if (!selected.empty() && selected != "HRSS") {
      return true;
-@@ -958,55 +1068,6 @@ static bool SpeedHRSS(const std::string &selected) {
+@@ -1079,55 +1189,6 @@ static bool SpeedHRSS(const std::string &selected) {
    return true;
  }
  
@@ -6795,39 +6176,39 @@ index 5b0205953..6b3c67dab 100644
 -
 -  TimeResults results;
 -
--  KYBER_private_key priv;
--  uint8_t encoded_public_key[KYBER_PUBLIC_KEY_BYTES];
 -  uint8_t ciphertext[KYBER_CIPHERTEXT_BYTES];
 -  // This ciphertext is nonsense, but Kyber decap is constant-time so, for the
 -  // purposes of timing, it's fine.
 -  memset(ciphertext, 42, sizeof(ciphertext));
--  if (!TimeFunction(&results,
--                    [&priv, &encoded_public_key, &ciphertext]() -> bool {
--                      uint8_t shared_secret[32];
--                      KYBER_generate_key(encoded_public_key, &priv);
--                      KYBER_decap(shared_secret, sizeof(shared_secret),
--                                  ciphertext, &priv);
--                      return true;
--                    })) {
+-  if (!TimeFunctionParallel(&results, [&]() -> bool {
+-        KYBER_private_key priv;
+-        uint8_t encoded_public_key[KYBER_PUBLIC_KEY_BYTES];
+-        KYBER_generate_key(encoded_public_key, &priv);
+-        uint8_t shared_secret[32];
+-        KYBER_decap(shared_secret, sizeof(shared_secret), ciphertext, &priv);
+-        return true;
+-      })) {
 -    fprintf(stderr, "Failed to time KYBER_generate_key + KYBER_decap.\n");
 -    return false;
 -  }
 -
 -  results.Print("Kyber generate + decap");
 -
+-  KYBER_private_key priv;
+-  uint8_t encoded_public_key[KYBER_PUBLIC_KEY_BYTES];
+-  KYBER_generate_key(encoded_public_key, &priv);
 -  KYBER_public_key pub;
--  if (!TimeFunction(
--          &results, [&pub, &ciphertext, &encoded_public_key]() -> bool {
--            CBS encoded_public_key_cbs;
--            CBS_init(&encoded_public_key_cbs, encoded_public_key,
--                     sizeof(encoded_public_key));
--            if (!KYBER_parse_public_key(&pub, &encoded_public_key_cbs)) {
--              return false;
--            }
--            uint8_t shared_secret[32];
--            KYBER_encap(ciphertext, shared_secret, sizeof(shared_secret), &pub);
--            return true;
--          })) {
+-  if (!TimeFunctionParallel(&results, [&]() -> bool {
+-        CBS encoded_public_key_cbs;
+-        CBS_init(&encoded_public_key_cbs, encoded_public_key,
+-                 sizeof(encoded_public_key));
+-        if (!KYBER_parse_public_key(&pub, &encoded_public_key_cbs)) {
+-          return false;
+-        }
+-        uint8_t shared_secret[32];
+-        KYBER_encap(ciphertext, shared_secret, sizeof(shared_secret), &pub);
+-        return true;
+-      })) {
 -    fprintf(stderr, "Failed to time KYBER_encap.\n");
 -    return false;
 -  }
@@ -6837,16 +6218,16 @@ index 5b0205953..6b3c67dab 100644
 -  return true;
 -}
 -
- static bool SpeedHashToCurve(const std::string &selected) {
-   if (!selected.empty() && selected.find("hashtocurve") == std::string::npos) {
+ static bool SpeedSpx(const std::string &selected) {
+   if (!selected.empty() && selected.find("spx") == std::string::npos) {
      return true;
-@@ -1487,7 +1548,8 @@ bool Speed(const std::vector<std::string> &args) {
-       !SpeedScrypt(selected) ||
-       !SpeedRSAKeyGen(selected) ||
-       !SpeedHRSS(selected) ||
--      !SpeedKyber(selected) ||
+@@ -1661,7 +1722,8 @@ bool Speed(const std::vector<std::string> &args) {
+       !SpeedScrypt(selected) ||      //
+       !SpeedRSAKeyGen(selected) ||   //
+       !SpeedHRSS(selected) ||        //
+-      !SpeedKyber(selected) ||       //
 +      !SpeedKyber512(selected) ||
 +      !SpeedKyber768(selected) ||
-       !SpeedHashToCurve(selected) ||
+       !SpeedSpx(selected) ||         //
+       !SpeedHashToCurve(selected) || //
        !SpeedTrustToken("TrustToken-Exp1-Batch1", TRUST_TOKEN_experiment_v1(), 1,
-                        selected) ||

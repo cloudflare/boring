@@ -15,7 +15,7 @@ fn test_verify_cert() {
 
     assert_eq!(Ok(()), verify(&leaf, &[&root1], &[&intermediate], |_| {}));
 
-    #[cfg(not(feature = "fips-compat"))]
+    #[cfg(not(feature = "legacy-compat-deprecated"))]
     assert_eq!(
         Ok(()),
         verify(
@@ -26,7 +26,7 @@ fn test_verify_cert() {
         )
     );
 
-    #[cfg(feature = "fips-compat")]
+    #[cfg(feature = "legacy-compat-deprecated")]
     assert_eq!(
         Err(X509VerifyError::CERT_HAS_EXPIRED),
         verify(
@@ -61,7 +61,7 @@ fn test_verify_cert() {
         Ok(()),
         verify(&leaf, &[&root1], &[&intermediate, &root1_cross], |param| {
             param.clear_flags(X509Flags::TRUSTED_FIRST)
-        },)
+        })
     );
 }
 

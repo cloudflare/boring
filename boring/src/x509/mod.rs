@@ -19,7 +19,6 @@ use std::mem;
 use std::net::IpAddr;
 use std::path::Path;
 use std::ptr;
-use std::slice;
 use std::str;
 use std::sync::{LazyLock, Once};
 
@@ -486,15 +485,8 @@ impl X509Builder {
     }
 
     /// Adds an X509 extension value to the certificate.
-    ///
-    /// This works just as `append_extension` except it takes ownership of the `X509Extension`.
-    pub fn append_extension(&mut self, extension: X509Extension) -> Result<(), ErrorStack> {
-        self.append_extension2(&extension)
-    }
-
-    /// Adds an X509 extension value to the certificate.
     #[corresponds(X509_add_ext)]
-    pub fn append_extension2(&mut self, extension: &X509ExtensionRef) -> Result<(), ErrorStack> {
+    pub fn append_extension(&mut self, extension: &X509ExtensionRef) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::X509_add_ext(self.0.as_ptr(), extension.as_ptr(), -1))?;
             Ok(())
@@ -865,7 +857,7 @@ impl fmt::Debug for X509 {
 
         if let Ok(public_key) = &self.public_key() {
             debug_struct.field("public_key", public_key);
-        };
+        }
         // TODO: Print extensions once they are supported on the X509 struct.
 
         debug_struct.finish()
@@ -1121,9 +1113,9 @@ impl X509NameBuilder {
     }
 }
 
-#[cfg(not(feature = "fips-compat"))]
+#[cfg(not(feature = "legacy-compat-deprecated"))]
 type ValueLen = isize;
-#[cfg(feature = "fips-compat")]
+#[cfg(feature = "legacy-compat-deprecated")]
 type ValueLen = i32;
 
 foreign_type_and_impl_send_sync! {
@@ -1535,6 +1527,8 @@ impl X509VerifyError {
     }
 
     /// Return a human readable error string from the verification error.
+    ///
+    /// Returns empty string if the message was not UTF-8.
     #[corresponds(X509_verify_cert_error_string)]
     #[allow(clippy::trivially_copy_pass_by_ref)]
     #[must_use]
@@ -1543,7 +1537,7 @@ impl X509VerifyError {
 
         unsafe {
             let s = ffi::X509_verify_cert_error_string(c_long::from(self.0));
-            str::from_utf8(CStr::from_ptr(s).to_bytes()).unwrap()
+            CStr::from_ptr(s).to_str().unwrap_or_default()
         }
     }
 }
@@ -1695,14 +1689,12 @@ impl GeneralNameRef {
                 return None;
             }
 
-            let ptr = ASN1_STRING_get0_data((*self.as_ptr()).d.ia5 as *mut _);
-            let len = ffi::ASN1_STRING_length((*self.as_ptr()).d.ia5 as *mut _);
+            let asn = Asn1BitStringRef::from_ptr((*self.as_ptr()).d.ia5);
 
-            let slice = slice::from_raw_parts(ptr, len as usize);
             // IA5Strings are stated to be ASCII (specifically IA5). Hopefully
             // OpenSSL checks that when loading a certificate but if not we'll
             // use this instead of from_utf8_unchecked just in case.
-            str::from_utf8(slice).ok()
+            asn.to_str()
         }
     }
 
@@ -1732,10 +1724,7 @@ impl GeneralNameRef {
                 return None;
             }
 
-            let ptr = ASN1_STRING_get0_data((*self.as_ptr()).d.ip as *mut _);
-            let len = ffi::ASN1_STRING_length((*self.as_ptr()).d.ip as *mut _);
-
-            Some(slice::from_raw_parts(ptr, len as usize))
+            Some(Asn1BitStringRef::from_ptr((*self.as_ptr()).d.ip).as_slice())
         }
     }
 }
@@ -1811,8 +1800,8 @@ impl Stackable for X509Object {
 use crate::ffi::{X509_get0_signature, X509_getm_notAfter, X509_getm_notBefore, X509_up_ref};
 
 use crate::ffi::{
-    ASN1_STRING_get0_data, X509_ALGOR_get0, X509_REQ_get_subject_name, X509_REQ_get_version,
-    X509_STORE_CTX_get0_chain, X509_set1_notAfter, X509_set1_notBefore,
+    X509_ALGOR_get0, X509_REQ_get_subject_name, X509_REQ_get_version, X509_STORE_CTX_get0_chain,
+    X509_set1_notAfter, X509_set1_notBefore,
 };
 
 use crate::ffi::X509_OBJECT_get0_X509;

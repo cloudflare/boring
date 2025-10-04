@@ -27,6 +27,8 @@ use std::str;
 
 use crate::ffi;
 
+pub use crate::ffi::ErrLib;
+
 /// Collection of [`Error`]s from OpenSSL.
 ///
 /// [`Error`]: struct.Error.html
@@ -146,9 +148,9 @@ impl Error {
                     // The memory referenced by data is only valid until that slot is overwritten
                     // in the error stack, so we'll need to copy it off if it's dynamic
                     let data = if flags & ffi::ERR_FLAG_STRING != 0 {
-                        let bytes = CStr::from_ptr(data as *const _).to_bytes();
-                        let data = String::from_utf8_lossy(bytes).into_owned();
-                        Some(data.into())
+                        Some(Cow::Owned(
+                            CStr::from_ptr(data.cast()).to_string_lossy().into_owned(),
+                        ))
                     } else {
                         None
                     };
@@ -194,11 +196,23 @@ impl Error {
         }
     }
 
+    /// Get `{lib}_R_{reason}` reason code for the given library, or `None` if the error is from a different library.
+    ///
+    /// Libraries are identified by [`ERR_LIB_{name}`(ffi::ERR_LIB_SSL) constants.
+    #[inline]
+    #[must_use]
+    #[track_caller]
+    pub fn library_reason(&self, library_code: ErrLib) -> Option<c_int> {
+        debug_assert!(library_code.0 < ffi::ERR_NUM_LIBS.0);
+        (self.library_code() == library_code.0 as c_int).then_some(self.reason_code())
+    }
+
     /// Returns a raw OpenSSL **packed** error code for this error, which **can't be reliably compared to any error constant**.
     ///
-    /// Use [`Error::library_code()`] and [`Error::reason_code()`] instead.
+    /// Use [`Error::library_code()`] and [`Error::library_reason()`] instead.
     /// Packed error codes are different than [SSL error codes](crate::ssl::ErrorCode).
     #[must_use]
+    #[deprecated(note = "use library_reason() to compare error codes")]
     pub fn code(&self) -> c_uint {
         self.code
     }
@@ -214,14 +228,16 @@ impl Error {
             if cstr.is_null() {
                 return None;
             }
-            let bytes = CStr::from_ptr(cstr as *const _).to_bytes();
-            str::from_utf8(bytes).ok()
+            CStr::from_ptr(cstr.cast())
+                .to_str()
+                .ok()
+                .filter(|&msg| msg != "unknown library")
         }
     }
 
     /// Returns the raw OpenSSL error constant for the library reporting the error (`ERR_LIB_{name}`).
     ///
-    /// Error [reason codes](Error::reason_code) are not globally unique, but scoped to each library.
+    /// Error [reason codes](Error::library_reason) are not globally unique, but scoped to each library.
     #[must_use]
     pub fn library_code(&self) -> c_int {
         ffi::ERR_GET_LIB(self.code)
@@ -240,14 +256,14 @@ impl Error {
             if cstr.is_null() {
                 return None;
             }
-            let bytes = CStr::from_ptr(cstr as *const _).to_bytes();
-            str::from_utf8(bytes).ok()
+            CStr::from_ptr(cstr.cast()).to_str().ok()
         }
     }
 
     /// Returns [library-specific](Error::library_code) reason code corresponding to some of the `{lib}_R_{reason}` constants.
     ///
     /// Reason codes are ambiguous, and different libraries reuse the same numeric values for different errors.
+    /// Use [`Error::library_reason`] to compare error codes.
     ///
     /// For `ERR_LIB_SYS` the reason code is `errno`. `ERR_LIB_USER` can use any values.
     /// Other libraries may use [`ERR_R_*`](ffi::ERR_R_FATAL) or their own codes.
@@ -263,8 +279,9 @@ impl Error {
             if self.file.is_null() {
                 return "";
             }
-            let bytes = CStr::from_ptr(self.file as *const _).to_bytes();
-            str::from_utf8(bytes).unwrap_or_default()
+            CStr::from_ptr(self.file.cast())
+                .to_str()
+                .unwrap_or_default()
         }
     }
 

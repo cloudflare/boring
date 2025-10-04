@@ -81,6 +81,7 @@ use crate::dh::DhRef;
 use crate::ec::EcKeyRef;
 use crate::error::ErrorStack;
 use crate::ex_data::Index;
+use crate::hmac::HmacCtxRef;
 use crate::nid::Nid;
 use crate::pkey::{HasPrivate, PKeyRef, Params, Private};
 use crate::srtp::{SrtpProtectionProfile, SrtpProtectionProfileRef};
@@ -88,6 +89,7 @@ use crate::ssl::bio::BioMethod;
 use crate::ssl::callbacks::*;
 use crate::ssl::error::InnerError;
 use crate::stack::{Stack, StackRef, Stackable};
+use crate::symm::CipherCtxRef;
 use crate::x509::store::{X509Store, X509StoreBuilder, X509StoreBuilderRef, X509StoreRef};
 use crate::x509::verify::X509VerifyParamRef;
 use crate::x509::{
@@ -104,7 +106,6 @@ pub use self::async_callbacks::{
 pub use self::connector::{
     ConnectConfiguration, SslAcceptor, SslAcceptorBuilder, SslConnector, SslConnectorBuilder,
 };
-#[cfg(not(feature = "fips"))]
 pub use self::ech::{SslEchKeys, SslEchKeysRef};
 pub use self::error::{Error, ErrorCode, HandshakeError};
 
@@ -112,7 +113,6 @@ mod async_callbacks;
 mod bio;
 mod callbacks;
 mod connector;
-#[cfg(not(feature = "fips"))]
 mod ech;
 mod error;
 mod mut_only;
@@ -703,130 +703,13 @@ impl From<u16> for SslSignatureAlgorithm {
     }
 }
 
-/// Numeric identifier of a TLS curve.
-#[repr(transparent)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct SslCurveNid(c_int);
-
-/// A TLS Curve.
-#[repr(transparent)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct SslCurve(c_int);
-
-impl SslCurve {
-    pub const SECP224R1: SslCurve = SslCurve(ffi::SSL_CURVE_SECP224R1 as _);
-
-    pub const SECP256R1: SslCurve = SslCurve(ffi::SSL_CURVE_SECP256R1 as _);
-
-    pub const SECP384R1: SslCurve = SslCurve(ffi::SSL_CURVE_SECP384R1 as _);
-
-    pub const SECP521R1: SslCurve = SslCurve(ffi::SSL_CURVE_SECP521R1 as _);
-
-    pub const X25519: SslCurve = SslCurve(ffi::SSL_CURVE_X25519 as _);
-
-    pub const FFDHE2048: SslCurve = SslCurve(ffi::SSL_CURVE_DHE2048 as _);
-
-    pub const FFDHE3072: SslCurve = SslCurve(ffi::SSL_CURVE_DHE3072 as _);
-
-    #[cfg(not(any(feature = "fips", feature = "fips-precompiled")))]
-    pub const X25519_KYBER768_DRAFT00: SslCurve =
-        SslCurve(ffi::SSL_CURVE_X25519_KYBER768_DRAFT00 as _);
-
-    #[cfg(all(
-        not(any(feature = "fips", feature = "fips-precompiled")),
-        feature = "pq-experimental"
-    ))]
-    pub const X25519_KYBER768_DRAFT00_OLD: SslCurve =
-        SslCurve(ffi::SSL_CURVE_X25519_KYBER768_DRAFT00_OLD as _);
-
-    #[cfg(all(
-        not(any(feature = "fips", feature = "fips-precompiled")),
-        feature = "pq-experimental"
-    ))]
-    pub const X25519_KYBER512_DRAFT00: SslCurve =
-        SslCurve(ffi::SSL_CURVE_X25519_KYBER512_DRAFT00 as _);
-
-    #[cfg(all(
-        not(any(feature = "fips", feature = "fips-precompiled")),
-        feature = "pq-experimental"
-    ))]
-    pub const P256_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::SSL_CURVE_P256_KYBER768_DRAFT00 as _);
-
-    #[cfg(all(
-        not(any(feature = "fips", feature = "fips-precompiled")),
-        feature = "pq-experimental"
-    ))]
-    pub const X25519_MLKEM768: SslCurve = SslCurve(ffi::SSL_CURVE_X25519_MLKEM768 as _);
-
-    /// Returns the curve name
-    #[corresponds(SSL_get_curve_name)]
-    #[must_use]
-    pub fn name(&self) -> Option<&'static str> {
-        unsafe {
-            let ptr = ffi::SSL_get_curve_name(self.0 as u16);
-            if ptr.is_null() {
-                return None;
-            }
-
-            CStr::from_ptr(ptr).to_str().ok()
-        }
-    }
-
-    // We need to allow dead_code here because `SslRef::set_curves` is conditionally compiled
-    // against the absence of the `kx-safe-default` feature and thus this function is never used.
-    //
-    // **NOTE**: This function only exists because the version of boringssl we currently use does
-    // not expose SSL_CTX_set1_group_ids. Because `SslRef::curve()` returns the public SSL_CURVE id
-    // as opposed to the internal NID, but `SslContextBuilder::set_curves()` requires the internal
-    // NID, we need this mapping in place to avoid breaking changes to the public API. Once the
-    // underlying boringssl version is upgraded, this should be removed in favor of the new
-    // SSL_CTX_set1_group_ids API.
-    #[allow(dead_code)]
-    pub fn nid(&self) -> Option<SslCurveNid> {
-        match self.0 {
-            ffi::SSL_CURVE_SECP224R1 => Some(ffi::NID_secp224r1),
-            ffi::SSL_CURVE_SECP256R1 => Some(ffi::NID_X9_62_prime256v1),
-            ffi::SSL_CURVE_SECP384R1 => Some(ffi::NID_secp384r1),
-            ffi::SSL_CURVE_SECP521R1 => Some(ffi::NID_secp521r1),
-            ffi::SSL_CURVE_X25519 => Some(ffi::NID_X25519),
-            #[cfg(not(any(feature = "fips", feature = "fips-precompiled")))]
-            ffi::SSL_CURVE_X25519_KYBER768_DRAFT00 => Some(ffi::NID_X25519Kyber768Draft00),
-            #[cfg(all(
-                not(any(feature = "fips", feature = "fips-precompiled")),
-                feature = "pq-experimental"
-            ))]
-            ffi::SSL_CURVE_X25519_KYBER768_DRAFT00_OLD => Some(ffi::NID_X25519Kyber768Draft00Old),
-            #[cfg(all(
-                not(any(feature = "fips", feature = "fips-precompiled")),
-                feature = "pq-experimental"
-            ))]
-            ffi::SSL_CURVE_X25519_KYBER512_DRAFT00 => Some(ffi::NID_X25519Kyber512Draft00),
-            #[cfg(all(
-                not(any(feature = "fips", feature = "fips-precompiled")),
-                feature = "pq-experimental"
-            ))]
-            ffi::SSL_CURVE_P256_KYBER768_DRAFT00 => Some(ffi::NID_P256Kyber768Draft00),
-            #[cfg(all(
-                not(any(feature = "fips", feature = "fips-precompiled")),
-                feature = "pq-experimental"
-            ))]
-            ffi::SSL_CURVE_X25519_MLKEM768 => Some(ffi::NID_X25519MLKEM768),
-            ffi::SSL_CURVE_DHE2048 => Some(ffi::NID_ffdhe2048),
-            ffi::SSL_CURVE_DHE3072 => Some(ffi::NID_ffdhe3072),
-            _ => None,
-        }
-        .map(SslCurveNid)
-    }
-}
-
 /// A compliance policy.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[cfg(not(feature = "fips-compat"))]
 pub struct CompliancePolicy(ffi::ssl_compliance_policy_t);
 
-#[cfg(not(feature = "fips-compat"))]
 impl CompliancePolicy {
     /// Does nothing, however setting this does not undo other policies, so trying to set this is an error.
+    #[cfg(not(feature = "legacy-compat-deprecated"))]
     pub const NONE: Self = Self(ffi::ssl_compliance_policy_t::ssl_compliance_policy_none);
 
     /// Configures a TLS connection to try and be compliant with NIST requirements, but does not guarantee success.
@@ -836,6 +719,7 @@ impl CompliancePolicy {
 
     /// Partially configures a TLS connection to be compliant with WPA3. Callers must enforce certificate chain requirements themselves.
     /// Use of this policy is less secure than the default and not recommended.
+    #[cfg(not(feature = "legacy-compat-deprecated"))]
     pub const WPA3_192_202304: Self =
         Self(ffi::ssl_compliance_policy_t::ssl_compliance_policy_wpa3_192_202304);
 }
@@ -930,6 +814,53 @@ pub enum SslInfoCallbackValue {
     Alert(SslInfoCallbackAlert),
 }
 
+/// Ticket key callback status.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum TicketKeyCallbackResult {
+    /// Abort the handshake.
+    Error,
+
+    /// Continue with a full handshake.
+    ///
+    /// When in decryption mode, this indicates that the peer supplied session ticket was not
+    /// recognized. When in encryption mode, this instructs boring to not send a session ticket.
+    ///
+    /// # Note
+    ///
+    /// This is a decryption specific status code when using the submoduled BoringSSL.
+    Noop,
+
+    /// Resumption callback was successful.
+    ///
+    /// When in decryption mode, attempt an abbreviated handshake via session resumption. When in
+    /// encryption mode, provide a new ticket to the client.
+    Success,
+
+    /// Resumption callback was successful. Attempt an abbreviated handshake, and additionally
+    /// provide new session tickets to the peer.
+    ///
+    /// Session resumption short-circuits some security checks of a full-handshake, in exchange for
+    /// potential performance gains. For this reason, a session ticket should only be valid for a
+    /// limited time. Providing the peer with renewed session tickets allows them to continue
+    /// session resumption with the new tickets.
+    ///
+    /// # Note
+    ///
+    /// This is a decryption specific status code.
+    DecryptSuccessRenew,
+}
+
+impl From<TicketKeyCallbackResult> for c_int {
+    fn from(value: TicketKeyCallbackResult) -> Self {
+        match value {
+            TicketKeyCallbackResult::Error => -1,
+            TicketKeyCallbackResult::Noop => 0,
+            TicketKeyCallbackResult::Success => 1,
+            TicketKeyCallbackResult::DecryptSuccessRenew => 2,
+        }
+    }
+}
+
 #[derive(Hash, Copy, Clone, PartialOrd, Ord, Eq, PartialEq, Debug)]
 pub struct SslInfoCallbackAlert(c_int);
 
@@ -984,7 +915,11 @@ impl SslContextBuilder {
             init();
             let ctx = cvt_p(ffi::SSL_CTX_new(SslMethod::tls_with_buffer().as_ptr()))?;
 
-            Ok(SslContextBuilder::from_ptr(ctx, true))
+            let mut builder = SslContextBuilder::from_ptr(ctx);
+            builder.is_rpk = true;
+            builder.set_ex_data(*RPK_FLAG_INDEX, true);
+
+            Ok(builder)
         }
     }
 
@@ -1023,48 +958,28 @@ impl SslContextBuilder {
         unsafe {
             init();
             let ctx = cvt_p(ffi::SSL_CTX_new(method.as_ptr()))?;
-
-            #[cfg(feature = "rpk")]
-            {
-                Ok(SslContextBuilder::from_ptr(ctx, false))
-            }
-
-            #[cfg(not(feature = "rpk"))]
-            {
-                Ok(SslContextBuilder::from_ptr(ctx))
-            }
+            Ok(SslContextBuilder::from_ptr(ctx))
         }
     }
 
     /// Creates an `SslContextBuilder` from a pointer to a raw OpenSSL value.
     ///
-    /// # Safety
-    ///
-    /// The caller must ensure that the pointer is valid and uniquely owned by the builder.
-    #[cfg(feature = "rpk")]
-    pub unsafe fn from_ptr(ctx: *mut ffi::SSL_CTX, is_rpk: bool) -> SslContextBuilder {
-        let ctx = SslContext::from_ptr(ctx);
-        let mut builder = SslContextBuilder {
-            ctx,
-            is_rpk,
-            has_shared_cert_store: false,
-        };
-
-        builder.set_ex_data(*RPK_FLAG_INDEX, is_rpk);
-
-        builder
-    }
-
-    /// Creates an `SslContextBuilder` from a pointer to a raw OpenSSL value.
+    #[cfg_attr(
+        feature = "rpk",
+        doc = "Keeps previous RPK state. Use `new_rpk()` to enable RPK."
+    )]
     ///
     /// # Safety
     ///
     /// The caller must ensure that the pointer is valid and uniquely owned by the builder.
-    #[cfg(not(feature = "rpk"))]
+    /// The context must own its cert store exclusively.
     pub unsafe fn from_ptr(ctx: *mut ffi::SSL_CTX) -> SslContextBuilder {
+        let ctx = SslContext::from_ptr(ctx);
         SslContextBuilder {
-            ctx: SslContext::from_ptr(ctx),
+            #[cfg(feature = "rpk")]
+            is_rpk: ctx.is_rpk(),
             has_shared_cert_store: false,
+            ctx,
         }
     }
 
@@ -1220,6 +1135,52 @@ impl SslContextBuilder {
             ffi::SSL_CTX_set_tlsext_servername_arg(self.as_ptr(), arg);
             ffi::SSL_CTX_set_tlsext_servername_callback(self.as_ptr(), Some(raw_sni::<F>));
         }
+    }
+
+    /// Configures a custom session ticket key callback for session resumption.
+    ///
+    /// Session Resumption uses the security context (aka. session tickets) of a previous
+    /// connection to establish a new connection via an abbreviated handshake. Skipping portions of
+    /// a handshake can potentially yield performance gains.
+    ///
+    /// An attacker that compromises a server's session ticket key can impersonate the server and,
+    /// prior to TLS 1.3, retroactively decrypt all application traffic from sessions using that
+    /// ticket key. Thus ticket keys must be regularly rotated for forward secrecy.
+    ///
+    /// CipherCtx and HmacCtx are guaranteed to be initialized.
+    ///
+    /// # Panics
+    ///
+    /// This method panics if this `Ssl` is associated with a RPK context.
+    ///
+    /// # Safety
+    ///
+    /// The application is responsible for correctly setting the key_name, iv, encryption context
+    /// and hmac context. See the [`SSL_CTX_set_tlsext_ticket_key_cb`] docs for additional info.
+    ///
+    /// [`SSL_CTX_set_tlsext_ticket_key_cb`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#SSL_CTX_set_tlsext_ticket_key_cb
+    #[corresponds(SSL_CTX_set_tlsext_ticket_key_cb)]
+    pub unsafe fn set_ticket_key_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(
+                &SslRef,
+                &mut [u8; 16],
+                &mut [u8; ffi::EVP_MAX_IV_LENGTH as usize],
+                &mut CipherCtxRef,
+                &mut HmacCtxRef,
+                bool,
+            ) -> TicketKeyCallbackResult
+            + 'static
+            + Sync
+            + Send,
+    {
+        #[cfg(feature = "rpk")]
+        assert!(!self.is_rpk, "This API is not supported for RPK");
+
+        unsafe {
+            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+            ffi::SSL_CTX_set_tlsext_ticket_key_cb(self.as_ptr(), Some(raw_ticket_key::<F>))
+        };
     }
 
     /// Sets the certificate verification depth.
@@ -1623,7 +1584,10 @@ impl SslContextBuilder {
     #[corresponds(SSL_CTX_set_alpn_protos)]
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            #[cfg_attr(not(feature = "fips-compat"), allow(clippy::unnecessary_cast))]
+            #[cfg_attr(
+                not(feature = "legacy-compat-deprecated"),
+                allow(clippy::unnecessary_cast)
+            )]
             {
                 assert!(protocols.len() <= ProtosLen::MAX as usize);
             }
@@ -1855,7 +1819,7 @@ impl SslContextBuilder {
             + Sync
             + Send,
     {
-        self.set_psk_client_callback(callback)
+        self.set_psk_client_callback(callback);
     }
 
     /// Sets the callback for providing an identity and pre-shared key for a TLS-PSK server.
@@ -2075,12 +2039,7 @@ impl SslContextBuilder {
     }
 
     /// Configures whether ClientHello extensions should be permuted.
-    ///
-    /// Note: This is gated to non-fips because the fips feature builds with a separate
-    /// version of BoringSSL which doesn't yet include these APIs.
-    /// Once the submoduled fips commit is upgraded, these gates can be removed.
     #[corresponds(SSL_CTX_set_permute_extensions)]
-    #[cfg(not(feature = "fips-compat"))]
     pub fn set_permute_extensions(&mut self, enabled: bool) {
         unsafe { ffi::SSL_CTX_set_permute_extensions(self.as_ptr(), enabled as _) }
     }
@@ -2114,11 +2073,6 @@ impl SslContextBuilder {
     }
 
     /// Sets the context's supported curves.
-    //
-    // If the "kx-*" flags are used to set key exchange preference, then don't allow the user to
-    // set them here. This ensures we don't override the user's preference without telling them:
-    // when the flags are used, the preferences are set just before connecting or accepting.
-    #[cfg(not(feature = "kx-safe-default"))]
     #[corresponds(SSL_CTX_set1_curves_list)]
     pub fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
         let curves = CString::new(curves).map_err(ErrorStack::internal_error)?;
@@ -2131,34 +2085,10 @@ impl SslContextBuilder {
         }
     }
 
-    /// Sets the context's supported curves.
-    //
-    // If the "kx-*" flags are used to set key exchange preference, then don't allow the user to
-    // set them here. This ensures we don't override the user's preference without telling them:
-    // when the flags are used, the preferences are set just before connecting or accepting.
-    #[corresponds(SSL_CTX_set1_curves)]
-    #[cfg(not(feature = "kx-safe-default"))]
-    pub fn set_curves(&mut self, curves: &[SslCurve]) -> Result<(), ErrorStack> {
-        let curves: Vec<i32> = curves
-            .iter()
-            .filter_map(|curve| curve.nid().map(|nid| nid.0))
-            .collect();
-
-        unsafe {
-            cvt_0i(ffi::SSL_CTX_set1_curves(
-                self.as_ptr(),
-                curves.as_ptr() as *const _,
-                curves.len(),
-            ))
-            .map(|_| ())
-        }
-    }
-
     /// Sets the context's compliance policy.
     ///
     /// This feature isn't available in the certified version of BoringSSL.
     #[corresponds(SSL_CTX_set_compliance_policy)]
-    #[cfg(not(feature = "fips-compat"))]
     pub fn set_compliance_policy(&mut self, policy: CompliancePolicy) -> Result<(), ErrorStack> {
         unsafe { cvt_0i(ffi::SSL_CTX_set_compliance_policy(self.as_ptr(), policy.0)).map(|_| ()) }
     }
@@ -2179,7 +2109,6 @@ impl SslContextBuilder {
     /// ECHConfigs to allow stale DNS caches to update. Unlike most `SSL_CTX` APIs, this function
     /// is safe to call even after the `SSL_CTX` has been associated with connections on various
     /// threads.
-    #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_CTX_set1_ech_keys)]
     pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())).map(|_| ()) }
@@ -2447,7 +2376,6 @@ impl SslContextRef {
     /// ECHConfigs to allow stale DNS caches to update. Unlike most `SSL_CTX` APIs, this function
     /// is safe to call even after the `SSL_CTX` has been associated with connections on various
     /// threads.
-    #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_CTX_set1_ech_keys)]
     pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())).map(|_| ()) }
@@ -2461,9 +2389,9 @@ impl SslContextRef {
 #[derive(Debug)]
 pub struct GetSessionPendingError;
 
-#[cfg(not(feature = "fips-compat"))]
+#[cfg(not(feature = "legacy-compat-deprecated"))]
 type ProtosLen = usize;
-#[cfg(feature = "fips-compat")]
+#[cfg(feature = "legacy-compat-deprecated")]
 type ProtosLen = libc::c_uint;
 
 /// Information about the state of a cipher.
@@ -2635,7 +2563,7 @@ impl SslCipherRef {
             CStr::from_ptr(ptr as *const _)
         };
 
-        str::from_utf8(version.to_bytes()).unwrap()
+        version.to_str().unwrap()
     }
 
     /// Returns the number of bits used for the cipher.
@@ -2661,7 +2589,7 @@ impl SslCipherRef {
             // SSL_CIPHER_description requires a buffer of at least 128 bytes.
             let mut buf = [0; 128];
             let ptr = ffi::SSL_CIPHER_description(self.as_ptr(), buf.as_mut_ptr(), 128);
-            String::from_utf8(CStr::from_ptr(ptr as *const _).to_bytes().to_vec()).unwrap()
+            CStr::from_ptr(ptr.cast()).to_string_lossy().into_owned()
         }
     }
 
@@ -2849,32 +2777,13 @@ impl Ssl {
         }
     }
 
-    /// Creates a new `Ssl`.
-    ///
-    // FIXME should take &SslContextRef
-    #[corresponds(SSL_new)]
-    pub fn new(ctx: &SslContext) -> Result<Ssl, ErrorStack> {
-        unsafe {
-            let ptr = cvt_p(ffi::SSL_new(ctx.as_ptr()))?;
-            let mut ssl = Ssl::from_ptr(ptr);
-            ssl.set_ex_data(*SESSION_CTX_INDEX, ctx.clone());
-
-            Ok(ssl)
-        }
-    }
-
     /// Creates a new [`Ssl`].
-    ///
-    /// This function does the same as [`Self:new`] except that it takes &[SslContextRef].
-    // Both functions exist for backward compatibility (no breaking API).
     #[corresponds(SSL_new)]
-    pub fn new_from_ref(ctx: &SslContextRef) -> Result<Ssl, ErrorStack> {
+    pub fn new(ctx: &SslContextRef) -> Result<Ssl, ErrorStack> {
         unsafe {
             let ptr = cvt_p(ffi::SSL_new(ctx.as_ptr()))?;
             let mut ssl = Ssl::from_ptr(ptr);
-            SSL_CTX_up_ref(ctx.as_ptr());
-            let ctx_owned = SslContext::from_ptr(ctx.as_ptr());
-            ssl.set_ex_data(*SESSION_CTX_INDEX, ctx_owned);
+            ssl.set_ex_data(*SESSION_CTX_INDEX, ctx.to_owned());
 
             Ok(ssl)
         }
@@ -3020,63 +2929,31 @@ impl SslRef {
         }
     }
 
-    /// Sets the ongoing session's supported groups by their named identifiers
-    /// (formerly referred to as curves).
-    #[corresponds(SSL_set1_groups)]
-    pub fn set_group_nids(&mut self, group_nids: &[SslCurveNid]) -> Result<(), ErrorStack> {
-        unsafe {
-            cvt_0i(ffi::SSL_set1_curves(
-                self.as_ptr(),
-                group_nids.as_ptr() as *const _,
-                group_nids.len(),
-            ))
-            .map(|_| ())
-        }
-    }
-
-    #[cfg(feature = "kx-safe-default")]
-    fn client_set_default_curves_list(&mut self) {
-        let curves = if cfg!(feature = "kx-client-pq-preferred") {
-            if cfg!(feature = "kx-client-nist-required") {
-                "P256Kyber768Draft00:P-256:P-384:P-521"
-            } else {
-                "X25519MLKEM768:X25519Kyber768Draft00:X25519:P256Kyber768Draft00:P-256:P-384:P-521"
-            }
-        } else if cfg!(feature = "kx-client-pq-supported") {
-            if cfg!(feature = "kx-client-nist-required") {
-                "P-256:P-384:P-521:P256Kyber768Draft00"
-            } else {
-                "X25519:P-256:P-384:P-521:X25519MLKEM768:X25519Kyber768Draft00:P256Kyber768Draft00"
-            }
-        } else {
-            if cfg!(feature = "kx-client-nist-required") {
-                "P-256:P-384:P-521"
-            } else {
-                "X25519:P-256:P-384:P-521"
-            }
-        };
-
-        self.set_curves_list(curves)
-            .expect("invalid default client curves list");
-    }
-
-    #[cfg(feature = "kx-safe-default")]
-    fn server_set_default_curves_list(&mut self) {
-        self.set_curves_list(
-            "X25519MLKEM768:X25519Kyber768Draft00:P256Kyber768Draft00:X25519:P-256:P-384",
-        )
-        .expect("invalid default server curves list");
-    }
-
-    /// Returns the [`SslCurve`] used for this `SslRef`.
+    /// Returns the curve ID (aka group ID) used for this `SslRef`.
     #[corresponds(SSL_get_curve_id)]
     #[must_use]
-    pub fn curve(&self) -> Option<SslCurve> {
+    pub fn curve(&self) -> Option<u16> {
         let curve_id = unsafe { ffi::SSL_get_curve_id(self.as_ptr()) };
         if curve_id == 0 {
             return None;
         }
-        Some(SslCurve(curve_id.into()))
+        Some(curve_id)
+    }
+
+    /// Returns the curve name used for this `SslRef`.
+    #[corresponds(SSL_get_curve_name)]
+    #[must_use]
+    pub fn curve_name(&self) -> Option<&'static str> {
+        let curve_id = self.curve()?;
+
+        unsafe {
+            let ptr = ffi::SSL_get_curve_name(curve_id);
+            if ptr.is_null() {
+                return None;
+            }
+
+            CStr::from_ptr(ptr).to_str().ok()
+        }
     }
 
     /// Returns an `ErrorCode` value for the most recent operation on this `SslRef`.
@@ -3228,11 +3105,6 @@ impl SslRef {
 
     /// Configures whether ClientHello extensions should be permuted.
     #[corresponds(SSL_set_permute_extensions)]
-    ///
-    /// Note: This is gated to non-fips because the fips feature builds with a separate
-    /// version of BoringSSL which doesn't yet include these APIs.
-    /// Once the submoduled fips commit is upgraded, these gates can be removed.
-    #[cfg(not(feature = "fips-compat"))]
     pub fn set_permute_extensions(&mut self, enabled: bool) {
         unsafe { ffi::SSL_set_permute_extensions(self.as_ptr(), enabled as _) }
     }
@@ -3243,7 +3115,10 @@ impl SslRef {
     #[corresponds(SSL_set_alpn_protos)]
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            #[cfg_attr(not(feature = "fips-compat"), allow(clippy::unnecessary_cast))]
+            #[cfg_attr(
+                not(feature = "legacy-compat-deprecated"),
+                allow(clippy::unnecessary_cast)
+            )]
             {
                 assert!(protocols.len() <= ProtosLen::MAX as usize);
             }
@@ -3287,6 +3162,8 @@ impl SslRef {
     }
 
     /// Returns a short string describing the state of the session.
+    ///
+    /// Returns empty string if the state wasn't valid UTF-8.
     #[corresponds(SSL_state_string)]
     #[must_use]
     pub fn state_string(&self) -> &'static str {
@@ -3295,10 +3172,12 @@ impl SslRef {
             CStr::from_ptr(ptr as *const _)
         };
 
-        str::from_utf8(state.to_bytes()).unwrap()
+        state.to_str().unwrap_or_default()
     }
 
     /// Returns a longer string describing the state of the session.
+    ///
+    /// Returns empty string if the state wasn't valid UTF-8.
     #[corresponds(SSL_state_string_long)]
     #[must_use]
     pub fn state_string_long(&self) -> &'static str {
@@ -3307,7 +3186,7 @@ impl SslRef {
             CStr::from_ptr(ptr as *const _)
         };
 
-        str::from_utf8(state.to_bytes()).unwrap()
+        state.to_str().unwrap_or_default()
     }
 
     /// Sets the host name to be sent to the server for Server Name Indication (SNI).
@@ -3419,6 +3298,8 @@ impl SslRef {
     }
 
     /// Returns a string describing the protocol version of the session.
+    ///
+    /// This may panic if the string isn't valid UTF-8 for some reason. Use [`Self::version2`] instead.
     #[corresponds(SSL_get_version)]
     #[must_use]
     pub fn version_str(&self) -> &'static str {
@@ -3427,7 +3308,7 @@ impl SslRef {
             CStr::from_ptr(ptr as *const _)
         };
 
-        str::from_utf8(version.to_bytes()).unwrap()
+        version.to_str().unwrap()
     }
 
     /// Sets the minimum supported protocol version.
@@ -3951,7 +3832,6 @@ impl SslRef {
     /// Clients should use `get_ech_name_override` to verify the server certificate in case of ECH
     /// rejection, and follow up with `get_ech_retry_configs` to retry the connection with a fresh
     /// set of ECHConfigs. If the retry also fails, clients should report a connection failure.
-    #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_set1_ech_config_list)]
     pub fn set_ech_config_list(&mut self, ech_config_list: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
@@ -3970,7 +3850,6 @@ impl SslRef {
     /// Clients should call this function when handling an `SSL_R_ECH_REJECTED` error code to
     /// recover from potential key mismatches. If the result is `Some`, the client should retry the
     /// connection using the returned `ECHConfigList`.
-    #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_get0_ech_retry_configs)]
     #[must_use]
     pub fn get_ech_retry_configs(&self) -> Option<&[u8]> {
@@ -3993,7 +3872,6 @@ impl SslRef {
     /// Clients should call this function during the certificate verification callback to
     /// ensure the server's certificate is valid for the public name, which is required to
     /// authenticate retry configs.
-    #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_get0_ech_name_override)]
     #[must_use]
     pub fn get_ech_name_override(&self) -> Option<&[u8]> {
@@ -4011,7 +3889,6 @@ impl SslRef {
     }
 
     // Whether or not `SSL` negotiated ECH.
-    #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_ech_accepted)]
     #[must_use]
     pub fn ech_accepted(&self) -> bool {
@@ -4019,7 +3896,6 @@ impl SslRef {
     }
 
     // Whether or not to enable ECH grease on `SSL`.
-    #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_set_enable_ech_grease)]
     pub fn set_enable_ech_grease(&self, enable: bool) {
         let enable = if enable { 1 } else { 0 };
@@ -4030,7 +3906,6 @@ impl SslRef {
     }
 
     /// Sets the compliance policy on `SSL`.
-    #[cfg(not(feature = "fips-compat"))]
     #[corresponds(SSL_set_compliance_policy)]
     pub fn set_compliance_policy(&mut self, policy: CompliancePolicy) -> Result<(), ErrorStack> {
         unsafe { cvt_0i(ffi::SSL_set_compliance_policy(self.as_ptr(), policy.0)).map(|_| ()) }
@@ -4099,10 +3974,11 @@ impl<S> MidHandshakeSslStream<S> {
             Ok(self.stream)
         } else {
             self.error = self.stream.make_error(ret);
-            match self.error.would_block() {
-                true => Err(HandshakeError::WouldBlock(self)),
-                false => Err(HandshakeError::Failure(self)),
-            }
+            Err(if self.error.would_block() {
+                HandshakeError::WouldBlock(self)
+            } else {
+                HandshakeError::Failure(self)
+            })
         }
     }
 }
@@ -4137,26 +4013,23 @@ where
 }
 
 impl<S: Read + Write> SslStream<S> {
-    fn new_base(ssl: Ssl, stream: S) -> Self {
-        unsafe {
-            let (bio, method) = bio::new(stream).unwrap();
-            ffi::SSL_set_bio(ssl.as_ptr(), bio, bio);
-
-            SslStream {
-                ssl: ManuallyDrop::new(ssl),
-                method: ManuallyDrop::new(method),
-                _p: PhantomData,
-            }
-        }
-    }
-
     /// Creates a new `SslStream`.
     ///
     /// This function performs no IO; the stream will not have performed any part of the handshake
     /// with the peer. The `connect` and `accept` methods can be used to
     /// explicitly perform the handshake.
     pub fn new(ssl: Ssl, stream: S) -> Result<Self, ErrorStack> {
-        Ok(Self::new_base(ssl, stream))
+        let (bio, method) = bio::new(stream)?;
+
+        unsafe {
+            ffi::SSL_set_bio(ssl.as_ptr(), bio, bio);
+        }
+
+        Ok(SslStream {
+            ssl: ManuallyDrop::new(ssl),
+            method: ManuallyDrop::new(method),
+            _p: PhantomData,
+        })
     }
 
     /// Constructs an `SslStream` from a pointer to the underlying OpenSSL `SSL` struct.
@@ -4168,7 +4041,7 @@ impl<S: Read + Write> SslStream<S> {
     /// The caller must ensure the pointer is valid.
     pub unsafe fn from_raw_parts(ssl: *mut ffi::SSL, stream: S) -> Self {
         let ssl = Ssl::from_ptr(ssl);
-        Self::new_base(ssl, stream)
+        Self::new(ssl, stream).unwrap()
     }
 
     /// Like `read`, but takes a possibly-uninitialized slice.
@@ -4435,7 +4308,7 @@ where
     /// Begin creating an `SslStream` atop `stream`
     pub fn new(ssl: Ssl, stream: S) -> Self {
         Self {
-            inner: SslStream::new_base(ssl, stream),
+            inner: SslStream::new(ssl, stream).unwrap(),
         }
     }
 
@@ -4459,9 +4332,6 @@ where
     #[must_use]
     pub fn setup_connect(mut self) -> MidHandshakeSslStream<S> {
         self.set_connect_state();
-
-        #[cfg(feature = "kx-safe-default")]
-        self.inner.ssl.client_set_default_curves_list();
 
         MidHandshakeSslStream {
             stream: self.inner,
@@ -4491,9 +4361,6 @@ where
     #[must_use]
     pub fn setup_accept(mut self) -> MidHandshakeSslStream<S> {
         self.set_accept_state();
-
-        #[cfg(feature = "kx-safe-default")]
-        self.inner.ssl.server_set_default_curves_list();
 
         MidHandshakeSslStream {
             stream: self.inner,
@@ -4526,16 +4393,11 @@ where
             Ok(stream)
         } else {
             let error = stream.make_error(ret);
-            match error.would_block() {
-                true => Err(HandshakeError::WouldBlock(MidHandshakeSslStream {
-                    stream,
-                    error,
-                })),
-                false => Err(HandshakeError::Failure(MidHandshakeSslStream {
-                    stream,
-                    error,
-                })),
-            }
+            Err(if error.would_block() {
+                HandshakeError::WouldBlock(MidHandshakeSslStream { stream, error })
+            } else {
+                HandshakeError::Failure(MidHandshakeSslStream { stream, error })
+            })
         }
     }
 }

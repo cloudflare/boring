@@ -50,6 +50,7 @@ const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
         &[
             ("CMAKE_OSX_ARCHITECTURES", "arm64"),
             ("CMAKE_OSX_SYSROOT", "iphoneos"),
+            ("CMAKE_MACOSX_BUNDLE", "OFF"),
         ],
     ),
     (
@@ -57,6 +58,7 @@ const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
         &[
             ("CMAKE_OSX_ARCHITECTURES", "arm64"),
             ("CMAKE_OSX_SYSROOT", "iphonesimulator"),
+            ("CMAKE_MACOSX_BUNDLE", "OFF"),
         ],
     ),
     (
@@ -64,6 +66,7 @@ const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
         &[
             ("CMAKE_OSX_ARCHITECTURES", "x86_64"),
             ("CMAKE_OSX_SYSROOT", "iphonesimulator"),
+            ("CMAKE_MACOSX_BUNDLE", "OFF"),
         ],
     ),
     // macOS
@@ -114,11 +117,7 @@ fn get_boringssl_source_path(config: &Config) -> &PathBuf {
     static SOURCE_PATH: OnceLock<PathBuf> = OnceLock::new();
 
     SOURCE_PATH.get_or_init(|| {
-        let submodule_dir = if config.features.fips {
-            "boringssl-fips"
-        } else {
-            "boringssl"
-        };
+        let submodule_dir = "boringssl";
 
         let src_path = config.out_dir.join(submodule_dir);
 
@@ -152,7 +151,7 @@ fn get_boringssl_source_path(config: &Config) -> &PathBuf {
 ///
 /// MSVC generator on Windows place static libs in a target sub-folder,
 /// so adjust library location based on platform and build target.
-/// See issue: https://github.com/alexcrichton/cmake-rs/issues/18
+/// See issue: <https://github.com/alexcrichton/cmake-rs/issues/18>
 fn get_boringssl_platform_output_path(config: &Config) -> String {
     if config.target.ends_with("-msvc") {
         // Code under this branch should match the logic in cmake-rs
@@ -193,7 +192,7 @@ fn get_boringssl_platform_output_path(config: &Config) -> String {
     }
 }
 
-/// Returns a new cmake::Config for building BoringSSL.
+/// Returns a new `cmake::Config` for building BoringSSL.
 ///
 /// It will add platform-specific parameters if needed.
 fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
@@ -214,6 +213,15 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
             .define("CMAKE_C_COMPILER_TARGET", &config.target)
             .define("CMAKE_CXX_COMPILER_TARGET", &config.target)
             .define("CMAKE_ASM_COMPILER_TARGET", &config.target);
+    }
+
+    if !config.features.fips {
+        if let Some(cc) = &config.env.cc {
+            boringssl_cmake.define("CMAKE_C_COMPILER", cc);
+        }
+        if let Some(cxx) = &config.env.cxx {
+            boringssl_cmake.define("CMAKE_CXX_COMPILER", cxx);
+        }
     }
 
     if let Some(sysroot) = &config.env.sysroot {
@@ -295,7 +303,7 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                     config
                         .manifest_dir
                         .join(src_path)
-                        .join("src/util/32-bit-toolchain.cmake")
+                        .join("util/32-bit-toolchain.cmake")
                         .as_os_str(),
                 );
             }
@@ -329,55 +337,6 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
     }
 
     boringssl_cmake
-}
-
-/// Verify that the toolchains match https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf
-/// See "Installation Instructions" under section 12.1.
-// TODO: maybe this should also verify the Go and Ninja versions? But those haven't been an issue in practice ...
-fn verify_fips_clang_version() -> (&'static str, &'static str) {
-    fn version(tool: &str) -> Option<String> {
-        let output = match Command::new(tool).arg("--version").output() {
-            Ok(o) => o,
-            Err(e) => {
-                println!("cargo:warning=missing {tool}, trying other compilers: {e}");
-                // NOTE: hard-codes that the loop below checks the version
-                return None;
-            }
-        };
-        if !output.status.success() {
-            return Some(String::new());
-        }
-        let output = std::str::from_utf8(&output.stdout).expect("invalid utf8 output");
-        Some(output.lines().next().expect("empty output").to_string())
-    }
-
-    const REQUIRED_CLANG_VERSION: &str = "12.0.0";
-    for (cc, cxx) in [
-        ("clang-12", "clang++-12"),
-        ("clang", "clang++"),
-        ("cc", "c++"),
-    ] {
-        let (Some(cc_version), Some(cxx_version)) = (version(cc), version(cxx)) else {
-            continue;
-        };
-
-        if cc_version.contains(REQUIRED_CLANG_VERSION) {
-            assert!(
-                cxx_version.contains(REQUIRED_CLANG_VERSION),
-                "mismatched versions of cc and c++"
-            );
-            return (cc, cxx);
-        } else if cc == "cc" {
-            panic!(
-                "unsupported clang version \"{cc_version}\": FIPS requires clang {REQUIRED_CLANG_VERSION}"
-            );
-        } else if !cc_version.is_empty() {
-            println!(
-                "cargo:warning=FIPS requires clang version {REQUIRED_CLANG_VERSION}, skipping incompatible version \"{cc_version}\""
-            );
-        }
-    }
-    unreachable!()
 }
 
 fn pick_best_android_ndk_toolchain(toolchains_dir: &Path) -> std::io::Result<OsString> {
@@ -582,64 +541,15 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
         }
 
         if config.features.fips {
-            let (clang, clangxx) = verify_fips_clang_version();
-            cfg.define("CMAKE_C_COMPILER", clang)
-                .define("CMAKE_CXX_COMPILER", clangxx)
-                .define("CMAKE_ASM_COMPILER", clang)
+            cfg.define("CMAKE_C_COMPILER", "clang")
+                .define("CMAKE_CXX_COMPILER", "clang++")
+                .define("CMAKE_ASM_COMPILER", "clang")
                 .define("FIPS", "1");
-        }
-
-        if config.features.fips_link_precompiled {
-            cfg.define("FIPS", "1");
         }
 
         cfg.build_target("ssl").build();
         cfg.build_target("crypto").build()
     })
-}
-
-fn link_in_precompiled_bcm_o(config: &Config) {
-    println!("cargo:warning=linking in precompiled `bcm.o` module");
-
-    let bssl_dir = built_boring_source_path(config);
-    let bcm_o_src_path = config.env.precompiled_bcm_o.as_ref()
-        .expect("`fips-link-precompiled` requires `BORING_BSSL_FIPS_PRECOMPILED_BCM_O` env variable to be specified");
-
-    let libcrypto_path = bssl_dir
-        .join("build/crypto/libcrypto.a")
-        .canonicalize()
-        .unwrap();
-
-    let bcm_o_dst_path = bssl_dir.join("build/bcm-fips.o");
-
-    fs::copy(bcm_o_src_path, &bcm_o_dst_path).unwrap();
-
-    // check that fips module is named as expected
-    let out = run_command(
-        Command::new("ar")
-            .arg("t")
-            .arg(&libcrypto_path)
-            .arg("bcm.o"),
-    )
-    .unwrap();
-
-    assert_eq!(
-        String::from_utf8(out.stdout).unwrap().trim(),
-        "bcm.o",
-        "failed to verify FIPS module name"
-    );
-
-    // insert fips bcm.o before bcm.o into libcrypto.a,
-    // so for all duplicate symbols the older fips bcm.o is used
-    // (this causes the need for extra linker flags to deal with duplicate symbols)
-    // (as long as the newer module does not define new symbols, one may also remove it,
-    // but once there are new symbols it would cause missing symbols at linking stage)
-    run_command(
-        Command::new("ar")
-            .args(["rb", "bcm.o"])
-            .args([&libcrypto_path, &bcm_o_dst_path]),
-    )
-    .unwrap();
 }
 
 fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
@@ -700,10 +610,6 @@ fn emit_link_directives(config: &Config) {
         );
     }
 
-    if config.features.fips_link_precompiled {
-        link_in_precompiled_bcm_o(config);
-    }
-
     if let Some(cpp_lib) = get_cpp_runtime_lib(config) {
         println!("cargo:rustc-link-lib={cpp_lib}");
     }
@@ -732,12 +638,8 @@ fn generate_bindings(config: &Config) {
         }
     });
 
-    // bindgen 0.70 replaced the run-time layout tests with compile-time ones,
-    // but they depend on std::mem::offset_of, stabilized in 1.77.
-    let supports_layout_tests = autocfg::new().probe_rustc_version(1, 77);
-    let Ok(target_rust_version) = bindgen::RustTarget::stable(68, 0) else {
-        panic!("bindgen does not recognize target rust version");
-    };
+    let target_rust_version =
+        bindgen::RustTarget::stable(77, 0).expect("bindgen does not recognize target rust version");
 
     let mut builder = bindgen::Builder::default()
         .rust_target(target_rust_version) // bindgen MSRV is 1.70, so this is enough
@@ -753,7 +655,7 @@ fn generate_bindings(config: &Config) {
         .generate_comments(true)
         .fit_macro_constants(false)
         .size_t_is_usize(true)
-        .layout_tests(supports_layout_tests)
+        .layout_tests(config.env.debug.is_some())
         .prepend_enum_name(true)
         .blocklist_type("max_align_t") // Not supported by bindgen on all targets, not used by BoringSSL
         .clang_args(get_extra_clang_args_for_bindgen(config))
@@ -780,7 +682,6 @@ fn generate_bindings(config: &Config) {
         "des.h",
         "dtls1.h",
         "hkdf.h",
-        #[cfg(not(feature = "fips"))]
         "hpke.h",
         "hmac.h",
         "hrss.h",
@@ -805,7 +706,24 @@ fn generate_bindings(config: &Config) {
     }
 
     let bindings = builder.generate().expect("Unable to generate bindings");
+    let mut source_code = Vec::new();
     bindings
-        .write_to_file(config.out_dir.join("bindings.rs"))
-        .expect("Couldn't write bindings!");
+        .write(Box::new(&mut source_code))
+        .expect("Couldn't serialize bindings!");
+    ensure_err_lib_enum_is_named(&mut source_code);
+    fs::write(config.out_dir.join("bindings.rs"), source_code).expect("Couldn't write bindings!");
+}
+
+/// err.h has anonymous `enum { ERR_LIB_NONE = 1 }`, which makes a dodgy `_bindgen_ty_1` name
+fn ensure_err_lib_enum_is_named(source_code: &mut Vec<u8>) {
+    let src = String::from_utf8_lossy(source_code);
+    let enum_type = src
+        .split_once("ERR_LIB_SSL:")
+        .and_then(|(_, def)| Some(def.split_once("=")?.0))
+        .unwrap_or("_bindgen_ty_1");
+
+    source_code.extend_from_slice(
+        format!("\n/// Newtype for [`ERR_LIB_SSL`] constants\npub use {enum_type} as ErrLib;\n")
+            .as_bytes(),
+    );
 }
