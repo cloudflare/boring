@@ -3635,7 +3635,7 @@ index 376bff17a..cedaa761f 100644
  OPENSSL_EXPORT const EVP_AEAD *EVP_aead_des_ede3_cbc_sha1_tls_implicit_iv(void);
  
 diff --git a/include/openssl/kyber.h b/include/openssl/kyber.h
-index cafae9d17..214bdc68a 100644
+index cafae9d17..5337bd71d 100644
 --- a/include/openssl/kyber.h
 +++ b/include/openssl/kyber.h
 @@ -1,17 +1,3 @@
@@ -3656,7 +3656,7 @@ index cafae9d17..214bdc68a 100644
  #ifndef OPENSSL_HEADER_KYBER_H
  #define OPENSSL_HEADER_KYBER_H
  
-@@ -21,105 +7,144 @@
+@@ -21,105 +7,147 @@
  extern "C" {
  #endif
  
@@ -3694,6 +3694,9 @@ index cafae9d17..214bdc68a 100644
 -  } opaque;
 +struct KYBER768_private_key {
 +  uint8_t opaque[KYBER768_PRIVATE_KEY_BYTES];
++};
++struct KYBER1024_private_key {
++  uint8_t opaque[KYBER1024_PRIVATE_KEY_BYTES];
 +};
 +struct KYBER512_public_key {
 +  uint8_t opaque[KYBER512_PUBLIC_KEY_BYTES];
