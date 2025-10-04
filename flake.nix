@@ -18,7 +18,7 @@
           src = ./.; 
         };
         devShell = with pkgs; mkShell {
-          buildInputs = [ cargo rustc pre-commit rustPackages.clippy rust-analyzer cargo-expand rustfmt rust-bindgen-unwrapped cargo-deny sqlite openssl cmake ninja];
+          buildInputs = [ cargo rustc pre-commit rustPackages.clippy rust-analyzer cargo-expand rustfmt rust-bindgen-unwrapped cargo-deny sqlite openssl cmake ninja go];
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
         };
       }
