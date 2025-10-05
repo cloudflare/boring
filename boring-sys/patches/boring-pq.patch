@@ -6011,6 +6011,24 @@ index 58b68e675..d67e7a2fd 100644
  
  static const uint16_t kSigAlgs[] = {
      SSL_SIGN_RSA_PKCS1_SHA256,
+diff --git a/ssl/ssl_privkey.cc b/ssl/ssl_privkey.cc
+index 57116cd6c..204659649 100644
+--- a/ssl/ssl_privkey.cc
++++ b/ssl/ssl_privkey.cc
+@@ -938,3 +938,13 @@ int SSL_set_verify_algorithm_prefs(SSL *ssl, const uint16_t *prefs,
+   return set_sigalg_prefs(&ssl->config->verify_sigalgs,
+                           MakeConstSpan(prefs, num_prefs));
+ }
++
++int SSL_CTX_set_delegated_credentials(SSL_CTX *ctx, const char *str) {  
++  Array<uint16_t> sigalgs;
++  if (!parse_sigalgs_list(&sigalgs, str)) {
++    return 0;
++  }
++
++  return set_sigalg_prefs(&ctx->delegated_credentials,
++                          MakeConstSpan(sigalgs.data(), sigalgs.size()));
++}
 diff --git a/ssl/ssl_test.cc b/ssl/ssl_test.cc
 index a8f4f215b..e0ebb505e 100644
 --- a/ssl/ssl_test.cc
