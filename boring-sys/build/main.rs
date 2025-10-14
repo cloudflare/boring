@@ -659,7 +659,7 @@ fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
     // TODO(rmehra): figure out how to do this for windows
     if env::var_os("CARGO_CFG_UNIX").is_some() {
         match env::var("CARGO_CFG_TARGET_OS").unwrap().as_ref() {
-            "macos" | "ios" => Some("c++".into()),
+            "macos" | "ios" | "freebsd" => Some("c++".into()),
             _ => Some("stdc++".into()),
         }
     } else {
