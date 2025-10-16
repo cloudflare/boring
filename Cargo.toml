@@ -41,7 +41,7 @@ antidote = "1.0.0"
 http = "1"
 http-body-util = "0.1.2"
 hyper = { git = "https://github.com/scraptors/hyper", rev = "d512c79b9209b4e82abd75b35e88c3e88863be75" }
-hyper-util = { git = "https://github.com/scraptors/hyper-util", rev = "a83e94b8d83242ca50d6e82c94fa6423b40ec9d9" }
+hyper-util = { git = "https://github.com/scraptors/hyper-util", rev = "aa6084ed7d76ebc90d8266bd3f0dd5bec06b657a" }
 linked_hash_set = "0.1"
 openssl-macros = "0.1.1"
 tower = "0.4"
