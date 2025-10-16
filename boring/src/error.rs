@@ -20,6 +20,7 @@ use openssl_macros::corresponds;
 use std::borrow::Cow;
 use std::error;
 use std::ffi::CStr;
+use std::ffi::CString;
 use std::fmt;
 use std::io;
 use std::ptr;
@@ -37,6 +38,9 @@ pub struct ErrorStack(Vec<Error>);
 
 impl ErrorStack {
     /// Pops the contents of the OpenSSL error stack, and returns it.
+    ///
+    /// This should be used only immediately after calling Boring FFI functions,
+    /// otherwise the stack may be empty or a leftover from unrelated calls.
     #[corresponds(ERR_get_error_line_data)]
     #[must_use = "Use ErrorStack::clear() to drop the error stack"]
     pub fn get() -> ErrorStack {
@@ -58,7 +62,13 @@ impl ErrorStack {
     /// Used to report errors from the Rust crate
     #[cold]
     pub(crate) fn internal_error(err: impl error::Error) -> Self {
-        Self(vec![Error::new_internal(err.to_string())])
+        Self(vec![Error::new_internal(Data::String(err.to_string()))])
+    }
+
+    /// Used to report errors from the Rust crate
+    #[cold]
+    pub(crate) fn internal_error_str(message: &'static str) -> Self {
+        Self(vec![Error::new_internal(Data::Static(message))])
     }
 
     /// Empties the current thread's error queue.
@@ -93,7 +103,7 @@ impl fmt::Display for ErrorStack {
             write!(
                 fmt,
                 "[{}]",
-                err.reason_internal()
+                err.reason()
                     .or_else(|| err.library())
                     .unwrap_or("unknown reason")
             )?;
@@ -122,7 +132,15 @@ pub struct Error {
     code: c_uint,
     file: *const c_char,
     line: c_uint,
-    data: Option<Cow<'static, str>>,
+    data: Data,
+}
+
+#[derive(Clone)]
+enum Data {
+    None,
+    CString(CString),
+    String(String),
+    Static(&'static str),
 }
 
 unsafe impl Sync for Error {}
@@ -148,11 +166,9 @@ impl Error {
                     // The memory referenced by data is only valid until that slot is overwritten
                     // in the error stack, so we'll need to copy it off if it's dynamic
                     let data = if flags & ffi::ERR_FLAG_STRING != 0 {
-                        Some(Cow::Owned(
-                            CStr::from_ptr(data.cast()).to_string_lossy().into_owned(),
-                        ))
+                        Data::CString(CStr::from_ptr(data.cast()).to_owned())
                     } else {
-                        None
+                        Data::None
                     };
                     Some(Error {
                         code,
@@ -176,22 +192,8 @@ impl Error {
                 self.file,
                 self.line,
             );
-            let ptr = match self.data {
-                Some(Cow::Borrowed(data)) => Some(data.as_ptr() as *mut c_char),
-                Some(Cow::Owned(ref data)) => {
-                    let ptr = ffi::OPENSSL_malloc((data.len() + 1) as _) as *mut c_char;
-                    if ptr.is_null() {
-                        None
-                    } else {
-                        ptr::copy_nonoverlapping(data.as_ptr(), ptr as *mut u8, data.len());
-                        *ptr.add(data.len()) = 0;
-                        Some(ptr)
-                    }
-                }
-                None => None,
-            };
-            if let Some(ptr) = ptr {
-                ffi::ERR_add_error_data(1, ptr);
+            if let Some(cstr) = self.data_cstr() {
+                ffi::ERR_set_error_data(cstr.as_ptr().cast_mut(), ffi::ERR_FLAG_STRING);
             }
         }
     }
@@ -250,7 +252,10 @@ impl Error {
 
     /// Returns the reason for the error.
     #[must_use]
-    pub fn reason(&self) -> Option<&'static str> {
+    pub fn reason(&self) -> Option<&str> {
+        if self.is_internal() {
+            return self.data();
+        }
         unsafe {
             let cstr = ffi::ERR_reason_error_string(self.code);
             if cstr.is_null() {
@@ -297,29 +302,36 @@ impl Error {
     /// Returns additional data describing the error.
     #[must_use]
     pub fn data(&self) -> Option<&str> {
-        self.data.as_deref()
+        match &self.data {
+            Data::None => None,
+            Data::CString(cstring) => cstring.to_str().ok(),
+            Data::String(s) => Some(s),
+            Data::Static(s) => Some(s),
+        }
     }
 
-    fn new_internal(msg: String) -> Self {
+    #[must_use]
+    fn data_cstr(&self) -> Option<Cow<'_, CStr>> {
+        let s = match &self.data {
+            Data::None => return None,
+            Data::CString(cstr) => return Some(Cow::Borrowed(cstr)),
+            Data::String(s) => s.as_str(),
+            Data::Static(s) => s,
+        };
+        CString::new(s).ok().map(Cow::Owned)
+    }
+
+    fn new_internal(msg: Data) -> Self {
         Self {
             code: ffi::ERR_PACK(ffi::ERR_LIB_NONE.0 as _, 0, 0) as _,
             file: BORING_INTERNAL.as_ptr(),
             line: 0,
-            data: Some(msg.into()),
+            data: msg,
         }
     }
 
     fn is_internal(&self) -> bool {
         std::ptr::eq(self.file, BORING_INTERNAL.as_ptr())
-    }
-
-    // reason() needs 'static
-    fn reason_internal(&self) -> Option<&str> {
-        if self.is_internal() {
-            self.data()
-        } else {
-            self.reason()
-        }
     }
 }
 
@@ -351,7 +363,7 @@ impl fmt::Display for Error {
         write!(
             fmt,
             "{}\n\nCode: {:08X}\nLoc: {}:{}",
-            self.reason_internal().unwrap_or("unknown TLS error"),
+            self.reason().unwrap_or("unknown TLS error"),
             &self.code,
             self.file(),
             self.line()

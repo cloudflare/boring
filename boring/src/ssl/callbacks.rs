@@ -16,7 +16,7 @@ use foreign_types::ForeignType;
 use foreign_types::ForeignTypeRef;
 use libc::{c_char, c_int, c_uchar, c_uint, c_void};
 use std::ffi::CStr;
-use std::mem::MaybeUninit;
+use std::mem::{self, MaybeUninit};
 use std::ptr;
 use std::slice;
 use std::str;
@@ -767,14 +767,10 @@ impl<'a> CryptoBufferBuilder<'a> {
         let buffer_capacity = unsafe { ffi::CRYPTO_BUFFER_len(self.buffer) };
         if self.cursor.position() != buffer_capacity as u64 {
             // Make sure all bytes in buffer initialized as required by Boring SSL.
-            return Err(ErrorStack::get());
+            return Err(ErrorStack::internal_error_str("invalid len"));
         }
-        unsafe {
-            let mut result = ptr::null_mut();
-            ptr::swap(&mut self.buffer, &mut result);
-            std::mem::forget(self);
-            Ok(result)
-        }
+        // Drop is no-op if the buffer is null
+        Ok(mem::replace(&mut self.buffer, ptr::null_mut()))
     }
 }
 

@@ -434,14 +434,12 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
         );
         return Ok(());
     } else if config.env.source_path.is_some()
-        && (config.features.rpk
-            || config.features.pq_experimental
-            || config.features.underscore_wildcards)
+        && (config.features.rpk || config.features.underscore_wildcards)
     {
         panic!(
             "BORING_BSSL_ASSUME_PATCHED must be set when setting
                BORING_BSSL_SOURCE_PATH and using any of the following
-               features: rpk, pq-experimental, underscore-wildcards"
+               features: rpk, underscore-wildcards"
         );
     }
 
@@ -456,11 +454,9 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
         run_command(Command::new("git").arg("init").current_dir(src_path))?;
     }
 
-    if config.features.pq_experimental {
-        println!("cargo:warning=applying experimental post quantum crypto and impersonation patch to boringssl");
-        apply_patch(config, "boring-pq.patch")?;
-    }
-
+    println!("cargo:warning=applying post quantum crypto patch to boringssl");
+    apply_patch(config, "boring-pq.patch")?;
+ 
     if config.features.rpk {
         println!("cargo:warning=applying RPK patch to boringssl");
         apply_patch(config, "rpk.patch")?;
