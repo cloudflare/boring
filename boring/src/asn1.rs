@@ -315,7 +315,9 @@ impl Asn1Time {
         ffi::init();
 
         unsafe {
-            let handle = cvt_p(ffi::ASN1_TIME_set(ptr::null_mut(), time))?;
+            // for higher musl version, need to convert i32 to i64
+            // https://github.com/rust-lang/libc/issues/1848
+            let handle = cvt_p(ffi::ASN1_TIME_set(ptr::null_mut(), time.into()))?;
             Ok(Asn1Time::from_ptr(handle))
         }
     }
