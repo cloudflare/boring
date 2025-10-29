@@ -9,6 +9,7 @@ repository = "https://github.com/plabayo/rama-boring"
 # and perhaps let cloudflare do it if ever,
 # for now let's stick to 2021 with MSRV 1.82
 edition = "2021"
+rust-version = "1.82"
 
 [workspace.metadata.release]
 pre-release-commit-message = "Release {{version}}"

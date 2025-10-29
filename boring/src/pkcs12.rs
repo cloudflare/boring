@@ -34,7 +34,7 @@ impl Pkcs12Ref {
     /// Extracts the contents of the `Pkcs12`.
     pub fn parse(&self, pass: &str) -> Result<ParsedPkcs12, ErrorStack> {
         unsafe {
-            let pass = CString::new(pass.as_bytes()).unwrap();
+            let pass = CString::new(pass.as_bytes()).map_err(ErrorStack::internal_error)?;
 
             let mut pkey = ptr::null_mut();
             let mut cert = ptr::null_mut();
@@ -161,8 +161,8 @@ impl Pkcs12Builder {
         T: HasPrivate,
     {
         unsafe {
-            let pass = CString::new(password).unwrap();
-            let friendly_name = CString::new(friendly_name).unwrap();
+            let pass = CString::new(password).map_err(ErrorStack::internal_error)?;
+            let friendly_name = CString::new(friendly_name).map_err(ErrorStack::internal_error)?;
             let pkey = pkey.as_ptr();
             let cert = cert.as_ptr();
             let ca = self
@@ -259,7 +259,7 @@ mod test {
             .unwrap();
         builder.set_subject_name(&name).unwrap();
         builder.set_issuer_name(&name).unwrap();
-        builder.append_extension(key_usage).unwrap();
+        builder.append_extension(&key_usage).unwrap();
         builder.set_pubkey(&pkey).unwrap();
         builder.sign(&pkey, MessageDigest::sha256()).unwrap();
         let cert = builder.build();

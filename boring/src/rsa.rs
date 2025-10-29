@@ -67,12 +67,14 @@ impl Padding {
     pub const PKCS1_PSS: Padding = Padding(ffi::RSA_PKCS1_PSS_PADDING);
 
     /// Creates a `Padding` from an integer representation.
+    #[must_use]
     pub fn from_raw(value: c_int) -> Padding {
         Padding(value)
     }
 
     /// Returns the integer representation of `Padding`.
     #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[must_use]
     pub fn as_raw(&self) -> c_int {
         self.0
     }
@@ -143,7 +145,7 @@ where
         to: &mut [u8],
         padding: Padding,
     ) -> Result<usize, ErrorStack> {
-        assert!(from.len() <= i32::MAX as usize);
+        assert!(i32::try_from(from.len()).is_ok());
         assert!(to.len() >= self.size() as usize);
 
         unsafe {
@@ -187,6 +189,7 @@ where
 
     /// Returns a reference to the private exponent of the key.
     #[corresponds(RSA_get0_key)]
+    #[must_use]
     pub fn d(&self) -> &BigNumRef {
         unsafe {
             let mut d = ptr::null();
@@ -197,6 +200,7 @@ where
 
     /// Returns a reference to the first factor of the exponent of the key.
     #[corresponds(RSA_get0_factors)]
+    #[must_use]
     pub fn p(&self) -> Option<&BigNumRef> {
         unsafe {
             let mut p = ptr::null();
@@ -211,6 +215,7 @@ where
 
     /// Returns a reference to the second factor of the exponent of the key.
     #[corresponds(RSA_get0_factors)]
+    #[must_use]
     pub fn q(&self) -> Option<&BigNumRef> {
         unsafe {
             let mut q = ptr::null();
@@ -225,6 +230,7 @@ where
 
     /// Returns a reference to the first exponent used for CRT calculations.
     #[corresponds(RSA_get0_crt_params)]
+    #[must_use]
     pub fn dmp1(&self) -> Option<&BigNumRef> {
         unsafe {
             let mut dp = ptr::null();
@@ -239,6 +245,7 @@ where
 
     /// Returns a reference to the second exponent used for CRT calculations.
     #[corresponds(RSA_get0_crt_params)]
+    #[must_use]
     pub fn dmq1(&self) -> Option<&BigNumRef> {
         unsafe {
             let mut dq = ptr::null();
@@ -253,6 +260,7 @@ where
 
     /// Returns a reference to the coefficient used for CRT calculations.
     #[corresponds(RSA_get0_crt_params)]
+    #[must_use]
     pub fn iqmp(&self) -> Option<&BigNumRef> {
         unsafe {
             let mut qi = ptr::null();
@@ -319,6 +327,7 @@ where
     /// Returns the size of the modulus in bytes.
     #[corresponds(RSA_size)]
     #[allow(clippy::unnecessary_cast)]
+    #[must_use]
     pub fn size(&self) -> u32 {
         unsafe { ffi::RSA_size(self.as_ptr()) as u32 }
     }
@@ -334,7 +343,7 @@ where
         to: &mut [u8],
         padding: Padding,
     ) -> Result<usize, ErrorStack> {
-        assert!(from.len() <= i32::MAX as usize);
+        assert!(i32::try_from(from.len()).is_ok());
         assert!(to.len() >= self.size() as usize);
 
         unsafe {
@@ -377,6 +386,7 @@ where
 
     /// Returns a reference to the modulus of the key.
     #[corresponds(RSA_get0_key)]
+    #[must_use]
     pub fn n(&self) -> &BigNumRef {
         unsafe {
             let mut n = ptr::null();
@@ -387,6 +397,7 @@ where
 
     /// Returns a reference to the public exponent of the key.
     #[corresponds(RSA_get0_key)]
+    #[must_use]
     pub fn e(&self) -> &BigNumRef {
         unsafe {
             let mut e = ptr::null();
@@ -402,7 +413,6 @@ impl Rsa<Public> {
     /// `n` is the modulus common to both public and private key.
     /// `e` is the public exponent.
     #[corresponds(RSA_new)]
-    /// [`RSA_set0_key`]: https://www.openssl.org/docs/man1.1.0/crypto/RSA_set0_key.html
     pub fn from_public_components(n: BigNum, e: BigNum) -> Result<Rsa<Public>, ErrorStack> {
         unsafe {
             let rsa = cvt_p(ffi::RSA_new())?;
@@ -461,7 +471,6 @@ impl RsaPrivateKeyBuilder {
     /// `n` is the modulus common to both public and private key.
     /// `e` is the public exponent and `d` is the private exponent.
     #[corresponds(RSA_new)]
-    /// [`RSA_set0_key`]: https://www.openssl.org/docs/man1.1.0/crypto/RSA_set0_key.html
     pub fn new(n: BigNum, e: BigNum, d: BigNum) -> Result<RsaPrivateKeyBuilder, ErrorStack> {
         unsafe {
             let rsa = cvt_p(ffi::RSA_new())?;
@@ -513,6 +522,7 @@ impl RsaPrivateKeyBuilder {
     }
 
     /// Returns the Rsa key.
+    #[must_use]
     pub fn build(self) -> Rsa<Private> {
         self.rsa
     }

@@ -71,6 +71,7 @@ impl X509StoreBuilder {
     }
 
     /// Constructs the `X509Store`.
+    #[must_use]
     pub fn build(self) -> X509Store {
         let store = X509Store(self.0);
         mem::forget(self);
@@ -115,6 +116,13 @@ impl X509StoreBuilderRef {
     pub fn set_param(&mut self, param: &X509VerifyParamRef) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::X509_STORE_set1_param(self.as_ptr(), param.as_ptr())).map(|_| ()) }
     }
+
+    #[cfg(test)]
+    pub fn objects_len(&self) -> usize {
+        unsafe {
+            StackRef::<X509Object>::from_ptr(ffi::X509_STORE_get0_objects(self.as_ptr())).len()
+        }
+    }
 }
 
 foreign_type_and_impl_send_sync! {
@@ -123,23 +131,6 @@ foreign_type_and_impl_send_sync! {
 
     /// A certificate store to hold trusted `X509` certificates.
     pub struct X509Store;
-}
-
-impl Clone for X509Store {
-    fn clone(&self) -> Self {
-        (**self).to_owned()
-    }
-}
-
-impl ToOwned for X509StoreRef {
-    type Owned = X509Store;
-
-    fn to_owned(&self) -> Self::Owned {
-        unsafe {
-            ffi::X509_STORE_up_ref(self.as_ptr());
-            X509Store::from_ptr(self.as_ptr())
-        }
-    }
 }
 
 impl X509StoreRef {
@@ -153,6 +144,7 @@ impl X509StoreRef {
         note = "This method is unsound https://github.com/sfackler/rust-openssl/issues/2096"
     )]
     #[corresponds(X509_STORE_get0_objects)]
+    #[must_use]
     pub fn objects(&self) -> &StackRef<X509Object> {
         unsafe { StackRef::from_ptr(ffi::X509_STORE_get0_objects(self.as_ptr())) }
     }
@@ -160,7 +152,19 @@ impl X509StoreRef {
     /// For testing only, where it doesn't have to expose an unsafe pointer
     #[cfg(test)]
     #[allow(deprecated)]
+    #[must_use]
     pub fn objects_len(&self) -> usize {
         self.objects().len()
     }
+}
+
+#[test]
+#[allow(dead_code)]
+// X509Store must not implement Clone because `SslContextBuilder::cert_store_mut` lets
+// you get a mutable reference to a store that could have been cloned before being
+// passed to `SslContextBuilder::set_cert_store`.
+fn no_clone_for_x509store() {
+    trait MustNotImplementClone {}
+    impl<T: Clone> MustNotImplementClone for T {}
+    impl MustNotImplementClone for X509Store {}
 }

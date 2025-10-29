@@ -1,4 +1,4 @@
-use hex;
+use foreign_types::{ForeignType, ForeignTypeRef};
 use std::io;
 use std::io::prelude::*;
 use std::mem;
@@ -13,11 +13,12 @@ use crate::pkey::PKey;
 use crate::srtp::SrtpProfileId;
 use crate::ssl::test::server::Server;
 use crate::ssl::SslVersion;
-use crate::ssl::{self, SslCurve};
 use crate::ssl::{
-    ExtensionType, ShutdownResult, ShutdownState, Ssl, SslAcceptor, SslAcceptorBuilder,
-    SslConnector, SslContext, SslFiletype, SslMethod, SslOptions, SslStream, SslVerifyMode,
+    self, ExtensionType, ShutdownResult, ShutdownState, Ssl, SslAcceptor, SslAcceptorBuilder,
+    SslConnector, SslContext, SslCurve, SslFiletype, SslMethod, SslOptions, SslStream,
+    SslVerifyMode,
 };
+use crate::x509::store::X509StoreBuilder;
 use crate::x509::verify::X509CheckFlags;
 use crate::x509::{X509Name, X509};
 
@@ -30,6 +31,7 @@ mod ech;
 mod private_key_method;
 mod server;
 mod session;
+mod session_resumption;
 mod verify;
 
 static ROOT_CERT: &[u8] = include_bytes!("../../../test/root-ca.pem");
@@ -39,7 +41,7 @@ static KEY: &[u8] = include_bytes!("../../../test/key.pem");
 #[test]
 fn get_ctx_options() {
     let ctx = SslContext::builder(SslMethod::tls()).unwrap();
-    ctx.options();
+    let _ = ctx.options();
 }
 
 #[test]
@@ -380,6 +382,52 @@ fn test_select_cert_ok() {
 
     let client = server.client();
     client.connect();
+}
+
+#[test]
+fn test_mutable_store() {
+    #![allow(deprecated)]
+
+    let cert = include_bytes!("../../../test/cert.pem");
+    let cert = X509::from_pem(cert).unwrap();
+    let cert2 = include_bytes!("../../../test/root-ca.pem");
+    let cert2 = X509::from_pem(cert2).unwrap();
+
+    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
+    ctx.cert_store_mut().add_cert(cert.clone()).unwrap();
+    assert_eq!(1, ctx.cert_store().objects_len());
+
+    ctx.set_cert_store_builder(X509StoreBuilder::new().unwrap());
+    assert_eq!(0, ctx.cert_store().objects_len());
+
+    ctx.cert_store_mut().add_cert(cert.clone()).unwrap();
+    assert_eq!(1, ctx.cert_store().objects_len());
+
+    let mut new_store = X509StoreBuilder::new().unwrap();
+    new_store.add_cert(cert).unwrap();
+    new_store.add_cert(cert2).unwrap();
+    let new_store = new_store.build();
+    assert_eq!(2, new_store.objects_len());
+
+    ctx.set_cert_store_ref(&new_store);
+    assert_eq!(2, ctx.cert_store().objects_len());
+    assert!(std::ptr::eq(new_store.as_ptr(), ctx.cert_store().as_ptr()));
+
+    let ctx = ctx.build();
+    assert!(std::ptr::eq(new_store.as_ptr(), ctx.cert_store().as_ptr()));
+
+    drop(new_store);
+    assert_eq!(2, ctx.cert_store().objects_len());
+}
+
+#[test]
+#[should_panic(expected = "mutated")]
+fn shared_store_must_not_be_mutated() {
+    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
+
+    let shared = X509StoreBuilder::new().unwrap().build();
+    ctx.set_cert_store_ref(&shared);
+    ctx.cert_store_mut();
 }
 
 #[test]

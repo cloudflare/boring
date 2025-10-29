@@ -22,12 +22,14 @@ impl MessageDigest {
     /// # Safety
     ///
     /// The caller must ensure the pointer is valid.
+    #[must_use]
     pub unsafe fn from_ptr(x: *const ffi::EVP_MD) -> Self {
         MessageDigest(x)
     }
 
     /// Returns the `MessageDigest` corresponding to an `Nid`.
     #[corresponds(EVP_get_digestbynid)]
+    #[must_use]
     pub fn from_nid(type_: Nid) -> Option<MessageDigest> {
         unsafe {
             let ptr = ffi::EVP_get_digestbynid(type_.as_raw());
@@ -39,47 +41,57 @@ impl MessageDigest {
         }
     }
 
+    #[must_use]
     pub fn md5() -> MessageDigest {
         unsafe { MessageDigest(ffi::EVP_md5()) }
     }
 
+    #[must_use]
     pub fn sha1() -> MessageDigest {
         unsafe { MessageDigest(ffi::EVP_sha1()) }
     }
 
+    #[must_use]
     pub fn sha224() -> MessageDigest {
         unsafe { MessageDigest(ffi::EVP_sha224()) }
     }
 
+    #[must_use]
     pub fn sha256() -> MessageDigest {
         unsafe { MessageDigest(ffi::EVP_sha256()) }
     }
 
+    #[must_use]
     pub fn sha384() -> MessageDigest {
         unsafe { MessageDigest(ffi::EVP_sha384()) }
     }
 
+    #[must_use]
     pub fn sha512() -> MessageDigest {
         unsafe { MessageDigest(ffi::EVP_sha512()) }
     }
 
+    #[must_use]
     pub fn sha512_256() -> MessageDigest {
         unsafe { MessageDigest(ffi::EVP_sha512_256()) }
     }
 
     #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[must_use]
     pub fn as_ptr(&self) -> *const ffi::EVP_MD {
         self.0
     }
 
     /// The size of the digest in bytes.
     #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[must_use]
     pub fn size(&self) -> usize {
         unsafe { ffi::EVP_MD_size(self.0) }
     }
 
     /// The name of the digest.
     #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[must_use]
     pub fn type_(&self) -> Nid {
         Nid::from_raw(unsafe { ffi::EVP_MD_type(self.0) })
     }
@@ -308,7 +320,7 @@ impl DerefMut for DigestBytes {
 impl AsRef<[u8]> for DigestBytes {
     #[inline]
     fn as_ref(&self) -> &[u8] {
-        self.deref()
+        self
     }
 }
 
@@ -455,7 +467,7 @@ mod tests {
 
     #[test]
     fn test_md5() {
-        for test in MD5_TESTS.iter() {
+        for test in &MD5_TESTS {
             hash_test(MessageDigest::md5(), test);
         }
     }
@@ -463,7 +475,7 @@ mod tests {
     #[test]
     fn test_md5_recycle() {
         let mut h = Hasher::new(MessageDigest::md5()).unwrap();
-        for test in MD5_TESTS.iter() {
+        for test in &MD5_TESTS {
             hash_recycle_test(&mut h, test);
         }
     }
@@ -514,7 +526,7 @@ mod tests {
     fn test_sha1() {
         let tests = [("616263", "a9993e364706816aba3e25717850c26c9cd0d89d")];
 
-        for test in tests.iter() {
+        for test in &tests {
             hash_test(MessageDigest::sha1(), test);
         }
     }
@@ -526,7 +538,7 @@ mod tests {
             "23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7",
         )];
 
-        for test in tests.iter() {
+        for test in &tests {
             hash_test(MessageDigest::sha224(), test);
         }
     }
@@ -538,7 +550,7 @@ mod tests {
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
         )];
 
-        for test in tests.iter() {
+        for test in &tests {
             hash_test(MessageDigest::sha256(), test);
         }
     }
@@ -551,7 +563,7 @@ mod tests {
              192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f",
         )];
 
-        for test in tests.iter() {
+        for test in &tests {
             hash_test(MessageDigest::sha512(), test);
         }
     }
@@ -563,7 +575,7 @@ mod tests {
             "53048e2681941ef99b2e29b76b4c7dabe4c2d0c634fc6d46e0e2f13107e7af23",
         )];
 
-        for test in tests.iter() {
+        for test in &tests {
             hash_test(MessageDigest::sha512_256(), test);
         }
     }

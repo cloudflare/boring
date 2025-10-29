@@ -32,7 +32,7 @@ where
     }
 
     to_der! {
-        /// Serializes the parameters into a DER-encoded PKCS#3 DHparameter structure.
+        /// Serializes the parameters into a DER-encoded PKCS#3 `DHparameter` structure.
         #[corresponds(i2d_DHparams)]
         params_to_der,
         ffi::i2d_DHparams

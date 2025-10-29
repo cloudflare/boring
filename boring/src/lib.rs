@@ -103,6 +103,8 @@ extern crate rama_boring_sys as ffi;
 #[cfg(test)]
 extern crate hex;
 
+use std::ffi::{c_long, c_void};
+
 #[doc(inline)]
 pub use crate::ffi::init;
 
@@ -129,6 +131,7 @@ pub mod ecdsa;
 pub mod error;
 pub mod ex_data;
 pub mod hash;
+pub mod hmac;
 pub mod hpke;
 pub mod memcmp;
 pub mod nid;
@@ -184,5 +187,18 @@ fn cvt_n(r: c_int) -> Result<c_int, ErrorStack> {
         Err(ErrorStack::get())
     } else {
         Ok(r)
+    }
+}
+
+unsafe extern "C" fn free_data_box<T>(
+    _parent: *mut c_void,
+    ptr: *mut c_void,
+    _ad: *mut ffi::CRYPTO_EX_DATA,
+    _idx: c_int,
+    _argl: c_long,
+    _argp: *mut c_void,
+) {
+    if !ptr.is_null() {
+        drop(Box::<T>::from_raw(ptr as *mut T));
     }
 }

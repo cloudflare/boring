@@ -8,12 +8,15 @@ use super::{
 };
 use crate::error::ErrorStack;
 use crate::ffi;
+use crate::hmac::HmacCtxRef;
+use crate::ssl::TicketKeyCallbackResult;
+use crate::symm::CipherCtxRef;
 use crate::x509::{X509StoreContext, X509StoreContextRef};
 use foreign_types::ForeignType;
 use foreign_types::ForeignTypeRef;
-use libc::c_char;
-use libc::{c_int, c_uchar, c_uint, c_void};
+use libc::{c_char, c_int, c_uchar, c_uint, c_void};
 use std::ffi::CStr;
+use std::mem::{self, MaybeUninit};
 use std::ptr;
 use std::slice;
 use std::str;
@@ -40,7 +43,7 @@ where
     // because there is no `X509StoreContextRef::ssl_mut(&mut self)` method.
     let verify = unsafe { &*(verify as *const F) };
 
-    verify(preverify_ok != 0, ctx) as c_int
+    c_int::from(verify(preverify_ok != 0, ctx))
 }
 
 pub(super) unsafe extern "C" fn raw_custom_verify<F>(
@@ -89,7 +92,7 @@ where
     // so the callback can't replace itself.
     let verify = unsafe { &*(verify as *const F) };
 
-    verify(ctx) as c_int
+    c_int::from(verify(ctx))
 }
 
 pub(super) unsafe extern "C" fn ssl_raw_custom_verify<F>(
@@ -235,7 +238,7 @@ where
         .expect("BUG: ssl verify callback missing")
         .clone();
 
-    callback(preverify_ok != 0, ctx) as c_int
+    c_int::from(callback(preverify_ok != 0, ctx))
 }
 
 pub(super) unsafe extern "C" fn raw_sni<F>(
@@ -267,6 +270,68 @@ where
         Ok(()) => ffi::SSL_TLSEXT_ERR_OK,
         Err(e) => e.0,
     }
+}
+
+unsafe fn to_uninit<'a, T: 'a>(ptr: *mut T) -> &'a mut MaybeUninit<T> {
+    assert!(!ptr.is_null());
+    unsafe { &mut *ptr.cast::<MaybeUninit<T>>() }
+}
+
+pub(super) unsafe extern "C" fn raw_ticket_key<F>(
+    ssl: *mut ffi::SSL,
+    key_name: *mut u8,
+    iv: *mut u8,
+    evp_ctx: *mut ffi::EVP_CIPHER_CTX,
+    hmac_ctx: *mut ffi::HMAC_CTX,
+    encrypt: c_int,
+) -> c_int
+where
+    F: Fn(
+            &SslRef,
+            &mut [u8; 16],
+            &mut [u8; ffi::EVP_MAX_IV_LENGTH as usize],
+            &mut CipherCtxRef,
+            &mut HmacCtxRef,
+            bool,
+        ) -> TicketKeyCallbackResult
+        + 'static
+        + Sync
+        + Send,
+{
+    // SAFETY: boring provides valid inputs.
+    let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
+
+    let ssl_context = ssl.ssl_context().to_owned();
+    let callback = ssl_context
+        .ex_data::<F>(SslContext::cached_ex_index::<F>())
+        .expect("expected session resumption callback");
+
+    // SAFETY: the callback guarantees that key_name is 16 bytes
+    let key_name =
+        unsafe { to_uninit(key_name.cast::<[u8; ffi::SSL_TICKET_KEY_NAME_LEN as usize]>()) };
+
+    // SAFETY: the callback provides 16 bytes iv
+    //
+    // https://github.com/google/boringssl/blob/main/ssl/ssl_session.cc#L331
+    let iv = unsafe { to_uninit(iv.cast::<[u8; ffi::EVP_MAX_IV_LENGTH as usize]>()) };
+
+    // When encrypting a new ticket, encrypt will be one.
+    let encrypt = encrypt == 1;
+
+    // Zero-initialize the key_name and iv, since the application is expected to populate these
+    // fields in the encrypt mode.
+    if encrypt {
+        *key_name = MaybeUninit::zeroed();
+        *iv = MaybeUninit::zeroed();
+    }
+    let key_name = unsafe { key_name.assume_init_mut() };
+    let iv = unsafe { iv.assume_init_mut() };
+
+    // The EVP_CIPHER_CTX and HMAC_CTX are owned by boringSSL.
+    let evp_ctx = unsafe { CipherCtxRef::from_ptr_mut(evp_ctx) };
+    let hmac_ctx = unsafe { HmacCtxRef::from_ptr_mut(hmac_ctx) };
+
+    callback(ssl, key_name, iv, evp_ctx, hmac_ctx, encrypt).into()
 }
 
 pub(super) unsafe extern "C" fn raw_alpn_select<F>(
@@ -399,7 +464,7 @@ pub(super) unsafe extern "C" fn raw_remove_session<F>(
         .ex_data(SslContext::cached_ex_index::<F>())
         .expect("BUG: remove session callback missing");
 
-    callback(ctx, session)
+    callback(ctx, session);
 }
 
 type DataPtr = *const c_uchar;
@@ -451,14 +516,14 @@ where
 {
     // SAFETY: boring provides valid inputs.
     let ssl = unsafe { SslRef::from_ptr(ssl as *mut _) };
-    let line = unsafe { str::from_utf8_unchecked(CStr::from_ptr(line).to_bytes()) };
+    let line = unsafe { CStr::from_ptr(line).to_string_lossy() };
 
     let callback = ssl
         .ssl_context()
         .ex_data(SslContext::cached_ex_index::<F>())
         .expect("BUG: get session callback missing");
 
-    callback(ssl, line);
+    callback(ssl, &line);
 }
 
 pub(super) unsafe extern "C" fn raw_sign<M>(
@@ -702,14 +767,10 @@ impl<'a> CryptoBufferBuilder<'a> {
         let buffer_capacity = unsafe { ffi::CRYPTO_BUFFER_len(self.buffer) };
         if self.cursor.position() != buffer_capacity as u64 {
             // Make sure all bytes in buffer initialized as required by Boring SSL.
-            return Err(ErrorStack::get());
+            return Err(ErrorStack::internal_error_str("invalid len"));
         }
-        unsafe {
-            let mut result = ptr::null_mut();
-            ptr::swap(&mut self.buffer, &mut result);
-            std::mem::forget(self);
-            Ok(result)
-        }
+        // Drop is no-op if the buffer is null
+        Ok(mem::replace(&mut self.buffer, ptr::null_mut()))
     }
 }
 

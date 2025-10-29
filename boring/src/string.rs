@@ -13,6 +13,9 @@ foreign_type_and_impl_send_sync! {
     type CType = c_char;
     fn drop = free;
 
+    /// # Safety
+    ///
+    /// MUST be UTF-8.
     pub struct OpensslString;
 }
 

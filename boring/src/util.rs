@@ -55,8 +55,8 @@ where
 
     match result {
         Ok(Ok(len)) => len as c_int,
-        Ok(Err(_)) => {
-            // FIXME restore error stack
+        Ok(Err(err)) => {
+            err.put();
             0
         }
         Err(err) => {

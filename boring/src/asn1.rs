@@ -63,20 +63,19 @@ foreign_type_and_impl_send_sync! {
 
 impl fmt::Display for Asn1GeneralizedTimeRef {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        unsafe {
-            let mem_bio = match MemBio::new() {
-                Err(_) => return f.write_str("error"),
-                Ok(m) => m,
-            };
-            let print_result = cvt(ffi::ASN1_GENERALIZEDTIME_print(
-                mem_bio.as_ptr(),
-                self.as_ptr(),
-            ));
-            match print_result {
-                Err(_) => f.write_str("error"),
-                Ok(_) => f.write_str(str::from_utf8_unchecked(mem_bio.get_buf())),
-            }
-        }
+        let bio = MemBio::new().ok();
+        let msg = bio
+            .as_ref()
+            .and_then(|mem_bio| unsafe {
+                cvt(ffi::ASN1_GENERALIZEDTIME_print(
+                    mem_bio.as_ptr(),
+                    self.as_ptr(),
+                ))
+                .ok()?;
+                str::from_utf8(mem_bio.get_buf()).ok()
+            })
+            .unwrap_or("error");
+        f.write_str(msg)
     }
 }
 
@@ -143,11 +142,13 @@ impl Asn1Type {
     pub const BMPSTRING: Asn1Type = Asn1Type(ffi::V_ASN1_BMPSTRING);
 
     /// Constructs an `Asn1Type` from a raw OpenSSL value.
+    #[must_use]
     pub fn from_raw(value: c_int) -> Self {
         Asn1Type(value)
     }
 
     /// Returns the raw OpenSSL value represented by this type.
+    #[must_use]
     pub fn as_raw(&self) -> c_int {
         self.0
     }
@@ -304,7 +305,8 @@ impl Asn1Time {
 
     /// Creates a new time on specified interval in days from now
     pub fn days_from_now(days: u32) -> Result<Asn1Time, ErrorStack> {
-        Asn1Time::from_period(days as c_long * 60 * 60 * 24)
+        // the type varies between platforms, so both into() and try_into() trigger Clippy lints
+        Self::from_period((days * 60 * 60 * 24) as _)
     }
 
     /// Creates a new time from the specified `time_t` value
@@ -323,7 +325,7 @@ impl Asn1Time {
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Asn1Time, ErrorStack> {
         unsafe {
-            let s = CString::new(s).unwrap();
+            let s = CString::new(s).map_err(ErrorStack::internal_error)?;
 
             let time = Asn1Time::new()?;
             cvt(ffi::ASN1_TIME_set_string(time.as_ptr(), s.as_ptr()))?;
@@ -472,6 +474,7 @@ impl Asn1IntegerRef {
     #[allow(clippy::unnecessary_cast)]
     #[allow(missing_docs)]
     #[deprecated(since = "0.10.6", note = "use to_bn instead")]
+    #[must_use]
     pub fn get(&self) -> i64 {
         unsafe { crate::ffi::ASN1_INTEGER_get(self.as_ptr()) as i64 }
     }
@@ -494,7 +497,13 @@ impl Asn1IntegerRef {
     /// [`bn`]: ../bn/struct.BigNumRef.html#method.to_asn1_integer
     #[corresponds(ASN1_INTEGER_set)]
     pub fn set(&mut self, value: i32) -> Result<(), ErrorStack> {
-        unsafe { cvt(crate::ffi::ASN1_INTEGER_set(self.as_ptr(), value as c_long)).map(|_| ()) }
+        unsafe {
+            cvt(crate::ffi::ASN1_INTEGER_set(
+                self.as_ptr(),
+                c_long::from(value),
+            ))
+            .map(|_| ())
+        }
     }
 }
 
@@ -513,17 +522,33 @@ foreign_type_and_impl_send_sync! {
 impl Asn1BitStringRef {
     /// Returns the Asn1BitString as a slice.
     #[corresponds(ASN1_STRING_get0_data)]
+    #[must_use]
     pub fn as_slice(&self) -> &[u8] {
-        unsafe { slice::from_raw_parts(ASN1_STRING_get0_data(self.as_ptr() as *mut _), self.len()) }
+        unsafe {
+            let ptr = ASN1_STRING_get0_data(self.as_ptr().cast());
+            if ptr.is_null() {
+                return &[];
+            }
+            slice::from_raw_parts(ptr, self.len())
+        }
+    }
+
+    /// Returns the Asn1BitString as a str, if possible.
+    #[corresponds(ASN1_STRING_get0_data)]
+    #[must_use]
+    pub fn to_str(&self) -> Option<&str> {
+        str::from_utf8(self.as_slice()).ok()
     }
 
     /// Returns the number of bytes in the string.
     #[corresponds(ASN1_STRING_length)]
+    #[must_use]
     pub fn len(&self) -> usize {
         unsafe { ffi::ASN1_STRING_length(self.as_ptr() as *const _) as usize }
     }
 
     /// Determines if the string is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -560,7 +585,7 @@ impl Asn1Object {
     pub fn from_str(txt: &str) -> Result<Asn1Object, ErrorStack> {
         unsafe {
             ffi::init();
-            let txt = CString::new(txt).unwrap();
+            let txt = CString::new(txt).map_err(ErrorStack::internal_error)?;
             let obj: *mut ffi::ASN1_OBJECT = cvt_p(ffi::OBJ_txt2obj(txt.as_ptr() as *const _, 0))?;
             Ok(Asn1Object::from_ptr(obj))
         }
@@ -569,6 +594,7 @@ impl Asn1Object {
 
 impl Asn1ObjectRef {
     /// Returns the NID associated with this OID.
+    #[must_use]
     pub fn nid(&self) -> Nid {
         unsafe { Nid::from_raw(ffi::OBJ_obj2nid(self.as_ptr())) }
     }
@@ -584,10 +610,11 @@ impl fmt::Display for Asn1ObjectRef {
                 self.as_ptr(),
                 0,
             );
-            match str::from_utf8(&buf[..len as usize]) {
-                Err(_) => fmt.write_str("error"),
-                Ok(s) => fmt.write_str(s),
-            }
+            fmt.write_str(
+                buf.get(..len as usize)
+                    .and_then(|s| str::from_utf8(s).ok())
+                    .unwrap_or("error"),
+            )
         }
     }
 }

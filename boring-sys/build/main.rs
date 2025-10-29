@@ -50,6 +50,7 @@ const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
         &[
             ("CMAKE_OSX_ARCHITECTURES", "arm64"),
             ("CMAKE_OSX_SYSROOT", "iphoneos"),
+            ("CMAKE_MACOSX_BUNDLE", "OFF"),
         ],
     ),
     (
@@ -57,6 +58,7 @@ const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
         &[
             ("CMAKE_OSX_ARCHITECTURES", "arm64"),
             ("CMAKE_OSX_SYSROOT", "iphonesimulator"),
+            ("CMAKE_MACOSX_BUNDLE", "OFF"),
         ],
     ),
     (
@@ -64,6 +66,7 @@ const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
         &[
             ("CMAKE_OSX_ARCHITECTURES", "x86_64"),
             ("CMAKE_OSX_SYSROOT", "iphonesimulator"),
+            ("CMAKE_MACOSX_BUNDLE", "OFF"),
         ],
     ),
     // macOS
@@ -185,11 +188,11 @@ fn get_boringssl_platform_output_path(config: &Config) -> String {
 
         subdir.to_string()
     } else {
-        "".to_string()
+        String::new()
     }
 }
 
-/// Returns a new cmake::Config for building BoringSSL.
+/// Returns a new `cmake::Config` for building BoringSSL.
 ///
 /// It will add platform-specific parameters if needed.
 fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
@@ -210,6 +213,13 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
             .define("CMAKE_C_COMPILER_TARGET", &config.target)
             .define("CMAKE_CXX_COMPILER_TARGET", &config.target)
             .define("CMAKE_ASM_COMPILER_TARGET", &config.target);
+    }
+
+    if let Some(cc) = &config.env.cc {
+        boringssl_cmake.define("CMAKE_C_COMPILER", cc);
+    }
+    if let Some(cxx) = &config.env.cxx {
+        boringssl_cmake.define("CMAKE_CXX_COMPILER", cxx);
     }
 
     if let Some(sysroot) = &config.env.sysroot {
@@ -233,12 +243,15 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                 .as_ref()
                 .expect("Please set ANDROID_NDK_HOME for Android build");
             for (name, value) in cmake_params_android(config) {
-                eprintln!("android arch={} add {}={}", config.target_arch, name, value);
+                println!(
+                    "cargo:warning=android arch={} add {}={}",
+                    config.target_arch, name, value
+                );
                 boringssl_cmake.define(name, value);
             }
             let toolchain_file = android_ndk_home.join("build/cmake/android.toolchain.cmake");
             let toolchain_file = toolchain_file.to_str().unwrap();
-            eprintln!("android toolchain={toolchain_file}");
+            println!("cargo:warning=android toolchain={toolchain_file}");
             boringssl_cmake.define("CMAKE_TOOLCHAIN_FILE", toolchain_file);
 
             // 21 is the minimum level tested. You can give higher value.
@@ -248,14 +261,20 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
 
         "macos" => {
             for (name, value) in cmake_params_apple(config) {
-                eprintln!("macos arch={} add {}={}", config.target_arch, name, value);
+                println!(
+                    "cargo:warning=macos arch={} add {}={}",
+                    config.target_arch, name, value
+                );
                 boringssl_cmake.define(name, value);
             }
         }
 
         "ios" => {
             for (name, value) in cmake_params_apple(config) {
-                eprintln!("ios arch={} add {}={}", config.target_arch, name, value);
+                println!(
+                    "cargo:warning=ios arch={} add {}={}",
+                    config.target_arch, name, value
+                );
                 boringssl_cmake.define(name, value);
             }
 
@@ -319,8 +338,8 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                 );
             }
             _ => {
-                eprintln!(
-                    "warning: no toolchain file configured by boring-sys for {}",
+                println!(
+                    "cargo:warning=no toolchain file configured by boring-sys for {}",
                     config.target
                 );
             }
@@ -375,9 +394,9 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
                 .unwrap();
             if !output.status.success() {
                 if let Some(exit_code) = output.status.code() {
-                    eprintln!("xcrun failed: exit code {exit_code}");
+                    println!("cargo:warning=xcrun failed: exit code {exit_code}");
                 } else {
-                    eprintln!("xcrun failed: killed");
+                    println!("cargo:warning=xcrun failed: killed");
                 }
                 std::io::stderr().write_all(&output.stderr).unwrap();
                 // Uh... let's try anyway, I guess?
@@ -420,6 +439,20 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
 }
 
 fn ensure_patches_applied(config: &Config) -> io::Result<()> {
+    if config.env.assume_patched || config.env.path.is_some() {
+        println!(
+            "cargo:warning=skipping git patches application, provided\
+                native BoringSSL is expected to have the patches included"
+        );
+        return Ok(());
+    } else if config.env.source_path.is_some() && config.features.underscore_wildcards {
+        panic!(
+            "BORING_BSSL_ASSUME_PATCHED must be set when setting
+                   BORING_BSSL_SOURCE_PATH and using any of the following
+                   features: underscore-wildcards"
+        );
+    }
+
     let mut lock_file = LockFile::open(&config.out_dir.join(".patch_lock"))?;
     let src_path = get_boringssl_source_path(config);
     let has_git = src_path.join(".git").exists();
@@ -430,6 +463,10 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
     if !has_git {
         run_command(Command::new("git").arg("init").current_dir(src_path))?;
     }
+
+    // TODO: enable;
+    // println!("cargo:warning=applying post quantum crypto patch to boringssl");
+    // apply_patch(config, "boring-pq.patch")?;
 
     if config.features.underscore_wildcards {
         println!("cargo:warning=applying underscore wildcards patch to boringssl");
@@ -469,7 +506,10 @@ fn run_command(command: &mut Command) -> io::Result<Output> {
     let out = command.output()?;
 
     println!("{}", std::str::from_utf8(&out.stdout).unwrap());
-    eprintln!("{}", std::str::from_utf8(&out.stderr).unwrap());
+    println!(
+        "cargo:warning={}",
+        std::str::from_utf8(&out.stderr).unwrap()
+    );
 
     if !out.status.success() {
         let err = match out.status.code() {
@@ -491,25 +531,15 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
     static BUILD_SOURCE_PATH: OnceLock<PathBuf> = OnceLock::new();
 
     BUILD_SOURCE_PATH.get_or_init(|| {
-        if config.env.assume_patched {
-            println!(
-                "cargo:warning=skipping git patches application, provided\
-                native BoringSSL is expected to have the patches included"
-            );
-        } else if config.env.source_path.is_some() && (config.features.underscore_wildcards) {
-            panic!(
-                "BORING_BSSL_ASSUME_PATCHED must be set when setting
-                   BORING_BSSL_SOURCE_PATH and using any of the following
-                   features: underscore-wildcards"
-            );
-        } else {
-            ensure_patches_applied(config).unwrap();
-        }
-
         let mut cfg = get_boringssl_cmake_config(config);
 
-        if let Ok(threads) = std::thread::available_parallelism() {
-            cfg.env("CMAKE_BUILD_PARALLEL_LEVEL", threads.to_string());
+        let num_jobs = std::env::var("NUM_JOBS").ok().or_else(|| {
+            std::thread::available_parallelism()
+                .ok()
+                .map(|t| t.to_string())
+        });
+        if let Some(num_jobs) = num_jobs {
+            cfg.env("CMAKE_BUILD_PARALLEL_LEVEL", num_jobs);
         }
 
         cfg.build_target("ssl").build();
@@ -525,7 +555,7 @@ fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
     // TODO(rmehra): figure out how to do this for windows
     if env::var_os("CARGO_CFG_UNIX").is_some() {
         match env::var("CARGO_CFG_TARGET_OS").unwrap().as_ref() {
-            "macos" | "ios" => Some("c++".into()),
+            "macos" | "ios" | "freebsd" => Some("c++".into()),
             _ => Some("stdc++".into()),
         }
     } else {
@@ -535,8 +565,17 @@ fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
 
 fn main() {
     let config = Config::from_env();
-    let bssl_dir = built_boring_source_path(&config);
-    let build_path = get_boringssl_platform_output_path(&config);
+
+    ensure_patches_applied(&config).unwrap();
+    if !config.env.docs_rs {
+        emit_link_directives(&config);
+    }
+    generate_bindings(&config);
+}
+
+fn emit_link_directives(config: &Config) {
+    let bssl_dir = built_boring_source_path(config);
+    let build_path = get_boringssl_platform_output_path(config);
 
     if config.is_bazel || config.env.path.is_some() {
         println!(
@@ -567,27 +606,33 @@ fn main() {
         );
     }
 
-    if let Some(cpp_lib) = get_cpp_runtime_lib(&config) {
+    if let Some(cpp_lib) = get_cpp_runtime_lib(config) {
         println!("cargo:rustc-link-lib={cpp_lib}");
     }
     println!("cargo:rustc-link-lib=static=crypto");
     println!("cargo:rustc-link-lib=static=ssl");
 
+    if config.target_os == "windows" {
+        // Rust 1.87.0 compat - https://github.com/rust-lang/rust/pull/138233
+        println!("cargo:rustc-link-lib=advapi32");
+    }
+}
+
+fn generate_bindings(config: &Config) {
     let include_path = config.env.include_path.clone().unwrap_or_else(|| {
         if let Some(bssl_path) = &config.env.path {
             return bssl_path.join("include");
         }
 
-        let src_path = get_boringssl_source_path(&config);
+        let src_path = get_boringssl_source_path(config);
         src_path.join("include")
     });
 
-    // bindgen 0.70 replaced the run-time layout tests with compile-time ones,
-    // but they depend on std::mem::offset_of, stabilized in 1.77.
-    let supports_layout_tests = autocfg::new().probe_rustc_version(1, 77);
+    let target_rust_version =
+        bindgen::RustTarget::stable(82, 0).expect("bindgen does not recognize target rust version");
 
     let mut builder = bindgen::Builder::default()
-        .rust_target(bindgen::RustTarget::default())
+        .rust_target(target_rust_version)
         .derive_copy(true)
         .derive_debug(true)
         .derive_default(true)
@@ -600,10 +645,10 @@ fn main() {
         .generate_comments(true)
         .fit_macro_constants(false)
         .size_t_is_usize(true)
-        .layout_tests(supports_layout_tests)
+        .layout_tests(config.env.debug.is_some())
         .prepend_enum_name(true)
         .blocklist_type("max_align_t") // Not supported by bindgen on all targets, not used by BoringSSL
-        .clang_args(get_extra_clang_args_for_bindgen(&config))
+        .clang_args(get_extra_clang_args_for_bindgen(config))
         .clang_arg("-I")
         .clang_arg(include_path.display().to_string());
 
@@ -651,7 +696,24 @@ fn main() {
     }
 
     let bindings = builder.generate().expect("Unable to generate bindings");
+    let mut source_code = Vec::new();
     bindings
-        .write_to_file(config.out_dir.join("bindings.rs"))
-        .expect("Couldn't write bindings!");
+        .write(Box::new(&mut source_code))
+        .expect("Couldn't serialize bindings!");
+    ensure_err_lib_enum_is_named(&mut source_code);
+    fs::write(config.out_dir.join("bindings.rs"), source_code).expect("Couldn't write bindings!");
+}
+
+/// err.h has anonymous `enum { ERR_LIB_NONE = 1 }`, which makes a dodgy `_bindgen_ty_1` name
+fn ensure_err_lib_enum_is_named(source_code: &mut Vec<u8>) {
+    let src = String::from_utf8_lossy(source_code);
+    let enum_type = src
+        .split_once("ERR_LIB_SSL:")
+        .and_then(|(_, def)| Some(def.split_once("=")?.0))
+        .unwrap_or("_bindgen_ty_1");
+
+    source_code.extend_from_slice(
+        format!("\n/// Newtype for [`ERR_LIB_SSL`] constants\npub use {enum_type} as ErrLib;\n")
+            .as_bytes(),
+    );
 }

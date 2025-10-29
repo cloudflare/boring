@@ -14,7 +14,7 @@ readme = "README.md"
 keywords = ["crypto", "tls", "ssl", "dtls"]
 categories = ["cryptography", "api-bindings"]
 edition = { workspace = true }
-rust-version = "1.82"
+rust-version = { workspace = true }
 
 [package.metadata.docs.rs]
 features = ["underscore-wildcards"]

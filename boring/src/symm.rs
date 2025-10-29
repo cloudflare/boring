@@ -53,6 +53,7 @@
 //! ```
 
 use crate::ffi;
+use foreign_types::ForeignTypeRef;
 use libc::{c_int, c_uint};
 use openssl_macros::corresponds;
 use std::cmp;
@@ -68,6 +69,71 @@ pub enum Mode {
     Decrypt,
 }
 
+foreign_type_and_impl_send_sync! {
+    type CType = ffi::EVP_CIPHER_CTX;
+    fn drop = ffi::EVP_CIPHER_CTX_free;
+
+    pub struct CipherCtx;
+}
+
+impl CipherCtxRef {
+    /// Configures CipherCtx for a fresh encryption operation using `cipher`.
+    ///
+    /// <https://commondatastorage.googleapis.com/chromium-boringssl-docs/cipher.h.html#EVP_EncryptInit_ex>
+    pub fn init_encrypt(
+        &mut self,
+        cipher: &Cipher,
+        key: &[u8],
+        iv: &[u8; ffi::EVP_MAX_IV_LENGTH as usize],
+    ) -> Result<(), ErrorStack> {
+        ffi::init();
+
+        if key.len() != cipher.key_len() {
+            return Err(ErrorStack::internal_error_str("invalid key size"));
+        }
+
+        unsafe {
+            cvt(ffi::EVP_EncryptInit_ex(
+                self.as_ptr(),
+                cipher.as_ptr(),
+                // ENGINE api is deprecated
+                ptr::null_mut(),
+                key.as_ptr(),
+                iv.as_ptr(),
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Configures CipherCtx for a fresh decryption operation using `cipher`.
+    ///
+    /// <https://commondatastorage.googleapis.com/chromium-boringssl-docs/cipher.h.html#EVP_DecryptInit_ex>
+    pub fn init_decrypt(
+        &mut self,
+        cipher: &Cipher,
+        key: &[u8],
+        iv: &[u8; ffi::EVP_MAX_IV_LENGTH as usize],
+    ) -> Result<(), ErrorStack> {
+        ffi::init();
+
+        if key.len() != cipher.key_len() {
+            return Err(ErrorStack::internal_error_str("invalid key size"));
+        }
+
+        unsafe {
+            cvt(ffi::EVP_DecryptInit_ex(
+                self.as_ptr(),
+                cipher.as_ptr(),
+                // ENGINE api is deprecated
+                ptr::null_mut(),
+                key.as_ptr(),
+                iv.as_ptr(),
+            ))
+            .map(|_| ())
+        }
+    }
+}
+
 /// Represents a particular cipher algorithm.
 ///
 /// See OpenSSL doc at [`EVP_EncryptInit`] for more information on each algorithms.
@@ -79,6 +145,7 @@ pub struct Cipher(*const ffi::EVP_CIPHER);
 impl Cipher {
     /// Looks up the cipher for a certain nid.
     #[corresponds(EVP_get_cipherbynid)]
+    #[must_use]
     pub fn from_nid(nid: Nid) -> Option<Cipher> {
         let ptr = unsafe { ffi::EVP_get_cipherbyname(ffi::OBJ_nid2sn(nid.as_raw())) };
         if ptr.is_null() {
@@ -88,82 +155,102 @@ impl Cipher {
         }
     }
 
+    #[must_use]
     pub fn aes_128_ecb() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_128_ecb()) }
     }
 
+    #[must_use]
     pub fn aes_128_cbc() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_128_cbc()) }
     }
 
+    #[must_use]
     pub fn aes_128_ctr() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_128_ctr()) }
     }
 
+    #[must_use]
     pub fn aes_128_gcm() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_128_gcm()) }
     }
 
+    #[must_use]
     pub fn aes_128_ofb() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_128_ofb()) }
     }
 
+    #[must_use]
     pub fn aes_192_ecb() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_192_ecb()) }
     }
 
+    #[must_use]
     pub fn aes_192_cbc() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_192_cbc()) }
     }
 
+    #[must_use]
     pub fn aes_192_ctr() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_192_ctr()) }
     }
 
+    #[must_use]
     pub fn aes_192_gcm() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_192_gcm()) }
     }
 
+    #[must_use]
     pub fn aes_192_ofb() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_192_ofb()) }
     }
 
+    #[must_use]
     pub fn aes_256_ecb() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_256_ecb()) }
     }
 
+    #[must_use]
     pub fn aes_256_cbc() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_256_cbc()) }
     }
 
+    #[must_use]
     pub fn aes_256_ctr() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_256_ctr()) }
     }
 
+    #[must_use]
     pub fn aes_256_gcm() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_256_gcm()) }
     }
 
+    #[must_use]
     pub fn aes_256_ofb() -> Cipher {
         unsafe { Cipher(ffi::EVP_aes_256_ofb()) }
     }
 
+    #[must_use]
     pub fn des_cbc() -> Cipher {
         unsafe { Cipher(ffi::EVP_des_cbc()) }
     }
 
+    #[must_use]
     pub fn des_ecb() -> Cipher {
         unsafe { Cipher(ffi::EVP_des_ecb()) }
     }
 
+    #[must_use]
     pub fn des_ede3() -> Cipher {
         unsafe { Cipher(ffi::EVP_des_ede3()) }
     }
 
+    #[must_use]
     pub fn des_ede3_cbc() -> Cipher {
         unsafe { Cipher(ffi::EVP_des_ede3_cbc()) }
     }
 
+    #[must_use]
     pub fn rc4() -> Cipher {
         unsafe { Cipher(ffi::EVP_rc4()) }
     }
@@ -173,17 +260,20 @@ impl Cipher {
     /// # Safety
     ///
     /// The caller must ensure the pointer is valid for the `'static` lifetime.
+    #[must_use]
     pub unsafe fn from_ptr(ptr: *const ffi::EVP_CIPHER) -> Cipher {
         Cipher(ptr)
     }
 
     #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[must_use]
     pub fn as_ptr(&self) -> *const ffi::EVP_CIPHER {
         self.0
     }
 
     /// Returns the length of keys used with this cipher.
     #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[must_use]
     pub fn key_len(&self) -> usize {
         unsafe { EVP_CIPHER_key_length(self.0) as usize }
     }
@@ -191,6 +281,7 @@ impl Cipher {
     /// Returns the length of the IV used with this cipher, or `None` if the
     /// cipher does not use an IV.
     #[allow(clippy::trivially_copy_pass_by_ref)]
+    #[must_use]
     pub fn iv_len(&self) -> Option<usize> {
         unsafe {
             let len = EVP_CIPHER_iv_length(self.0) as usize;
@@ -341,7 +432,7 @@ impl Crypter {
                     }
                     iv.as_ptr() as *mut _
                 }
-                (Some(_), None) | (None, None) => ptr::null_mut(),
+                (Some(_) | None, None) => ptr::null_mut(),
                 (None, Some(_)) => panic!("an IV is required for this cipher"),
             };
             cvt(ffi::EVP_CipherInit_ex(
@@ -363,7 +454,7 @@ impl Crypter {
     /// be a multiple of the cipher's block size.
     pub fn pad(&mut self, padding: bool) {
         unsafe {
-            ffi::EVP_CIPHER_CTX_set_padding(self.ctx, padding as c_int);
+            ffi::EVP_CIPHER_CTX_set_padding(self.ctx, c_int::from(padding));
         }
     }
 

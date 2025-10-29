@@ -11,9 +11,7 @@ use std::pin::Pin;
 use std::sync::LazyLock;
 use std::task::{ready, Context, Poll, Waker};
 
-/// The type of futures to pass to [`SslContextBuilderExt::set_async_select_certificate_callback`].
-///
-/// [`SslContextBuilderExt::set_async_select_certificate_callback`]: https://docs.rs/rama-boring-tokio/latest/rama_boring_tokio/trait.SslContextBuilderExt.html#tymethod.set_async_select_certificate_callback
+/// The type of futures to pass to [`SslContextBuilder::set_async_select_certificate_callback`].
 pub type BoxSelectCertFuture = ExDataFuture<Result<BoxSelectCertFinish, AsyncSelectCertError>>;
 
 /// The type of callbacks returned by [`BoxSelectCertFuture`] methods.
@@ -27,27 +25,21 @@ pub type BoxPrivateKeyMethodFuture =
 pub type BoxPrivateKeyMethodFinish =
     Box<dyn FnOnce(&mut SslRef, &mut [u8]) -> Result<usize, AsyncPrivateKeyMethodError>>;
 
-/// The type of futures to pass to [`SslContextBuilderExt::set_async_get_session_callback`].
-///
-/// [`SslContextBuilderExt::set_async_get_session_callback`]: https://docs.rs/rama-boring-tokio/latest/rama_boring_tokio/trait.SslContextBuilderExt.html#tymethod.set_async_get_session_callback
+/// The type of futures to pass to [`SslContextBuilder::set_async_get_session_callback`].
 pub type BoxGetSessionFuture = ExDataFuture<Option<BoxGetSessionFinish>>;
 
 /// The type of callbacks returned by [`BoxSelectCertFuture`] methods.
 pub type BoxGetSessionFinish = Box<dyn FnOnce(&mut SslRef, &[u8]) -> Option<SslSession>>;
 
-/// The type of futures to pass to [`SslContextBuilderExt::set_async_custom_verify_callback`].
-///
-/// [`SslContextBuilderExt::set_async_custom_verify_callback`]: https://docs.rs/rama-boring-tokio/latest/rama_boring_tokio/trait.SslContextBuilderExt.html#tymethod.set_async_custom_verify_callback
+/// The type of futures to pass to [`SslContextBuilder::set_async_custom_verify_callback`].
 pub type BoxCustomVerifyFuture = ExDataFuture<Result<BoxCustomVerifyFinish, SslAlert>>;
 
 /// The type of callbacks returned by [`BoxCustomVerifyFuture`] methods.
 pub type BoxCustomVerifyFinish = Box<dyn FnOnce(&mut SslRef) -> Result<(), SslAlert>>;
 
-/// Convenience alias for futures stored in [`Ssl`] ex data by [`SslContextBuilderExt`] methods.
+/// Convenience alias for futures stored in [`Ssl`] ex data by [`SslContextBuilder`] methods.
 ///
 /// Public for documentation purposes.
-///
-/// [`SslContextBuilderExt`]: https://docs.rs/rama-boring-tokio/latest/rama_boring_tokio/trait.SslContextBuilderExt.html
 pub type ExDataFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 
 pub(crate) static TASK_WAKER_INDEX: LazyLock<Index<Ssl, Option<Waker>>> =
@@ -103,7 +95,7 @@ impl SslContextBuilder {
             let finish = fut_result.or(Err(SelectCertError::ERROR))?;
 
             finish(client_hello).or(Err(SelectCertError::ERROR))
-        })
+        });
     }
 
     /// Configures a custom private key method on the context.
@@ -131,7 +123,7 @@ impl SslContextBuilder {
     ///
     /// # Safety
     ///
-    /// The returned [`SslSession`] must not be associated with a different [`SslContext`].
+    /// The returned [`SslSession`] must not be associated with a different [`SslContextBuilder`].
     ///
     /// [`SslContext`]: super::SslContext
     pub unsafe fn set_async_get_session_callback<F>(&mut self, callback: F)
@@ -154,7 +146,7 @@ impl SslContextBuilder {
             }
         };
 
-        self.set_get_session_callback(async_callback)
+        self.set_get_session_callback(async_callback);
     }
 
     /// Configures certificate verification.
@@ -177,7 +169,7 @@ impl SslContextBuilder {
     where
         F: Fn(&mut SslRef) -> Result<BoxCustomVerifyFuture, SslAlert> + Send + Sync + 'static,
     {
-        self.set_custom_verify_callback(mode, async_custom_verify_callback(callback))
+        self.set_custom_verify_callback(mode, async_custom_verify_callback(callback));
     }
 }
 
@@ -186,7 +178,7 @@ impl SslRef {
     where
         F: Fn(&mut SslRef) -> Result<BoxCustomVerifyFuture, SslAlert> + Send + Sync + 'static,
     {
-        self.set_custom_verify_callback(mode, async_custom_verify_callback(callback))
+        self.set_custom_verify_callback(mode, async_custom_verify_callback(callback));
     }
 
     /// Sets the task waker to be used in async callbacks installed on this `Ssl`.

@@ -113,6 +113,7 @@ where
 
 impl<S> SslStreamBuilder<S> {
     /// Returns a shared reference to the `Ssl` object associated with this builder.
+    #[must_use]
     pub fn ssl(&self) -> &SslRef {
         self.inner.ssl()
     }
@@ -135,6 +136,7 @@ pub struct SslStream<S>(ssl::SslStream<AsyncStreamBridge<S>>);
 
 impl<S> SslStream<S> {
     /// Returns a shared reference to the `Ssl` object associated with this stream.
+    #[must_use]
     pub fn ssl(&self) -> &SslRef {
         self.0.ssl()
     }
@@ -145,6 +147,7 @@ impl<S> SslStream<S> {
     }
 
     /// Returns a shared reference to the underlying stream.
+    #[must_use]
     pub fn get_ref(&self) -> &S {
         &self.0.get_ref().stream
     }
@@ -234,7 +237,7 @@ where
 
     fn poll_shutdown(mut self: Pin<&mut Self>, ctx: &mut Context) -> Poll<io::Result<()>> {
         match self.run_in_context(ctx, |s| s.shutdown()) {
-            Ok(ShutdownResult::Sent) | Ok(ShutdownResult::Received) => {}
+            Ok(ShutdownResult::Sent | ShutdownResult::Received) => {}
             Err(ref e) if e.code() == ErrorCode::ZERO_RETURN => {}
             Err(ref e) if e.code() == ErrorCode::WANT_READ || e.code() == ErrorCode::WANT_WRITE => {
                 return Poll::Pending;
@@ -253,6 +256,7 @@ pub struct HandshakeError<S>(ssl::HandshakeError<AsyncStreamBridge<S>>);
 
 impl<S> HandshakeError<S> {
     /// Returns a shared reference to the `Ssl` object associated with this error.
+    #[must_use]
     pub fn ssl(&self) -> Option<&SslRef> {
         match &self.0 {
             ssl::HandshakeError::Failure(s) => Some(s.ssl()),
@@ -261,6 +265,7 @@ impl<S> HandshakeError<S> {
     }
 
     /// Converts error to the source data stream that was used for the handshake.
+    #[must_use]
     pub fn into_source_stream(self) -> Option<S> {
         match self.0 {
             ssl::HandshakeError::Failure(s) => Some(s.into_source_stream().stream),
@@ -269,6 +274,7 @@ impl<S> HandshakeError<S> {
     }
 
     /// Returns a reference to the source data stream.
+    #[must_use]
     pub fn as_source_stream(&self) -> Option<&S> {
         match &self.0 {
             ssl::HandshakeError::Failure(s) => Some(&s.get_ref().stream),
@@ -277,6 +283,7 @@ impl<S> HandshakeError<S> {
     }
 
     /// Returns the error code, if any.
+    #[must_use]
     pub fn code(&self) -> Option<ErrorCode> {
         match &self.0 {
             ssl::HandshakeError::Failure(s) => Some(s.error().code()),
@@ -285,6 +292,7 @@ impl<S> HandshakeError<S> {
     }
 
     /// Returns a reference to the inner I/O error, if any.
+    #[must_use]
     pub fn as_io_error(&self) -> Option<&io::Error> {
         match &self.0 {
             ssl::HandshakeError::Failure(s) => s.error().io_error(),

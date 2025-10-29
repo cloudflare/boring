@@ -16,6 +16,7 @@ build = "build/main.rs"
 readme = "README.md"
 categories = ["cryptography", "external-ffi-bindings"]
 edition = { workspace = true }
+rust-version = { workspace = true }
 include = [
     "/*.md",
     "/*.toml",
@@ -59,7 +60,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 underscore-wildcards = []
 
 [build-dependencies]
-autocfg = { workspace = true }
 bindgen = { workspace = true }
 cmake = { workspace = true }
 fs_extra = { workspace = true }

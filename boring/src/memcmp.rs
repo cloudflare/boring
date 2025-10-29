@@ -61,6 +61,7 @@ use libc::size_t;
 /// assert!(!eq(&a, &b));
 /// assert!(!eq(&a, &c));
 /// ```
+#[must_use]
 pub fn eq(a: &[u8], b: &[u8]) -> bool {
     assert!(a.len() == b.len());
     let ret = unsafe {
@@ -87,6 +88,6 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_diff_lens() {
-        eq(&[], &[1]);
+        let _ = eq(&[], &[1]);
     }
 }
