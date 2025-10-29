@@ -762,7 +762,8 @@ impl CompliancePolicy {
         Self(ffi::ssl_compliance_policy_t::ssl_compliance_policy_wpa3_192_202304);
 }
 
-// IANA assigned identifier of compression algorithm. See https://www.rfc-editor.org/rfc/rfc8879.html#name-compression-algorithms
+// IANA assigned identifier of compression algorithm.
+// See <https://www.rfc-editor.org/rfc/rfc8879.html#name-compression-algorithms>
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct CertificateCompressionAlgorithm(u16);
 
@@ -916,7 +917,7 @@ impl SslContextBuilder {
     /// whether the chain is accepted or not.
     ///
     /// *Warning*: Providing a complete verification procedure is a complex task. See
-    /// https://docs.openssl.org/master/man3/SSL_CTX_set_cert_verify_callback/#notes for more
+    /// <https://docs.openssl.org/master/man3/SSL_CTX_set_cert_verify_callback/#notes> for more
     /// information.
     ///
     /// TODO: Add the ability to unset the callback by either adding a new function or wrapping the
@@ -1258,7 +1259,7 @@ impl SslContextBuilder {
     ///
     /// The `set_ciphersuites` method controls the cipher suites for TLSv1.3 in OpenSSL.
     /// BoringSSL doesn't implement `set_ciphersuites`.
-    /// See https://github.com/google/boringssl/blob/master/include/openssl/ssl.h#L1542-L1544
+    /// See <https://github.com/google/boringssl/blob/master/include/openssl/ssl.h#L1542-L1544>
     ///
     /// See [`ciphers`] for details on the format.
     ///

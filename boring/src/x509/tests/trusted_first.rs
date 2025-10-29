@@ -1,4 +1,5 @@
-//! See https://github.com/google/boringssl/blob/cc696073cffe7978d489297fbdeac4c0030384aa/crypto/x509/x509_test.cc#L3977-L3980
+//! See
+//! <https://github.com/google/boringssl/blob/cc696073cffe7978d489297fbdeac4c0030384aa/crypto/x509/x509_test.cc#L3977-L3980>
 
 use crate::stack::Stack;
 use crate::x509::store::X509StoreBuilder;

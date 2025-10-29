@@ -22,6 +22,8 @@ use std::os::raw::{c_char, c_int, c_uint, c_ulong};
     clippy::derive_partial_eq_without_eq,
     dead_code
 )]
+#[allow(clippy::all)]
+#[allow(rustdoc::all)]
 mod generated {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
