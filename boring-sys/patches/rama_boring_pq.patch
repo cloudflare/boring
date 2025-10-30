@@ -4392,7 +4392,8 @@ index 344e7f2ea..50fcd6cb0 100644
 +    965 /* X25519Kyber512Draft00 */,
      964 /* X25519Kyber768Draft00 */,
 +    967 /* X25519Kyber768Draft00Old */,
-     965 /* X25519MLKEM768 */,
+-    965 /* X25519MLKEM768 */,
++    968 /* X25519MLKEM768 */,
      961 /* X448 */,
      11 /* X500 */,
 @@ -9790,6 +9799,7 @@ static const uint16_t kNIDsInLongNameOrder[] = {
@@ -4406,10 +4407,10 @@ index 344e7f2ea..50fcd6cb0 100644
 @@ -9815,7 +9825,9 @@ static const uint16_t kNIDsInLongNameOrder[] = {
      375 /* Trust Root */,
      948 /* X25519 */,
-     964 /* X25519Kyber768Draft00 */,
--    965 /* X25519MLKEM768 */,
 +    965 /* X25519Kyber512Draft00 */,
+     964 /* X25519Kyber768Draft00 */,
 +    967 /* X25519Kyber768Draft00Old */,
+-    965 /* X25519MLKEM768 */,
 +    968 /* X25519MLKEM768 */,
      961 /* X448 */,
      12 /* X509 */,
@@ -5458,7 +5459,7 @@ index 94d07ff95..dd59f0463 100644
  };
  
  // draft-ietf-tls-mlkem-04
-@@ -440,12 +783,19 @@ constexpr NamedGroup kNamedGroups[] = {
+@@ -440,10 +783,16 @@ constexpr NamedGroup kNamedGroups[] = {
      {NID_secp384r1, SSL_GROUP_SECP384R1, "P-384", "secp384r1"},
      {NID_secp521r1, SSL_GROUP_SECP521R1, "P-521", "secp521r1"},
      {NID_X25519, SSL_GROUP_X25519, "X25519", "x25519"},
@@ -5477,10 +5478,7 @@ index 94d07ff95..dd59f0463 100644
 +        "X25519MLKEM768", "X25519MLKEM768"}
  };
  
-+
  static_assert(std::size(kNamedGroups) == kNumNamedGroups,
-               "kNamedGroups size mismatch");
- 
 @@ -472,10 +822,16 @@ UniquePtr<SSLKeyShare> SSLKeyShare::Create(uint16_t group_id) {
        return MakeUnique<ECKeyShare>(EC_group_p521(), SSL_GROUP_SECP521R1);
      case SSL_GROUP_X25519:
