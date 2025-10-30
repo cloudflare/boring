@@ -49,15 +49,10 @@ include = [
 ]
 
 [package.metadata.docs.rs]
-features = ["underscore-wildcards"]
+features = []
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-
-# Applies a patch (`patches/underscore-wildcards.patch`) to enable
-# `ffi::X509_CHECK_FLAG_UNDERSCORE_WILDCARDS`. Same caveats as
-# those for `pq-experimental` feature apply.
-underscore-wildcards = []
 
 [build-dependencies]
 bindgen = { workspace = true }

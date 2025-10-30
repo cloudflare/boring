@@ -20,7 +20,6 @@ doc:
 
 test:
 	cargo test
-	cargo test --features underscore-wildcards
 
 qa: lint check clippy doc test dry-publish
 

@@ -287,5 +287,3 @@ jobs:
       - name: Install Rust (rustup)
         run: rustup update stable --no-self-update && rustup default stable
         shell: bash
-      - run: cargo test --features underscore-wildcards
-        name: Run `underscore-wildcards` tests

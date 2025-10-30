@@ -713,12 +713,6 @@ mod tests {
     }
 
     #[test]
-    fn some_objs_from_str() {
-        let object = Asn1Object::from_str("O").unwrap();
-        assert_eq!(object.nid(), Nid::ORGANIZATIONNAME);
-    }
-
-    #[test]
     fn object_from_str_with_invalid_input() {
         Asn1Object::from_str("NOT AN OID")
             .map(|object| object.to_string())

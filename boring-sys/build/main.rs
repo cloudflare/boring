@@ -445,12 +445,6 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
                 native BoringSSL is expected to have the patches included"
         );
         return Ok(());
-    } else if config.env.source_path.is_some() && config.features.underscore_wildcards {
-        panic!(
-            "BORING_BSSL_ASSUME_PATCHED must be set when setting
-                   BORING_BSSL_SOURCE_PATH and using any of the following
-                   features: underscore-wildcards"
-        );
     }
 
     let mut lock_file = LockFile::open(&config.out_dir.join(".patch_lock"))?;
@@ -462,11 +456,6 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
     // NOTE: init git in the copied files, so we can apply patches
     if !has_git {
         run_command(Command::new("git").arg("init").current_dir(src_path))?;
-    }
-
-    if config.features.underscore_wildcards {
-        println!("cargo:warning=applying underscore wildcards patch to boringssl");
-        apply_patch(config, "underscore-wildcards.patch")?;
     }
 
     // We dont feature gate these changes as we rely on them in a lot of places.

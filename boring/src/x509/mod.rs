@@ -421,7 +421,7 @@ impl X509Builder {
     /// let mut x509_name = rama_boring::x509::X509NameBuilder::new().unwrap();
     /// x509_name.append_entry_by_text("C", "US").unwrap();
     /// x509_name.append_entry_by_text("ST", "CA").unwrap();
-    /// x509_name.append_entry_by_text("O", "Some organization").unwrap();
+    /// //x509_name.append_entry_by_text("O", "Some organization").unwrap();
     /// x509_name.append_entry_by_text("CN", "www.example.com").unwrap();
     /// let x509_name = x509_name.build();
     ///

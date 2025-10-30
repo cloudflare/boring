@@ -10,12 +10,7 @@ pub(crate) struct Config {
     pub(crate) target: String,
     pub(crate) target_arch: String,
     pub(crate) target_os: String,
-    pub(crate) features: Features,
     pub(crate) env: Env,
-}
-
-pub(crate) struct Features {
-    pub(crate) underscore_wildcards: bool,
 }
 
 pub(crate) struct Env {
@@ -45,7 +40,6 @@ impl Config {
         let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
         let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
 
-        let features = Features::from_env();
         let env = Env::from_env(&host, &target);
 
         // NOTE: no more src dir, always assume bazel = false
@@ -62,7 +56,6 @@ impl Config {
             target,
             target_arch,
             target_os,
-            features,
             env,
         };
 
@@ -83,24 +76,12 @@ impl Config {
             );
         }
 
-        let features_with_patches_enabled = self.features.underscore_wildcards;
-
-        let patches_required = features_with_patches_enabled && !self.env.assume_patched;
+        let patches_required = !self.env.assume_patched;
 
         if is_precompiled_native_lib && patches_required {
             println!(
                 "cargo:warning=precompiled BoringSSL was provided, so patches will be ignored"
             );
-        }
-    }
-}
-
-impl Features {
-    fn from_env() -> Self {
-        let underscore_wildcards = env::var_os("CARGO_FEATURE_UNDERSCORE_WILDCARDS").is_some();
-
-        Self {
-            underscore_wildcards,
         }
     }
 }

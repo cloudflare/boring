@@ -17,14 +17,13 @@ edition = { workspace = true }
 rust-version = { workspace = true }
 
 [package.metadata.docs.rs]
-features = ["underscore-wildcards"]
+features = []
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 # Applies a patch to enable
 # `ffi::X509_CHECK_FLAG_UNDERSCORE_WILDCARDS`. Same caveats as
 # those for `pq-experimental` feature apply.
-underscore-wildcards = ["rama-boring-sys/underscore-wildcards"]
 # Controlling key exchange preferences at compile time
 
 [dependencies]
