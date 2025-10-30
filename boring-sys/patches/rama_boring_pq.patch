@@ -3548,7 +3548,7 @@ index 35f2d7a9e..000000000
 -  FileTestGTest("crypto/kyber/kyber_tests.txt", KyberFileTest);
 -}
 diff --git a/crypto/obj/obj_dat.h b/crypto/obj/obj_dat.h
-index 344e7f2ea..50fcd6cb0 100644
+index 344e7f2ea..72f743137 100644
 --- a/crypto/obj/obj_dat.h
 +++ b/crypto/obj/obj_dat.h
 @@ -15,7 +15,7 @@
@@ -3556,7 +3556,7 @@ index 344e7f2ea..50fcd6cb0 100644
  
  
 -#define NUM_NID 967
-+#define NUM_NID 969
++#define NUM_NID 970
  
  static const uint8_t kObjectData[] = {
      /* NID_rsadsi */
@@ -3573,6 +3573,15 @@ index 344e7f2ea..50fcd6cb0 100644
      {"X25519MLKEM768", "X25519MLKEM768", NID_X25519MLKEM768, 0, NULL, 0},
      {"MLKEM1024", "MLKEM1024", NID_MLKEM1024, 0, NULL, 0},
  };
+@@ -8865,7 +8871,7 @@ static const uint16_t kNIDsInShortNameOrder[] = {
+     114 /* MD5-SHA1 */,
+     95 /* MDC2 */,
+     911 /* MGF1 */,
+-    966 /* MLKEM1024 */,
++    969 /* MLKEM1024 */,
+     388 /* Mail */,
+     57 /* Netscape */,
+     366 /* Nonce */,
 @@ -8876,6 +8882,7 @@ static const uint16_t kNIDsInShortNameOrder[] = {
      18 /* OU */,
      749 /* Oakley-EC2N-3 */,
@@ -3581,17 +3590,27 @@ index 344e7f2ea..50fcd6cb0 100644
      9 /* PBE-MD2-DES */,
      168 /* PBE-MD2-RC2-64 */,
      10 /* PBE-MD5-DES */,
-@@ -8941,7 +8948,9 @@ static const uint16_t kNIDsInShortNameOrder[] = {
+@@ -8941,8 +8948,10 @@ static const uint16_t kNIDsInShortNameOrder[] = {
      143 /* SXNetID */,
      458 /* UID */,
      948 /* X25519 */,
 +    965 /* X25519Kyber512Draft00 */,
      964 /* X25519Kyber768Draft00 */,
-+    967 /* X25519Kyber768Draft00Old */,
 -    965 /* X25519MLKEM768 */,
++    967 /* X25519Kyber768Draft00Old */,
 +    968 /* X25519MLKEM768 */,
      961 /* X448 */,
      11 /* X500 */,
+     378 /* X500algorithms */,
+@@ -9757,7 +9766,7 @@ static const uint16_t kNIDsInLongNameOrder[] = {
+     647 /* International Organizations */,
+     142 /* Invalidity Date */,
+     504 /* MIME MHS */,
+-    966 /* MLKEM1024 */,
++    969 /* MLKEM1024 */,
+     388 /* Mail */,
+     383 /* Management */,
+     417 /* Microsoft CSP Name */,
 @@ -9790,6 +9799,7 @@ static const uint16_t kNIDsInLongNameOrder[] = {
      366 /* OCSP Nonce */,
      371 /* OCSP Service Locator */,
@@ -3600,13 +3619,14 @@ index 344e7f2ea..50fcd6cb0 100644
      161 /* PBES2 */,
      69 /* PBKDF2 */,
      162 /* PBMAC1 */,
-@@ -9815,7 +9825,9 @@ static const uint16_t kNIDsInLongNameOrder[] = {
+@@ -9814,8 +9824,10 @@ static const uint16_t kNIDsInLongNameOrder[] = {
+     133 /* Time Stamping */,
      375 /* Trust Root */,
      948 /* X25519 */,
 +    965 /* X25519Kyber512Draft00 */,
      964 /* X25519Kyber768Draft00 */,
-+    967 /* X25519Kyber768Draft00Old */,
 -    965 /* X25519MLKEM768 */,
++    967 /* X25519Kyber768Draft00Old */,
 +    968 /* X25519MLKEM768 */,
      961 /* X448 */,
      12 /* X509 */,
