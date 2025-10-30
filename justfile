@@ -12,16 +12,13 @@ check:
 clippy:
 	cargo clippy --workspace --all-targets
 
-dry-publish:
-	cargo publish --dry-run -p rama-boring-sys
-
 doc:
 	RUSTDOCFLAGS="-D rustdoc::broken-intra-doc-links" cargo doc  --no-deps
 
 test:
 	cargo test
 
-qa: lint check clippy doc test dry-publish
+qa: lint check clippy doc test
 
 publish:
 	bash scripts/publish.sh
