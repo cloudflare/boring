@@ -303,10 +303,7 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                     boringssl_cmake.define("CMAKE_GENERATOR_PLATFORM", "x64");
                 }
 
-                boringssl_cmake.define(
-                    "CMAKE_MSVC_RUNTIME_LIBRARY",
-                    "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL",
-                );
+                boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreadedDLL");
 
                 const CMAKE_MSVC_DEBUG_FLAGS: &str = "/Zi /Ob0 /Od /RTC1";
                 boringssl_cmake.define("CMAKE_C_FLAGS_DEBUG", CMAKE_MSVC_DEBUG_FLAGS);
