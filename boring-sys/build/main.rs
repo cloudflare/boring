@@ -299,8 +299,11 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
 
             match &*config.target_arch {
                 "x86" => {
+                    // force 32-bit codegen for BoringSSL
+                    c_flags.push("-m32");
                     c_flags.push("-msse2 -mstackrealign -mfpmath=sse");
 
+                    boringssl_cmake.define("CMAKE_SYSTEM_PROCESSOR", "i686"); // asume it's safe to use i686 as baseline
                     boringssl_cmake.define(
                         "CMAKE_TOOLCHAIN_FILE",
                         // `src_path` can be a path relative to the manifest dir, but
