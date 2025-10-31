@@ -276,14 +276,3 @@ jobs:
         run: echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=${{ matrix.target }}-gcc" >> $GITHUB_ENV
       - name: Build for ${{ matrix.target }}
         run: cargo build --target ${{ matrix.target }} --all-targets
-
-  test-features:
-    name: Test features
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: "recursive"
-      - name: Install Rust (rustup)
-        run: rustup update stable --no-self-update && rustup default stable
-        shell: bash

@@ -38,6 +38,8 @@ include = [
     "/deps/boringssl/**/*.clang-format",
     "/deps/boringssl/**/*.cc",
     "/deps/boringssl/**/*.inc",
+    "/deps/boringssl/**/*.go",
+    "/deps/boringssl/**/*.pl",
     "/deps/boringssl/cmake/*.cmake",
     "/deps/boringssl/**/CMakeLists.txt",
     "/deps/boringssl/**/sources.cmake",

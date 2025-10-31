@@ -151,7 +151,7 @@ fn get_boringssl_source_path(config: &Config) -> &PathBuf {
 ///
 /// MSVC generator on Windows place static libs in a target sub-folder,
 /// so adjust library location based on platform and build target.
-/// See issue: https://github.com/alexcrichton/cmake-rs/issues/18
+/// See issue: <https://github.com/alexcrichton/cmake-rs/issues/18>
 fn get_boringssl_platform_output_path(config: &Config) -> String {
     if config.target.ends_with("-msvc") {
         // Code under this branch should match the logic in cmake-rs
@@ -243,15 +243,12 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                 .as_ref()
                 .expect("Please set ANDROID_NDK_HOME for Android build");
             for (name, value) in cmake_params_android(config) {
-                println!(
-                    "cargo:warning=android arch={} add {}={}",
-                    config.target_arch, name, value
-                );
+                eprintln!("android arch={} add {}={}", config.target_arch, name, value);
                 boringssl_cmake.define(name, value);
             }
             let toolchain_file = android_ndk_home.join("build/cmake/android.toolchain.cmake");
             let toolchain_file = toolchain_file.to_str().unwrap();
-            println!("cargo:warning=android toolchain={toolchain_file}");
+            eprintln!("android toolchain={toolchain_file}");
             boringssl_cmake.define("CMAKE_TOOLCHAIN_FILE", toolchain_file);
 
             // 21 is the minimum level tested. You can give higher value.
@@ -261,20 +258,14 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
 
         "macos" => {
             for (name, value) in cmake_params_apple(config) {
-                println!(
-                    "cargo:warning=macos arch={} add {}={}",
-                    config.target_arch, name, value
-                );
+                eprintln!("macos arch={} add {}={}", config.target_arch, name, value);
                 boringssl_cmake.define(name, value);
             }
         }
 
         "ios" => {
             for (name, value) in cmake_params_apple(config) {
-                println!(
-                    "cargo:warning=ios arch={} add {}={}",
-                    config.target_arch, name, value
-                );
+                eprintln!("ios arch={} add {}={}", config.target_arch, name, value);
                 boringssl_cmake.define(name, value);
             }
 
@@ -303,20 +294,15 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
 
         "linux" => match &*config.target_arch {
             "x86" => {
-                // `src_path` can be a path relative to the manifest dir, but
-                // cmake hates that.
-                let cmake_toolchain_file_path = config
-                    .manifest_dir
-                    .join(src_path)
-                    .join("util/32-bit-toolchain.cmake");
-
-                eprintln!(
-                    "linux arch=x86: CMAKE_TOOLCHAIN_FILE={}",
-                    cmake_toolchain_file_path.to_string_lossy()
-                );
                 boringssl_cmake.define(
                     "CMAKE_TOOLCHAIN_FILE",
-                    cmake_toolchain_file_path.as_os_str(),
+                    // `src_path` can be a path relative to the manifest dir, but
+                    // cmake hates that.
+                    config
+                        .manifest_dir
+                        .join(src_path)
+                        .join("util/32-bit-toolchain.cmake")
+                        .as_os_str(),
                 );
             }
             "aarch64" => {
@@ -420,8 +406,8 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
             let toolchain = match pick_best_android_ndk_toolchain(&android_sysroot) {
                 Ok(toolchain) => toolchain,
                 Err(e) => {
-                    eprintln!(
-                        "warning: failed to find prebuilt Android NDK toolchain for bindgen: {e}"
+                    println!(
+                        "cargo:warning=failed to find prebuilt Android NDK toolchain for bindgen: {e}"
                     );
                     // Uh... let's try anyway, I guess?
                     return params;
@@ -442,7 +428,7 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
     if config.env.assume_patched || config.env.path.is_some() {
         println!(
             "cargo:warning=skipping git patches application, provided\
-                native BoringSSL is expected to have the patches included"
+            native BoringSSL is expected to have the patches included"
         );
         return Ok(());
     }
@@ -481,9 +467,16 @@ fn apply_patch(config: &Config, patch_name: &str) -> io::Result<()> {
     #[cfg(target_os = "windows")]
     let cmd_path = config.manifest_dir.join("patches").join(patch_name);
 
+    let mut args = vec!["apply", "-v", "--whitespace=fix"];
+
+    // non-bazel versions of BoringSSL have no src/ dir
+    if config.is_bazel {
+        args.push("-p2");
+    }
+
     run_command(
         Command::new("git")
-            .args(["apply", "-v", "--whitespace=fix"])
+            .args(&args)
             .arg(cmd_path)
             .current_dir(src_path),
     )?;
@@ -495,10 +488,7 @@ fn run_command(command: &mut Command) -> io::Result<Output> {
     let out = command.output()?;
 
     println!("{}", std::str::from_utf8(&out.stdout).unwrap());
-    println!(
-        "cargo:warning={}",
-        std::str::from_utf8(&out.stderr).unwrap()
-    );
+    eprintln!("{}", std::str::from_utf8(&out.stderr).unwrap());
 
     if !out.status.success() {
         let err = match out.status.code() {
@@ -554,7 +544,6 @@ fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
 
 fn main() {
     let config = Config::from_env();
-
     ensure_patches_applied(&config).unwrap();
     if !config.env.docs_rs {
         emit_link_directives(&config);
@@ -566,7 +555,7 @@ fn emit_link_directives(config: &Config) {
     let bssl_dir = built_boring_source_path(config);
     let build_path = get_boringssl_platform_output_path(config);
 
-    if config.is_bazel || config.env.path.is_some() {
+    if config.is_bazel {
         println!(
             "cargo:rustc-link-search=native={}/lib/{}",
             bssl_dir.display(),
@@ -614,14 +603,20 @@ fn generate_bindings(config: &Config) {
         }
 
         let src_path = get_boringssl_source_path(config);
-        src_path.join("include")
+        let candidate = src_path.join("include");
+
+        if candidate.exists() {
+            candidate
+        } else {
+            src_path.join("src").join("include")
+        }
     });
 
     let target_rust_version =
         bindgen::RustTarget::stable(82, 0).expect("bindgen does not recognize target rust version");
 
     let mut builder = bindgen::Builder::default()
-        .rust_target(target_rust_version)
+        .rust_target(target_rust_version) // bindgen MSRV is 1.70, so this is enough
         .derive_copy(true)
         .derive_debug(true)
         .derive_default(true)

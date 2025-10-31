@@ -42,16 +42,15 @@ impl Config {
 
         let env = Env::from_env(&host, &target);
 
-        // NOTE: no more src dir, always assume bazel = false
-        // let mut is_bazel = false;
-        // if let Some(src_path) = &env.source_path {
-        //     is_bazel = src_path.join("src").exists();
-        // }
+        let is_bazel = env
+            .source_path
+            .as_ref()
+            .is_some_and(|path| path.join("src").exists());
 
         let config = Self {
             manifest_dir,
             out_dir,
-            is_bazel: false,
+            is_bazel,
             host,
             target,
             target_arch,
@@ -121,7 +120,8 @@ impl Env {
             opt_level: target_var("OPT_LEVEL"),
             android_ndk_home: target_var("ANDROID_NDK_HOME").map(Into::into),
             cmake_toolchain_file: target_var("CMAKE_TOOLCHAIN_FILE").map(Into::into),
-            cpp_runtime_lib: target_var("BORING_BSSL_RUST_CPPLIB"), // matches the `cc` crate
+            cpp_runtime_lib: target_var("BORING_BSSL_RUST_CPPLIB"),
+            // matches the `cc` crate
             cc: target_only_var("CC"),
             cxx: target_only_var("CXX"),
             docs_rs: var("DOCS_RS").is_some(),
