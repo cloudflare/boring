@@ -253,19 +253,18 @@ jobs:
         run: cargo test --target ${{ matrix.target }} ${{ matrix.extra_test_args }}
         shell: bash
         env: ${{ matrix.custom_env }}
-      # NOTE: test below is nice... except that it fails if we are in between breaking patches
-      # - name: Test rama-boring-sys cargo publish
-      #   # Running `cargo publish --dry-run` tests two things:
-      #   #
-      #   # 1. That `rama-boring-sys` can build BoringSSL with just the files included
-      #   #    in the crates.io package (as determined by the `include` field in
-      #   #    the `Cargo.toml`).
-      #   # 2. That the final `rama-boring-sys` package size, including the BoringSSL
-      #   #    submodules, is not too large to be published to `crates.io`.
-      #   #
-      #   # Both of these may no longer be the case after updating the BoringSSL
-      #   # submodules to a new revision, so it's important to test this on CI.
-      #   run: cargo publish --dry-run -p rama-boring-sys
+      - name: Test rama-boring-sys cargo publish
+        # Running `cargo publish --dry-run` tests two things:
+        #
+        # 1. That `rama-boring-sys` can build BoringSSL with just the files included
+        #    in the crates.io package (as determined by the `include` field in
+        #    the `Cargo.toml`).
+        # 2. That the final `rama-boring-sys` package size, including the BoringSSL
+        #    submodules, is not too large to be published to `crates.io`.
+        #
+        # Both of these may no longer be the case after updating the BoringSSL
+        # submodules to a new revision, so it's important to test this on CI.
+        run: cargo publish --dry-run -p rama-boring-sys
 
   cross-build:
     name: Cross build from macOS to Linux
