@@ -294,8 +294,12 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
             }
 
             if config.target.ends_with("-pc-windows-msvc") {
-                // Use Ninja so CMake doesn’t auto-pick MinGW due to sh.exe in PATH
-                boringssl_cmake.generator("Ninja");
+                if config.target_arch == "x86" {
+                    boringssl_cmake.generator("Visual Studio 17 2022");
+                    boringssl_cmake.define("CMAKE_GENERATOR_PLATFORM", "Win32");
+                } else {
+                    boringssl_cmake.generator("Ninja");
+                }
 
                 // Keep the MSVC CRT alignment with Rust
                 boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreadedDLL");
