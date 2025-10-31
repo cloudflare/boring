@@ -226,6 +226,12 @@ jobs:
         with:
           version: "11.0"
           directory: ${{ runner.temp }}/llvm
+      - name: Use rust-lld for MSVC
+        if: endsWith(matrix.target, '-pc-windows-msvc')
+        shell: pwsh
+        run: |
+          echo "CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=rust-lld" >> $env:GITHUB_ENV
+          echo "CARGO_TARGET_I686_PC_WINDOWS_MSVC_LINKER=rust-lld" >> $env:GITHUB_ENV
       - name: MSVC dev cmd (${{ matrix.target }})
         if: endsWith(matrix.target, '-pc-windows-msvc')
         uses: ilammy/msvc-dev-cmd@v1
