@@ -293,20 +293,24 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                 boringssl_cmake.define("OPENSSL_NO_ASM", "YES");
             }
 
-            if config.target.ends_with("-pc-windows-msvc") {
+            if config.target.contains("-pc-windows-gnu") {
+                boringssl_cmake.define("CMAKE_CXX_STANDARD", "17");
+            } else if config.target.ends_with("-pc-windows-msvc") {
+                boringssl_cmake.generator("Visual Studio 17 2022");
                 if config.target_arch == "x86" {
-                    boringssl_cmake.generator("Visual Studio 17 2022");
                     boringssl_cmake.define("CMAKE_GENERATOR_PLATFORM", "Win32");
                 } else {
-                    boringssl_cmake.generator("Ninja");
+                    boringssl_cmake.define("CMAKE_GENERATOR_PLATFORM", "x64");
                 }
 
-                // Keep the MSVC CRT alignment with Rust
-                boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreadedDLL");
-                boringssl_cmake.define("CMAKE_C_FLAGS_DEBUG", "/MD /Zi /Ob0 /Od /RTC1");
-                boringssl_cmake.define("CMAKE_CXX_FLAGS_DEBUG", "/MD /Zi /Ob0 /Od /RTC1");
-                boringssl_cmake.define("CMAKE_C_FLAGS_RELWITHDEBINFO", "/MD /Zi");
-                boringssl_cmake.define("CMAKE_CXX_FLAGS_RELWITHDEBINFO", "/MD /Zi");
+                boringssl_cmake.define(
+                    "CMAKE_MSVC_RUNTIME_LIBRARY",
+                    "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL",
+                );
+
+                const CMAKE_MSVC_DEBUG_FLAGS: &str = "/Zi /Ob0 /Od /RTC1";
+                boringssl_cmake.define("CMAKE_C_FLAGS_DEBUG", CMAKE_MSVC_DEBUG_FLAGS);
+                boringssl_cmake.define("CMAKE_CXX_FLAGS_DEBUG", CMAKE_MSVC_DEBUG_FLAGS);
             }
         }
 
