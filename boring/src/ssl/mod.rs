@@ -703,8 +703,20 @@ impl SslCurve {
 
     pub const X25519: SslCurve = SslCurve(ffi::SSL_CURVE_X25519 as _);
 
+    pub const X25519_MLKEM768: SslCurve = SslCurve(ffi::SSL_GROUP_X25519_MLKEM768 as _);
+
     pub const X25519_KYBER768_DRAFT00: SslCurve =
-        SslCurve(ffi::SSL_CURVE_X25519_KYBER768_DRAFT00 as _);
+        SslCurve(ffi::SSL_GROUP_X25519_KYBER768_DRAFT00 as _);
+
+    pub const X25519_KYBER512_DRAFT00: SslCurve =
+        SslCurve(ffi::SSL_GROUP_X25519_KYBER512_DRAFT00 as _);
+
+    pub const X25519_KYBER768_DRAFT00_OLD: SslCurve =
+        SslCurve(ffi::SSL_GROUP_X25519_KYBER768_DRAFT00_OLD as _);
+
+    pub const P256_KYBER768_DRAFT00: SslCurve = SslCurve(ffi::SSL_GROUP_P256_KYBER768_DRAFT00 as _);
+
+    pub const MLKEM1024: SslCurve = SslCurve(ffi::SSL_GROUP_MLKEM1024 as _);
 
     /// Returns the curve name
     #[corresponds(SSL_get_curve_name)]
