@@ -294,56 +294,72 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
             }
         }
 
-        "linux" => match &*config.target_arch {
-            "x86" => {
-                c_flags.push("-msse2 -mstackrealign -mfpmath=sse");
+        "linux" => {
+            c_flags.push("-fPIC");
 
-                boringssl_cmake.define(
-                    "CMAKE_TOOLCHAIN_FILE",
-                    // `src_path` can be a path relative to the manifest dir, but
-                    // cmake hates that.
-                    config
-                        .manifest_dir
-                        .join(src_path)
-                        .join("util/32-bit-toolchain.cmake")
-                        .as_os_str(),
-                );
-            }
-            "aarch64" => {
-                boringssl_cmake.define(
-                    "CMAKE_TOOLCHAIN_FILE",
-                    config
-                        .manifest_dir
-                        .join("cmake/aarch64-linux.cmake")
-                        .as_os_str(),
-                );
-            }
-            "arm" => {
-                boringssl_cmake.define(
-                    "CMAKE_TOOLCHAIN_FILE",
-                    config
-                        .manifest_dir
-                        .join("cmake/armv7-linux.cmake")
-                        .as_os_str(),
-                );
-            }
-            _ => {
-                println!(
-                    "cargo:warning=no toolchain file configured by boring-sys for {}",
-                    config.target
-                );
+            match &*config.target_arch {
+                "x86" => {
+                    c_flags.push("-msse2 -mstackrealign -mfpmath=sse");
 
-                c_flags.push("-D__STDC_FORMAT_MACROS");
+                    boringssl_cmake.define(
+                        "CMAKE_TOOLCHAIN_FILE",
+                        // `src_path` can be a path relative to the manifest dir, but
+                        // cmake hates that.
+                        config
+                            .manifest_dir
+                            .join(src_path)
+                            .join("util/32-bit-toolchain.cmake")
+                            .as_os_str(),
+                    );
+                }
+                "aarch64" => {
+                    boringssl_cmake.define(
+                        "CMAKE_TOOLCHAIN_FILE",
+                        config
+                            .manifest_dir
+                            .join("cmake/aarch64-linux.cmake")
+                            .as_os_str(),
+                    );
+                }
+                "arm" => {
+                    boringssl_cmake.define(
+                        "CMAKE_TOOLCHAIN_FILE",
+                        config
+                            .manifest_dir
+                            .join("cmake/armv7-linux.cmake")
+                            .as_os_str(),
+                    );
+                }
+                _ => {
+                    println!(
+                        "cargo:warning=no toolchain file configured by boring-sys for {}",
+                        config.target
+                    );
+
+                    c_flags.push("-D__STDC_FORMAT_MACROS");
+                }
             }
-        },
+        }
 
         _ => {}
     }
 
+    boringssl_cmake.define("CMAKE_POSITION_INDEPENDENT_CODE", "ON");
+
     if !c_flags.is_empty() {
         let c_flags_str = c_flags.join(" ");
-        boringssl_cmake.define("CMAKE_C_FLAGS", &c_flags_str);
-        boringssl_cmake.define("CMAKE_CXX_FLAGS", &c_flags_str);
+
+        if let Ok(og_flags) = std::env::var("CFLAGS") {
+            boringssl_cmake.define("CMAKE_C_FLAGS", format!("{og_flags} {c_flags_str}"));
+        } else {
+            boringssl_cmake.define("CMAKE_C_FLAGS", &c_flags_str);
+        }
+
+        if let Ok(og_flags) = std::env::var("CXXFLAGS") {
+            boringssl_cmake.define("CMAKE_CXX_FLAGS", format!("{og_flags} {c_flags_str}"));
+        } else {
+            boringssl_cmake.define("CMAKE_CXX_FLAGS", &c_flags_str);
+        }
     }
 
     boringssl_cmake
