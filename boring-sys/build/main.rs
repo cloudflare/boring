@@ -292,6 +292,8 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                 // Disable assembly support so that it at least builds.
                 boringssl_cmake.define("OPENSSL_NO_ASM", "YES");
             }
+
+            boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreadedDLL");
         }
 
         "linux" => {
