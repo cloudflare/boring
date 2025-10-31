@@ -580,7 +580,18 @@ fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
         return cpp_lib.clone().into_string().ok();
     }
 
-    // TODO(rmehra): figure out how to do this for windows
+    // Decide by target triple
+    let target = &config.target;
+
+    if target.contains("-pc-windows-gnu") {
+        // MinGW toolchain: link libstdc++
+        return Some("stdc++".into());
+    }
+    if target.contains("-pc-windows-msvc") {
+        // MSVC: no libstdc++ needed
+        return None;
+    }
+
     if env::var_os("CARGO_CFG_UNIX").is_some() {
         match env::var("CARGO_CFG_TARGET_OS").unwrap().as_ref() {
             "android" => Some("c++_shared".into()),
