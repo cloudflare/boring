@@ -328,6 +328,10 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                     "cargo:warning=no toolchain file configured by boring-sys for {}",
                     config.target
                 );
+
+                boringssl_cmake
+                    .define("CMAKE_C_FLAGS", "-D__STDC_FORMAT_MACROS")
+                    .define("CMAKE_CXX_FLAGS", "-D__STDC_FORMAT_MACROS");
             }
         },
 
