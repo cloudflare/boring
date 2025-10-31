@@ -9,8 +9,10 @@ use std::process::{Command, Output};
 use std::sync::OnceLock;
 
 use crate::config::Config;
+use crate::prefix::{prefix_symbols, PrefixCallback};
 
 mod config;
+mod prefix;
 
 fn should_use_cmake_cross_compilation(config: &Config) -> bool {
     if config.host == config.target {
@@ -543,6 +545,10 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
                 .define("FIPS", "1");
         }
 
+        if config.features.prefix_symbols {
+            cfg.define("CMAKE_POSITION_INDEPENDENT_CODE", "ON");
+        }
+
         cfg.build_target("ssl").build();
         cfg.build_target("crypto").build()
     })
@@ -569,6 +575,9 @@ fn main() {
     ensure_patches_applied(&config).unwrap();
     if !config.env.docs_rs {
         emit_link_directives(&config);
+    }
+    if config.features.prefix_symbols {
+        prefix_symbols(&config);
     }
     generate_bindings(&config);
 }
@@ -662,6 +671,10 @@ fn generate_bindings(config: &Config) {
         builder = builder
             .clang_arg("--sysroot")
             .clang_arg(sysroot.display().to_string());
+    }
+
+    if config.features.prefix_symbols {
+        builder = builder.parse_callbacks(Box::new(PrefixCallback));
     }
 
     let headers = [
