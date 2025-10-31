@@ -70,8 +70,8 @@ impl Config {
 
         if self.env.assume_patched && is_external_native_lib_source {
             panic!(
-                "`BORING_BSSL_{{,_FIPS}}_ASSUME_PATCHED` env variable is supposed to be used with\
-                `BORING_BSSL{{,_FIPS}}_PATH` or `BORING_BSSL{{,_FIPS}}_SOURCE_PATH` env variables"
+                "`BORING_BSSL_ASSUME_PATCHED` env variable is supposed to be used with\
+                `BORING_BSSLPATH` or `BORING_BSSLSOURCE_PATH` env variables"
             );
         }
 

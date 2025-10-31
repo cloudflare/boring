@@ -293,12 +293,17 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                 boringssl_cmake.define("OPENSSL_NO_ASM", "YES");
             }
 
-            boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreadedDLL");
+            if config.target.ends_with("-pc-windows-msvc") {
+                // Use Ninja so CMake doesn’t auto-pick MinGW due to sh.exe in PATH
+                boringssl_cmake.generator("Ninja");
 
-            boringssl_cmake.define("CMAKE_C_FLAGS_DEBUG", "/MD /Zi /Ob0 /Od /RTC1");
-            boringssl_cmake.define("CMAKE_CXX_FLAGS_DEBUG", "/MD /Zi /Ob0 /Od /RTC1");
-            boringssl_cmake.define("CMAKE_C_FLAGS_RELWITHDEBINFO", "/MD /Zi");
-            boringssl_cmake.define("CMAKE_CXX_FLAGS_RELWITHDEBINFO", "/MD /Zi");
+                // Keep the MSVC CRT alignment with Rust
+                boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreadedDLL");
+                boringssl_cmake.define("CMAKE_C_FLAGS_DEBUG", "/MD /Zi /Ob0 /Od /RTC1");
+                boringssl_cmake.define("CMAKE_CXX_FLAGS_DEBUG", "/MD /Zi /Ob0 /Od /RTC1");
+                boringssl_cmake.define("CMAKE_C_FLAGS_RELWITHDEBINFO", "/MD /Zi");
+                boringssl_cmake.define("CMAKE_CXX_FLAGS_RELWITHDEBINFO", "/MD /Zi");
+            }
         }
 
         "linux" => {

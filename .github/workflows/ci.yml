@@ -185,12 +185,18 @@ jobs:
             target: i686-pc-windows-msvc
             rust: stable-x86_64-msvc
             os: windows-latest
+            custom_env:
+              CC_i686-pc-windows-msvc: cl
+              CXX_i686-pc-windows-msvc: cl
             # CI's Windows doesn't have required root certs
             extra_test_args: --workspace --exclude rama-boring-tokio
           - thing: x86_64-msvc
             target: x86_64-pc-windows-msvc
             rust: stable-x86_64-msvc
             os: windows-latest
+            custom_env:
+              CC_x86_64-pc-windows-msvc: cl
+              CXX_x86_64-pc-windows-msvc: cl
             # CI's Windows doesn't have required root certs
             extra_test_args: --workspace --exclude rama-boring-tokio
 
