@@ -233,6 +233,8 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
             .define("CMAKE_ASM_COMPILER_EXTERNAL_TOOLCHAIN", toolchain);
     }
 
+    let mut c_flags = Vec::new();
+
     // Add platform-specific parameters for cross-compilation.
     match &*config.target_os {
         "android" => {
@@ -294,6 +296,8 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
 
         "linux" => match &*config.target_arch {
             "x86" => {
+                c_flags.push("-msse2 -mstackrealign -mfpmath=sse");
+
                 boringssl_cmake.define(
                     "CMAKE_TOOLCHAIN_FILE",
                     // `src_path` can be a path relative to the manifest dir, but
@@ -329,13 +333,17 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                     config.target
                 );
 
-                boringssl_cmake
-                    .define("CMAKE_C_FLAGS", "-D__STDC_FORMAT_MACROS")
-                    .define("CMAKE_CXX_FLAGS", "-D__STDC_FORMAT_MACROS");
+                c_flags.push("-D__STDC_FORMAT_MACROS");
             }
         },
 
         _ => {}
+    }
+
+    if !c_flags.is_empty() {
+        let c_flags_str = c_flags.join(" ");
+        boringssl_cmake.define("CMAKE_C_FLAGS", &c_flags_str);
+        boringssl_cmake.define("CMAKE_CXX_FLAGS", &c_flags_str);
     }
 
     boringssl_cmake
