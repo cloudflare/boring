@@ -443,6 +443,24 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
             };
             android_sysroot.push(toolchain);
             android_sysroot.push("sysroot");
+
+            // Map rust target arch -> NDK arch dir used under sysroot/usr/lib
+            let arch = match config.target_arch.as_str() {
+                "aarch64" => "aarch64",
+                "x86_64" => "x86_64",
+                "x86" => "i686",
+                _ => "arm", // armv7
+            };
+
+            // Keep API level consistent with your CMake ("21")
+            let api = "21";
+            let libdir = android_sysroot
+                .join("usr")
+                .join("lib")
+                .join(format!("{arch}-linux-android"))
+                .join(api);
+            println!("cargo:rustc-link-search=native={}", libdir.display());
+
             params.push("--sysroot".to_string());
             params.push(android_sysroot.into_os_string().into_string().unwrap());
         }
@@ -562,6 +580,7 @@ fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
     // TODO(rmehra): figure out how to do this for windows
     if env::var_os("CARGO_CFG_UNIX").is_some() {
         match env::var("CARGO_CFG_TARGET_OS").unwrap().as_ref() {
+            "android" => Some("c++_shared".into()),
             "macos" | "ios" | "freebsd" => Some("c++".into()),
             _ => Some("stdc++".into()),
         }
