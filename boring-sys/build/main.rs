@@ -294,6 +294,11 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
             }
 
             boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreadedDLL");
+
+            boringssl_cmake.define("CMAKE_C_FLAGS_DEBUG", "/MD /Zi /Ob0 /Od /RTC1");
+            boringssl_cmake.define("CMAKE_CXX_FLAGS_DEBUG", "/MD /Zi /Ob0 /Od /RTC1");
+            boringssl_cmake.define("CMAKE_C_FLAGS_RELWITHDEBINFO", "/MD /Zi");
+            boringssl_cmake.define("CMAKE_CXX_FLAGS_RELWITHDEBINFO", "/MD /Zi");
         }
 
         "linux" => {
