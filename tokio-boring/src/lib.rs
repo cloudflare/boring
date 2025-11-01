@@ -8,8 +8,8 @@
 //!
 //! `tokio-boring` exports this ability through [`accept`] and [`connect`]. `accept` should
 //! be used by servers, and `connect` by clients. These augment the functionality provided by the
-//! [`rama-boring`] crate, on which this crate is built. Configuration of TLS parameters is still
-//! primarily done through the [`rama-boring`] crate.
+//! `rama-boring` crate, on which this crate is built. Configuration of TLS parameters is still
+//! primarily done through the `rama-boring` crate.
 #![warn(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 

@@ -3957,7 +3957,7 @@ index f623e2dc8..ea0d825e4 100644
  // DefaultSupportedGroupIds returns the list of IDs for the default groups that
  // are supported when the caller hasn't explicitly configured supported groups.
 diff --git a/ssl/ssl_key_share.cc b/ssl/ssl_key_share.cc
-index 94d07ff95..d82a7b901 100644
+index 94d07ff95..b4421ff24 100644
 --- a/ssl/ssl_key_share.cc
 +++ b/ssl/ssl_key_share.cc
 @@ -26,14 +26,15 @@
@@ -4603,7 +4603,17 @@ index 94d07ff95..d82a7b901 100644
  };
  
  static_assert(std::size(kNamedGroups) == kNumNamedGroups,
-@@ -472,10 +821,16 @@ UniquePtr<SSLKeyShare> SSLKeyShare::Create(uint16_t group_id) {
+@@ -455,6 +804,9 @@ Span<const NamedGroup> NamedGroups() { return kNamedGroups; }
+ 
+ Span<const uint16_t> DefaultSupportedGroupIds() {
+   static const uint16_t kDefaultSupportedGroupIds[] = {
++      SSL_GROUP_X25519_KYBER768_DRAFT00,
++      SSL_GROUP_X25519_MLKEM768,
++      SSL_GROUP_MLKEM1024,
+       SSL_GROUP_X25519,
+       SSL_GROUP_SECP256R1,
+       SSL_GROUP_SECP384R1,
+@@ -472,10 +824,16 @@ UniquePtr<SSLKeyShare> SSLKeyShare::Create(uint16_t group_id) {
        return MakeUnique<ECKeyShare>(EC_group_p521(), SSL_GROUP_SECP521R1);
      case SSL_GROUP_X25519:
        return MakeUnique<X25519KeyShare>();
