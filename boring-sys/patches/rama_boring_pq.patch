@@ -3915,17 +3915,16 @@ index 7f018ceec..6dfd090e6 100644
  #define SN_MLKEM1024 "MLKEM1024"
  #define NID_MLKEM1024 966
 diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
-index eb9ef2d87..f70b1b40a 100644
+index eb9ef2d87..fde43d5dd 100644
 --- a/include/openssl/ssl.h
 +++ b/include/openssl/ssl.h
-@@ -2559,6 +2559,10 @@ OPENSSL_EXPORT size_t SSL_CTX_get_num_tickets(const SSL_CTX *ctx);
+@@ -2559,6 +2559,9 @@ OPENSSL_EXPORT size_t SSL_CTX_get_num_tickets(const SSL_CTX *ctx);
  #define SSL_GROUP_X25519 29
  #define SSL_GROUP_X25519_MLKEM768 0x11ec
  #define SSL_GROUP_X25519_KYBER768_DRAFT00 0x6399
 +#define SSL_GROUP_X25519_KYBER512_DRAFT00 0xfe30
 +#define SSL_GROUP_X25519_KYBER768_DRAFT00_OLD 0xfe31
 +#define SSL_GROUP_P256_KYBER768_DRAFT00 0xfe32
-+#define SSL_GROUP_X25519_MLKEM768 0x11ec
  #define SSL_GROUP_MLKEM1024 0x0202
  
  // SSL_CTX_set1_group_ids sets the preferred groups for |ctx| to |group_ids|.
@@ -3957,7 +3956,7 @@ index f623e2dc8..ea0d825e4 100644
  // DefaultSupportedGroupIds returns the list of IDs for the default groups that
  // are supported when the caller hasn't explicitly configured supported groups.
 diff --git a/ssl/ssl_key_share.cc b/ssl/ssl_key_share.cc
-index 94d07ff95..b4421ff24 100644
+index 94d07ff95..51eba7fb2 100644
 --- a/ssl/ssl_key_share.cc
 +++ b/ssl/ssl_key_share.cc
 @@ -26,14 +26,15 @@
@@ -4603,17 +4602,25 @@ index 94d07ff95..b4421ff24 100644
  };
  
  static_assert(std::size(kNamedGroups) == kNumNamedGroups,
-@@ -455,6 +804,9 @@ Span<const NamedGroup> NamedGroups() { return kNamedGroups; }
+@@ -455,9 +804,14 @@ Span<const NamedGroup> NamedGroups() { return kNamedGroups; }
  
  Span<const uint16_t> DefaultSupportedGroupIds() {
    static const uint16_t kDefaultSupportedGroupIds[] = {
-+      SSL_GROUP_X25519_KYBER768_DRAFT00,
-+      SSL_GROUP_X25519_MLKEM768,
-+      SSL_GROUP_MLKEM1024,
-       SSL_GROUP_X25519,
-       SSL_GROUP_SECP256R1,
-       SSL_GROUP_SECP384R1,
-@@ -472,10 +824,16 @@ UniquePtr<SSLKeyShare> SSLKeyShare::Create(uint16_t group_id) {
+-      SSL_GROUP_X25519,
+-      SSL_GROUP_SECP256R1,
+-      SSL_GROUP_SECP384R1,
++      SSL_GROUP_X25519_MLKEM768,            // 0x11ec
++      SSL_GROUP_X25519,                     // 0x001d
++      SSL_GROUP_MLKEM1024,                  // 0x0202
++      SSL_GROUP_SECP256R1,                  // 0x0017
++      SSL_GROUP_SECP384R1,                  // 0x0018
++      SSL_GROUP_SECP521R1,                  // 0x0019
++      SSL_GROUP_X25519_KYBER768_DRAFT00,    // 0x6399
++      SSL_GROUP_X25519_KYBER512_DRAFT00,    // 0xfe30
+   };
+   return Span(kDefaultSupportedGroupIds);
+ }
+@@ -472,10 +826,16 @@ UniquePtr<SSLKeyShare> SSLKeyShare::Create(uint16_t group_id) {
        return MakeUnique<ECKeyShare>(EC_group_p521(), SSL_GROUP_SECP521R1);
      case SSL_GROUP_X25519:
        return MakeUnique<X25519KeyShare>();
