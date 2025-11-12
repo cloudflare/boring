@@ -3160,7 +3160,7 @@ impl SslRef {
     ///
     /// On the client side, the chain includes the leaf certificate, but on the server side it does
     /// not. Fun!
-    #[corresponds(SSL_get_peer_certificate)]
+    #[corresponds(SSL_get_peer_cert_chain)]
     #[must_use]
     pub fn peer_cert_chain(&self) -> Option<&StackRef<X509>> {
         #[cfg(feature = "rpk")]
