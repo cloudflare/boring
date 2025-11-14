@@ -637,7 +637,8 @@ fn generate_bindings(config: &Config) {
         .derive_copy(true)
         .derive_debug(true)
         .derive_default(true)
-        .derive_eq(true)
+        .derive_eq(false)
+        .derive_partialeq(false)
         .default_enum_style(bindgen::EnumVariation::NewType {
             is_bitfield: false,
             is_global: false,
