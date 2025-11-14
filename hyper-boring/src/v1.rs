@@ -29,14 +29,11 @@ pub struct HttpsConnector<T> {
     inner: Inner,
 }
 
-#[cfg(feature = "runtime")]
 impl HttpsConnector<HttpConnector> {
     /// Creates a a new `HttpsConnector` using default settings.
     ///
     /// The Hyper `HttpConnector` is used to perform the TCP socket connection. ALPN is configured to support both
     /// HTTP/2 and HTTP/1.1.
-    ///
-    /// Requires the `runtime` Cargo feature.
     pub fn new() -> Result<HttpsConnector<HttpConnector>, ErrorStack> {
         let mut http = HttpConnector::new();
         http.enforce_http(false);

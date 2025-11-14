@@ -399,7 +399,7 @@ pub(super) unsafe extern "C" fn raw_remove_session<F>(
         .ex_data(SslContext::cached_ex_index::<F>())
         .expect("BUG: remove session callback missing");
 
-    callback(ctx, session)
+    callback(ctx, session);
 }
 
 type DataPtr = *const c_uchar;
@@ -451,14 +451,14 @@ where
 {
     // SAFETY: boring provides valid inputs.
     let ssl = unsafe { SslRef::from_ptr(ssl as *mut _) };
-    let line = unsafe { str::from_utf8_unchecked(CStr::from_ptr(line).to_bytes()) };
+    let line = unsafe { CStr::from_ptr(line).to_string_lossy() };
 
     let callback = ssl
         .ssl_context()
         .ex_data(SslContext::cached_ex_index::<F>())
         .expect("BUG: get session callback missing");
 
-    callback(ssl, line);
+    callback(ssl, &line);
 }
 
 pub(super) unsafe extern "C" fn raw_sign<M>(

@@ -1,11 +1,9 @@
-#![cfg(feature = "hyper1")]
-
 use boring::ssl::{SslAcceptor, SslConnector, SslFiletype, SslMethod};
 use bytes::Bytes;
 use futures::StreamExt;
 use http_body_util::{BodyStream, Empty};
 use hyper::{service, Response};
-use hyper_boring::v1::HttpsConnector;
+use hyper_boring::HttpsConnector;
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::{TokioExecutor, TokioIo};

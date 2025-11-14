@@ -22,7 +22,7 @@ impl<S> AsyncStreamBridge<S> {
     }
 
     pub(crate) fn set_waker(&mut self, ctx: Option<&mut Context<'_>>) {
-        self.waker = ctx.map(|ctx| ctx.waker().clone())
+        self.waker = ctx.map(|ctx| ctx.waker().clone());
     }
 
     /// # Panics

@@ -20,12 +20,15 @@ use openssl_macros::corresponds;
 use std::borrow::Cow;
 use std::error;
 use std::ffi::CStr;
+use std::ffi::CString;
 use std::fmt;
 use std::io;
 use std::ptr;
 use std::str;
 
 use crate::ffi;
+
+pub use crate::ffi::ErrLib;
 
 /// Collection of [`Error`]s from OpenSSL.
 ///
@@ -56,7 +59,7 @@ impl ErrorStack {
     /// Used to report errors from the Rust crate
     #[cold]
     pub(crate) fn internal_error(err: impl error::Error) -> Self {
-        Self(vec![Error::new_internal(err.to_string())])
+        Self(vec![Error::new_internal(Data::String(err.to_string()))])
     }
 
     /// Empties the current thread's error queue.
@@ -120,7 +123,14 @@ pub struct Error {
     code: c_uint,
     file: *const c_char,
     line: c_uint,
-    data: Option<Cow<'static, str>>,
+    data: Data,
+}
+
+#[derive(Clone)]
+enum Data {
+    None,
+    CString(CString),
+    String(String),
 }
 
 unsafe impl Sync for Error {}
@@ -146,11 +156,9 @@ impl Error {
                     // The memory referenced by data is only valid until that slot is overwritten
                     // in the error stack, so we'll need to copy it off if it's dynamic
                     let data = if flags & ffi::ERR_FLAG_STRING != 0 {
-                        let bytes = CStr::from_ptr(data as *const _).to_bytes();
-                        let data = String::from_utf8_lossy(bytes).into_owned();
-                        Some(data.into())
+                        Data::CString(CStr::from_ptr(data.cast()).to_owned())
                     } else {
-                        None
+                        Data::None
                     };
                     Some(Error {
                         code,
@@ -174,31 +182,29 @@ impl Error {
                 self.file,
                 self.line,
             );
-            let ptr = match self.data {
-                Some(Cow::Borrowed(data)) => Some(data.as_ptr() as *mut c_char),
-                Some(Cow::Owned(ref data)) => {
-                    let ptr = ffi::OPENSSL_malloc((data.len() + 1) as _) as *mut c_char;
-                    if ptr.is_null() {
-                        None
-                    } else {
-                        ptr::copy_nonoverlapping(data.as_ptr(), ptr as *mut u8, data.len());
-                        *ptr.add(data.len()) = 0;
-                        Some(ptr)
-                    }
-                }
-                None => None,
-            };
-            if let Some(ptr) = ptr {
-                ffi::ERR_add_error_data(1, ptr);
+            if let Some(cstr) = self.data_cstr() {
+                ffi::ERR_set_error_data(cstr.as_ptr().cast_mut(), ffi::ERR_FLAG_STRING);
             }
         }
     }
 
+    /// Get `{lib}_R_{reason}` reason code for the given library, or `None` if the error is from a different library.
+    ///
+    /// Libraries are identified by [`ERR_LIB_{name}`(ffi::ERR_LIB_SSL) constants.
+    #[inline]
+    #[must_use]
+    #[track_caller]
+    pub fn library_reason(&self, library_code: ErrLib) -> Option<c_int> {
+        debug_assert!(library_code.0 < ffi::ERR_NUM_LIBS.0);
+        (self.library_code() == library_code.0 as c_int).then_some(self.reason_code())
+    }
+
     /// Returns a raw OpenSSL **packed** error code for this error, which **can't be reliably compared to any error constant**.
     ///
-    /// Use [`Error::library_code()`] and [`Error::reason_code()`] instead.
+    /// Use [`Error::library_code()`] and [`Error::library_reason()`] instead.
     /// Packed error codes are different than [SSL error codes](crate::ssl::ErrorCode).
     #[must_use]
+    #[deprecated(note = "use library_reason() to compare error codes")]
     pub fn code(&self) -> c_uint {
         self.code
     }
@@ -214,14 +220,16 @@ impl Error {
             if cstr.is_null() {
                 return None;
             }
-            let bytes = CStr::from_ptr(cstr as *const _).to_bytes();
-            str::from_utf8(bytes).ok()
+            CStr::from_ptr(cstr.cast())
+                .to_str()
+                .ok()
+                .filter(|&msg| msg != "unknown library")
         }
     }
 
     /// Returns the raw OpenSSL error constant for the library reporting the error (`ERR_LIB_{name}`).
     ///
-    /// Error [reason codes](Error::reason_code) are not globally unique, but scoped to each library.
+    /// Error [reason codes](Error::library_reason) are not globally unique, but scoped to each library.
     #[must_use]
     pub fn library_code(&self) -> c_int {
         ffi::ERR_GET_LIB(self.code)
@@ -240,14 +248,14 @@ impl Error {
             if cstr.is_null() {
                 return None;
             }
-            let bytes = CStr::from_ptr(cstr as *const _).to_bytes();
-            str::from_utf8(bytes).ok()
+            CStr::from_ptr(cstr.cast()).to_str().ok()
         }
     }
 
     /// Returns [library-specific](Error::library_code) reason code corresponding to some of the `{lib}_R_{reason}` constants.
     ///
     /// Reason codes are ambiguous, and different libraries reuse the same numeric values for different errors.
+    /// Use [`Error::library_reason`] to compare error codes.
     ///
     /// For `ERR_LIB_SYS` the reason code is `errno`. `ERR_LIB_USER` can use any values.
     /// Other libraries may use [`ERR_R_*`](ffi::ERR_R_FATAL) or their own codes.
@@ -263,8 +271,9 @@ impl Error {
             if self.file.is_null() {
                 return "";
             }
-            let bytes = CStr::from_ptr(self.file as *const _).to_bytes();
-            str::from_utf8(bytes).unwrap_or_default()
+            CStr::from_ptr(self.file.cast())
+                .to_str()
+                .unwrap_or_default()
         }
     }
 
@@ -280,15 +289,29 @@ impl Error {
     /// Returns additional data describing the error.
     #[must_use]
     pub fn data(&self) -> Option<&str> {
-        self.data.as_deref()
+        match &self.data {
+            Data::None => None,
+            Data::CString(cstring) => cstring.to_str().ok(),
+            Data::String(s) => Some(s),
+        }
     }
 
-    fn new_internal(msg: String) -> Self {
+    #[must_use]
+    fn data_cstr(&self) -> Option<Cow<'_, CStr>> {
+        let s = match &self.data {
+            Data::None => return None,
+            Data::CString(cstr) => return Some(Cow::Borrowed(cstr)),
+            Data::String(s) => s.as_str(),
+        };
+        CString::new(s).ok().map(Cow::Owned)
+    }
+
+    fn new_internal(msg: Data) -> Self {
         Self {
             code: ffi::ERR_PACK(ffi::ERR_LIB_NONE.0 as _, 0, 0) as _,
             file: BORING_INTERNAL.as_ptr(),
             line: 0,
-            data: Some(msg.into()),
+            data: msg,
         }
     }
 
