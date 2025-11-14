@@ -1,3 +1,45 @@
+5.0.0
+- 2025-12-19 Update vendored boring to a newer version (2023.11 to 2025.11)
+- 2025-12-20 Rework RPK/SslMethod (c2f063cf4711f15b8b417b6926496fbf1c2a03ac)
+- 2025-09-29 Remove `SslCurve` API
+- 2025-09-30 Remove the "kx-*" features
+- 2025-09-25 Remove legacy FIPS options (they're controlled via `BORING_BSSL_` env vars instead)
+- 2026-01-05 Remove deprecated X509CheckFlags flag
+- 2025-09-30 Remove "pq-experimental" Cargo feature, apply PQ patch by default + P256Kyber768Draft00
+- 2026-01-05 Safe clone for X509Store
+- 2025-03-08 Add set_ticket_key_callback (SSL_CTX_set_tlsext_ticket_key_cb)
+- 2025-09-30 Add SslRef::curve_name()
+- 2025-09-30 Expose a safe Rust interface for the session resumption callback
+- 2026-01-05 Fix leaky set_ex_data() API
+- 2025-12-12 Add boring specific api set_strict_cipher_list to SslContextBuilder
+- 2025-11-20 Introduce SslCipherRef::protocol_id
+- 2023-05-11 fix: BIO_set_retry_write when BIO_CTRL_FLUSH to allow writer returns WouldBlock on flush
+- 2025-11-14 Remove blanket Eq from FFI types
+- 2025-12-20 Never use the debug CRT on Windows
+- 2025-02-19 X509Builder::append_extension2 -> X509Builder::append_extension
+- 2025-02-19 `Ssl::new_from_ref` -> `Ssl::new()`
+- 2025-02-19 Align SslStream APIs with upstream
+- 2025-09-26 Remove support for Hyper v0
+
+4.21.0
+- 2026-01-05 Warn about set_curves() removal
+- 2026-01-05 Deprecate set_ex_data()
+- 2026-01-05 Fix build with --no-default-features
+- 2026-01-05 Make set_curves_list always available
+- 2026-01-19 Use fips-build-compatible ERR_add_error_data
+
+4.20.0
+- 2025-08-26 Support TARGET_CC and CC_{target}
+- 2025-08-26 Fix swapped host/target args
+- 2025-06-13 CStr UTF-8 improvements
+- 2025-09-26 Skip Rust version detection for bindgen
+- 2025-09-26 Upgrade deps
+- 2025-06-13 Ensure that ERR_LIB type can be named
+- 2025-06-13 Add more reliable library_reason()
+- 2025-09-30 pq: fix MSVC C4146 warning
+- 2025-10-14 Freebsd build
+- 2025-10-01 Fix string data conversion in ErrorStack::put()
+
 4.19.0
 - 2025-09-03 Add binding for X509_check_ip_asc
 - 2025-06-13 Use ERR_clear_error
