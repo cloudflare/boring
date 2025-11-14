@@ -18,6 +18,7 @@ pub(crate) struct Features {
     pub(crate) fips: bool,
     pub(crate) rpk: bool,
     pub(crate) underscore_wildcards: bool,
+    pub(crate) prefix_symbols: bool,
 }
 
 pub(crate) struct Env {
@@ -105,11 +106,13 @@ impl Features {
         let fips = env::var_os("CARGO_FEATURE_FIPS").is_some();
         let rpk = env::var_os("CARGO_FEATURE_RPK").is_some();
         let underscore_wildcards = env::var_os("CARGO_FEATURE_UNDERSCORE_WILDCARDS").is_some();
+        let prefix_symbols = env::var_os("CARGO_FEATURE_PREFIX_SYMBOLS").is_some();
 
         Self {
             fips,
             rpk,
             underscore_wildcards,
+            prefix_symbols,
         }
     }
 
