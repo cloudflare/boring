@@ -2465,6 +2465,13 @@ unsafe impl ForeignTypeRef for SslCipherRef {
 }
 
 impl SslCipherRef {
+    /// Returns the IANA number of the cipher.
+    #[corresponds(SSL_CIPHER_get_protocol_id)]
+    #[must_use]
+    pub fn protocol_id(&self) -> u16 {
+        unsafe { ffi::SSL_CIPHER_get_protocol_id(self.as_ptr()) }
+    }
+
     /// Returns the name of the cipher.
     #[corresponds(SSL_CIPHER_get_name)]
     #[must_use]
