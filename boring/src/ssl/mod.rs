@@ -2405,7 +2405,8 @@ impl ClientHello<'_> {
 }
 
 /// Information about a cipher.
-pub struct SslCipher(*mut ffi::SSL_CIPHER);
+#[derive(Clone, Copy)]
+pub struct SslCipher(&'static SslCipherRef);
 
 impl SslCipher {
     #[corresponds(SSL_get_cipher_by_value)]
@@ -2432,12 +2433,12 @@ unsafe impl ForeignType for SslCipher {
 
     #[inline]
     unsafe fn from_ptr(ptr: *mut ffi::SSL_CIPHER) -> SslCipher {
-        SslCipher(ptr)
+        SslCipher(SslCipherRef::from_ptr(ptr))
     }
 
     #[inline]
     fn as_ptr(&self) -> *mut ffi::SSL_CIPHER {
-        self.0
+        self.0.as_ptr()
     }
 }
 
@@ -2445,13 +2446,13 @@ impl Deref for SslCipher {
     type Target = SslCipherRef;
 
     fn deref(&self) -> &SslCipherRef {
-        unsafe { SslCipherRef::from_ptr(self.0) }
+        self.0
     }
 }
 
 impl DerefMut for SslCipher {
     fn deref_mut(&mut self) -> &mut SslCipherRef {
-        unsafe { SslCipherRef::from_ptr_mut(self.0) }
+        unsafe { SslCipherRef::from_ptr_mut(self.0.as_ptr()) }
     }
 }
 
@@ -2459,6 +2460,9 @@ impl DerefMut for SslCipher {
 ///
 /// [`SslCipher`]: struct.SslCipher.html
 pub struct SslCipherRef(Opaque);
+
+unsafe impl Send for SslCipherRef {}
+unsafe impl Sync for SslCipherRef {}
 
 unsafe impl ForeignTypeRef for SslCipherRef {
     type CType = ffi::SSL_CIPHER;
