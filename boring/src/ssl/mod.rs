@@ -69,7 +69,7 @@ use std::io;
 use std::io::prelude::*;
 use std::marker::PhantomData;
 use std::mem::{self, ManuallyDrop, MaybeUninit};
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 use std::panic::resume_unwind;
 use std::path::Path;
 use std::ptr::{self, NonNull};
@@ -2447,12 +2447,6 @@ impl Deref for SslCipher {
 
     fn deref(&self) -> &SslCipherRef {
         self.0
-    }
-}
-
-impl DerefMut for SslCipher {
-    fn deref_mut(&mut self) -> &mut SslCipherRef {
-        unsafe { SslCipherRef::from_ptr_mut(self.0.as_ptr()) }
     }
 }
 
