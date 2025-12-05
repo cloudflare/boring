@@ -1,3 +1,15 @@
+4.20.0
+- 2025-08-26 Support TARGET_CC and CC_{target}
+- 2025-08-26 Fix swapped host/target args
+- 2025-06-13 CStr UTF-8 improvements
+- 2025-09-26 Skip Rust version detection for bindgen
+- 2025-09-26 Upgrade deps
+- 2025-06-13 Ensure that ERR_LIB type can be named
+- 2025-06-13 Add more reliable library_reason()
+- 2025-09-30 pq: fix MSVC C4146 warning
+- 2025-10-14 Freebsd build
+- 2025-10-01 Fix string data conversion in ErrorStack::put()
+
 4.19.0
 - 2025-09-03 Add binding for X509_check_ip_asc
 - 2025-06-13 Use ERR_clear_error
