@@ -11,6 +11,8 @@ on:
 env:
   RUSTFLAGS: -Dwarnings
   RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_DEV_DEBUG: 0
 
 jobs:
   rustfmt:
@@ -31,7 +33,7 @@ jobs:
         with:
           submodules: 'recursive'
       - name: Install Rust
-        run: rustup update --no-self-update stable && rustup default stable && rustup component add clippy
+        run: rustup toolchain add stable --no-self-update --component clippy && rustup default stable
       - name: Get rust version
         id: rust-version
         run: |
@@ -39,24 +41,17 @@ jobs:
       - name: Cache cargo index
         uses: actions/cache@v4
         with:
-          path: ~/.cargo/registry/index
-          key: index-${{ runner.os }}-${{ github.run_number }}
-          restore-keys: |
-            index-${{ runner.os }}-
-      - name: Create lockfile
-        run: cargo generate-lockfile
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/registry/cache
-          key: registry-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+          key: index-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.toml') }}
       - name: Fetch dependencies
         run: cargo fetch
       - name: Cache target directory
         uses: actions/cache@v4
         with:
           path: target
-          key: clippy-target-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+          key: clippy-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
       - name: Run clippy
         run: cargo clippy --all --all-targets
       - name: Check docs
@@ -290,7 +285,7 @@ jobs:
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)
-      run: rustup update stable --no-self-update && rustup default stable && rustup target add ${{ matrix.target }}
+      run: rustup toolchain install stable --no-self-update --profile minimal --target ${{ matrix.target }} && rustup default stable
       shell: bash
     - name: Install golang
       uses: actions/setup-go@v5
@@ -303,12 +298,15 @@ jobs:
       shell: bash
     - name: Set CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER
       run: echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=${{ matrix.target }}-gcc" >> $GITHUB_ENV
+      shell: bash
     - name: Build for ${{ matrix.target }}
       run: cargo build --target ${{ matrix.target }} --all-targets
 
   test-features:
     name: Test features
     runs-on: ubuntu-latest
+    env:
+      CARGO_INCREMENTAL: 1
     steps:
     - uses: actions/checkout@v4
       with:
