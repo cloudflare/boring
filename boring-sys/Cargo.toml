@@ -64,6 +64,15 @@ rpk = []
 # `BORING_BSSL{,_FIPS}_SOURCE_PATH`.
 underscore-wildcards = []
 
+# UNSUPPORTED. Do not use. Fails the build.
+fips-link-precompiled = []
+
+# UNSUPPORTED. Do not use. Fails the build.
+fips-precompiled = []
+
+# UNSUPPORTED. Do not use. Fails the build.
+pq-experimental = []
+
 [build-dependencies]
 bindgen = { workspace = true }
 cmake = { workspace = true }

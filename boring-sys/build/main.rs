@@ -723,3 +723,12 @@ fn ensure_err_lib_enum_is_named(source_code: &mut Vec<u8>) {
             .as_bytes(),
     );
 }
+
+#[cfg(feature = "pq-experimental")]
+compile_error!("boring-sys v5 has removed the `pq-experimental` Cargo feature. Unset it.");
+
+#[cfg(feature = "fips-precompiled")]
+compile_error!("boring-sys v5 has removed the `fips-precompiled` Cargo feature. Unset it, and use the `fips` feature instead.");
+
+#[cfg(feature = "fips-link-precompiled")]
+compile_error!("boring-sys v5 has removed the `fips-link-precompiled` Cargo feature. Unset it, and use the `fips` feature instead.");
