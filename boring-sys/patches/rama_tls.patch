@@ -152,7 +152,7 @@ index ec505e370..eb5d9f146 100644
          TLSEXT_TYPE_delegated_credential,
          ext_delegated_credential_add_clienthello,
 @@ -3716,6 +3773,74 @@ static_assert(kNumExtensions <=
-                   sizeof(((SSL_HANDSHAKE *)NULL)->extensions.received) * 8,
+                   sizeof(((SSL_HANDSHAKE *)nullptr)->extensions.received) * 8,
                "too many extensions for received bitset");
  
 +bool rama_ssl_setup_extension_order(SSL_HANDSHAKE *hs) {
@@ -330,7 +330,7 @@ index 724a0f272..75377f90c 100644
 +    UniquePtr<SSLCipherPreferenceList> *out_cipher_list,
 +    const uint16_t *cipher_values, int num) {
 +  // Return with error if nothing to do.
-+  if (out_cipher_list == NULL || cipher_values == NULL ||
++  if (out_cipher_list == nullptr || cipher_values == nullptr ||
 +      num <= 0) {
 +    return false;
 +  }
@@ -357,7 +357,7 @@ index 724a0f272..75377f90c 100644
 +  const SSL_CIPHER* value;
 +  for (i = 0; i < num; i++) {
 +    value = SSL_get_cipher_by_value(cipher_values[i]);
-+    if (value == NULL) {
++    if (value == nullptr) {
 +        continue;
 +    }
 +    if (!sk_SSL_CIPHER_push(cipherstack.get(), value)) {
