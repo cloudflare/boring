@@ -1,0 +1,103 @@
+name: prefix
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  prefix-symbols:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            bin: ""
+            test: true
+            custom_env: {}
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            bin: ""
+            test: false
+            apt_packages: crossbuild-essential-arm64 binutils-multiarch
+            custom_env:
+              CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+              CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
+              CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-g++
+          - target: armv7-linux-androideabi
+            os: ubuntu-latest
+            bin: ndk
+            test: false
+            custom_env: {}
+          - target: aarch64-linux-android
+            os: ubuntu-latest
+            bin: ndk
+            test: false
+            custom_env: {}
+          - target: x86_64-linux-android
+            os: ubuntu-latest
+            bin: ndk
+            test: false
+            custom_env: {}
+          - target: i686-linux-android
+            os: ubuntu-latest
+            bin: ndk
+            test: false
+            custom_env: {}
+    defaults:
+      run:
+        working-directory: test-project
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+      - name: Create test project
+        working-directory: .
+        run: |
+          cargo init test-project
+          cd test-project
+          cargo add boring-sys --path ../boring-sys/
+          cargo add openssl-sys -F vendored
+          echo "fn main() {boring_sys::init(); openssl_sys::init();}" > src/main.rs
+      - name: Install Rust toolchain
+        shell: bash
+        run: rustup target add ${{ matrix.target }}
+      - name: Install target-specific APT dependencies
+        if: matrix.apt_packages != ''
+        run: sudo apt update && sudo apt install -y ${{ matrix.apt_packages }}
+      - name: Install cargo-ndk
+        if: contains(matrix.target, 'android')
+        run: |
+          cargo install cargo-ndk
+          # Openssl fix for i686: https://github.com/rust-openssl/rust-openssl/issues/2163#issuecomment-2692363343
+          echo "ANDROID_NDK=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
+          echo "CARGO_TARGET_I686_LINUX_ANDROID_RUSTFLAGS=-C link-arg=-lclang_rt.builtins-i686-android -C link-arg=-L${ANDROID_NDK_LATEST_HOME}/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/21/lib/linux/" >> $GITHUB_ENV
+      - name: Build without prefixing
+        env: ${{ matrix.custom_env }}
+        shell: bash
+        run: |
+          RC=0
+          cargo ${{ matrix.bin }} build --target ${{ matrix.target }} >logs 2>&1 || RC=$?
+          if [[ $RC == 0 || (! $(cat logs | grep "lld: error: duplicate symbol") && ! $(cat logs | grep "multiple definition of")) ]]; then
+            cat logs
+            echo "Build finished without duplicate symbols: $RC"
+            exit 1
+          fi
+          cat logs
+          echo "Failed as expected: $RC"
+      - name: Add prefix-symbols feature
+        shell: bash
+        run: cargo add boring-sys --path ../boring-sys/ -F prefix-symbols
+      - name: Build with prefixing
+        env: ${{ matrix.custom_env }}
+        shell: bash
+        run: cargo ${{ matrix.bin }} build --target ${{ matrix.target }}
+      - name: Check if the is no runtime failures
+        if: matrix.test == true
+        shell: bash
+        run: cargo ${{ matrix.bin }} run --target ${{ matrix.target }}
