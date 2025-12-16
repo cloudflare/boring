@@ -299,10 +299,10 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
         "windows" => {
             // BoringSSL's CMakeLists.txt isn't set up for cross-compiling using Visual Studio.
             // Disable assembly support so that it at least builds.
-            println!("cargo:warning=Configuring for Windows - Disabling ASM");
-            boringssl_cmake.define("OPENSSL_NO_ASM", "TRUE");
-
-            c_flags.push("-DOPENSSL_NO_ASM");
+            if config.host.contains("windows") {
+                println!("cargo:warning=Configuring for Windows - Disabling ASM");
+                boringssl_cmake.define("OPENSSL_NO_ASM", "TRUE");
+            }
 
             if config.target.contains("-pc-windows-gnu") {
                 boringssl_cmake.define("CMAKE_CXX_STANDARD", "17");
