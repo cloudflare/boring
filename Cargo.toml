@@ -3,7 +3,7 @@ members = ["boring", "boring-sys", "tokio-boring"]
 resolver = "2"
 
 [workspace.package]
-version = "0.5.7"
+version = "0.5.8"
 repository = "https://github.com/plabayo/rama-boring"
 # we should stick on edition 2021 until ecosystem is ready,
 # and perhaps let cloudflare do it if ever,
@@ -18,9 +18,9 @@ tag-prefix = ""
 publish = false
 
 [workspace.dependencies]
-rama-boring = { version = "0.5.7", path = "./boring" }
-rama-boring-sys = { version = "0.5.7", path = "./boring-sys" }
-rama-boring-tokio = { version = "0.5.7", path = "./tokio-boring" }
+rama-boring = { version = "0.5.8", path = "./boring" }
+rama-boring-sys = { version = "0.5.8", path = "./boring-sys" }
+rama-boring-tokio = { version = "0.5.8", path = "./tokio-boring" }
 
 antidote = "1.0.0"
 anyhow = "1"
