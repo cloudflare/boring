@@ -85,6 +85,7 @@ jobs:
           - x86_64-mingw
           - i686-msvc
           - x86_64-msvc
+          - aarch64-msvc
         include:
           - check_only: false
           - extra_test_args: ""
@@ -197,6 +198,15 @@ jobs:
             custom_env:
               CC_x86_64-pc-windows-msvc: cl
               CXX_x86_64-pc-windows-msvc: cl
+            # CI's Windows doesn't have required root certs
+            extra_test_args: --workspace --exclude rama-boring-tokio
+          - thing: aarch64-msvc
+            target: aarch64-pc-windows-msvc
+            rust: stable-aarch64-pc-windows-msvc
+            os: windows-11-arm
+            custom_env:
+              CC_aarch64-pc-windows-msvc: cl
+              CXX_aarch64-pc-windows-msvc: cl
             # CI's Windows doesn't have required root certs
             extra_test_args: --workspace --exclude rama-boring-tokio
 

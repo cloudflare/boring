@@ -299,6 +299,8 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                 boringssl_cmake.generator("Visual Studio 17 2022");
                 if config.target_arch == "x86" {
                     boringssl_cmake.define("CMAKE_GENERATOR_PLATFORM", "Win32");
+                } else if config.target_arch == "aarch64" {
+                    boringssl_cmake.define("CMAKE_GENERATOR_PLATFORM", "ARM64");
                 } else {
                     boringssl_cmake.define("CMAKE_GENERATOR_PLATFORM", "x64");
                 }
