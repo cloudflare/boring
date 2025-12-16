@@ -26,6 +26,7 @@ fn should_use_cmake_cross_compilation(config: &Config) -> bool {
         _ => {
             // MSVC targets use the Visual Studio generator which handles architecture
             // selection via `-A`. Manually setting CMAKE_CROSSCOMPILING confuses it.
+            #[allow(clippy::needless_bool)]
             if config.target.ends_with("-msvc") {
                 false
             } else {
@@ -296,13 +297,11 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
         }
 
         "windows" => {
-            // NOTE[Glen]: fairly certain this should work now on windows boring,
-            // we can revisit this again if it turns out to be a false assumption
-            // if config.host.contains("windows") {
-            //     // BoringSSL's CMakeLists.txt isn't set up for cross-compiling using Visual Studio.
-            //     // Disable assembly support so that it at least builds.
-            //     boringssl_cmake.define("OPENSSL_NO_ASM", "YES");
-            // }
+            if config.host.contains("windows") {
+                // BoringSSL's CMakeLists.txt isn't set up for cross-compiling using Visual Studio.
+                // Disable assembly support so that it at least builds.
+                boringssl_cmake.define("OPENSSL_NO_ASM", "YES");
+            }
 
             if config.target.contains("-pc-windows-gnu") {
                 boringssl_cmake.define("CMAKE_CXX_STANDARD", "17");
