@@ -16,13 +16,22 @@ fn should_use_cmake_cross_compilation(config: &Config) -> bool {
     if config.host == config.target {
         return false;
     }
+
     match config.target_os.as_str() {
         "macos" | "ios" => {
             // Cross-compiling for Apple platforms on macOS is supported using the normal Xcode
             // tools, along with the settings from `cmake_params_apple`.
             !config.host.ends_with("-darwin")
         }
-        _ => true,
+        _ => {
+            // MSVC targets use the Visual Studio generator which handles architecture
+            // selection via `-A`. Manually setting CMAKE_CROSSCOMPILING confuses it.
+            if config.target.ends_with("-msvc") {
+                false
+            } else {
+                true
+            }
+        }
     }
 }
 
@@ -287,11 +296,13 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
         }
 
         "windows" => {
-            if config.host.contains("windows") {
-                // BoringSSL's CMakeLists.txt isn't set up for cross-compiling using Visual Studio.
-                // Disable assembly support so that it at least builds.
-                boringssl_cmake.define("OPENSSL_NO_ASM", "YES");
-            }
+            // NOTE[Glen]: fairly certain this should work now on windows boring,
+            // we can revisit this again if it turns out to be a false assumption
+            // if config.host.contains("windows") {
+            //     // BoringSSL's CMakeLists.txt isn't set up for cross-compiling using Visual Studio.
+            //     // Disable assembly support so that it at least builds.
+            //     boringssl_cmake.define("OPENSSL_NO_ASM", "YES");
+            // }
 
             if config.target.contains("-pc-windows-gnu") {
                 boringssl_cmake.define("CMAKE_CXX_STANDARD", "17");
