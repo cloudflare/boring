@@ -237,7 +237,7 @@ jobs:
         run: |
           cargo update --package cmake --precise 0.1.54
       - name: Install LLVM and Clang
-        if: startsWith(matrix.os, 'windows')
+        if: startsWith(matrix.os, 'windows') && !contains(matrix.os, 'arm')
         uses: KyleMayes/install-llvm-action@v1
         with:
           version: "11.0"
