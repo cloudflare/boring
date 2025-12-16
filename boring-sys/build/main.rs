@@ -311,6 +311,7 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                     boringssl_cmake.define("CMAKE_GENERATOR_PLATFORM", "Win32");
                 } else if config.target_arch == "aarch64" {
                     boringssl_cmake.define("CMAKE_GENERATOR_PLATFORM", "ARM64");
+                    boringssl_cmake.define("CMAKE_SYSTEM_PROCESSOR", "ARM64");
                 } else {
                     boringssl_cmake.define("CMAKE_GENERATOR_PLATFORM", "x64");
                 }
