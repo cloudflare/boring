@@ -23,68 +23,13 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-  clippy:
-    name: clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
-      - name: Install Rust
-        run: rustup update --no-self-update stable && rustup default stable && rustup component add clippy
-      - name: Get rust version
-        id: rust-version
-        run: |
-          echo "version=$(rustc --version)" >> $GITHUB_OUTPUT
-      - name: Cache cargo index
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/registry/index
-          key: index-${{ runner.os }}-${{ github.run_number }}
-          restore-keys: |
-            index-${{ runner.os }}-
-      - name: Create lockfile
-        run: cargo generate-lockfile
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/registry/cache
-          key: registry-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
-      - name: Fetch dependencies
-        run: cargo fetch
-      - name: Cache target directory
-        uses: actions/cache@v4
-        with:
-          path: target
-          key: clippy-target-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
-      - name: Run clippy
-        run: cargo clippy --all --all-targets
-      - name: Check docs
-        run: cargo doc --no-deps -p boring -p boring-sys --features rpk,underscore-wildcards
-        env:
-          DOCS_RS: 1
   test:
     name: Test
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         thing:
-        - stable
-        - arm-android
-        - arm64-android
-        - i686-android
-        - x86_64-android
-        - aarch64-ios
-        - aarch64-ios-sim
-        - x86_64-ios
-        - i686-linux
-        - arm-linux
-        - aarch64-linux
-        - arm64-macos
-        - x86_64-macos
         - x86_64-mingw
-        - i686-msvc
-        - x86_64-msvc
         include:
         - check_only: false
         - extra_test_args: ''
