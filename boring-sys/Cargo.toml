@@ -20,6 +20,7 @@ include = [
     "/LICENSE-MIT",
     "/cmake/*.cmake",
     "/deps/boringssl/**/*.[chS]",
+    "/deps/boringssl/**/*.inc",
     "/deps/boringssl/**/*.asm",
     "/deps/boringssl/**/*.pl",
     "/deps/boringssl/**/*.go",
