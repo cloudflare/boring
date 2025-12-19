@@ -4,7 +4,9 @@ use super::{
     Ssl, SslAlert, SslContextBuilder, SslRef, SslSession, SslSignatureAlgorithm, SslVerifyError,
     SslVerifyMode,
 };
+use crate::error::ErrorStack;
 use crate::ex_data::Index;
+use crate::ssl::SslCredentialBuilder;
 use std::convert::identity;
 use std::future::Future;
 use std::pin::Pin;
@@ -168,6 +170,21 @@ impl SslContextBuilder {
         F: Fn(&mut SslRef) -> Result<BoxCustomVerifyFuture, SslAlert> + Send + Sync + 'static,
     {
         self.set_custom_verify_callback(mode, async_custom_verify_callback(callback));
+    }
+}
+
+impl SslCredentialBuilder {
+    /// Configures a custom private key method on the context.
+    ///
+    /// A task waker must be set on `Ssl` values associated with the resulting
+    /// `SslContext` with [`SslRef::set_task_waker`].
+    ///
+    /// See [`AsyncPrivateKeyMethod`] for more details.
+    pub fn set_async_private_key_method(
+        &mut self,
+        method: impl AsyncPrivateKeyMethod,
+    ) -> Result<(), ErrorStack> {
+        self.set_private_key_method(AsyncPrivateKeyMethodBridge(Box::new(method)))
     }
 }
 

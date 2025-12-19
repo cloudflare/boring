@@ -83,6 +83,8 @@ use crate::error::ErrorStack;
 use crate::ex_data::Index;
 use crate::hmac::HmacCtxRef;
 use crate::nid::Nid;
+#[cfg(feature = "rpk")]
+use crate::pkey::Public;
 use crate::pkey::{HasPrivate, PKeyRef, Params, Private};
 use crate::srtp::{SrtpProtectionProfile, SrtpProtectionProfileRef};
 use crate::ssl::bio::BioMethod;
@@ -447,6 +449,8 @@ static SSL_INDEXES: LazyLock<Mutex<HashMap<TypeId, c_int>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 static SESSION_CTX_INDEX: LazyLock<Index<Ssl, SslContext>> =
     LazyLock::new(|| Ssl::new_ex_index().unwrap());
+static SSL_CREDENTIAL_INDEXES: LazyLock<Mutex<HashMap<TypeId, c_int>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 #[cfg(feature = "rpk")]
 static RPK_FLAG_INDEX: LazyLock<Index<SslContext, bool>> =
     LazyLock::new(|| SslContext::new_ex_index().unwrap());
@@ -914,33 +918,6 @@ impl SslContextBuilder {
             Ok(builder)
         }
     }
-
-    /// Sets raw public key certificate in DER format.
-    pub fn set_rpk_certificate(&mut self, cert: &[u8]) -> Result<(), ErrorStack> {
-        unsafe {
-            cvt(ffi::SSL_CTX_set_server_raw_public_key_certificate(
-                self.as_ptr(),
-                cert.as_ptr(),
-                cert.len() as u32,
-            ))
-            .map(|_| ())
-        }
-    }
-
-    /// Sets RPK null chain private key.
-    pub fn set_null_chain_private_key<T>(&mut self, key: &PKeyRef<T>) -> Result<(), ErrorStack>
-    where
-        T: HasPrivate,
-    {
-        unsafe {
-            cvt(ffi::SSL_CTX_set_nullchain_and_key(
-                self.as_ptr(),
-                key.as_ptr(),
-                ptr::null_mut(),
-            ))
-            .map(|_| ())
-        }
-    }
 }
 
 impl SslContextBuilder {
@@ -1081,8 +1058,6 @@ impl SslContextBuilder {
     where
         F: Fn(&mut SslRef) -> Result<(), SslVerifyError> + 'static + Sync + Send,
     {
-        self.ctx.check_x509();
-
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_set_custom_verify(
@@ -1940,7 +1915,7 @@ impl SslContextBuilder {
     /// Sets or overwrites the extra data at the specified index.
     ///
     /// This can be used to provide data to callbacks registered with the context. Use the
-    /// `Ssl::new_ex_index` method to create an `Index`.
+    /// `SslContext::new_ex_index` method to create an `Index`.
     ///
     /// Any previous value will be returned and replaced by the new one.
     #[corresponds(SSL_CTX_set_ex_data)]
@@ -2047,6 +2022,36 @@ impl SslContextBuilder {
     #[corresponds(SSL_CTX_set1_ech_keys)]
     pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())).map(|_| ()) }
+    }
+
+    /// Adds a credential.
+    #[corresponds(SSL_CTX_add1_credential)]
+    pub fn add_credential(&mut self, credential: &SslCredentialRef) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_CTX_add1_credential(
+                self.as_ptr(),
+                credential.as_ptr(),
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Sets the list of server certificate types that clients attached to this context
+    /// can process.
+    #[corresponds(SSL_CTX_set_server_certificate_types)]
+    #[cfg(feature = "rpk")]
+    pub fn set_server_certificate_types(
+        &mut self,
+        types: &[CertificateType],
+    ) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_CTX_set_server_certificate_types(
+                self.as_ptr(),
+                types.as_ptr() as *const u8,
+                types.len(),
+            ))
+            .map(|_| ())
+        }
     }
 
     /// Consumes the builder, returning a new `SslContext`.
@@ -2321,6 +2326,26 @@ impl SslContextRef {
     #[corresponds(SSL_CTX_set1_ech_keys)]
     pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())).map(|_| ()) }
+    }
+
+    /// Returns the list of server certificate types.
+    #[corresponds(SSL_CTX_get0_server_certificate_types)]
+    #[cfg(feature = "rpk")]
+    pub fn server_certificate_types(&self) -> Option<&[CertificateType]> {
+        let mut types = ptr::null();
+        let mut types_len = 0;
+        unsafe {
+            ffi::SSL_CTX_get0_server_certificate_types(self.as_ptr(), &mut types, &mut types_len);
+
+            if types_len == 0 {
+                return None;
+            }
+
+            Some(slice::from_raw_parts(
+                types as *const CertificateType,
+                types_len,
+            ))
+        }
     }
 }
 
@@ -3809,6 +3834,75 @@ impl SslRef {
     pub fn set_compliance_policy(&mut self, policy: CompliancePolicy) -> Result<(), ErrorStack> {
         unsafe { cvt_0i(ffi::SSL_set_compliance_policy(self.as_ptr(), policy.0)).map(|_| ()) }
     }
+
+    /// Adds a credential.
+    #[corresponds(SSL_add1_credential)]
+    pub fn add_credential(&mut self, credential: &SslCredentialRef) -> Result<(), ErrorStack> {
+        unsafe { cvt_0i(ffi::SSL_add1_credential(self.as_ptr(), credential.as_ptr())).map(|_| ()) }
+    }
+
+    /// Returns the public key sent by the other peer, `None` if there is no ongoing handshake.
+    #[corresponds(SSL_get0_peer_pubkey)]
+    #[cfg(feature = "rpk")]
+    pub fn peer_pubkey(&self) -> Option<&PKeyRef<Public>> {
+        unsafe {
+            let pubkey = ffi::SSL_get0_peer_pubkey(self.as_ptr());
+
+            if pubkey.is_null() {
+                return None;
+            }
+
+            Some(PKeyRef::from_ptr(pubkey as *mut _))
+        }
+    }
+
+    /// Sets the list of server certificate types that clients attached to this `Ssl`
+    /// can process.
+    #[corresponds(SSL_set_server_certificate_types)]
+    #[cfg(feature = "rpk")]
+    pub fn set_server_certificate_types(
+        &mut self,
+        types: &[CertificateType],
+    ) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_set_server_certificate_types(
+                self.as_ptr(),
+                types.as_ptr() as *const u8,
+                types.len(),
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Returns the list of server certificate types.
+    #[corresponds(SSL_get0_server_certificate_types)]
+    #[must_use]
+    #[cfg(feature = "rpk")]
+    pub fn server_certificate_types(&self) -> Option<&[CertificateType]> {
+        let mut types = ptr::null();
+        let mut types_len = 0;
+        unsafe {
+            ffi::SSL_get0_server_certificate_types(self.as_ptr(), &mut types, &mut types_len);
+
+            if types_len == 0 {
+                return None;
+            }
+
+            Some(slice::from_raw_parts(
+                types as *const CertificateType,
+                types_len,
+            ))
+        }
+    }
+
+    /// Returns the server certificate type selected by the server, or `CertificateType::X509`
+    /// if there is no handshake.
+    #[corresponds(SSL_get_server_certificate_type_selected)]
+    #[must_use]
+    #[cfg(feature = "rpk")]
+    pub fn selected_server_certificate_type(&self) -> CertificateType {
+        unsafe { CertificateType(ffi::SSL_get_server_certificate_type_selected(self.as_ptr())) }
+    }
 }
 
 /// An SSL stream midway through the handshake process.
@@ -4351,6 +4445,264 @@ impl<S> SslStreamBuilder<S> {
     }
 }
 
+/// A credential.
+pub struct SslCredential(NonNull<ffi::SSL_CREDENTIAL>);
+
+unsafe impl ForeignType for SslCredential {
+    type CType = ffi::SSL_CREDENTIAL;
+    type Ref = SslCredentialRef;
+
+    #[inline]
+    unsafe fn from_ptr(ptr: *mut ffi::SSL_CREDENTIAL) -> Self {
+        Self(NonNull::new_unchecked(ptr))
+    }
+
+    #[inline]
+    fn as_ptr(&self) -> *mut ffi::SSL_CREDENTIAL {
+        self.0.as_ptr()
+    }
+}
+
+impl Drop for SslCredential {
+    fn drop(&mut self) {
+        unsafe { ffi::SSL_CREDENTIAL_free(self.as_ptr()) }
+    }
+}
+
+impl Deref for SslCredential {
+    type Target = SslCredentialRef;
+
+    fn deref(&self) -> &SslCredentialRef {
+        unsafe { SslCredentialRef::from_ptr(self.as_ptr()) }
+    }
+}
+
+impl SslCredential {
+    /// Create a credential suitable for a handshake using a raw public key.
+    #[corresponds(SSL_CREDENTIAL_new_raw_public_key)]
+    #[cfg(feature = "rpk")]
+    pub fn new_raw_public_key() -> Result<SslCredentialBuilder, ErrorStack> {
+        unsafe {
+            Ok(SslCredentialBuilder(Self::from_ptr(cvt_p(
+                ffi::SSL_CREDENTIAL_new_raw_public_key(),
+            )?)))
+        }
+    }
+
+    /// Returns a new extra data index.
+    ///
+    /// Each invocation of this function is guaranteed to return a distinct index. These can be used
+    /// to store data in the context that can be retrieved later by callbacks, for example.
+    #[corresponds(SSL_C_get_ex_new_index)]
+    pub fn new_ex_index<T>() -> Result<Index<Self, T>, ErrorStack>
+    where
+        T: 'static + Sync + Send,
+    {
+        unsafe {
+            ffi::init();
+            let idx = cvt_n(get_new_ssl_credential_idx(Some(free_data_box::<T>)))?;
+            Ok(Index::from_raw(idx))
+        }
+    }
+
+    // FIXME should return a result?
+    fn cached_ex_index<T>() -> Index<Self, T>
+    where
+        T: 'static + Sync + Send,
+    {
+        unsafe {
+            let idx = *SSL_CREDENTIAL_INDEXES
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .entry(TypeId::of::<T>())
+                .or_insert_with(|| Self::new_ex_index::<T>().unwrap().as_raw());
+            Index::from_raw(idx)
+        }
+    }
+}
+
+/// Reference to an [`SslCredential`].
+///
+/// [`SslCredential`]: struct.SslCredential.html
+pub struct SslCredentialRef(Opaque);
+
+impl SslCredentialRef {
+    /// Returns a reference to the extra data at the specified index.
+    #[corresponds(SSL_CREDENTIAL_get_ex_data)]
+    #[must_use]
+    pub fn ex_data<T>(&self, index: Index<SslCredential, T>) -> Option<&T> {
+        unsafe {
+            let data = ffi::SSL_CREDENTIAL_get_ex_data(self.as_ptr(), index.as_raw());
+            if data.is_null() {
+                None
+            } else {
+                Some(&*(data as *const T))
+            }
+        }
+    }
+
+    // Unsafe because SSL contexts are not guaranteed to be unique, we call
+    // this only from SslCredentialBuilder.
+    #[corresponds(SSL_CREDENTIAL_get_ex_data)]
+    unsafe fn ex_data_mut<T>(&mut self, index: Index<SslCredential, T>) -> Option<&mut T> {
+        let data = ffi::SSL_CREDENTIAL_get_ex_data(self.as_ptr(), index.as_raw());
+        if data.is_null() {
+            None
+        } else {
+            Some(&mut *(data as *mut T))
+        }
+    }
+
+    // Unsafe because SSL contexts are not guaranteed to be unique, we call
+    // this only from SslCredentialBuilder.
+    #[corresponds(SSL_CREDENTIAL_set_ex_data)]
+    unsafe fn set_ex_data<T>(&mut self, index: Index<SslCredential, T>, data: T) {
+        unsafe {
+            let data = Box::into_raw(Box::new(data)) as *mut c_void;
+            ffi::SSL_CREDENTIAL_set_ex_data(self.as_ptr(), index.as_raw(), data);
+        }
+    }
+
+    // Unsafe because SSL contexts are not guaranteed to be unique, we call
+    // this only from SslCredentialBuilder.
+    #[corresponds(SSL_CREDENTIAL_set_ex_data)]
+    unsafe fn replace_ex_data<T>(&mut self, index: Index<SslCredential, T>, data: T) -> Option<T> {
+        if let Some(old) = self.ex_data_mut(index) {
+            return Some(mem::replace(old, data));
+        }
+
+        self.set_ex_data(index, data);
+
+        None
+    }
+}
+
+unsafe impl Send for SslCredentialRef {}
+unsafe impl Sync for SslCredentialRef {}
+
+unsafe impl ForeignTypeRef for SslCredentialRef {
+    type CType = ffi::SSL_CREDENTIAL;
+}
+
+pub struct SslCredentialBuilder(SslCredential);
+
+impl SslCredentialBuilder {
+    /// Sets the extra data at the specified index.
+    ///
+    /// This can be used to provide data to callbacks registered with the context. Use the
+    /// `SslCredential::new_ex_index` method to create an `Index`.
+    ///
+    /// Note that if this method is called multiple times with the same index, any previous
+    /// value stored in the `SslCredentialBuilder` will be leaked.
+    #[corresponds(SSL_CREDENTIAL_set_ex_data)]
+    pub fn set_ex_data<T>(&mut self, index: Index<SslCredential, T>, data: T) {
+        unsafe {
+            self.as_mut().set_ex_data(index, data);
+        }
+    }
+
+    /// Sets or overwrites the extra data at the specified index.
+    ///
+    /// This can be used to provide data to callbacks registered with the context. Use the
+    /// `SslCredential::new_ex_index` method to create an `Index`.
+    ///
+    /// Any previous value will be returned and replaced by the new one.
+    #[corresponds(SSL_CREDENTIAL_set_ex_data)]
+    pub fn replace_ex_data<T>(&mut self, index: Index<SslCredential, T>, data: T) -> Option<T> {
+        unsafe { self.as_mut().replace_ex_data(index, data) }
+    }
+
+    // Sets the private key of the credential.
+    #[corresponds(SSL_CREDENTIAL_set1_private_key)]
+    pub fn set_private_key(&mut self, private_key: &PKeyRef<Private>) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_CREDENTIAL_set1_private_key(
+                self.0.as_ptr(),
+                private_key.as_ptr(),
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Configures a custom private key method on the credential.
+    ///
+    /// See [`PrivateKeyMethod`] for more details.
+    #[corresponds(SSL_CREDENTIAL_set_private_key_method)]
+    pub fn set_private_key_method<M>(&mut self, method: M) -> Result<(), ErrorStack>
+    where
+        M: PrivateKeyMethod,
+    {
+        unsafe {
+            let this = self.as_mut();
+
+            this.replace_ex_data(SslCredential::cached_ex_index::<M>(), method);
+
+            cvt_0i(ffi::SSL_CREDENTIAL_set_private_key_method(
+                this.as_ptr(),
+                &ffi::SSL_PRIVATE_KEY_METHOD {
+                    sign: Some(callbacks::raw_sign::<M>),
+                    decrypt: Some(callbacks::raw_decrypt::<M>),
+                    complete: Some(callbacks::raw_complete::<M>),
+                },
+            ))
+            .map(|_| ())
+        }
+    }
+
+    // Sets the SPKI of the raw public key credential.
+    //
+    // If `spki` is `None`, the SPKI is extracted from the credential's private key.
+    #[corresponds(SSL_CREDENTIAL_set1_spki)]
+    #[cfg(feature = "rpk")]
+    pub fn set_spki_bytes(&mut self, spki: Option<&[u8]>) -> Result<(), ErrorStack> {
+        unsafe {
+            let spki = spki
+                .map(|spki| {
+                    cvt_p(ffi::CRYPTO_BUFFER_new(
+                        spki.as_ptr(),
+                        spki.len(),
+                        ptr::null_mut(),
+                    ))
+                })
+                .transpose()?
+                .unwrap_or(ptr::null_mut());
+
+            let ret = cvt_0i(ffi::SSL_CREDENTIAL_set1_spki(self.0.as_ptr(), spki));
+
+            if spki.is_null() {
+                ffi::CRYPTO_BUFFER_free(spki);
+            }
+
+            ret?;
+
+            Ok(())
+        }
+    }
+
+    unsafe fn as_mut(&mut self) -> &mut SslCredentialRef {
+        SslCredentialRef::from_ptr_mut(self.0.as_ptr())
+    }
+
+    pub fn build(self) -> SslCredential {
+        self.0
+    }
+}
+
+/// A certificate type.
+#[cfg(feature = "rpk")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct CertificateType(u8);
+
+#[cfg(feature = "rpk")]
+impl CertificateType {
+    /// A X.509 certificate.
+    pub const X509: Self = Self(ffi::TLS_CERTIFICATE_TYPE_X509 as u8);
+
+    /// A raw public key.
+    pub const RAW_PUBLIC_KEY: Self = Self(ffi::TLS_CERTIFICATE_TYPE_RAW_PUBLIC_KEY as u8);
+}
+
 /// The result of a shutdown request.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ShutdownResult {
@@ -4497,4 +4849,14 @@ unsafe fn get_new_ssl_idx(f: ffi::CRYPTO_EX_free) -> c_int {
     });
 
     ffi::SSL_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, f)
+}
+
+unsafe fn get_new_ssl_credential_idx(f: ffi::CRYPTO_EX_free) -> c_int {
+    // hack around https://rt.openssl.org/Ticket/Display.html?id=3710&user=guest&pass=guest
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        ffi::SSL_CREDENTIAL_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, None);
+    });
+
+    ffi::SSL_CREDENTIAL_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, f)
 }

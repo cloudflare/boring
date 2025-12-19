@@ -1,120 +1,146 @@
+From 9725dabfc86f57607e60e48e09e10615a05bb053 Mon Sep 17 00:00:00 2001
+From: Anthony Ramine <aramine@cloudflare.com>
+Date: Wed, 17 Dec 2025 13:27:50 +0100
+Subject: [PATCH] Implement support for raw public keys as server certificates
+ (RFC 7250)
+
+---
+ crypto/err/ssl.errordata              |   1 +
+ include/openssl/ssl.h                 |  65 +++++++++++++
+ include/openssl/tls1.h                |   3 +
+ ssl/extensions.cc                     | 122 +++++++++++++++++++++++
+ ssl/internal.h                        |  18 ++++
+ ssl/ssl_cert.cc                       |   8 ++
+ ssl/ssl_credential.cc                 |  48 +++++++++
+ ssl/ssl_lib.cc                        |  52 +++++++++-
+ ssl/ssl_test.cc                       |  67 +++++++++++++
+ ssl/test/bssl_shim.cc                 |   3 +-
+ ssl/test/runner/certificate_tests.go  | 134 +++++++++++++++++++++++++-
+ ssl/test/runner/common.go             |  19 ++++
+ ssl/test/runner/handshake_client.go   |  71 +++++++++++++-
+ ssl/test/runner/handshake_messages.go |  33 ++++++-
+ ssl/test/runner/handshake_server.go   |  53 +++++++---
+ ssl/test/runner/runner.go             |   3 +-
+ ssl/test/test_config.cc               |  92 +++++++++++++++---
+ ssl/test/test_config.h                |   2 +
+ ssl/tls13_both.cc                     |  98 +++++++++++++------
+ ssl/tls13_server.cc                   |  34 ++++++-
+ 20 files changed, 861 insertions(+), 65 deletions(-)
+
+diff --git a/crypto/err/ssl.errordata b/crypto/err/ssl.errordata
+index 01c4ca616..c9f4994d9 100644
+--- a/crypto/err/ssl.errordata
++++ b/crypto/err/ssl.errordata
+@@ -95,6 +95,7 @@ SSL,159,INVALID_MESSAGE
+ SSL,320,INVALID_OUTER_EXTENSION
+ SSL,251,INVALID_OUTER_RECORD_TYPE
+ SSL,269,INVALID_SCT_LIST
++SSL,331,INVALID_SERVER_CERTIFICATE_TYPE_LIST
+ SSL,295,INVALID_SIGNATURE_ALGORITHM
+ SSL,324,INVALID_SPAKE2PLUSV1_VALUE
+ SSL,160,INVALID_SSL_SESSION
 diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
-index 003e0a5f7..b8f8d49c8 100644
+index ff68ba69e..5a1cf42ca 100644
 --- a/include/openssl/ssl.h
 +++ b/include/openssl/ssl.h
-@@ -138,6 +138,25 @@
-  * OTHER ENTITY BASED ON INFRINGEMENT OF INTELLECTUAL PROPERTY RIGHTS OR
-  * OTHERWISE.
-  */
-+/* ====================================================================
-+ * Copyright 2020 Apple Inc.
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the “Software”),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom
-+ * the Software is furnished to do so, subject to the following conditions:
-+ * The above copyright notice and this permission notice shall be included in
-+ * all copies or substantial portions of the Software.
-+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS
-+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-+ * IN THE SOFTWARE.
-+ */
+@@ -1781,6 +1781,10 @@ OPENSSL_EXPORT STACK_OF(X509) *SSL_get_peer_full_cert_chain(const SSL *ssl);
+ OPENSSL_EXPORT const STACK_OF(CRYPTO_BUFFER) *SSL_get0_peer_certificates(
+     const SSL *ssl);
  
- #ifndef OPENSSL_HEADER_SSL_H
- #define OPENSSL_HEADER_SSL_H
-@@ -1138,6 +1157,16 @@ OPENSSL_EXPORT int SSL_CTX_set_chain_and_key(
-     SSL_CTX *ctx, CRYPTO_BUFFER *const *certs, size_t num_certs,
-     EVP_PKEY *privkey, const SSL_PRIVATE_KEY_METHOD *privkey_method);
- 
-+// SSL_CTX_set_nullchain_and_key sets the private key for a
-+// TLS client or server. Reference to the given |EVP_PKEY|
-+// object is added as needed. Exactly one of |privkey| or |privkey_method|
-+// may be non-NULL. Returns one on success and zero on error.
-+// Note the lack of a corresponding public-key certificate.
-+// See SSL_CTX_set_server_raw_public_key_certificate.
-+OPENSSL_EXPORT int SSL_CTX_set_nullchain_and_key(
-+    SSL_CTX *ctx,
-+    EVP_PKEY *privkey, const SSL_PRIVATE_KEY_METHOD *privkey_method);
++// SSL_get0_peer_pubkey returns the peer's public key during a handshake, or
++// NULL if unavailable. The caller does not take ownership of the result.
++OPENSSL_EXPORT const EVP_PKEY *SSL_get0_peer_pubkey(const SSL *ssl);
 +
- // SSL_set_chain_and_key sets the certificate chain and private key for a TLS
- // client or server. References to the given |CRYPTO_BUFFER| and |EVP_PKEY|
- // objects are added as needed. Exactly one of |privkey| or |privkey_method|
-@@ -1146,6 +1175,16 @@ OPENSSL_EXPORT int SSL_set_chain_and_key(
-     SSL *ssl, CRYPTO_BUFFER *const *certs, size_t num_certs, EVP_PKEY *privkey,
-     const SSL_PRIVATE_KEY_METHOD *privkey_method);
- 
-+// SSL_set_nullchain_and_key sets the private key for a TLS
-+// client or server. Reference to the given |EVP_PKEY|
-+// object is added as needed. Exactly one of |privkey| or |privkey_method|
-+// may be non-NULL. Returns one on success and zero on error.
-+// Note the lack of a corresponding public-key certificate.
-+// See SSL_set_server_raw_public_key_certificate.
-+OPENSSL_EXPORT int SSL_set_nullchain_and_key(
-+    SSL *ssl, EVP_PKEY *privkey,
-+    const SSL_PRIVATE_KEY_METHOD *privkey_method);
-+
- // SSL_CTX_get0_chain returns the list of |CRYPTO_BUFFER|s that were set by
- // |SSL_CTX_set_chain_and_key|. Reference counts are not incremented by this
- // call. The return value may be |NULL| if no chain has been set.
-@@ -3041,6 +3080,21 @@ OPENSSL_EXPORT int SSL_has_application_settings(const SSL *ssl);
+ // SSL_get0_signed_cert_timestamp_list sets |*out| and |*out_len| to point to
+ // |*out_len| bytes of SCT information from the server. This is only valid if
+ // |ssl| is a client. The SCT information is a SignedCertificateTimestampList
+@@ -3406,6 +3410,49 @@ OPENSSL_EXPORT int SSL_has_application_settings(const SSL *ssl);
+ // codepoint. By default, the old codepoint is used.
  OPENSSL_EXPORT void SSL_set_alps_use_new_codepoint(SSL *ssl, int use_new);
  
++// Server Certificate Type (RFC 7250).
++//
++// The Server Certificate Type extension (RFC 7301) allows negotiating
++// different server certificate types. This is used, for example, to receive
++// a raw public key instead of a full-fedged X.509 certificate from a server.
++
++// SSL_CTX_set_server_certificate_types sets the server certificate type list
++// on |ctx| to |types|. This is the list of certificate types that the client
++// is willing to receive from the server. |types| must be an array
++// of |TLS_CERTIFICATE_TYPE_*| values. Configuring a non-empty array enables
++// the server_certificate_type extension on a client.
++OPENSSL_EXPORT int SSL_CTX_set_server_certificate_types(SSL_CTX *ctx,
++                                                        const uint8_t *types,
++                                                        size_t types_len);
++
++// SSL_CTX_get0_server_certificate_types returns the server certificate type
++// list configured on |ctx|.
++OPENSSL_EXPORT void SSL_CTX_get0_server_certificate_types(const SSL_CTX *ctx,
++                                                          const uint8_t **types,
++                                                          size_t *types_len);
++
++// SSL_set_server_certificate_types sets the server certificate type list
++// on |ssl| to |types|. This is the list of certificate types that the client
++// is willing to receive from the server. |types| must be an array
++// of |TLS_CERTIFICATE_TYPE_*| values. Configuring a non-empty array enables
++// the server_certificate_type extension on a client.
++OPENSSL_EXPORT int SSL_set_server_certificate_types(SSL *ssl,
++                                                    const uint8_t *types,
++                                                    size_t types_len);
++
++// SSL_get0_server_certificate_types returns the server certificate type list
++// configured on |ssl|.
++OPENSSL_EXPORT void SSL_get0_server_certificate_types(const SSL *ssl,
++                                                      const uint8_t **types,
++                                                      size_t *types_len);
++
++// SSL_get_server_certificate_type_selected gets the selected server
++// certificate type from |ssl|.
++OPENSSL_EXPORT uint8_t SSL_get_server_certificate_type_selected(const SSL *ssl);
++
++#define TLS_CERTIFICATE_TYPE_X509 0
++#define TLS_CERTIFICATE_TYPE_RAW_PUBLIC_KEY 2
++
  
-+// Server Certificate Type.
-+
-+#define TLSEXT_CERTIFICATETYPE_X509 0
-+#define TLSEXT_CERTIFICATETYPE_RAW_PUBLIC_KEY 2
-+
-+OPENSSL_EXPORT int SSL_CTX_set_server_raw_public_key_certificate(
-+    SSL_CTX *ctx, const uint8_t *raw_public_key, unsigned raw_public_key_len);
-+
-+OPENSSL_EXPORT int SSL_CTX_has_server_raw_public_key_certificate(SSL_CTX *ctx);
-+
-+OPENSSL_EXPORT int SSL_set_server_raw_public_key_certificate(
-+    SSL *ssl, const uint8_t *raw_public_key, unsigned raw_public_key_len);
-+
-+OPENSSL_EXPORT int SSL_has_server_raw_public_key_certificate(SSL *ssl);
-+
  // Certificate compression.
  //
- // Certificates in TLS 1.3 can be compressed (RFC 8879). BoringSSL supports this
+@@ -3759,6 +3806,23 @@ OPENSSL_EXPORT SSL_CREDENTIAL *SSL_CREDENTIAL_new_delegated(void);
+ OPENSSL_EXPORT int SSL_CREDENTIAL_set1_delegated_credential(
+     SSL_CREDENTIAL *cred, CRYPTO_BUFFER *dc);
+ 
++// Raw Public Key Credentials
++
++// SSL_CREDENTIAL_new_raw_public_key returns a new, empty Raw Public Key
++// credential, or NULL on error. Callers should release the result with
++// |SSL_CREDENTIAL_free| when done.
++//
++// Callers should configure a raw public key and a private key on the
++// credential, then add it with |SSL_CTX_add1_credential|.
++OPENSSL_EXPORT SSL_CREDENTIAL *SSL_CREDENTIAL_new_raw_public_key(void);
++
++// SSL_CREDENTIAL_set1_spki |cred|'s raw public key from |spki|.
++// If |spki| is NULL, the public key is extracted from |cred|'s private key.
++// It returns one on success and zero on error, including if |spki| is
++// malformed or if it is NULL and |cred| has no private key. |spki| should
++// be a SubjectPublicKeyInfo structure, as described in RFC 5280.
++int SSL_CREDENTIAL_set1_spki(SSL_CREDENTIAL *cred,
++                             CRYPTO_BUFFER *spki);
+ 
+ // Password Authenticated Key Exchange (PAKE).
+ //
+@@ -6569,6 +6633,7 @@ BSSL_NAMESPACE_END
+ #define SSL_R_INVALID_TRUST_ANCHOR_LIST 328
+ #define SSL_R_INVALID_CERTIFICATE_PROPERTY_LIST 329
+ #define SSL_R_DUPLICATE_GROUP 330
++#define SSL_R_INVALID_SERVER_CERTIFICATE_TYPE_LIST 331
+ #define SSL_R_SSLV3_ALERT_CLOSE_NOTIFY 1000
+ #define SSL_R_SSLV3_ALERT_UNEXPECTED_MESSAGE 1010
+ #define SSL_R_SSLV3_ALERT_BAD_RECORD_MAC 1020
 diff --git a/include/openssl/tls1.h b/include/openssl/tls1.h
-index c1207a3b7..ac6ed222a 100644
+index ea55e2a07..f55c0d441 100644
 --- a/include/openssl/tls1.h
 +++ b/include/openssl/tls1.h
-@@ -146,6 +146,25 @@
-  * OTHER ENTITY BASED ON INFRINGEMENT OF INTELLECTUAL PROPERTY RIGHTS OR
-  * OTHERWISE.
-  */
-+/* ====================================================================
-+ * Copyright 2020 Apple Inc.
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the “Software”),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom
-+ * the Software is furnished to do so, subject to the following conditions:
-+ * The above copyright notice and this permission notice shall be included in
-+ * all copies or substantial portions of the Software.
-+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS
-+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-+ * IN THE SOFTWARE.
-+ */
- 
- #ifndef OPENSSL_HEADER_TLS1_H
- #define OPENSSL_HEADER_TLS1_H
-@@ -197,6 +216,9 @@ extern "C" {
+@@ -64,6 +64,9 @@ extern "C" {
  // ExtensionType value from RFC 7301
  #define TLSEXT_TYPE_application_layer_protocol_negotiation 16
  
@@ -125,668 +151,1317 @@ index c1207a3b7..ac6ed222a 100644
  #define TLSEXT_TYPE_padding 21
  
 diff --git a/ssl/extensions.cc b/ssl/extensions.cc
-index b13400097..8694712fd 100644
+index c5f90688c..eb5ef58e8 100644
 --- a/ssl/extensions.cc
 +++ b/ssl/extensions.cc
-@@ -105,6 +105,25 @@
-  * This product includes cryptographic software written by Eric Young
-  * (eay@cryptsoft.com).  This product includes software written by Tim
-  * Hudson (tjh@cryptsoft.com). */
-+/* ====================================================================
-+ * Copyright 2020 Apple Inc.
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the “Software”),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom
-+ * the Software is furnished to do so, subject to the following conditions:
-+ * The above copyright notice and this permission notice shall be included in
-+ * all copies or substantial portions of the Software.
-+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS
-+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-+ * IN THE SOFTWARE.
-+ */
- 
- #include <openssl/ssl.h>
- 
-@@ -3108,6 +3127,146 @@ bool ssl_negotiate_alps(SSL_HANDSHAKE *hs, uint8_t *out_alert,
+@@ -3523,6 +3523,121 @@ bool ssl_negotiate_alps(SSL_HANDSHAKE *hs, uint8_t *out_alert,
    return true;
  }
  
 +// Server Certificate Type
++//
++// https://datatracker.ietf.org/doc/html/rfc7250#section-3
 +
-+static bool ext_server_certificate_type_add_clienthello(const SSL_HANDSHAKE *hs,
-+                                                        CBB *out,
-+                                                        CBB *out_compressible,
-+                                                        ssl_client_hello_type_t type) {
-+
-+  if (hs->max_version <= TLS1_2_VERSION) {
-+    return true;
-+  }
-+
-+  if (hs->config->server_certificate_type_list.empty()) {
-+    return true;
-+  }
-+
-+  CBB contents, server_certificate_types;
-+  if (!CBB_add_u16(out, TLSEXT_TYPE_server_certificate_type) ||
-+      !CBB_add_u16_length_prefixed(out, &contents) ||
-+      !CBB_add_u8_length_prefixed(&contents, &server_certificate_types) ||
-+      !CBB_add_bytes(&server_certificate_types,
-+                     hs->config->server_certificate_type_list.data(),
-+                     hs->config->server_certificate_type_list.size()) ||
-+      !CBB_flush(out)) {
++bool ssl_is_valid_certificate_type_list(Span<const uint8_t> in) {
++  CBS type_list = in;
++  if (CBS_len(&type_list) == 0) {
 +    return false;
 +  }
-+
++  uint8_t type;
++  while (CBS_get_u8(&type_list, &type)) {
++    switch (type) {
++      case TLS_CERTIFICATE_TYPE_X509:
++      case TLS_CERTIFICATE_TYPE_RAW_PUBLIC_KEY:
++        break;
++      default:
++        return false;
++    }
++  }
 +  return true;
 +}
 +
-+static bool ssl_is_certificate_type_allowed(CBS *certificate_type_list,
-+                                            uint8_t certificate_type)
-+{
-+  uint8_t supported_certificate_type;
-+  while (CBS_len(certificate_type_list) > 0) {
-+    if (!CBS_get_u8(certificate_type_list,
-+                    &supported_certificate_type)) {
-+      break;
-+    }
-+
-+    if (supported_certificate_type != certificate_type) {
-+      continue;
-+    }
-+
-+    return true;
-+  }
-+
-+  return false;
-+}
-+
-+static bool ext_server_certificate_type_parse_serverhello(SSL_HANDSHAKE *hs,
-+                                                          uint8_t *out_alert,
-+                                                          CBS *content)
-+{
-+  if (hs->max_version <= TLS1_2_VERSION ||
++static bool ext_server_certificate_type_add_clienthello(
++    const SSL_HANDSHAKE *hs, CBB *out, CBB *out_compressible,
++    ssl_client_hello_type_t type) {
++  if (hs->max_version < TLS1_3_VERSION ||
 +      hs->config->server_certificate_type_list.empty()) {
 +    return true;
 +  }
 +
-+  // Strict
-+  if (!content) {
-+    OPENSSL_PUT_ERROR(SSL, SSL_R_UNKNOWN_CERTIFICATE_TYPE);
-+    *out_alert = SSL_AD_ILLEGAL_PARAMETER;
-+    return false;
-+  }
++  CBB contents, type_list;
++  return CBB_add_u16(out, TLSEXT_TYPE_server_certificate_type) &&
++         CBB_add_u16_length_prefixed(out, &contents) &&
++         CBB_add_u8_length_prefixed(&contents, &type_list) &&
++         CBB_add_bytes(&type_list,
++                       hs->config->server_certificate_type_list.data(),
++                       hs->config->server_certificate_type_list.size()) &&
++         CBB_flush(out);
++}
 +
-+  CBS certificate_type_list =
-+    MakeConstSpan(hs->config->server_certificate_type_list);
-+
-+  uint8_t certificate_type;
-+  if (CBS_get_u8(content, &certificate_type) &&
-+      ssl_is_certificate_type_allowed(&certificate_type_list,
-+                                      certificate_type)) {
-+    hs->server_certificate_type = certificate_type;
-+    hs->server_certificate_type_negotiated = 1;
++static bool ext_server_certificate_type_parse_serverhello(SSL_HANDSHAKE *hs,
++                                                          uint8_t *out_alert,
++                                                          CBS *contents) {
++  if (hs->ssl->s3->session_reused) {
 +    return true;
 +  }
 +
-+  OPENSSL_PUT_ERROR(SSL, SSL_R_UNKNOWN_CERTIFICATE_TYPE);
++  uint8_t cert_type = TLS_CERTIFICATE_TYPE_X509;
++  if (contents != nullptr) {
++    assert(!hs->config->server_certificate_type_list.empty());
++    if (!CBS_get_u8(contents, &cert_type) || CBS_len(contents) != 0) {
++      OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
++      goto err;
++    }
++  }
++
++  if (!hs->config->server_certificate_type_list.empty() &&
++      std::none_of(
++          hs->config->server_certificate_type_list.begin(),
++          hs->config->server_certificate_type_list.end(),
++          [cert_type](const auto &type) { return type == cert_type; })) {
++    OPENSSL_PUT_ERROR(SSL, SSL_R_UNKNOWN_CERTIFICATE_TYPE);
++    goto err;
++  }
++
++  hs->server_certificate_type = cert_type;
++  return true;
++
++err:
 +  *out_alert = SSL_AD_ILLEGAL_PARAMETER;
 +  return false;
 +}
 +
 +static bool ext_server_certificate_type_parse_clienthello(SSL_HANDSHAKE *hs,
 +                                                          uint8_t *out_alert,
-+                                                          CBS *content)
-+{
-+  if (!content) {
++                                                          CBS *contents) {
++  if (contents == nullptr || ssl_protocol_version(hs->ssl) < TLS1_3_VERSION) {
 +    return true;
 +  }
-+
-+  if (hs->max_version <= TLS1_2_VERSION ||
-+      hs->config->server_certificate_type_list.empty()) {
-+    return true;
-+  }
-+
-+  CBS certificate_type_list =
-+    MakeConstSpan(hs->config->server_certificate_type_list);
 +
 +  CBS type_list;
-+  if (!CBS_get_u8_length_prefixed(content, &type_list)) {
-+    type_list.len = 0;
++  if (!CBS_get_u8_length_prefixed(contents, &type_list) ||
++      CBS_len(contents) != 0 || CBS_len(&type_list) == 0) {
++    OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
++    *out_alert = SSL_AD_ILLEGAL_PARAMETER;
++    return false;
 +  }
 +
-+  uint8_t type;
-+  while(CBS_len(&type_list) > 0) {
-+    if (!CBS_get_u8(&type_list, &type)) {
-+      break;
-+    }
-+
-+    if (!ssl_is_certificate_type_allowed(&certificate_type_list, type)) {
-+      continue;
-+    }
-+
-+    hs->server_certificate_type = type;
-+    hs->server_certificate_type_negotiated = 1;
-+    return true;
-+  }
-+
-+  *out_alert = SSL_AD_ILLEGAL_PARAMETER;
-+  return false;
-+}
-+
-+static bool ext_server_certificate_type_add_serverhello(SSL_HANDSHAKE *hs,
-+                                                        CBB *out)
-+{
-+  if (!hs->server_certificate_type_negotiated) {
-+    return true;
-+  }
-+
-+  CBB contents;
-+  if (!CBB_add_u16(out, TLSEXT_TYPE_server_certificate_type) ||
-+      !CBB_add_u16_length_prefixed(out, &contents) ||
-+      !CBB_add_u8(&contents, hs->server_certificate_type) ||
-+      !CBB_flush(out)) {
-+     return false;
++  if (!hs->server_certificate_type_list.CopyFrom(type_list)) {
++    *out_alert = SSL_AD_INTERNAL_ERROR;
++    return false;
 +  }
 +
 +  return true;
 +}
 +
++static bool ext_server_certificate_type_add_serverhello(SSL_HANDSHAKE *hs,
++                                                        CBB *out) {
++  if (hs->ssl->s3->session_reused || hs->credential == nullptr ||
++      hs->credential->type == SSLCredentialType::kX509) {
++    return true;
++  }
++
++  if (hs->credential->type != SSLCredentialType::kRawPublicKey) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
++    return false;
++  }
++
++  CBB cert_types;
++  return CBB_add_u16(out, TLSEXT_TYPE_server_certificate_type) &&
++         CBB_add_u16_length_prefixed(out, &cert_types) &&
++         CBB_add_u8(&cert_types, TLS_CERTIFICATE_TYPE_RAW_PUBLIC_KEY) &&
++         CBB_flush(out);
++}
++
  // kExtensions contains all the supported extensions.
  static const struct tls_extension kExtensions[] = {
-   {
-@@ -3289,6 +3448,13 @@ static const struct tls_extension kExtensions[] = {
-     ignore_parse_clienthello,
-     ext_alps_add_serverhello_old,
-   },
-+  {
-+    TLSEXT_TYPE_server_certificate_type,
-+    ext_server_certificate_type_add_clienthello,
-+    ext_server_certificate_type_parse_serverhello,
-+    ext_server_certificate_type_parse_clienthello,
-+    ext_server_certificate_type_add_serverhello,
-+  },
+     {
+@@ -3727,6 +3842,13 @@ static const struct tls_extension kExtensions[] = {
+         ext_trust_anchors_parse_clienthello,
+         ext_trust_anchors_add_serverhello,
+     },
++    {
++        TLSEXT_TYPE_server_certificate_type,
++        ext_server_certificate_type_add_clienthello,
++        ext_server_certificate_type_parse_serverhello,
++        ext_server_certificate_type_parse_clienthello,
++        ext_server_certificate_type_add_serverhello,
++    },
  };
  
  #define kNumExtensions (sizeof(kExtensions) / sizeof(struct tls_extension))
-diff --git a/ssl/handshake.cc b/ssl/handshake.cc
-index 8d5a23872..c8ca629e8 100644
---- a/ssl/handshake.cc
-+++ b/ssl/handshake.cc
-@@ -109,6 +109,25 @@
-  * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
-  * ECC cipher suite support in OpenSSL originally developed by
-  * SUN MICROSYSTEMS, INC., and contributed to the OpenSSL project. */
-+/* ====================================================================
-+ * Copyright 2020 Apple Inc.
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the “Software”),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom
-+ * the Software is furnished to do so, subject to the following conditions:
-+ * The above copyright notice and this permission notice shall be included in
-+ * all copies or substantial portions of the Software.
-+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS
-+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-+ * IN THE SOFTWARE.
-+ */
- 
- #include <openssl/ssl.h>
- 
-@@ -148,6 +167,7 @@ SSL_HANDSHAKE::SSL_HANDSHAKE(SSL *ssl_arg)
-       handback(false),
-       hints_requested(false),
-       cert_compression_negotiated(false),
-+      server_certificate_type_negotiated(false),
-       apply_jdk11_workaround(false),
-       can_release_private_key(false),
-       channel_id_negotiated(false) {
-@@ -365,7 +385,21 @@ enum ssl_verify_result_t ssl_verify_peer_cert(SSL_HANDSHAKE *hs) {
- 
-   uint8_t alert = SSL_AD_CERTIFICATE_UNKNOWN;
-   enum ssl_verify_result_t ret;
--  if (hs->config->custom_verify_callback != nullptr) {
-+  if (hs->server_certificate_type_negotiated &&
-+      hs->server_certificate_type == TLSEXT_CERTIFICATETYPE_RAW_PUBLIC_KEY) {
-+    ret = ssl_verify_invalid;
-+    EVP_PKEY *peer_pubkey = hs->peer_pubkey.get();
-+    CBS spki = MakeConstSpan(ssl->config->server_raw_public_key_certificate);
-+    EVP_PKEY *pubkey = EVP_parse_public_key(&spki);
-+    if (!pubkey) {
-+      OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
-+      alert = SSL_AD_INTERNAL_ERROR;
-+    } else if (EVP_PKEY_cmp(peer_pubkey, pubkey) == 1 /* Equal */) {
-+      ret = ssl_verify_ok;
-+    } else {
-+      alert = SSL_AD_BAD_CERTIFICATE;
-+    }
-+  } else if (hs->config->custom_verify_callback != nullptr) {
-     ret = hs->config->custom_verify_callback(ssl, &alert);
-     switch (ret) {
-       case ssl_verify_ok:
 diff --git a/ssl/internal.h b/ssl/internal.h
-index c9facb699..d7363e729 100644
+index a69505b47..867c62bd6 100644
 --- a/ssl/internal.h
 +++ b/ssl/internal.h
-@@ -138,6 +138,25 @@
-  * OTHER ENTITY BASED ON INFRINGEMENT OF INTELLECTUAL PROPERTY RIGHTS OR
-  * OTHERWISE.
-  */
-+/* ====================================================================
-+ * Copyright 2020 Apple Inc.
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the “Software”),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom
-+ * the Software is furnished to do so, subject to the following conditions:
-+ * The above copyright notice and this permission notice shall be included in
-+ * all copies or substantial portions of the Software.
-+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS
-+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-+ * IN THE SOFTWARE.
-+ */
+@@ -1408,6 +1408,7 @@ enum class SSLCredentialType {
+   kDelegated,
+   kSPAKE2PlusV1Client,
+   kSPAKE2PlusV1Server,
++  kRawPublicKey,
+ };
  
- #ifndef OPENSSL_HEADER_SSL_INTERNAL_H
- #define OPENSSL_HEADER_SSL_INTERNAL_H
-@@ -1311,6 +1330,8 @@ int ssl_write_buffer_flush(SSL *ssl);
- // configured.
- bool ssl_has_certificate(const SSL_HANDSHAKE *hs);
+ BSSL_NAMESPACE_END
+@@ -2062,6 +2063,14 @@ struct SSL_HANDSHAKE {
  
-+bool ssl_has_raw_public_key_certificate(const SSL_HANDSHAKE *hs);
+   // pake_verifier is the PAKE context for a server.
+   UniquePtr<spake2plus::Verifier> pake_verifier;
 +
- // ssl_parse_cert_chain parses a certificate list from |cbs| in the format used
- // by a TLS Certificate message. On success, it advances |cbs| and returns
- // true. Otherwise, it returns false and sets |*out_alert| to an alert to send
-@@ -1912,6 +1933,8 @@ struct SSL_HANDSHAKE {
-   // |cert_compression_negotiated| is true.
-   uint16_t cert_compression_alg_id;
- 
-+  uint8_t server_certificate_type;
++  // server_certificate_type_list indicates the types of certificates
++  // the client is able to process.
++  Array<uint8_t> server_certificate_type_list;
 +
-   // ech_hpke_ctx is the HPKE context used in ECH. On the server, it is
-   // initialized if |ech_status| is |ssl_ech_accepted|. On the client, it is
-   // initialized if |selected_ech_config| is not nullptr.
-@@ -2062,6 +2085,8 @@ struct SSL_HANDSHAKE {
-   // cert_compression_negotiated is true iff |cert_compression_alg_id| is valid.
-   bool cert_compression_negotiated : 1;
++  // server_certificate_type indicates the type of certificates the server
++  // selected to send as the certificate payload.
++  uint8_t server_certificate_type = TLS_CERTIFICATE_TYPE_X509;
+ };
  
-+  bool server_certificate_type_negotiated : 1;
+ // kMaxTickets is the maximum number of tickets to send immediately after the
+@@ -2256,6 +2265,10 @@ bool ssl_negotiate_alps(SSL_HANDSHAKE *hs, uint8_t *out_alert,
+ // identifiers list.
+ bool ssl_is_valid_trust_anchor_list(Span<const uint8_t> in);
+ 
++// ssl_is_valid_certificate_type_list returns whether |in| is a valid
++// certificate type list.
++bool ssl_is_valid_certificate_type_list(Span<const uint8_t> in);
 +
-   // apply_jdk11_workaround is true if the peer is probably a JDK 11 client
-   // which implemented TLS 1.3 incorrectly.
-   bool apply_jdk11_workaround : 1;
-@@ -3074,6 +3099,9 @@ struct SSL_CONFIG {
-   // along with their corresponding ALPS values.
-   GrowableArray<ALPSConfig> alps_configs;
+ struct SSLExtension {
+   SSLExtension(uint16_t type_arg, bool allowed_arg = true)
+       : type(type_arg), allowed(allowed_arg), present(false) {
+@@ -3339,6 +3352,8 @@ struct SSL_CONFIG {
+   // negotiating a TLS 1.3 connection.
+   enum ssl_compliance_policy_t compliance_policy = ssl_compliance_policy_none;
  
 +  Array<uint8_t> server_certificate_type_list;
-+  Array<uint8_t> server_raw_public_key_certificate;
 +
-   // Contains the QUIC transport params that this endpoint will send.
-   Array<uint8_t> quic_transport_params;
+   // verify_mode is a bitmask of |SSL_VERIFY_*| values.
+   uint8_t verify_mode = SSL_VERIFY_NONE;
  
-@@ -3666,6 +3694,9 @@ struct ssl_ctx_st {
-   // format.
-   bssl::Array<uint8_t> alpn_client_proto_list;
+@@ -3988,6 +4003,9 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
+   // accepted from the peer in decreasing order of preference.
+   bssl::Array<uint16_t> verify_sigalgs;
  
++  // For a client, this contains the list of supported server certificate types.
 +  bssl::Array<uint8_t> server_certificate_type_list;
-+  bssl::Array<uint8_t> server_raw_public_key_certificate;
 +
-   // SRTP profiles we are willing to do from RFC 5764
-   bssl::UniquePtr<STACK_OF(SRTP_PROTECTION_PROFILE)> srtp_profiles;
- 
+   // retain_only_sha256_of_client_certs is true if we should compute the SHA256
+   // hash of the peer's certificate and then discard it to save memory and
+   // session space. Only effective on the server side.
 diff --git a/ssl/ssl_cert.cc b/ssl/ssl_cert.cc
-index aa46a8bb6..d90840fce 100644
+index 72218aeea..a1a8f328b 100644
 --- a/ssl/ssl_cert.cc
 +++ b/ssl/ssl_cert.cc
-@@ -111,6 +111,25 @@
-  * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
-  * ECC cipher suite support in OpenSSL originally developed by
-  * SUN MICROSYSTEMS, INC., and contributed to the OpenSSL project. */
-+/* ====================================================================
-+ * Copyright 2020 Apple Inc.
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the “Software”),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom
-+ * the Software is furnished to do so, subject to the following conditions:
-+ * The above copyright notice and this permission notice shall be included in
-+ * all copies or substantial portions of the Software.
-+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS
-+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-+ * IN THE SOFTWARE.
-+ */
+@@ -587,6 +587,14 @@ const STACK_OF(CRYPTO_BUFFER) *SSL_get0_peer_certificates(const SSL *ssl) {
+   return session->certs.get();
+ }
  
- #include <openssl/ssl.h>
++const EVP_PKEY *SSL_get0_peer_pubkey(const SSL *ssl) {
++  if (ssl->s3->hs == nullptr) {
++    return nullptr;
++  }
++
++  return ssl->s3->hs->peer_pubkey.get();
++}
++
+ const STACK_OF(CRYPTO_BUFFER) *SSL_get0_server_requested_CAs(const SSL *ssl) {
+   if (ssl->s3->hs == nullptr) {
+     return nullptr;
+diff --git a/ssl/ssl_credential.cc b/ssl/ssl_credential.cc
+index bbbd76701..16a069c28 100644
+--- a/ssl/ssl_credential.cc
++++ b/ssl/ssl_credential.cc
+@@ -164,6 +164,7 @@ bool ssl_credential_st::UsesX509() const {
+       return true;
+     case SSLCredentialType::kSPAKE2PlusV1Client:
+     case SSLCredentialType::kSPAKE2PlusV1Server:
++    case SSLCredentialType::kRawPublicKey:
+       return false;
+   }
+   abort();
+@@ -173,6 +174,7 @@ bool ssl_credential_st::UsesPrivateKey() const {
+   switch (type) {
+     case SSLCredentialType::kX509:
+     case SSLCredentialType::kDelegated:
++    case SSLCredentialType::kRawPublicKey:
+       return true;
+     case SSLCredentialType::kSPAKE2PlusV1Client:
+     case SSLCredentialType::kSPAKE2PlusV1Server:
+@@ -335,6 +337,10 @@ SSL_CREDENTIAL *SSL_CREDENTIAL_new_delegated(void) {
+   return New<SSL_CREDENTIAL>(SSLCredentialType::kDelegated);
+ }
  
-@@ -302,6 +321,25 @@ static int cert_set_chain_and_key(
++SSL_CREDENTIAL *SSL_CREDENTIAL_new_raw_public_key(void) {
++  return New<SSL_CREDENTIAL>(SSLCredentialType::kRawPublicKey);
++}
++
+ void SSL_CREDENTIAL_up_ref(SSL_CREDENTIAL *cred) { cred->UpRefInternal(); }
+ 
+ void SSL_CREDENTIAL_free(SSL_CREDENTIAL *cred) {
+@@ -448,6 +454,44 @@ int SSL_CREDENTIAL_set1_delegated_credential(SSL_CREDENTIAL *cred,
    return 1;
  }
  
-+static int cert_set_key(
-+  CERT *cert,
-+  EVP_PKEY *privkey, const SSL_PRIVATE_KEY_METHOD *privkey_method) {
-+  if (privkey == NULL && privkey_method == NULL) {
-+    OPENSSL_PUT_ERROR(SSL, ERR_R_PASSED_NULL_PARAMETER);
++int SSL_CREDENTIAL_set1_spki(SSL_CREDENTIAL *cred, CRYPTO_BUFFER *spki) {
++  if (cred->type != SSLCredentialType::kRawPublicKey) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
 +    return 0;
 +  }
 +
-+  if (privkey != NULL && privkey_method != NULL) {
-+    OPENSSL_PUT_ERROR(SSL, SSL_R_CANNOT_HAVE_BOTH_PRIVKEY_AND_METHOD);
++  ScopedCBB cbb;
++  CBS cbs;
++  if (spki == nullptr) {
++    if (cred->privkey == nullptr) {
++      OPENSSL_PUT_ERROR(SSL, SSL_R_NO_PRIVATE_KEY_ASSIGNED);
++      return 0;
++    }
++
++    if (!CBB_init(cbb.get(), /*initial_capacity=*/512) ||
++        !EVP_marshal_public_key(cbb.get(), cred->privkey.get())) {
++      return 0;
++    }
++    CBS_init(&cbs, CBB_data(cbb.get()), CBB_len(cbb.get()));
++  } else {
++    CRYPTO_BUFFER_init_CBS(spki, &cbs);
++  }
++
++  bssl::UniquePtr<EVP_PKEY> pubkey =
++      ssl_parse_peer_subject_public_key_info(cbs);
++  if (pubkey == nullptr) {
 +    return 0;
 +  }
 +
-+  cert->privatekey = UpRef(privkey);
-+  cert->key_method = privkey_method;
++  if (cred->privkey != nullptr &&
++      !ssl_compare_public_and_private_key(pubkey.get(), cred->privkey.get())) {
++    return 0;
++  }
 +
++  cred->pubkey = std::move(pubkey);
 +  return 1;
 +}
 +
- bool ssl_set_cert(CERT *cert, UniquePtr<CRYPTO_BUFFER> buffer) {
-   switch (check_leaf_cert_and_privkey(buffer.get(), cert->privatekey.get())) {
-     case leaf_cert_and_privkey_error:
-@@ -343,6 +381,12 @@ bool ssl_has_certificate(const SSL_HANDSHAKE *hs) {
-          ssl_has_private_key(hs);
+ int SSL_CREDENTIAL_set1_ocsp_response(SSL_CREDENTIAL *cred,
+                                       CRYPTO_BUFFER *ocsp) {
+   if (!cred->UsesX509()) {
+@@ -611,6 +655,10 @@ void *SSL_CREDENTIAL_get_ex_data(const SSL_CREDENTIAL *cred, int idx) {
  }
  
-+bool ssl_has_raw_public_key_certificate(const SSL_HANDSHAKE *hs) {
-+  return hs->server_certificate_type_negotiated &&
-+    hs->server_certificate_type == TLSEXT_CERTIFICATETYPE_RAW_PUBLIC_KEY &&
-+    ssl_has_private_key(hs);
-+}
-+
- bool ssl_parse_cert_chain(uint8_t *out_alert,
-                           UniquePtr<STACK_OF(CRYPTO_BUFFER)> *out_chain,
-                           UniquePtr<EVP_PKEY> *out_pubkey,
-@@ -721,11 +765,20 @@ bool ssl_check_leaf_certificate(SSL_HANDSHAKE *hs, EVP_PKEY *pkey,
- 
- bool ssl_on_certificate_selected(SSL_HANDSHAKE *hs) {
-   SSL *const ssl = hs->ssl;
--  if (!ssl_has_certificate(hs)) {
-+  if (!ssl_has_certificate(hs) &&
-+      !ssl_has_raw_public_key_certificate(hs)) {
-     // Nothing to do.
-     return true;
-   }
- 
-+  if (ssl_has_raw_public_key_certificate(hs)) {
-+    CBS spki = MakeConstSpan(
-+      ssl->config->server_raw_public_key_certificate.data(),
-+      ssl->config->server_raw_public_key_certificate.size());
-+    hs->local_pubkey = UniquePtr<EVP_PKEY>(EVP_parse_public_key(&spki));
-+    return hs->local_pubkey != NULL;
+ void SSL_CREDENTIAL_set_must_match_issuer(SSL_CREDENTIAL *cred, int match) {
++  if (cred->type == SSLCredentialType::kRawPublicKey) {
++    return;
 +  }
 +
-   if (!ssl->ctx->x509_method->ssl_auto_chain_if_needed(hs)) {
-     return false;
-   }
-@@ -880,6 +933,15 @@ int SSL_set_chain_and_key(SSL *ssl, CRYPTO_BUFFER *const *certs,
-                                 privkey, privkey_method);
+   cred->must_match_issuer = !!match;
  }
  
-+int SSL_set_nullchain_and_key(SSL *ssl,
-+                              EVP_PKEY *privkey,
-+                              const SSL_PRIVATE_KEY_METHOD *privkey_method) {
-+  if (!ssl->config) {
-+    return 0;
-+  }
-+  return cert_set_key(ssl->config->cert.get(), privkey, privkey_method);
-+}
-+
- int SSL_CTX_set_chain_and_key(SSL_CTX *ctx, CRYPTO_BUFFER *const *certs,
-                               size_t num_certs, EVP_PKEY *privkey,
-                               const SSL_PRIVATE_KEY_METHOD *privkey_method) {
-@@ -887,6 +949,12 @@ int SSL_CTX_set_chain_and_key(SSL_CTX *ctx, CRYPTO_BUFFER *const *certs,
-                                 privkey_method);
- }
- 
-+int SSL_CTX_set_nullchain_and_key(SSL_CTX *ctx,
-+  EVP_PKEY *privkey,
-+  const SSL_PRIVATE_KEY_METHOD *privkey_method) {
-+  return cert_set_key(ctx->cert.get(), privkey, privkey_method);
-+}
-+
- const STACK_OF(CRYPTO_BUFFER)* SSL_CTX_get0_chain(const SSL_CTX *ctx) {
-   return ctx->cert->chain.get();
- }
 diff --git a/ssl/ssl_lib.cc b/ssl/ssl_lib.cc
-index 58b68e675..384debbd3 100644
+index f64b103fb..d87c3f3c4 100644
 --- a/ssl/ssl_lib.cc
 +++ b/ssl/ssl_lib.cc
-@@ -137,6 +137,25 @@
-  * SPECIFICALLY DISCLAIMS ANY LIABILITY FOR CLAIMS BROUGHT BY YOU OR ANY
-  * OTHER ENTITY BASED ON INFRINGEMENT OF INTELLECTUAL PROPERTY RIGHTS OR
-  * OTHERWISE. */
-+/* ====================================================================
-+ * Copyright 2020 Apple Inc.
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the “Software”),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom
-+ * the Software is furnished to do so, subject to the following conditions:
-+ * The above copyright notice and this permission notice shall be included in
-+ * all copies or substantial portions of the Software.
-+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS
-+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-+ * IN THE SOFTWARE.
-+ */
- 
- #include <openssl/ssl.h>
- 
-@@ -687,6 +706,11 @@ SSL *SSL_new(SSL_CTX *ctx) {
-   ssl->config->handoff = ctx->handoff;
-   ssl->quic_method = ctx->quic_method;
- 
-+  ssl->config->server_certificate_type_list.CopyFrom(
-+    ctx->server_certificate_type_list);
-+  ssl->config->server_raw_public_key_certificate.CopyFrom(
-+    ctx->server_raw_public_key_certificate);
-+
-   if (!ssl->method->ssl_new(ssl.get()) ||
-       !ssl->ctx->x509_method->ssl_new(ssl->s3->hs.get())) {
+@@ -534,7 +534,9 @@ SSL *SSL_new(SSL_CTX *ctx) {
+   if (!ssl->config->supported_group_list.CopyFrom(ctx->supported_group_list) ||
+       !ssl->config->alpn_client_proto_list.CopyFrom(
+           ctx->alpn_client_proto_list) ||
+-      !ssl->config->verify_sigalgs.CopyFrom(ctx->verify_sigalgs)) {
++      !ssl->config->verify_sigalgs.CopyFrom(ctx->verify_sigalgs) ||
++      !ssl->config->server_certificate_type_list.CopyFrom(
++          ctx->server_certificate_type_list)) {
      return nullptr;
-@@ -3249,6 +3273,53 @@ int SSL_set1_curves_list(SSL *ssl, const char *curves) {
-   return SSL_set1_groups_list(ssl, curves);
+   }
+ 
+@@ -3305,6 +3307,54 @@ int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg) {
+   return 1;
  }
  
-+int SSL_CTX_set_server_raw_public_key_certificate(SSL_CTX *ctx,
-+  const uint8_t *raw_public_key, unsigned raw_public_key_len) {
-+  if (!ctx->server_raw_public_key_certificate.CopyFrom(
-+    MakeConstSpan(raw_public_key, raw_public_key_len))) {
-+    return 0; /* Failure */
-+  }
-+
-+  if (!ctx->server_certificate_type_list.Init(1)) {
++int SSL_CTX_set_server_certificate_types(SSL_CTX *ctx, const uint8_t *types,
++                                         size_t types_len) {
++  auto span = Span(types, types_len);
++  if (!span.empty() && !ssl_is_valid_certificate_type_list(span)) {
++    OPENSSL_PUT_ERROR(SSL, SSL_R_INVALID_SERVER_CERTIFICATE_TYPE_LIST);
 +    return 0;
 +  }
-+  ctx->server_certificate_type_list[0] = TLSEXT_CERTIFICATETYPE_RAW_PUBLIC_KEY;
-+
-+  return 1; /* Success */
++  return ctx->server_certificate_type_list.CopyFrom(span);
 +}
 +
-+int SSL_CTX_has_server_raw_public_key_certificate(SSL_CTX *ctx) {
-+  return !ctx->server_raw_public_key_certificate.empty();
++void SSL_CTX_get0_server_certificate_types(const SSL_CTX *ctx,
++                                           const uint8_t **types,
++                                           size_t *types_len) {
++  *types = ctx->server_certificate_type_list.data();
++  *types_len = ctx->server_certificate_type_list.size();
 +}
 +
-+int SSL_set_server_raw_public_key_certificate(SSL *ssl,
-+  const uint8_t *raw_public_key, unsigned raw_public_key_len) {
-+  if (!ssl->config) {
-+    return 0; /* Failure */
-+  }
-+
-+  if (!ssl->config->server_raw_public_key_certificate.CopyFrom(
-+    MakeConstSpan(raw_public_key, raw_public_key_len))) {
++int SSL_set_server_certificate_types(SSL *ssl, const uint8_t *types,
++                                     size_t types_len) {
++  if (ssl->server || ssl->config == nullptr) {
 +    return 0;
 +  }
-+
-+  if (!ssl->config->server_certificate_type_list.Init(1)) {
++  auto span = Span(types, types_len);
++  if (!span.empty() && !ssl_is_valid_certificate_type_list(span)) {
++    OPENSSL_PUT_ERROR(SSL, SSL_R_INVALID_SERVER_CERTIFICATE_TYPE_LIST);
 +    return 0;
 +  }
-+  ssl->config->server_certificate_type_list[0] =
-+    TLSEXT_CERTIFICATETYPE_RAW_PUBLIC_KEY;
-+
-+  return 1; /* Success */
++  return ssl->config->server_certificate_type_list.CopyFrom(span);
 +}
 +
-+int SSL_has_server_raw_public_key_certificate(SSL *ssl) {
-+  if (!ssl->config) {
-+    return 0; /* Failure */
++void SSL_get0_server_certificate_types(const SSL *ssl, const uint8_t **types,
++                                       size_t *types_len) {
++  if (ssl->server || ssl->config == nullptr) {
++    *types = nullptr;
++    *types_len = 0;
++    return;
++  }
++  *types = ssl->config->server_certificate_type_list.data();
++  *types_len = ssl->config->server_certificate_type_list.size();
++}
++
++uint8_t SSL_get_server_certificate_type_selected(const SSL *ssl) {
++  if (ssl->s3->hs == nullptr) {
++    return TLS_CERTIFICATE_TYPE_X509;
++  }
++  return ssl->s3->hs->server_certificate_type;
++}
++
+ uint16_t SSL_get_curve_id(const SSL *ssl) { return SSL_get_group_id(ssl); }
+ 
+ const char *SSL_get_curve_name(uint16_t curve_id) {
+diff --git a/ssl/ssl_test.cc b/ssl/ssl_test.cc
+index 779a2c37a..85aeb817f 100644
+--- a/ssl/ssl_test.cc
++++ b/ssl/ssl_test.cc
+@@ -4398,6 +4398,73 @@ TEST_P(SSLVersionTest, DefaultTicketKeyRotation) {
+                                   new_session.get(), true /* reused */));
+ }
+ 
++TEST_P(SSLVersionTest, RawPublicKeyCertificate) {
++  static const uint8_t kCertificateTypes[] = {
++      TLS_CERTIFICATE_TYPE_RAW_PUBLIC_KEY, 18};
++  ASSERT_TRUE(SSL_CTX_set_server_certificate_types(client_ctx_.get(),
++                                                   kCertificateTypes, 0));
++  ASSERT_FALSE(SSL_CTX_set_server_certificate_types(client_ctx_.get(),
++                                                    kCertificateTypes, 2));
++  ASSERT_TRUE(SSL_CTX_set_server_certificate_types(client_ctx_.get(),
++                                                   kCertificateTypes, 1));
++
++  SSL_CTX_set_custom_verify(
++      client_ctx_.get(), SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
++      [](SSL *ssl, uint8_t *out_alert) -> ssl_verify_result_t {
++        EXPECT_EQ(SSL_get_server_certificate_type_selected(ssl),
++                  TLS_CERTIFICATE_TYPE_RAW_PUBLIC_KEY);
++
++        const EVP_PKEY *peer_pubkey = SSL_get0_peer_pubkey(ssl);
++        EXPECT_TRUE(peer_pubkey);
++
++        if (!peer_pubkey) {
++          *out_alert = SSL_AD_CERTIFICATE_UNKNOWN;
++          return ssl_verify_invalid;
++        }
++
++        SSL_CTX *ctx = SSL_get_SSL_CTX(ssl);
++        if (EVP_PKEY_cmp(reinterpret_cast<EVP_PKEY *> SSL_CTX_get_app_data(ctx),
++                         peer_pubkey) == 1) {
++          return ssl_verify_ok;
++        }
++
++        *out_alert = SSL_AD_BAD_CERTIFICATE;
++        return ssl_verify_invalid;
++      });
++  SSL_CTX_set_session_cache_mode(client_ctx_.get(), SSL_SESS_CACHE_CLIENT);
++
++  // Server is not configured for raw public keys.
++  ASSERT_FALSE(Connect());
++
++  bssl::UniquePtr<SSL_CREDENTIAL> cred(SSL_CREDENTIAL_new_raw_public_key());
++  bssl::UniquePtr<EVP_PKEY> key = GetECDSATestKey();
++  ASSERT_TRUE(SSL_CREDENTIAL_set1_private_key(cred.get(), key.get()));
++  ASSERT_FALSE(SSL_CTX_add1_credential(server_ctx_.get(), cred.get()));
++  ASSERT_TRUE(SSL_CREDENTIAL_set1_spki(cred.get(), nullptr));
++  ASSERT_TRUE(SSL_CTX_add1_credential(server_ctx_.get(), cred.get()));
++
++  // Client is expecting |wrong_key|.
++  bssl::UniquePtr<EVP_PKEY> wrong_key = GetTestKey();
++  ASSERT_TRUE(wrong_key);
++  SSL_CTX_set_app_data(client_ctx_.get(), wrong_key.get());
++  ASSERT_FALSE(Connect());
++
++  if (!is_tls13()) {
++    return;
 +  }
 +
-+  return !ssl->config->server_raw_public_key_certificate.empty();
++  SSL_CTX_set_app_data(client_ctx_.get(), key.get());
++  ASSERT_TRUE(Connect());
++
++  bssl::UniquePtr<SSL_SESSION> session =
++      CreateClientSession(client_ctx_.get(), server_ctx_.get());
++  ASSERT_TRUE(session);
++
++  TRACED_CALL(ExpectSessionReused(client_ctx_.get(), server_ctx_.get(),
++                                  session.get(),
++                                  true /* expect session reused */));
 +}
 +
- namespace fips202205 {
- 
- // (References are to SP 800-52r2):
-diff --git a/ssl/tls13_both.cc b/ssl/tls13_both.cc
-index 5ab5a1c93..79135613e 100644
---- a/ssl/tls13_both.cc
-+++ b/ssl/tls13_both.cc
-@@ -11,6 +11,25 @@
-  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
-  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
-+/* ====================================================================
-+ * Copyright 2020 Apple Inc.
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the “Software”),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom
-+ * the Software is furnished to do so, subject to the following conditions:
-+ * The above copyright notice and this permission notice shall be included in
-+ * all copies or substantial portions of the Software.
-+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS
-+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-+ * IN THE SOFTWARE.
-+ */
- 
- #include <openssl/ssl.h>
- 
-@@ -197,7 +216,16 @@ bool tls13_process_certificate(SSL_HANDSHAKE *hs, const SSLMessage &msg,
+ static int SwitchContext(SSL *ssl, int *out_alert, void *arg) {
+   SSL_CTX *ctx = reinterpret_cast<SSL_CTX *>(arg);
+   SSL_set_SSL_CTX(ssl, ctx);
+diff --git a/ssl/test/bssl_shim.cc b/ssl/test/bssl_shim.cc
+index 0eba60d22..9e2fe8da9 100644
+--- a/ssl/test/bssl_shim.cc
++++ b/ssl/test/bssl_shim.cc
+@@ -672,7 +672,8 @@ static bool CheckHandshakeProperties(SSL *ssl, bool is_resume,
        return false;
      }
+   } else if (!config->is_server || config->require_any_client_certificate) {
+-    if (SSL_get_peer_cert_chain(ssl) == nullptr) {
++    if (!config->raw_public_key_mode &&
++        SSL_get_peer_cert_chain(ssl) == nullptr) {
+       fprintf(stderr, "Received no peer certificate but expected one.\n");
+       return false;
+     }
+diff --git a/ssl/test/runner/certificate_tests.go b/ssl/test/runner/certificate_tests.go
+index 7f6c4b82d..0007f9048 100644
+--- a/ssl/test/runner/certificate_tests.go
++++ b/ssl/test/runner/certificate_tests.go
+@@ -14,7 +14,11 @@
  
--    if (sk_CRYPTO_BUFFER_num(certs.get()) == 0) {
-+    if (hs->server_certificate_type_negotiated &&
-+        hs->server_certificate_type == TLSEXT_CERTIFICATETYPE_RAW_PUBLIC_KEY) {
+ package runner
+ 
+-import "crypto/x509"
++import (
++	"crypto/x509"
++	"encoding/base64"
++	"strconv"
++)
+ 
+ func makeCertPoolFromRoots(creds ...*Credential) *x509.CertPool {
+ 	certPool := x509.NewCertPool()
+@@ -327,6 +331,134 @@ func addCertificateTests() {
+ 	}
+ }
+ 
++func addRawPublicKeyCertificateTests() {
++	const decodeError = ":DECODE_ERROR:"
++	const unknownCertType = ":UNKNOWN_CERTIFICATE_TYPE:"
++	var extValueTests = []struct {
++		serverCertificateTypes []uint8
++		expectedError          string
++	}{
++		// Explicitly requesting X.509 should be fine.
++		{[]uint8{certificateTypeX509}, ""},
++		// ... even when mixed with unknown types.
++		{[]uint8{80, certificateTypeX509, 81, 82}, ""},
++		// ... even when mixed with a request for raw public keys.
++		{[]uint8{certificateTypeRawPublicKey, certificateTypeX509, 81, 82}, ""},
++		{[]uint8{certificateTypeX509, certificateTypeRawPublicKey, 81, 82}, ""},
++		// Requesting only unknown certificate types should cause an error.
++		{[]uint8{80, 81, 82}, unknownCertType},
++		// ... as should requesting a raw public key when the server is configured
++		// for X.509.
++		{[]uint8{certificateTypeRawPublicKey}, unknownCertType},
++		// Listing no types is an error.
++		{[]uint8{}, decodeError},
++	}
++
++	for i, test := range extValueTests {
++		testCases = append(testCases, testCase{
++			testType: serverTest,
++			name:     "RawPublicKey-Server-ExtValue-" + strconv.Itoa(i),
++			config: Config{
++				MinVersion: VersionTLS13,
++				MaxVersion: VersionTLS13,
++				Bugs: ProtocolBugs{
++					ServerCertificateTypes: test.serverCertificateTypes,
++				},
++			},
++			shouldFail:    len(test.expectedError) != 0,
++			expectedError: test.expectedError,
++		})
++	}
++
++	// An X.509 client should be rejected by a raw-public-key server.
++	testCases = append(testCases, testCase{
++		testType: serverTest,
++		name:     "RawPublicKey-Server-TLS13X509Client",
++		config: Config{
++			MinVersion: VersionTLS13,
++			MaxVersion: VersionTLS13,
++		},
++		flags: []string{
++			"-raw-public-key-mode",
++		},
++		shouldFail:    true,
++		expectedError: unknownCertType,
++	})
++
++	testCases = append(testCases, testCase{
++		testType: serverTest,
++		name:     "RawPublicKey-Server",
++		config: Config{
++			MinVersion:                       VersionTLS13,
++			MaxVersion:                       VersionTLS13,
++			Credential:                       ecdsaP384Certificate.WithSignatureAlgorithms(signatureECDSAWithP384AndSHA384),
++			useServerRawPublicKeyCertificate: true,
++		},
++		flags: []string{
++			"-raw-public-key-mode",
++		},
++		shimCertificate: &ecdsaP384Certificate,
++	})
++
++	leaf, _ := x509.ParseCertificate(ecdsaP384Certificate.Certificate[0])
++	base64SPKI := base64.StdEncoding.EncodeToString(leaf.RawSubjectPublicKeyInfo)
++	wrongLeaf, _ := x509.ParseCertificate(ecdsaP256Certificate.Certificate[0])
++	wrongBase64SPKI := base64.StdEncoding.EncodeToString(wrongLeaf.RawSubjectPublicKeyInfo)
++
++	for _, ok := range []bool{false, true} {
++		expectedSPKI, suffix, expectedError := base64SPKI, "", ""
++		if !ok {
++			expectedSPKI = wrongBase64SPKI
++			suffix = "-Mismatch"
++			expectedError = ":CERTIFICATE_VERIFY_FAILED:"
++		}
++
++		testCases = append(testCases, testCase{
++			testType: clientTest,
++			name:     "RawPublicKey-Client" + suffix,
++			config: Config{
++				MinVersion:                       VersionTLS13,
++				MaxVersion:                       VersionTLS13,
++				Credential:                       ecdsaP384Certificate.WithSignatureAlgorithms(signatureECDSAWithP384AndSHA384),
++				useServerRawPublicKeyCertificate: true,
++			},
++			flags: []string{
++				"-raw-public-key-mode",
++				"-verify-peer",
++				"-use-custom-verify-callback",
++				"-expect-spki", expectedSPKI,
++			},
++			shouldFail:    !ok,
++			expectedError: expectedError,
++		})
++	}
++
++	// Read the server's raw public key in a CompressedCertificate message.
++	testCases = append(testCases, testCase{
++		testType: clientTest,
++		name:     "RawPublicKey-Client-With-Compression",
++		config: Config{
++			MinVersion:                       VersionTLS13,
++			MaxVersion:                       VersionTLS13,
++			Credential:                       ecdsaP384Certificate.WithSignatureAlgorithms(signatureECDSAWithP384AndSHA384),
++			useServerRawPublicKeyCertificate: true,
++			CertCompressionAlgs: map[uint16]CertCompressionAlg{
++				expandingCompressionAlgID: expandingCompression,
++			},
++			Bugs: ProtocolBugs{
++				ExpectedCompressedCert: expandingCompressionAlgID,
++			},
++		},
++		flags: []string{
++			"-raw-public-key-mode",
++			"-verify-peer",
++			"-use-custom-verify-callback",
++			"-expect-spki", base64SPKI,
++			"-install-cert-compression-algs",
++		},
++	})
++}
++
+ func addRetainOnlySHA256ClientCertTests() {
+ 	for _, ver := range tlsVersions {
+ 		// Test that enabling
+diff --git a/ssl/test/runner/common.go b/ssl/test/runner/common.go
+index 7dbde72c9..f1fb623ea 100644
+--- a/ssl/test/runner/common.go
++++ b/ssl/test/runner/common.go
+@@ -140,6 +140,12 @@ func messageTypeToString(typ uint8) string {
+ 	return fmt.Sprintf("unknown(%d)", typ)
+ }
+ 
++// TLS certificate type extension values.
++const (
++	certificateTypeX509         uint8 = 0
++	certificateTypeRawPublicKey uint8 = 2
++)
++
+ // TLS compression types.
+ const (
+ 	compressionNone uint8 = 0
+@@ -155,6 +161,7 @@ const (
+ 	extensionUseSRTP                    uint16 = 14
+ 	extensionALPN                       uint16 = 16
+ 	extensionSignedCertificateTimestamp uint16 = 18
++	extensionServerCertificateType      uint16 = 20 // RFC7250
+ 	extensionPadding                    uint16 = 21
+ 	extensionExtendedMasterSecret       uint16 = 23
+ 	extensionCompressedCertAlgs         uint16 = 27
+@@ -505,6 +512,14 @@ type Config struct {
+ 	// If Time is nil, TLS uses time.Now.
+ 	Time func() time.Time
+ 
++	// useServerRawPublicKeyCertificate indicates, for TLS 1.3 only, that raw
++	// public keys should be used. For servers, the DER-encoded X.509
++	// SubjectPublicKeyInfo field of Certificates[0].Certificate[0] will be the
++	// CertificateEntry of Certificate messages, not including any
++	// CertificateEntry extensions. For clients, the field should be used to
++	// verify the server's Certificate message.
++	useServerRawPublicKeyCertificate bool
++
+ 	// Credential contains the credential to present to the other side of
+ 	// the connection. Server configurations must include this field.
+ 	Credential *Credential
+@@ -2172,6 +2187,10 @@ type ProtocolBugs struct {
+ 	// NewSessionTicket messages to have or not have the resumption_across_names
+ 	// flag set.
+ 	ExpectResumptionAcrossNames *bool
++
++	// ServerCertificateTypes, if not nil, contains the contents of the server
++	// certificate types extension sent by a client, or echoed by a server.
++	ServerCertificateTypes []uint8
+ }
+ 
+ func (c *Config) serverInit() {
+diff --git a/ssl/test/runner/handshake_client.go b/ssl/test/runner/handshake_client.go
+index 1c4610815..cce76f47b 100644
+--- a/ssl/test/runner/handshake_client.go
++++ b/ssl/test/runner/handshake_client.go
+@@ -557,6 +557,14 @@ func (hs *clientHandshakeState) createClientHello(innerHello *clientHelloMsg, ec
+ 		hello.vers = mapClientHelloVersion(maxVersion, c.isDTLS)
+ 	}
+ 
++	if maxVersion >= VersionTLS13 && c.config.useServerRawPublicKeyCertificate {
++		hello.serverCertificateTypes = []uint8{certificateTypeRawPublicKey}
++	}
++
++	if c.config.Bugs.ServerCertificateTypes != nil {
++		hello.serverCertificateTypes = c.config.Bugs.ServerCertificateTypes
++	}
++
+ 	if c.config.Bugs.SendClientVersion != 0 {
+ 		hello.vers = c.config.Bugs.SendClientVersion
+ 	}
+@@ -1345,11 +1353,22 @@ func (hs *clientHandshakeState) doTLS13Handshake(msg any) error {
+ 			return errors.New("tls: server certificate unexpectedly did not match trust anchor")
+ 		}
+ 
+-		if err := hs.verifyCertificates(certMsg); err != nil {
+-			return err
++		ex := encryptedExtensions.extensions
++		if c.config.useServerRawPublicKeyCertificate {
++			if !ex.hasServerCertificateType || ex.serverCertificateType != certificateTypeRawPublicKey {
++				c.sendAlert(alertUnsupportedCertificate)
++				return errors.New("tls: server did not support raw public keys")
++			}
++			if err := hs.verifyRawPublicKeyCertificates(certMsg); err != nil {
++				return err
++			}
++		} else {
++			if err := hs.verifyCertificates(certMsg); err != nil {
++				return err
++			}
++			c.ocspResponse = certMsg.certificates[0].ocspResponse
++			c.sctList = certMsg.certificates[0].sctList
+ 		}
+-		c.ocspResponse = certMsg.certificates[0].ocspResponse
+-		c.sctList = certMsg.certificates[0].sctList
+ 
+ 		certVerifyMsg, err := readHandshakeType[certificateVerifyMsg](c)
+ 		if err != nil {
+@@ -1854,6 +1873,50 @@ func delegatedCredentialSignedMessage(credBytes []byte, algorithm signatureAlgor
+ 	return ret
+ }
+ 
++func (hs *clientHandshakeState) verifyRawPublicKeyCertificates(certMsg *certificateMsg) error {
++	c := hs.c
++
++	if len(certMsg.certificates) != 1 {
++		c.sendAlert(alertIllegalParameter)
++		return errors.New("tls: incorrect number of certificates")
++	}
++
++	leafSPKI := certMsg.certificates[0].data
++
++	if !c.config.InsecureSkipVerify {
++		expectedCert, err := x509.ParseCertificate(c.config.Credential.Certificate[0])
++		if err != nil {
++			c.sendAlert(alertInternalError)
++			return errors.New("tls: failed to parse configured certificate: " + err.Error())
++		}
++		expectedSPKI := expectedCert.RawSubjectPublicKeyInfo
++
++		if !bytes.Equal(expectedSPKI, leafSPKI) {
++			c.sendAlert(alertBadCertificate)
++			return errors.New("tls: raw public key verification failed")
++		}
++	}
++
++	leafPublicKey, err := x509.ParsePKIXPublicKey(leafSPKI)
++	if err != nil {
++		c.sendAlert(alertBadCertificate)
++		return errors.New("tls: failed to parse raw public key certificate from server: " + err.Error())
++	}
++
++	switch leafPublicKey.(type) {
++	case *rsa.PublicKey, *ecdsa.PublicKey, ed25519.PublicKey:
++		break
++	default:
++		c.sendAlert(alertUnsupportedCertificate)
++		return fmt.Errorf("tls: server's certificate contains an unsupported type of public key: %T", leafPublicKey)
++	}
++
++	c.peerCertificates = nil
++	hs.peerPublicKey = leafPublicKey
++
++	return nil
++}
++
+ func (hs *clientHandshakeState) verifyCertificates(certMsg *certificateMsg) error {
+ 	c := hs.c
+ 
+diff --git a/ssl/test/runner/handshake_messages.go b/ssl/test/runner/handshake_messages.go
+index d5097f37c..d570a76ab 100644
+--- a/ssl/test/runner/handshake_messages.go
++++ b/ssl/test/runner/handshake_messages.go
+@@ -259,9 +259,10 @@ type clientHelloMsg struct {
+ 	prefixExtensions                         []uint16
+ 	// The following fields are only filled in by |unmarshal| and ignored when
+ 	// marshaling a new ClientHello.
+-	echPayloadStart int
+-	echPayloadEnd   int
+-	rawExtensions   []byte
++	echPayloadStart        int
++	echPayloadEnd          int
++	rawExtensions          []byte
++	serverCertificateTypes []uint8
+ }
+ 
+ func (m *clientHelloMsg) marshalKeyShares(bb *cryptobyte.Builder) {
+@@ -634,6 +635,14 @@ func (m *clientHelloMsg) marshalBody(hello *cryptobyte.Builder, typ clientHelloT
+ 			body: body.BytesOrPanic(),
+ 		})
+ 	}
++	if m.serverCertificateTypes != nil {
++		body := cryptobyte.NewBuilder(nil)
++		addUint8LengthPrefixedBytes(body, m.serverCertificateTypes)
++		extensions = append(extensions, extension{
++			id:   extensionServerCertificateType,
++			body: body.BytesOrPanic(),
++		})
++	}
+ 	// The PSK extension must be last. See https://tools.ietf.org/html/rfc8446#section-4.2.11
+ 	if len(m.pskIdentities) > 0 {
+ 		pskExtension := cryptobyte.NewBuilder(nil)
+@@ -1144,6 +1153,10 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
+ 				}
+ 				m.alpsProtocols = append(m.alpsProtocols, string(protocol))
+ 			}
++		case extensionServerCertificateType:
++			if !readUint8LengthPrefixedBytes(&body, &m.serverCertificateTypes) || len(body) != 0 {
++				return false
++			}
+ 		case extensionApplicationSettingsOld:
+ 			var protocols cryptobyte.String
+ 			if !body.ReadUint16LengthPrefixed(&protocols) || len(body) != 0 {
+@@ -1597,6 +1610,8 @@ type serverExtensions struct {
+ 	hasApplicationSettingsOld bool
+ 	echRetryConfigs           []byte
+ 	trustAnchors              [][]byte
++	hasServerCertificateType  bool
++	serverCertificateType     uint8
+ }
+ 
+ func (m *serverExtensions) marshal(extensions *cryptobyte.Builder) {
+@@ -1731,6 +1746,10 @@ func (m *serverExtensions) marshal(extensions *cryptobyte.Builder) {
+ 		extensions.AddUint16(extensionEncryptedClientHello)
+ 		addUint16LengthPrefixedBytes(extensions, m.echRetryConfigs)
+ 	}
++	if m.hasServerCertificateType {
++		extensions.AddUint16(extensionServerCertificateType)
++		addUint16LengthPrefixedBytes(extensions, []byte{m.serverCertificateType})
++	}
+ 	if len(m.trustAnchors) > 0 {
+ 		extensions.AddUint16(extensionTrustAnchors)
+ 		extensions.AddUint16LengthPrefixed(func(extension *cryptobyte.Builder) {
+@@ -1797,6 +1816,14 @@ func (m *serverExtensions) unmarshal(data cryptobyte.String, version uint16) boo
+ 				return false
+ 			}
+ 			m.channelIDRequested = true
++		case extensionServerCertificateType:
++			if version < VersionTLS13 {
++				return false
++			}
++			if !body.ReadUint8(&m.serverCertificateType) || len(body) != 0 {
++				return false
++			}
++			m.hasServerCertificateType = true
+ 		case extensionExtendedMasterSecret:
+ 			if len(body) != 0 {
+ 				return false
+diff --git a/ssl/test/runner/handshake_server.go b/ssl/test/runner/handshake_server.go
+index 4e6ae98e4..14353b5e9 100644
+--- a/ssl/test/runner/handshake_server.go
++++ b/ssl/test/runner/handshake_server.go
+@@ -28,20 +28,22 @@ import (
+ // serverHandshakeState contains details of a server handshake in progress.
+ // It's discarded once the handshake has completed.
+ type serverHandshakeState struct {
+-	c               *Conn
+-	clientHello     *clientHelloMsg
+-	hello           *serverHelloMsg
+-	suite           *cipherSuite
+-	ellipticOk      bool
+-	ecdsaOk         bool
+-	sessionState    *sessionState
+-	finishedHash    finishedHash
+-	masterSecret    []byte
+-	certsFromClient [][]byte
+-	cert            *Credential
+-	finishedBytes   []byte
+-	echHPKEContext  *hpke.Context
+-	echConfigID     uint8
++	c                        *Conn
++	clientHello              *clientHelloMsg
++	hello                    *serverHelloMsg
++	suite                    *cipherSuite
++	ellipticOk               bool
++	ecdsaOk                  bool
++	sessionState             *sessionState
++	finishedHash             finishedHash
++	masterSecret             []byte
++	certsFromClient          [][]byte
++	cert                     *Credential
++	finishedBytes            []byte
++	echHPKEContext           *hpke.Context
++	echConfigID              uint8
++	hasServerCertificateType bool
++	serverCertificateType    uint8
+ }
+ 
+ // serverHandshake performs a TLS handshake as a server.
+@@ -983,6 +985,18 @@ func (hs *serverHandshakeState) doTLS13Handshake() error {
+ 		encryptedExtensions.extensions.hasEarlyData = true
+ 	}
+ 
++	if c.vers >= VersionTLS13 && config.useServerRawPublicKeyCertificate {
++		for _, t := range hs.clientHello.serverCertificateTypes {
++			if t != certificateTypeRawPublicKey {
++				continue
++			}
++			hs.hasServerCertificateType = true
++			hs.serverCertificateType = certificateTypeRawPublicKey
++			encryptedExtensions.extensions.hasServerCertificateType = true
++			encryptedExtensions.extensions.serverCertificateType = certificateTypeRawPublicKey
++		}
++	}
++
+ 	// Resolve ECDHE and compute the handshake secret.
+ 	if hs.hello.hasKeyShare {
+ 		// Once a curve has been selected and a key share identified,
+@@ -1184,6 +1198,17 @@ func (hs *serverHandshakeState) doTLS13Handshake() error {
+ 		}
+ 		if !config.Bugs.EmptyCertificateList {
+ 			for i, certData := range useCert.Certificate {
++				if hs.hasServerCertificateType &&
++					hs.serverCertificateType == certificateTypeRawPublicKey {
++					cert, err := x509.ParseCertificate(certData)
++					if err != nil {
++						return fmt.Errorf("tls: failed to parse configured certificate: %s", err.Error())
++					}
++					certMsg.certificates = append(
++						certMsg.certificates,
++						certificateEntry{data: cert.RawSubjectPublicKeyInfo})
++					break
++				}
+ 				cert := certificateEntry{
+ 					data: certData,
+ 				}
+diff --git a/ssl/test/runner/runner.go b/ssl/test/runner/runner.go
+index 57f9cc410..091e44f48 100644
+--- a/ssl/test/runner/runner.go
++++ b/ssl/test/runner/runner.go
+@@ -789,7 +789,7 @@ func doExchange(test *testCase, config *Config, conn net.Conn, isResume bool, tr
+ 			tlsConn = Server(conn, config)
+ 		}
+ 	} else {
+-		config.InsecureSkipVerify = true
++		config.InsecureSkipVerify = !config.useServerRawPublicKeyCertificate
+ 		if test.protocol == dtls {
+ 			tlsConn = DTLSClient(conn, config)
+ 		} else {
+@@ -2244,6 +2244,7 @@ func main() {
+ 	addKeyUpdateTests()
+ 	addPAKETests()
+ 	addTrustAnchorTests()
++	addRawPublicKeyCertificateTests()
+ 
+ 	toAppend, err := convertToSplitHandshakeTests(testCases)
+ 	if err != nil {
+diff --git a/ssl/test/test_config.cc b/ssl/test/test_config.cc
+index 9a7ee6a68..5b8cd5fa6 100644
+--- a/ssl/test/test_config.cc
++++ b/ssl/test/test_config.cc
+@@ -37,6 +37,8 @@
+ #include <openssl/ssl.h>
+ 
+ #include "../../crypto/internal.h"
++#include "../../crypto/mem_internal.h"
++#include "../../ssl/internal.h"
+ #include "handshake_util.h"
+ #include "mock_quic_transport.h"
+ #include "test_state.h"
+@@ -639,6 +641,8 @@ const Flag<TestConfig> *FindFlag(const char *name) {
+         OptionalBoolFalseFlag("-expect-not-resumable-across-names",
+                               &TestConfig::expect_resumable_across_names),
+         BoolFlag("-no-server-name-ack", &TestConfig::no_server_name_ack),
++        BoolFlag("-raw-public-key-mode", &TestConfig::raw_public_key_mode),
++        Base64Flag("-expect-spki", &TestConfig::expect_spki),
+     };
+     std::sort(ret.begin(), ret.end(), FlagNameComparator{});
+     return ret;
+@@ -1145,6 +1149,17 @@ static bool CheckVerifyCallback(SSL *ssl) {
+     fprintf(stderr, "ECH name did not match expected value.\n");
+     return false;
+   }
++  if (!config->expect_spki.empty()) {
++    const EVP_PKEY *pkey = SSL_get0_peer_pubkey(ssl);
++    bssl::ScopedCBB cbb;
++    if (pkey == nullptr || !CBB_init(cbb.get(), /*initial_capacity=*/512) ||
++        !EVP_marshal_public_key(cbb.get(), pkey) ||
++        OPENSSL_memcmp(config->expect_spki.data(), CBB_data(cbb.get()),
++                       CBB_len(cbb.get())) != 0) {
++      fprintf(stderr, "Incorrect SPKI observed\n");
++      return false;
++    }
++  }
+ 
+   if (config->expect_peer_match_trust_anchor.has_value() &&
+       !!SSL_peer_matched_trust_anchor(ssl) !=
+@@ -1852,17 +1867,64 @@ static bool InstallCertificate(SSL *ssl) {
+     return false;
+   }
+ 
++  const TestConfig *config = GetTestConfig(ssl);
++
+   if (pkey) {
+     TestState *test_state = GetTestState(ssl);
+-    const TestConfig *config = GetTestConfig(ssl);
+-    if (config->async || config->handshake_hints) {
++    // Install a custom private key if testing asynchronous callbacks, or if
++    // testing handshake hints. In the handshake hints case, we wish to check
++    // that hints only mismatch when allowed.
++    const bool use_private_key_method =
++        config->async || config->handshake_hints;
++    if (use_private_key_method) {
+       // Install a custom private key if testing asynchronous callbacks, or if
+       // testing handshake hints. In the handshake hints case, we wish to check
+       // that hints only mismatch when allowed.
+       test_state->private_key = std::move(pkey);
+-      SSL_set_private_key_method(ssl, &g_async_private_key_method);
+-    } else if (!SSL_use_PrivateKey(ssl, pkey.get())) {
+-      return false;
++    }
++
++    if (config->raw_public_key_mode) {
++      bssl::UniquePtr<SSL_CREDENTIAL> cred(SSL_CREDENTIAL_new_raw_public_key());
++      if (cred == nullptr) {
++        return false;
++      }
++
++      if (use_private_key_method) {
++        SSL_CREDENTIAL_set_private_key_method(cred.get(),
++                                              &g_async_private_key_method);
++
++        bssl::ScopedCBB cbb;
++        if (!CBB_init(cbb.get(), /*initial_capacity=*/512) ||
++            !EVP_marshal_public_key(cbb.get(), test_state->private_key.get())) {
++          return false;
++        }
++        bssl::UniquePtr<CRYPTO_BUFFER> spki(CRYPTO_BUFFER_new(
++            CBB_data(cbb.get()), CBB_len(cbb.get()), /*pool=*/nullptr));
++        if (spki == nullptr) {
++          return false;
++        }
++        if (!SSL_CREDENTIAL_set1_spki(cred.get(), spki.get())) {
++          return false;
++        }
++      } else {
++        if (!SSL_CREDENTIAL_set1_private_key(cred.get(), pkey.get())) {
++          return false;
++        }
++        if (!SSL_CREDENTIAL_set1_spki(cred.get(), nullptr)) {
++          return false;
++        }
++      }
++
++      if (!SSL_add1_credential(ssl, cred.get())) {
++        return false;
++      }
++      return true;
++    } else {
++      if (use_private_key_method) {
++        SSL_set_private_key_method(ssl, &g_async_private_key_method);
++      } else if (!SSL_use_PrivateKey(ssl, pkey.get())) {
++        return false;
++      }
+     }
+   }
+ 
+@@ -2015,8 +2077,8 @@ bssl::UniquePtr<SSL_CTX> TestConfig::SetupCtx(SSL_CTX *old_ctx) const {
+   }
+ 
+   if (async && is_server) {
+-    // Disable the internal session cache. To test asynchronous session lookup,
+-    // we use an external session cache.
++    // Disable the internal session cache. To test asynchronous session
++    // lookup, we use an external session cache.
+     SSL_CTX_set_session_cache_mode(
+         ssl_ctx.get(), SSL_SESS_CACHE_BOTH | SSL_SESS_CACHE_NO_INTERNAL);
+     SSL_CTX_sess_set_get_cb(ssl_ctx.get(), GetSessionCallback);
+@@ -2338,6 +2400,12 @@ bssl::UniquePtr<SSL> TestConfig::NewSSL(
+   if (verify_peer) {
+     mode = SSL_VERIFY_PEER;
+   }
++  static const uint8_t kCertificateTypes[] = {
++      TLS_CERTIFICATE_TYPE_RAW_PUBLIC_KEY};
++  if (!is_server && raw_public_key_mode &&
++      !SSL_set_server_certificate_types(ssl.get(), kCertificateTypes, 1)) {
++    return nullptr;
++  }
+   if (use_custom_verify_callback) {
+     SSL_set_custom_verify(ssl.get(), mode, CustomVerifyCallback);
+   } else if (mode != SSL_VERIFY_NONE) {
+@@ -2484,8 +2552,8 @@ bssl::UniquePtr<SSL> TestConfig::NewSSL(
+   if (enable_signed_cert_timestamps) {
+     SSL_enable_signed_cert_timestamps(ssl.get());
+   }
+-  // (D)TLS 1.0 and 1.1 are disabled by default, but the runner expects them to
+-  // be enabled.
++  // (D)TLS 1.0 and 1.1 are disabled by default, but the runner expects them
++  // to be enabled.
+   // TODO(davidben): Update the tests to explicitly enable the versions they
+   // need.
+   if (!SSL_set_min_proto_version(
+@@ -2495,7 +2563,8 @@ bssl::UniquePtr<SSL> TestConfig::NewSSL(
+   if (min_version != 0 && !SSL_set_min_proto_version(ssl.get(), min_version)) {
+     return nullptr;
+   }
+-  // TODO(crbug.com/42290594): Remove this once DTLS 1.3 is enabled by default.
++  // TODO(crbug.com/42290594): Remove this once DTLS 1.3 is enabled by
++  // default.
+   if (is_dtls && max_version == 0 &&
+       !SSL_set_max_proto_version(ssl.get(), DTLS1_3_VERSION)) {
+     return nullptr;
+@@ -2515,7 +2584,8 @@ bssl::UniquePtr<SSL> TestConfig::NewSSL(
+     SSL_set_renegotiate_mode(ssl.get(), ssl_renegotiate_once);
+   }
+   if (renegotiate_freely || forbid_renegotiation_after_handshake) {
+-    // |forbid_renegotiation_after_handshake| will disable renegotiation later.
++    // |forbid_renegotiation_after_handshake| will disable renegotiation
++    // later.
+     SSL_set_renegotiate_mode(ssl.get(), ssl_renegotiate_freely);
+   }
+   if (renegotiate_ignore) {
+diff --git a/ssl/test/test_config.h b/ssl/test/test_config.h
+index 9745de035..dc32f8136 100644
+--- a/ssl/test/test_config.h
++++ b/ssl/test/test_config.h
+@@ -243,6 +243,8 @@ struct TestConfig {
+   bool resumption_across_names_enabled = false;
+   std::optional<bool> expect_resumable_across_names;
+   bool no_server_name_ack = false;
++  bool raw_public_key_mode = false;
++  std::vector<uint8_t> expect_spki;
+ 
+   std::vector<const char *> handshaker_args;
+ 
+diff --git a/ssl/tls13_both.cc b/ssl/tls13_both.cc
+index 257e4c997..951ab7d52 100644
+--- a/ssl/tls13_both.cc
++++ b/ssl/tls13_both.cc
+@@ -198,6 +198,45 @@ bool tls13_process_certificate(SSL_HANDSHAKE *hs, const SSLMessage &msg,
+     }
+ 
+     const bool is_leaf = sk_CRYPTO_BUFFER_num(certs.get()) == 0;
++
++    // Parse out the extensions.
++    SSLExtension status_request(
++        TLSEXT_TYPE_status_request,
++        !ssl->server && hs->config->ocsp_stapling_enabled);
++    SSLExtension sct(
++        TLSEXT_TYPE_certificate_timestamp,
++        !ssl->server && hs->config->signed_cert_timestamps_enabled);
++    SSLExtension trust_anchors(
++        TLSEXT_TYPE_trust_anchors,
++        !ssl->server && is_leaf &&
++            hs->config->requested_trust_anchors.has_value());
++    uint8_t alert = SSL_AD_DECODE_ERROR;
++    if (!ssl_parse_extensions(&extensions, &alert,
++                              {&status_request, &sct, &trust_anchors},
++                              /*ignore_unknown=*/false)) {
++      ssl_send_alert(ssl, SSL3_AL_FATAL, alert);
++      return false;
++    }
++
++    if (!ssl->server &&
++        hs->server_certificate_type == TLS_CERTIFICATE_TYPE_RAW_PUBLIC_KEY) {
++      if (pkey) {
++        // Only a single "certificate" is allowed if using raw public keys.
++        OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
++        ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_ILLEGAL_PARAMETER);
++        return false;
++      }
++
 +      pkey = UniquePtr<EVP_PKEY>(EVP_parse_public_key(&certificate));
-+      if (!pkey) {
++      if (!pkey || CBS_len(&certificate) != 0) {
 +        ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
 +        OPENSSL_PUT_ERROR(SSL, SSL_R_DECODE_ERROR);
 +        return false;
 +      }
++
++      continue;
 +    }
-+    else if (sk_CRYPTO_BUFFER_num(certs.get()) == 0) {
++
+     if (is_leaf) {
        pkey = ssl_cert_parse_pubkey(&certificate);
        if (!pkey) {
-         ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
-@@ -299,7 +327,10 @@ bool tls13_process_certificate(SSL_HANDSHAKE *hs, const SSLMessage &msg,
-   }
- 
-   if (sk_CRYPTO_BUFFER_num(hs->new_session->certs.get()) == 0) {
--    if (!allow_anonymous) {
-+    if (!allow_anonymous &&
-+        !(hs->server_certificate_type_negotiated &&
-+         hs->server_certificate_type ==
-+           TLSEXT_CERTIFICATETYPE_RAW_PUBLIC_KEY)) {
-       OPENSSL_PUT_ERROR(SSL, SSL_R_PEER_DID_NOT_RETURN_A_CERTIFICATE);
-       ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_CERTIFICATE_REQUIRED);
+@@ -228,25 +267,6 @@ bool tls13_process_certificate(SSL_HANDSHAKE *hs, const SSLMessage &msg,
        return false;
-@@ -416,6 +447,20 @@ bool tls13_add_certificate(SSL_HANDSHAKE *hs) {
+     }
+ 
+-    // Parse out the extensions.
+-    SSLExtension status_request(
+-        TLSEXT_TYPE_status_request,
+-        !ssl->server && hs->config->ocsp_stapling_enabled);
+-    SSLExtension sct(
+-        TLSEXT_TYPE_certificate_timestamp,
+-        !ssl->server && hs->config->signed_cert_timestamps_enabled);
+-    SSLExtension trust_anchors(
+-        TLSEXT_TYPE_trust_anchors,
+-        !ssl->server && is_leaf &&
+-            hs->config->requested_trust_anchors.has_value());
+-    uint8_t alert = SSL_AD_DECODE_ERROR;
+-    if (!ssl_parse_extensions(&extensions, &alert,
+-                              {&status_request, &sct, &trust_anchors},
+-                              /*ignore_unknown=*/false)) {
+-      ssl_send_alert(ssl, SSL3_AL_FATAL, alert);
+-      return false;
+-    }
+-
+     // All Certificate extensions are parsed, but only the leaf extensions are
+     // stored.
+     if (status_request.present) {
+@@ -313,7 +333,16 @@ bool tls13_process_certificate(SSL_HANDSHAKE *hs, const SSLMessage &msg,
      return false;
    }
  
-+  if (hs->server_certificate_type_negotiated &&
-+      hs->server_certificate_type == TLSEXT_CERTIFICATETYPE_RAW_PUBLIC_KEY) {
-+    CBB leaf, extensions;
-+    if (!CBB_add_u24_length_prefixed(&certificate_list, &leaf) ||
-+        !CBB_add_bytes(&leaf,
-+                       ssl->config->server_raw_public_key_certificate.data(),
-+                       ssl->config->server_raw_public_key_certificate.size()) ||
-+        !CBB_add_u16_length_prefixed(&certificate_list, &extensions)) {
+-  if (sk_CRYPTO_BUFFER_num(hs->new_session->certs.get()) == 0) {
++  if (!ssl->server &&
++      hs->server_certificate_type == TLS_CERTIFICATE_TYPE_RAW_PUBLIC_KEY) {
++    if (!hs->peer_pubkey) {
++      OPENSSL_PUT_ERROR(SSL, SSL_R_PEER_DID_NOT_RETURN_A_CERTIFICATE);
++      ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_CERTIFICATE_REQUIRED);
++      return false;
++    }
++
++    return true;
++  } else if (sk_CRYPTO_BUFFER_num(hs->new_session->certs.get()) == 0) {
+     if (!allow_anonymous) {
+       OPENSSL_PUT_ERROR(SSL, SSL_R_PEER_DID_NOT_RETURN_A_CERTIFICATE);
+       ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_CERTIFICATE_REQUIRED);
+@@ -436,13 +465,28 @@ bool tls13_add_certificate(SSL_HANDSHAKE *hs) {
+     return ssl_add_message_cbb(ssl, cbb.get());
+   }
+ 
+-  assert(hs->credential->UsesX509());
+-  CRYPTO_BUFFER *leaf_buf = sk_CRYPTO_BUFFER_value(cred->chain.get(), 0);
+-  CBB leaf, extensions;
+-  if (!CBB_add_u24_length_prefixed(&certificate_list, &leaf) ||
+-      !CBB_add_bytes(&leaf, CRYPTO_BUFFER_data(leaf_buf),
+-                     CRYPTO_BUFFER_len(leaf_buf)) ||
+-      !CBB_add_u16_length_prefixed(&certificate_list, &extensions)) {
++  CBB leaf;
++  if (!CBB_add_u24_length_prefixed(&certificate_list, &leaf)) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
++    return false;
++  }
++
++  if (hs->credential->type == SSLCredentialType::kRawPublicKey) {
++    if (!EVP_marshal_public_key(&leaf, cred->pubkey.get())) {
 +      OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
 +      return false;
 +    }
-+    return ssl_add_message_cbb(ssl, cbb.get());
++  } else {
++    CRYPTO_BUFFER *leaf_buf = sk_CRYPTO_BUFFER_value(cred->chain.get(), 0);
++    if (!CBB_add_bytes(&leaf, CRYPTO_BUFFER_data(leaf_buf),
++                       CRYPTO_BUFFER_len(leaf_buf))) {
++      OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
++      return false;
++    }
 +  }
 +
-   if (!ssl_has_certificate(hs)) {
-     return ssl_add_message_cbb(ssl, cbb.get());
++  CBB extensions;
++  if (!CBB_add_u16_length_prefixed(&certificate_list, &extensions)) {
+     OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
+     return false;
    }
 diff --git a/ssl/tls13_server.cc b/ssl/tls13_server.cc
-index 707cf846b..6916606c2 100644
+index eade4bd66..9de0bea28 100644
 --- a/ssl/tls13_server.cc
 +++ b/ssl/tls13_server.cc
-@@ -11,6 +11,25 @@
-  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
-  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
-  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
-+/* ====================================================================
-+ * Copyright 2020 Apple Inc.
-+ *
-+ * Permission is hereby granted, free of charge, to any person obtaining a
-+ * copy of this software and associated documentation files (the “Software”),
-+ * to deal in the Software without restriction, including without limitation
-+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-+ * and/or sell copies of the Software, and to permit persons to whom
-+ * the Software is furnished to do so, subject to the following conditions:
-+ * The above copyright notice and this permission notice shall be included in
-+ * all copies or substantial portions of the Software.
-+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS
-+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-+ * IN THE SOFTWARE.
-+ */
+@@ -261,6 +261,7 @@ bool ssl_check_tls13_credential_ignoring_issuer(SSL_HANDSHAKE *hs,
+                                                 uint16_t *out_sigalg) {
+   switch (cred->type) {
+     case SSLCredentialType::kX509:
++    case SSLCredentialType::kRawPublicKey:
+       break;
+     case SSLCredentialType::kDelegated:
+       // Check that the peer supports the signature over the delegated
+@@ -284,7 +285,34 @@ bool ssl_check_tls13_credential_ignoring_issuer(SSL_HANDSHAKE *hs,
  
- #include <openssl/ssl.h>
- 
-@@ -860,7 +879,8 @@ static enum ssl_hs_wait_t do_send_server_hello(SSL_HANDSHAKE *hs) {
- 
-   // Send the server Certificate message, if necessary.
-   if (!ssl->s3->session_reused) {
--    if (!ssl_has_certificate(hs)) {
-+    if (!ssl_has_certificate(hs) &&
-+        !ssl_has_raw_public_key_certificate(hs)) {
-       OPENSSL_PUT_ERROR(SSL, SSL_R_NO_CERTIFICATE_SET);
-       return ssl_hs_error;
+ static bool check_signature_credential(SSL_HANDSHAKE *hs,
+                                        const SSL_CREDENTIAL *cred,
+-                                       uint16_t *out_sigalg) {
++                                       uint16_t *out_sigalg,
++                                       uint8_t *cert_type) {
++  switch (cred->type) {
++    case SSLCredentialType::kDelegated:
++    case SSLCredentialType::kX509:
++      *cert_type = TLS_CERTIFICATE_TYPE_X509;
++      break;
++    case SSLCredentialType::kRawPublicKey:
++      if (hs->server_certificate_type_list.empty()) {
++        OPENSSL_PUT_ERROR(SSL, SSL_R_UNKNOWN_CERTIFICATE_TYPE);
++        return false;
++      }
++      *cert_type = TLS_CERTIFICATE_TYPE_RAW_PUBLIC_KEY;
++      break;
++    default:
++      OPENSSL_PUT_ERROR(SSL, SSL_R_UNKNOWN_CERTIFICATE_TYPE);
++      return false;
++  }
++
++  if (!hs->server_certificate_type_list.empty() &&
++      std::none_of(
++          hs->server_certificate_type_list.begin(),
++          hs->server_certificate_type_list.end(),
++          [cert_type](const auto &type) { return *cert_type == type; })) {
++    OPENSSL_PUT_ERROR(SSL, SSL_R_UNKNOWN_CERTIFICATE_TYPE);
++    return false;
++  }
++
+   return ssl_check_tls13_credential_ignoring_issuer(hs, cred, out_sigalg) &&
+          // Use this credential if it either matches a requested issuer,
+          // or does not require issuer matching.
+@@ -359,9 +387,11 @@ static enum ssl_hs_wait_t do_select_parameters(SSL_HANDSHAKE *hs) {
+       }
+     } else {
+       uint16_t sigalg;
+-      if (check_signature_credential(hs, cred, &sigalg)) {
++      uint8_t cert_type;
++      if (check_signature_credential(hs, cred, &sigalg, &cert_type)) {
+         hs->credential = UpRef(cred);
+         hs->signature_algorithm = sigalg;
++        hs->server_certificate_type = cert_type;
+         break;
+       }
      }
+-- 
+2.40.0
+
