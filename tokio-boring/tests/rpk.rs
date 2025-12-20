@@ -2,7 +2,7 @@
 
 use boring::pkey::PKey;
 use boring::ssl::{
-    CertificateType, SslAcceptor, SslAlert, SslConnector, SslCredential, SslVerifyError,
+    CertificateType, SslAcceptor, SslAlert, SslConnector, SslCredential, SslMethod, SslVerifyError,
     SslVerifyMode,
 };
 use futures::future;
@@ -27,7 +27,7 @@ fn create_server() -> (
     let addr = listener.local_addr().unwrap();
 
     let server = async move {
-        let mut acceptor = SslAcceptor::rpk().unwrap();
+        let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls()).unwrap();
         let private_key =
             PKey::private_key_from_pem(&std::fs::read("tests/key.pem").unwrap()).unwrap();
         let spki = std::fs::read("tests/pubkey.der").unwrap();
@@ -58,7 +58,7 @@ async fn connect(
     spki_path: &str,
     is_ok_cell: &Arc<OnceLock<bool>>,
 ) -> Result<SslStream<TcpStream>, HandshakeError<TcpStream>> {
-    let mut connector = SslConnector::rpk_builder().unwrap();
+    let mut connector = SslConnector::builder(SslMethod::tls()).unwrap();
     let spki = PKey::public_key_from_der(&std::fs::read(spki_path).unwrap()).unwrap();
     let is_ok_cell = Arc::clone(is_ok_cell);
 
