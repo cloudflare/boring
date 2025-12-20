@@ -67,6 +67,7 @@ jobs:
     name: Test
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         thing:
         - stable
@@ -288,6 +289,7 @@ jobs:
     name: Cross build from macOS to Linux
     runs-on: macos-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
