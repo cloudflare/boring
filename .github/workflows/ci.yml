@@ -108,6 +108,8 @@ jobs:
           rust: stable
           os: ubuntu-latest
           check_only: true
+          custom_env:
+            CXXFLAGS: -msse2
         - thing: x86_64-android
           target: x86_64-linux-android
           rust: stable
@@ -138,6 +140,8 @@ jobs:
           rust: stable
           os: ubuntu-latest
           apt_packages: gcc-multilib g++-multilib
+          custom_env:
+            CXXFLAGS: -msse2
         - thing: arm-linux
           target: arm-unknown-linux-gnueabi
           rust: stable
@@ -184,6 +188,8 @@ jobs:
           target: i686-pc-windows-msvc
           rust: stable-x86_64-msvc
           os: windows-latest
+          custom_env:
+            CXXFLAGS: -msse2
           # CI's Windows doesn't have required root certs
           extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring
         - thing: x86_64-msvc
