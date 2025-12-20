@@ -303,6 +303,8 @@ jobs:
       shell: bash
     - name: Set CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER
       run: echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=${{ matrix.target }}-gcc" >> $GITHUB_ENV
+    - name: Set CXXFLAGS
+      run: echo "CXXFLAGS=-D__STDC_FORMAT_MACROS" >> $GITHUB_ENV
     - name: Build for ${{ matrix.target }}
       run: cargo build --target ${{ matrix.target }} --all-targets
 
