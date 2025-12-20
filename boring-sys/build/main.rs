@@ -200,11 +200,19 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
     let src_path = get_boringssl_source_path(config);
     let mut boringssl_cmake = cmake::Config::new(src_path);
 
-    if config.host == config.target {
+    if config.env.cmake_toolchain_file.is_some() {
         return boringssl_cmake;
     }
 
-    if config.env.cmake_toolchain_file.is_some() {
+    if config.target_os == "windows" {
+        // Explicitly use the non-debug CRT.
+        // This is required now because newest BoringSSL requires CMake 3.22 which
+        // uses the new logic with CMAKE_MSVC_RUNTIME_LIBRARY introduced in CMake 3.15.
+        // https://github.com/rust-lang/cmake-rs/pull/30#issuecomment-2969758499
+        boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreadedDLL");
+    }
+
+    if config.host == config.target {
         return boringssl_cmake;
     }
 
