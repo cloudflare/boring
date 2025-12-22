@@ -9,6 +9,7 @@ pub(crate) struct Config {
     pub(crate) host: String,
     pub(crate) target: String,
     pub(crate) target_arch: String,
+    pub(crate) target_env: String,
     pub(crate) target_os: String,
     pub(crate) unix: bool,
     pub(crate) features: Features,
@@ -46,6 +47,7 @@ impl Config {
         let host = env::var("HOST").unwrap();
         let target = env::var("TARGET").unwrap();
         let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
+        let target_env = env::var("CARGO_CFG_TARGET_ENV").unwrap();
         let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
         let unix = env::var("CARGO_CFG_UNIX").is_ok();
 
@@ -64,6 +66,7 @@ impl Config {
             host,
             target,
             target_arch,
+            target_env,
             target_os,
             unix,
             features,
