@@ -1,5 +1,4 @@
 use fslock::LockFile;
-use std::env;
 use std::ffi::OsString;
 use std::fs;
 use std::io;
@@ -263,8 +262,8 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
             boringssl_cmake.define("CMAKE_TOOLCHAIN_FILE", toolchain_file);
 
             // 21 is the minimum level tested. You can give higher value.
-            boringssl_cmake.define("ANDROID_NATIVE_API_LEVEL", "21");
-            boringssl_cmake.define("ANDROID_STL", "c++_shared");
+            boringssl_cmake.define("CMAKE_SYSTEM_VERSION", "21");
+            boringssl_cmake.define("CMAKE_ANDROID_STL_TYPE", "c++_shared");
         }
 
         "macos" => {
@@ -552,14 +551,11 @@ fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
         return cpp_lib.clone().into_string().ok();
     }
 
-    // TODO(rmehra): figure out how to do this for windows
-    if env::var_os("CARGO_CFG_UNIX").is_some() {
-        match env::var("CARGO_CFG_TARGET_OS").unwrap().as_ref() {
-            "macos" | "ios" | "freebsd" => Some("c++".into()),
-            _ => Some("stdc++".into()),
-        }
-    } else {
-        None
+    match &*config.target_os {
+        "macos" | "ios" | "freebsd" | "android" => Some("c++".into()),
+        _ if config.unix => Some("stdc++".into()),
+        // TODO(rmehra): figure out how to do this for windows
+        _ => None,
     }
 }
 
