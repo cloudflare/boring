@@ -48,7 +48,7 @@ use crate::x509::{X509Object, X509};
 use crate::{cvt, cvt_p};
 use foreign_types::{ForeignType, ForeignTypeRef};
 use openssl_macros::corresponds;
-use std::mem;
+use std::mem::ManuallyDrop;
 
 foreign_type_and_impl_send_sync! {
     type CType = ffi::X509_STORE;
@@ -73,9 +73,7 @@ impl X509StoreBuilder {
     /// Constructs the `X509Store`.
     #[must_use]
     pub fn build(self) -> X509Store {
-        let store = X509Store(self.0);
-        mem::forget(self);
-        store
+        X509Store(ManuallyDrop::new(self).0)
     }
 }
 
