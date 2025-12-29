@@ -368,13 +368,13 @@ impl X509Builder {
     /// Sets the notAfter constraint on the certificate.
     #[corresponds(X509_set1_notAfter)]
     pub fn set_not_after(&mut self, not_after: &Asn1TimeRef) -> Result<(), ErrorStack> {
-        unsafe { cvt(X509_set1_notAfter(self.0.as_ptr(), not_after.as_ptr())).map(|_| ()) }
+        unsafe { cvt(X509_set1_notAfter(self.0.as_ptr(), not_after.as_ptr())) }
     }
 
     /// Sets the notBefore constraint on the certificate.
     #[corresponds(X509_set1_notBefore)]
     pub fn set_not_before(&mut self, not_before: &Asn1TimeRef) -> Result<(), ErrorStack> {
-        unsafe { cvt(X509_set1_notBefore(self.0.as_ptr(), not_before.as_ptr())).map(|_| ()) }
+        unsafe { cvt(X509_set1_notBefore(self.0.as_ptr(), not_before.as_ptr())) }
     }
 
     /// Sets the version of the certificate.
@@ -383,7 +383,7 @@ impl X509Builder {
     /// the X.509 standard should pass `2` to this method.
     #[corresponds(X509_set_version)]
     pub fn set_version(&mut self, version: i32) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::X509_set_version(self.0.as_ptr(), version.into())).map(|_| ()) }
+        unsafe { cvt(ffi::X509_set_version(self.0.as_ptr(), version.into())) }
     }
 
     /// Sets the serial number of the certificate.
@@ -394,7 +394,6 @@ impl X509Builder {
                 self.0.as_ptr(),
                 serial_number.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -406,7 +405,6 @@ impl X509Builder {
                 self.0.as_ptr(),
                 issuer_name.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -435,7 +433,6 @@ impl X509Builder {
                 self.0.as_ptr(),
                 subject_name.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -445,7 +442,7 @@ impl X509Builder {
     where
         T: HasPublic,
     {
-        unsafe { cvt(ffi::X509_set_pubkey(self.0.as_ptr(), key.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::X509_set_pubkey(self.0.as_ptr(), key.as_ptr())) }
     }
 
     /// Returns a context object which is needed to create certain X509 extension values.
@@ -499,7 +496,7 @@ impl X509Builder {
     where
         T: HasPrivate,
     {
-        unsafe { cvt(ffi::X509_sign(self.0.as_ptr(), key.as_ptr(), hash.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::X509_sign(self.0.as_ptr(), key.as_ptr(), hash.as_ptr())) }
     }
 
     /// Consumes the builder, returning the certificate.
@@ -1034,7 +1031,6 @@ impl X509NameBuilder {
                 -1,
                 0,
             ))
-            .map(|_| ())
         }
     }
 
@@ -1058,7 +1054,6 @@ impl X509NameBuilder {
                 -1,
                 0,
             ))
-            .map(|_| ())
         }
     }
 
@@ -1076,7 +1071,6 @@ impl X509NameBuilder {
                 -1,
                 0,
             ))
-            .map(|_| ())
         }
     }
 
@@ -1099,7 +1093,6 @@ impl X509NameBuilder {
                 -1,
                 0,
             ))
-            .map(|_| ())
         }
     }
 
@@ -1296,7 +1289,7 @@ impl X509ReqBuilder {
     /// Set the numerical value of the version field.
     #[corresponds(X509_REQ_set_version)]
     pub fn set_version(&mut self, version: i32) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::X509_REQ_set_version(self.0.as_ptr(), version.into())).map(|_| ()) }
+        unsafe { cvt(ffi::X509_REQ_set_version(self.0.as_ptr(), version.into())) }
     }
 
     /// Set the issuer name.
@@ -1307,7 +1300,6 @@ impl X509ReqBuilder {
                 self.0.as_ptr(),
                 subject_name.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -1317,7 +1309,7 @@ impl X509ReqBuilder {
     where
         T: HasPublic,
     {
-        unsafe { cvt(ffi::X509_REQ_set_pubkey(self.0.as_ptr(), key.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::X509_REQ_set_pubkey(self.0.as_ptr(), key.as_ptr())) }
     }
 
     /// Return an `X509v3Context`. This context object can be used to construct
@@ -1355,7 +1347,6 @@ impl X509ReqBuilder {
                 self.0.as_ptr(),
                 extensions.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -1371,7 +1362,6 @@ impl X509ReqBuilder {
                 key.as_ptr(),
                 hash.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 

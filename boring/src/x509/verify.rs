@@ -123,7 +123,6 @@ impl X509VerifyParamRef {
                 raw_host.as_ptr() as *const _,
                 host.len(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -138,7 +137,6 @@ impl X509VerifyParamRef {
                 raw_email.as_ptr() as *const _,
                 email.len(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -162,7 +160,6 @@ impl X509VerifyParamRef {
                 buf.as_ptr() as *const _,
                 len,
             ))
-            .map(|_| ())
         }
     }
 
@@ -183,6 +180,6 @@ impl X509VerifyParamRef {
     /// If a parameter is unset in `src`, the existing value in `self`` is preserved.
     #[corresponds(X509_VERIFY_PARAM_set1)]
     pub fn copy_from(&mut self, src: &Self) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::X509_VERIFY_PARAM_set1(self.as_ptr(), src.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::X509_VERIFY_PARAM_set1(self.as_ptr(), src.as_ptr())) }
     }
 }

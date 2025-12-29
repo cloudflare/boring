@@ -36,7 +36,7 @@ pub fn rand_bytes(buf: &mut [u8]) -> Result<(), ErrorStack> {
     unsafe {
         ffi::init();
         assert!(buf.len() <= c_int::MAX as usize);
-        cvt(ffi::RAND_bytes(buf.as_mut_ptr(), buf.len())).map(|_| ())
+        cvt(ffi::RAND_bytes(buf.as_mut_ptr(), buf.len()))
     }
 }
 

@@ -2,10 +2,10 @@ use crate::ffi;
 use libc::{c_int, c_uint};
 use std::ptr;
 
-use crate::cvt;
 use crate::error::ErrorStack;
 use crate::hash::MessageDigest;
 use crate::symm::Cipher;
+use crate::{cvt, cvt_nz};
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct KeyIvPair {
@@ -49,7 +49,7 @@ pub fn bytes_to_key(
         let cipher = cipher.as_ptr();
         let digest = digest.as_ptr();
 
-        let len = cvt(ffi::EVP_BytesToKey(
+        let len = cvt_nz(ffi::EVP_BytesToKey(
             cipher,
             digest,
             salt_ptr,
@@ -60,7 +60,7 @@ pub fn bytes_to_key(
             ptr::null_mut(),
         ))?;
 
-        let mut key = vec![0; len as usize];
+        let mut key = vec![0; len.get()];
         let iv_ptr = iv
             .as_mut()
             .map(|v| v.as_mut_ptr())
@@ -105,7 +105,6 @@ pub fn pbkdf2_hmac(
             key.len(),
             key.as_mut_ptr(),
         ))
-        .map(|_| ())
     }
 }
 
@@ -133,7 +132,6 @@ pub fn scrypt(
             key.as_mut_ptr() as *mut _,
             key.len(),
         ))
-        .map(|_| ())
     }
 }
 

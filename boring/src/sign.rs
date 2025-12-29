@@ -174,7 +174,6 @@ impl<'a> Signer<'a> {
                 self.pctx,
                 padding.as_raw(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -188,7 +187,6 @@ impl<'a> Signer<'a> {
                 self.pctx,
                 len.as_raw(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -202,7 +200,6 @@ impl<'a> Signer<'a> {
                 self.pctx,
                 md.as_ptr() as *mut _,
             ))
-            .map(|_| ())
         }
     }
 
@@ -218,7 +215,6 @@ impl<'a> Signer<'a> {
                 buf.as_ptr() as *const _,
                 buf.len(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -421,7 +417,6 @@ impl<'a> Verifier<'a> {
                 self.pctx,
                 padding.as_raw(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -435,7 +430,6 @@ impl<'a> Verifier<'a> {
                 self.pctx,
                 len.as_raw(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -449,7 +443,6 @@ impl<'a> Verifier<'a> {
                 self.pctx,
                 md.as_ptr() as *mut _,
             ))
-            .map(|_| ())
         }
     }
 
@@ -465,7 +458,6 @@ impl<'a> Verifier<'a> {
                 buf.as_ptr() as *const _,
                 buf.len(),
             ))
-            .map(|_| ())
         }
     }
 

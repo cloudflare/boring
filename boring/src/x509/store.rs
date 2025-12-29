@@ -84,7 +84,7 @@ impl X509StoreBuilderRef {
     // FIXME should take an &X509Ref
     #[corresponds(X509_STORE_add_cert)]
     pub fn add_cert(&mut self, cert: X509) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::X509_STORE_add_cert(self.as_ptr(), cert.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::X509_STORE_add_cert(self.as_ptr(), cert.as_ptr())) }
     }
 
     /// Load certificates from their default locations.
@@ -94,7 +94,7 @@ impl X509StoreBuilderRef {
     /// build time otherwise.
     #[corresponds(X509_STORE_set_default_paths)]
     pub fn set_default_paths(&mut self) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::X509_STORE_set_default_paths(self.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::X509_STORE_set_default_paths(self.as_ptr())) }
     }
 
     /// Sets certificate chain validation related flags.
@@ -114,7 +114,7 @@ impl X509StoreBuilderRef {
     /// Sets certificate chain validation related parameters.
     #[corresponds(X509_STORE_set1_param)]
     pub fn set_param(&mut self, param: &X509VerifyParamRef) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::X509_STORE_set1_param(self.as_ptr(), param.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::X509_STORE_set1_param(self.as_ptr(), param.as_ptr())) }
     }
 
     /// For testing only

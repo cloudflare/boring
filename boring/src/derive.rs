@@ -44,7 +44,7 @@ impl<'a> Deriver<'a> {
     where
         T: HasPublic,
     {
-        unsafe { cvt(ffi::EVP_PKEY_derive_set_peer(self.0, key.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::EVP_PKEY_derive_set_peer(self.0, key.as_ptr())) }
     }
 
     /// Returns the size of the shared secret.

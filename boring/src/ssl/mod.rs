@@ -1241,13 +1241,13 @@ impl SslContextBuilder {
     /// Sets the parameters to be used during ephemeral Diffie-Hellman key exchange.
     #[corresponds(SSL_CTX_set_tmp_dh)]
     pub fn set_tmp_dh(&mut self, dh: &DhRef<Params>) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_CTX_set_tmp_dh(self.as_ptr(), dh.as_ptr()) as c_int).map(|_| ()) }
+        unsafe { cvt(ffi::SSL_CTX_set_tmp_dh(self.as_ptr(), dh.as_ptr()) as c_int) }
     }
 
     /// Sets the parameters to be used during ephemeral elliptic curve Diffie-Hellman key exchange.
     #[corresponds(SSL_CTX_set_tmp_ecdh)]
     pub fn set_tmp_ecdh(&mut self, key: &EcKeyRef<Params>) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_CTX_set_tmp_ecdh(self.as_ptr(), key.as_ptr()) as c_int).map(|_| ()) }
+        unsafe { cvt(ffi::SSL_CTX_set_tmp_ecdh(self.as_ptr(), key.as_ptr()) as c_int) }
     }
 
     /// Use the default locations of trusted certificates for verification.
@@ -1258,7 +1258,7 @@ impl SslContextBuilder {
     pub fn set_default_verify_paths(&mut self) -> Result<(), ErrorStack> {
         self.ctx.check_x509();
 
-        unsafe { cvt(ffi::SSL_CTX_set_default_verify_paths(self.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::SSL_CTX_set_default_verify_paths(self.as_ptr())) }
     }
 
     /// Loads trusted root certificates from a file.
@@ -1276,7 +1276,6 @@ impl SslContextBuilder {
                 file.as_ptr() as *const _,
                 ptr::null(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -1300,7 +1299,7 @@ impl SslContextBuilder {
     pub fn add_client_ca(&mut self, cacert: &X509Ref) -> Result<(), ErrorStack> {
         self.ctx.check_x509();
 
-        unsafe { cvt(ffi::SSL_CTX_add_client_CA(self.as_ptr(), cacert.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::SSL_CTX_add_client_CA(self.as_ptr(), cacert.as_ptr())) }
     }
 
     /// Set the context identifier for sessions.
@@ -1320,7 +1319,6 @@ impl SslContextBuilder {
                 sid_ctx.as_ptr(),
                 sid_ctx.len(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -1345,7 +1343,6 @@ impl SslContextBuilder {
                 file.as_ptr() as *const _,
                 file_type.as_raw(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -1366,7 +1363,6 @@ impl SslContextBuilder {
                 self.as_ptr(),
                 file.as_ptr() as *const _,
             ))
-            .map(|_| ())
         }
     }
 
@@ -1375,7 +1371,7 @@ impl SslContextBuilder {
     /// Use `add_extra_chain_cert` to add the remainder of the certificate chain.
     #[corresponds(SSL_CTX_use_certificate)]
     pub fn set_certificate(&mut self, cert: &X509Ref) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_CTX_use_certificate(self.as_ptr(), cert.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::SSL_CTX_use_certificate(self.as_ptr(), cert.as_ptr())) }
     }
 
     /// Appends a certificate to the certificate chain.
@@ -1407,7 +1403,6 @@ impl SslContextBuilder {
                 file.as_ptr() as *const _,
                 file_type.as_raw(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -1417,7 +1412,7 @@ impl SslContextBuilder {
     where
         T: HasPrivate,
     {
-        unsafe { cvt(ffi::SSL_CTX_use_PrivateKey(self.as_ptr(), key.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::SSL_CTX_use_PrivateKey(self.as_ptr(), key.as_ptr())) }
     }
 
     /// Sets the list of supported ciphers for protocols before TLSv1.3, ignoring meaningless entries.
@@ -1439,7 +1434,6 @@ impl SslContextBuilder {
                 self.as_ptr(),
                 cipher_list.as_ptr() as *const _,
             ))
-            .map(|_| ())
         }
     }
 
@@ -1461,7 +1455,6 @@ impl SslContextBuilder {
                 self.as_ptr(),
                 cipher_list.as_ptr() as *const _,
             ))
-            .map(|_| ())
         }
     }
 
@@ -1514,7 +1507,6 @@ impl SslContextBuilder {
                 self.as_ptr(),
                 version.map_or(0, |v| v.0 as _),
             ))
-            .map(|_| ())
         }
     }
 
@@ -1528,7 +1520,6 @@ impl SslContextBuilder {
                 self.as_ptr(),
                 version.map_or(0, |v| v.0 as _),
             ))
-            .map(|_| ())
         }
     }
 
@@ -1712,7 +1703,7 @@ impl SslContextBuilder {
     /// Checks for consistency between the private key and certificate.
     #[corresponds(SSL_CTX_check_private_key)]
     pub fn check_private_key(&self) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_CTX_check_private_key(self.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::SSL_CTX_check_private_key(self.as_ptr())) }
     }
 
     /// Returns a shared reference to the context's certificate store.
@@ -1770,7 +1761,6 @@ impl SslContextBuilder {
                 ffi::SSL_CTX_set_tlsext_status_cb(self.as_ptr(), Some(raw_tlsext_status::<F>))
                     as c_int,
             )
-            .map(|_| ())
         }
     }
 
@@ -1948,10 +1938,7 @@ impl SslContextBuilder {
     #[corresponds(SSL_CTX_set1_sigalgs_list)]
     pub fn set_sigalgs_list(&mut self, sigalgs: &str) -> Result<(), ErrorStack> {
         let sigalgs = CString::new(sigalgs).map_err(ErrorStack::internal_error)?;
-        unsafe {
-            cvt(ffi::SSL_CTX_set1_sigalgs_list(self.as_ptr(), sigalgs.as_ptr()) as c_int)
-                .map(|_| ())
-        }
+        unsafe { cvt(ffi::SSL_CTX_set1_sigalgs_list(self.as_ptr(), sigalgs.as_ptr()) as c_int) }
     }
 
     /// Set's whether the context should enable GREASE.
@@ -2033,7 +2020,7 @@ impl SslContextBuilder {
     /// threads.
     #[corresponds(SSL_CTX_set1_ech_keys)]
     pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())) }
     }
 
     /// Adds a credential.
@@ -2346,7 +2333,7 @@ impl SslContextRef {
     /// threads.
     #[corresponds(SSL_CTX_set1_ech_keys)]
     pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())) }
     }
 
     /// Returns the list of server certificate types.
@@ -3061,7 +3048,7 @@ impl SslRef {
     /// [`SslContextBuilder::set_tmp_dh`]: struct.SslContextBuilder.html#method.set_tmp_dh
     #[corresponds(SSL_set_tmp_dh)]
     pub fn set_tmp_dh(&mut self, dh: &DhRef<Params>) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_set_tmp_dh(self.as_ptr(), dh.as_ptr()) as c_int).map(|_| ()) }
+        unsafe { cvt(ffi::SSL_set_tmp_dh(self.as_ptr(), dh.as_ptr()) as c_int) }
     }
 
     /// Like [`SslContextBuilder::set_tmp_ecdh`].
@@ -3069,7 +3056,7 @@ impl SslRef {
     /// [`SslContextBuilder::set_tmp_ecdh`]: struct.SslContextBuilder.html#method.set_tmp_ecdh
     #[corresponds(SSL_set_tmp_ecdh)]
     pub fn set_tmp_ecdh(&mut self, key: &EcKeyRef<Params>) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_set_tmp_ecdh(self.as_ptr(), key.as_ptr()) as c_int).map(|_| ()) }
+        unsafe { cvt(ffi::SSL_set_tmp_ecdh(self.as_ptr(), key.as_ptr()) as c_int) }
     }
 
     /// Configures whether ClientHello extensions should be permuted.
@@ -3166,7 +3153,6 @@ impl SslRef {
         let cstr = CString::new(hostname).map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt(ffi::SSL_set_tlsext_host_name(self.as_ptr(), cstr.as_ptr() as *mut _) as c_int)
-                .map(|_| ())
         }
     }
 
@@ -3279,7 +3265,6 @@ impl SslRef {
                 self.as_ptr(),
                 version.map_or(0, |v| v.0 as _),
             ))
-            .map(|_| ())
         }
     }
 
@@ -3293,7 +3278,6 @@ impl SslRef {
                 self.as_ptr(),
                 version.map_or(0, |v| v.0 as _),
             ))
-            .map(|_| ())
         }
     }
 
@@ -3547,7 +3531,6 @@ impl SslRef {
                 contextlen,
                 use_context,
             ))
-            .map(|_| ())
         }
     }
 
@@ -3563,7 +3546,7 @@ impl SslRef {
     /// with the same `SslContext` as this `Ssl`.
     #[corresponds(SSL_set_session)]
     pub unsafe fn set_session(&mut self, session: &SslSessionRef) -> Result<(), ErrorStack> {
-        cvt(ffi::SSL_set_session(self.as_ptr(), session.as_ptr())).map(|_| ())
+        cvt(ffi::SSL_set_session(self.as_ptr(), session.as_ptr()))
     }
 
     /// Determines if the session provided to `set_session` was successfully reused.
@@ -3576,9 +3559,7 @@ impl SslRef {
     /// Sets the status response a client wishes the server to reply with.
     #[corresponds(SSL_set_tlsext_status_type)]
     pub fn set_status_type(&mut self, type_: StatusType) -> Result<(), ErrorStack> {
-        unsafe {
-            cvt(ffi::SSL_set_tlsext_status_type(self.as_ptr(), type_.as_raw()) as c_int).map(|_| ())
-        }
+        unsafe { cvt(ffi::SSL_set_tlsext_status_type(self.as_ptr(), type_.as_raw()) as c_int) }
     }
 
     /// Returns the server's OCSP response, if present.
@@ -3609,7 +3590,6 @@ impl SslRef {
                 p as *mut c_uchar,
                 response.len(),
             ) as c_int)
-            .map(|_| ())
         }
     }
 
@@ -3720,7 +3700,7 @@ impl SslRef {
     /// Sets the MTU used for DTLS connections.
     #[corresponds(SSL_set_mtu)]
     pub fn set_mtu(&mut self, mtu: u32) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_set_mtu(self.as_ptr(), mtu as c_uint) as c_int).map(|_| ()) }
+        unsafe { cvt(ffi::SSL_set_mtu(self.as_ptr(), mtu as c_uint) as c_int) }
     }
 
     /// Sets the certificate.
@@ -3751,7 +3731,7 @@ impl SslRef {
     where
         T: HasPrivate,
     {
-        unsafe { cvt(ffi::SSL_use_PrivateKey(self.as_ptr(), key.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::SSL_use_PrivateKey(self.as_ptr(), key.as_ptr())) }
     }
 
     /// Enables all modes set in `mode` in `SSL`. Returns a bitmask representing the resulting
@@ -3773,7 +3753,7 @@ impl SslRef {
     /// Appends `cert` to the chain associated with the current certificate of `SSL`.
     #[corresponds(SSL_add1_chain_cert)]
     pub fn add_chain_cert(&mut self, cert: &X509Ref) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_add1_chain_cert(self.as_ptr(), cert.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::SSL_add1_chain_cert(self.as_ptr(), cert.as_ptr())) }
     }
 
     /// Configures `ech_config_list` on `SSL` for offering ECH during handshakes. If the server
