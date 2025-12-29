@@ -253,15 +253,12 @@ where
             // If `host` is an IPv6 address, we must strip away the square brackets that surround
             // it (otherwise, boring will fail to parse the host as an IP address, eventually
             // causing the handshake to fail due a hostname verification error).
-            if !host.is_empty() {
-                let last = host.len() - 1;
-                let mut chars = host.chars();
-
-                if let (Some('['), Some(']')) = (chars.next(), chars.last()) {
-                    if host[1..last].parse::<net::Ipv6Addr>().is_ok() {
-                        host = &host[1..last];
-                    }
-                }
+            if let Some(ipv6) = host
+                .strip_prefix('[')
+                .and_then(|h| h.strip_suffix(']'))
+                .filter(|h| h.parse::<net::Ipv6Addr>().is_ok())
+            {
+                host = ipv6;
             }
 
             let ssl = inner.setup_ssl(&uri, host)?;
