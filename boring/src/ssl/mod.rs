@@ -1448,7 +1448,9 @@ impl SslContextBuilder {
         unsafe { cvt(ffi::SSL_CTX_use_PrivateKey(self.as_ptr(), key.as_ptr())).map(|_| ()) }
     }
 
-    /// Sets the list of supported ciphers for protocols before TLSv1.3.
+    /// Sets the list of supported ciphers for protocols before TLSv1.3, ignoring meaningless entries.
+    ///
+    /// See [`SslContextBuilder::set_strict_cipher_list()`].
     ///
     /// The `set_ciphersuites` method controls the cipher suites for TLSv1.3 in OpenSSL.
     /// BoringSSL doesn't implement `set_ciphersuites`.
@@ -1479,6 +1481,7 @@ impl SslContextBuilder {
     /// See [`ciphers`] for details on the format.
     ///
     /// [`ciphers`]: <https://docs.openssl.org/master/man1/openssl-ciphers/>.
+    #[corresponds(SSL_CTX_set_strict_cipher_list)]
     pub fn set_strict_cipher_list(&mut self, cipher_list: &str) -> Result<(), ErrorStack> {
         let cipher_list = CString::new(cipher_list).unwrap();
         unsafe {
