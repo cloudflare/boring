@@ -23,19 +23,9 @@ ssbzSibBsu/6iGtCOGEoXJf//////////wIBAg==
 -----END DH PARAMETERS-----
 ";
 
-enum ContextType {
-    WithMethod(SslMethod),
-    #[cfg(feature = "rpk")]
-    Rpk,
-}
-
 #[allow(clippy::inconsistent_digit_grouping)]
-fn ctx(ty: ContextType) -> Result<SslContextBuilder, ErrorStack> {
-    let mut ctx = match ty {
-        ContextType::WithMethod(method) => SslContextBuilder::new(method),
-        #[cfg(feature = "rpk")]
-        ContextType::Rpk => SslContextBuilder::new_rpk(),
-    }?;
+fn ctx(method: SslMethod) -> Result<SslContextBuilder, ErrorStack> {
+    let mut ctx = SslContextBuilder::new(method)?;
 
     let mut opts = SslOptions::ALL
         | SslOptions::NO_COMPRESSION
@@ -77,23 +67,12 @@ impl SslConnector {
     ///
     /// The default configuration is subject to change, and is currently derived from Python.
     pub fn builder(method: SslMethod) -> Result<SslConnectorBuilder, ErrorStack> {
-        let mut ctx = ctx(ContextType::WithMethod(method))?;
+        let mut ctx = ctx(method)?;
         ctx.set_default_verify_paths()?;
         ctx.set_cipher_list(
             "DEFAULT:!aNULL:!eNULL:!MD5:!3DES:!DES:!RC4:!IDEA:!SEED:!aDSS:!SRP:!PSK",
         )?;
         setup_verify(&mut ctx);
-
-        Ok(SslConnectorBuilder(ctx))
-    }
-
-    /// Creates a new builder for TLS connections with raw public key.
-    #[cfg(feature = "rpk")]
-    pub fn rpk_builder() -> Result<SslConnectorBuilder, ErrorStack> {
-        let mut ctx = ctx(ContextType::Rpk)?;
-        ctx.set_cipher_list(
-            "DEFAULT:!aNULL:!eNULL:!MD5:!3DES:!DES:!RC4:!IDEA:!SEED:!aDSS:!SRP:!PSK",
-        )?;
 
         Ok(SslConnectorBuilder(ctx))
     }
@@ -224,13 +203,7 @@ impl ConnectConfiguration {
             self.ssl.set_hostname(domain)?;
         }
 
-        #[cfg(feature = "rpk")]
-        let verify_hostname = !self.ssl.ssl_context().is_rpk() && self.verify_hostname;
-
-        #[cfg(not(feature = "rpk"))]
-        let verify_hostname = self.verify_hostname;
-
-        if verify_hostname {
+        if self.verify_hostname {
             setup_verify_hostname(&mut self.ssl, domain)?;
         }
 
@@ -292,21 +265,6 @@ impl DerefMut for ConnectConfiguration {
 pub struct SslAcceptor(SslContext);
 
 impl SslAcceptor {
-    /// Creates a new builder configured to connect to clients that support Raw Public Keys.
-    #[cfg(feature = "rpk")]
-    pub fn rpk() -> Result<SslAcceptorBuilder, ErrorStack> {
-        let mut ctx = ctx(ContextType::Rpk)?;
-        ctx.set_options(SslOptions::NO_TLSV1 | SslOptions::NO_TLSV1_1);
-        let dh = Dh::params_from_pem(FFDHE_2048.as_bytes())?;
-        ctx.set_tmp_dh(&dh)?;
-        ctx.set_cipher_list(
-            "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:\
-             ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:\
-             DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384"
-        )?;
-        Ok(SslAcceptorBuilder(ctx))
-    }
-
     /// Creates a new builder configured to connect to non-legacy clients. This should generally be
     /// considered a reasonable default choice.
     ///
@@ -315,7 +273,7 @@ impl SslAcceptor {
     ///
     /// [docs]: https://wiki.mozilla.org/Security/Server_Side_TLS
     pub fn mozilla_intermediate_v5(method: SslMethod) -> Result<SslAcceptorBuilder, ErrorStack> {
-        let mut ctx = ctx(ContextType::WithMethod(method))?;
+        let mut ctx = ctx(method)?;
         ctx.set_options(SslOptions::NO_TLSV1 | SslOptions::NO_TLSV1_1);
         let dh = Dh::params_from_pem(FFDHE_2048.as_bytes())?;
         ctx.set_tmp_dh(&dh)?;
@@ -336,7 +294,7 @@ impl SslAcceptor {
     /// [docs]: https://wiki.mozilla.org/Security/Server_Side_TLS
     // FIXME remove in next major version
     pub fn mozilla_intermediate(method: SslMethod) -> Result<SslAcceptorBuilder, ErrorStack> {
-        let mut ctx = ctx(ContextType::WithMethod(method))?;
+        let mut ctx = ctx(method)?;
         ctx.set_options(SslOptions::CIPHER_SERVER_PREFERENCE);
         ctx.set_options(SslOptions::NO_TLSV1_3);
         let dh = Dh::params_from_pem(FFDHE_2048.as_bytes())?;
@@ -362,7 +320,7 @@ impl SslAcceptor {
     /// [docs]: https://wiki.mozilla.org/Security/Server_Side_TLS
     // FIXME remove in next major version
     pub fn mozilla_modern(method: SslMethod) -> Result<SslAcceptorBuilder, ErrorStack> {
-        let mut ctx = ctx(ContextType::WithMethod(method))?;
+        let mut ctx = ctx(method)?;
         ctx.set_options(
             SslOptions::CIPHER_SERVER_PREFERENCE | SslOptions::NO_TLSV1 | SslOptions::NO_TLSV1_1,
         );

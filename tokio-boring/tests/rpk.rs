@@ -1,109 +1,151 @@
-#[cfg(feature = "rpk")]
-mod test_rpk {
-    use boring::pkey::PKey;
-    use boring::ssl::{SslAcceptor, SslConnector};
-    use futures::future;
-    use std::future::Future;
-    use std::net::SocketAddr;
-    use std::pin::Pin;
-    use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
-    use tokio::net::{TcpListener, TcpStream};
-    use tokio_boring::{HandshakeError, SslStream};
+#![cfg(feature = "rpk")]
 
-    fn create_server() -> (
-        impl Future<Output = Result<SslStream<TcpStream>, HandshakeError<TcpStream>>>,
-        SocketAddr,
-    ) {
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+use boring::pkey::PKey;
+use boring::ssl::{
+    CertificateType, SslAcceptor, SslAlert, SslConnector, SslCredential, SslMethod, SslVerifyError,
+    SslVerifyMode,
+};
+use futures::future;
+use std::future::Future;
+use std::net::SocketAddr;
+use std::pin::Pin;
+use std::sync::Arc;
+use std::sync::OnceLock;
+use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
+use tokio_boring::{HandshakeError, SslStream};
 
-        listener.set_nonblocking(true).unwrap();
+fn create_server() -> (
+    impl Future<Output = Result<SslStream<TcpStream>, HandshakeError<TcpStream>>>,
+    SocketAddr,
+) {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
 
-        let listener = TcpListener::from_std(listener).unwrap();
-        let addr = listener.local_addr().unwrap();
+    listener.set_nonblocking(true).unwrap();
 
-        let server = async move {
-            let mut acceptor = SslAcceptor::rpk().unwrap();
-            let pkey = std::fs::read("tests/key.pem").unwrap();
-            let pkey = PKey::private_key_from_pem(&pkey).unwrap();
-            let cert = std::fs::read("tests/pubkey.der").unwrap();
+    let listener = TcpListener::from_std(listener).unwrap();
+    let addr = listener.local_addr().unwrap();
 
-            acceptor.set_rpk_certificate(&cert).unwrap();
-            acceptor.set_null_chain_private_key(&pkey).unwrap();
+    let server = async move {
+        let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls()).unwrap();
+        let private_key =
+            PKey::private_key_from_pem(&std::fs::read("tests/key.pem").unwrap()).unwrap();
+        let spki = std::fs::read("tests/pubkey.der").unwrap();
 
-            let acceptor = acceptor.build();
+        acceptor
+            .add_credential({
+                let mut cred = SslCredential::new_raw_public_key().unwrap();
 
-            let stream = listener.accept().await.unwrap().0;
+                cred.set_private_key(&private_key).unwrap();
+                cred.set_spki_bytes(Some(&spki)).unwrap();
 
-            tokio_boring::accept(&acceptor, stream).await
-        };
+                &cred.build()
+            })
+            .unwrap();
 
-        (server, addr)
-    }
+        let acceptor = acceptor.build();
 
-    #[tokio::test]
-    async fn server_rpk() {
-        let (stream, addr) = create_server();
+        let stream = listener.accept().await.unwrap().0;
 
-        let server = async {
-            let mut stream = stream.await.unwrap();
-            let mut buf = [0; 4];
-            stream.read_exact(&mut buf).await.unwrap();
-            assert_eq!(&buf, b"asdf");
+        tokio_boring::accept(&acceptor, stream).await
+    };
 
-            stream.write_all(b"jkl;").await.unwrap();
+    (server, addr)
+}
 
-            future::poll_fn(|ctx| Pin::new(&mut stream).poll_shutdown(ctx))
-                .await
-                .unwrap();
-        };
+async fn connect(
+    addr: SocketAddr,
+    spki_path: &str,
+    is_ok_cell: &Arc<OnceLock<bool>>,
+) -> Result<SslStream<TcpStream>, HandshakeError<TcpStream>> {
+    let mut connector = SslConnector::builder(SslMethod::tls()).unwrap();
+    let spki = PKey::public_key_from_der(&std::fs::read(spki_path).unwrap()).unwrap();
+    let is_ok_cell = Arc::clone(is_ok_cell);
 
-        let client = async {
-            let mut connector = SslConnector::rpk_builder().unwrap();
-            let cert = std::fs::read("tests/pubkey.der").unwrap();
+    connector
+        .set_server_certificate_types(&[CertificateType::RAW_PUBLIC_KEY])
+        .unwrap();
 
-            connector.set_rpk_certificate(&cert).unwrap();
-            let config = connector.build().configure().unwrap();
+    connector.set_custom_verify_callback(SslVerifyMode::PEER, move |ssl| {
+        let public_key = ssl
+            .peer_pubkey()
+            .ok_or(SslVerifyError::Invalid(SslAlert::CERTIFICATE_UNKNOWN))?;
 
-            let stream = TcpStream::connect(&addr).await.unwrap();
-            let mut stream = tokio_boring::connect(config, "localhost", stream)
-                .await
-                .unwrap();
+        let is_ok = public_key.public_eq(&spki);
 
-            stream.write_all(b"asdf").await.unwrap();
+        is_ok_cell.set(is_ok).unwrap();
 
-            let mut buf = vec![];
-            stream.read_to_end(&mut buf).await.unwrap();
-            assert_eq!(buf, b"jkl;");
-        };
+        if !is_ok {
+            return Err(SslVerifyError::Invalid(SslAlert::BAD_CERTIFICATE));
+        }
 
-        future::join(server, client).await;
-    }
+        Ok(())
+    });
 
-    #[tokio::test]
-    async fn client_rpk_unknown_cert() {
-        let (stream, addr) = create_server();
+    let config = connector.build().configure().unwrap();
 
-        let server = async {
-            assert!(stream.await.is_err());
-        };
+    tokio_boring::connect(
+        config,
+        "localhost",
+        TcpStream::connect(&addr).await.unwrap(),
+    )
+    .await
+}
 
-        let client = async {
-            let mut connector = SslConnector::rpk_builder().unwrap();
-            let cert = std::fs::read("tests/pubkey2.der").unwrap();
+#[tokio::test]
+async fn server_rpk() {
+    let (stream, addr) = create_server();
 
-            connector.set_rpk_certificate(&cert).unwrap();
-            let config = connector.build().configure().unwrap();
+    let server = async {
+        let mut stream = stream.await.unwrap();
+        let mut buf = [0; 4];
+        stream.read_exact(&mut buf).await.unwrap();
+        assert_eq!(&buf, b"asdf");
 
-            let stream = TcpStream::connect(&addr).await.unwrap();
+        stream.write_all(b"jkl;").await.unwrap();
 
-            let err = tokio_boring::connect(config, "localhost", stream)
-                .await
-                .unwrap_err();
+        future::poll_fn(|ctx| Pin::new(&mut stream).poll_shutdown(ctx))
+            .await
+            .unwrap();
+    };
 
-            // NOTE: smoke test for https://github.com/cloudflare/boring/issues/140
-            let _ = err.to_string();
-        };
+    let client = async {
+        let is_ok_cell = Arc::new(OnceLock::new());
+        let mut stream = connect(addr, "tests/pubkey.der", &is_ok_cell)
+            .await
+            .unwrap();
 
-        future::join(server, client).await;
-    }
+        assert!(is_ok_cell.get().unwrap());
+
+        stream.write_all(b"asdf").await.unwrap();
+
+        let mut buf = vec![];
+        stream.read_to_end(&mut buf).await.unwrap();
+        assert_eq!(buf, b"jkl;");
+    };
+
+    future::join(server, client).await;
+}
+
+#[tokio::test]
+async fn client_rpk_unknown_cert() {
+    let (stream, addr) = create_server();
+
+    let server = async {
+        assert!(stream.await.is_err());
+    };
+
+    let client = async {
+        let is_ok_cell = Arc::new(OnceLock::new());
+        let err = connect(addr, "tests/pubkey2.der", &is_ok_cell)
+            .await
+            .unwrap_err();
+
+        assert!(!is_ok_cell.get().unwrap());
+
+        // NOTE: smoke test for https://github.com/cloudflare/boring/issues/140
+        let _ = err.to_string();
+    };
+
+    future::join(server, client).await;
 }

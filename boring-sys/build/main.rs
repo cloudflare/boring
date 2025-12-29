@@ -1,5 +1,4 @@
 use fslock::LockFile;
-use std::env;
 use std::ffi::OsString;
 use std::fs;
 use std::io;
@@ -199,11 +198,19 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
     let src_path = get_boringssl_source_path(config);
     let mut boringssl_cmake = cmake::Config::new(src_path);
 
-    if config.host == config.target {
+    if config.env.cmake_toolchain_file.is_some() {
         return boringssl_cmake;
     }
 
-    if config.env.cmake_toolchain_file.is_some() {
+    if config.target_os == "windows" {
+        // Explicitly use the non-debug CRT.
+        // This is required now because newest BoringSSL requires CMake 3.22 which
+        // uses the new logic with CMAKE_MSVC_RUNTIME_LIBRARY introduced in CMake 3.15.
+        // https://github.com/rust-lang/cmake-rs/pull/30#issuecomment-2969758499
+        boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreadedDLL");
+    }
+
+    if config.host == config.target {
         return boringssl_cmake;
     }
 
@@ -254,8 +261,8 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
             boringssl_cmake.define("CMAKE_TOOLCHAIN_FILE", toolchain_file);
 
             // 21 is the minimum level tested. You can give higher value.
-            boringssl_cmake.define("ANDROID_NATIVE_API_LEVEL", "21");
-            boringssl_cmake.define("ANDROID_STL", "c++_shared");
+            boringssl_cmake.define("CMAKE_SYSTEM_VERSION", "21");
+            boringssl_cmake.define("CMAKE_ANDROID_STL_TYPE", "c++_shared");
         }
 
         "macos" => {
@@ -553,14 +560,11 @@ fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
         return cpp_lib.clone().into_string().ok();
     }
 
-    // TODO(rmehra): figure out how to do this for windows
-    if env::var_os("CARGO_CFG_UNIX").is_some() {
-        match env::var("CARGO_CFG_TARGET_OS").unwrap().as_ref() {
-            "macos" | "ios" | "freebsd" => Some("c++".into()),
-            _ => Some("stdc++".into()),
-        }
-    } else {
-        None
+    match &*config.target_os {
+        "macos" | "ios" | "freebsd" | "android" => Some("c++".into()),
+        _ if config.unix || config.target_env == "gnu" => Some("stdc++".into()),
+        // TODO(rmehra): figure out how to do this for windows
+        _ => None,
     }
 }
 

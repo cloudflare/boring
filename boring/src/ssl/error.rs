@@ -249,8 +249,7 @@ fn fmt_mid_handshake_error(
     f: &mut fmt::Formatter,
     prefix: &str,
 ) -> fmt::Result {
-    #[cfg(feature = "rpk")]
-    if s.ssl().ssl_context().is_rpk() {
+    if !s.ssl().ssl_context().has_x509_support() {
         write!(f, "{}", prefix)?;
         return write!(f, " {}", s.error());
     }
