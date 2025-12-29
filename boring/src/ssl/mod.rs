@@ -1461,7 +1461,7 @@ impl SslContextBuilder {
     /// [`ciphers`]: https://www.openssl.org/docs/manmaster/apps/ciphers.html
     #[corresponds(SSL_CTX_set_cipher_list)]
     pub fn set_cipher_list(&mut self, cipher_list: &str) -> Result<(), ErrorStack> {
-        let cipher_list = CString::new(cipher_list).unwrap();
+        let cipher_list = CString::new(cipher_list).map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt(ffi::SSL_CTX_set_cipher_list(
                 self.as_ptr(),
@@ -1483,7 +1483,7 @@ impl SslContextBuilder {
     /// [`ciphers`]: <https://docs.openssl.org/master/man1/openssl-ciphers/>.
     #[corresponds(SSL_CTX_set_strict_cipher_list)]
     pub fn set_strict_cipher_list(&mut self, cipher_list: &str) -> Result<(), ErrorStack> {
-        let cipher_list = CString::new(cipher_list).unwrap();
+        let cipher_list = CString::new(cipher_list).map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt(ffi::SSL_CTX_set_strict_cipher_list(
                 self.as_ptr(),
