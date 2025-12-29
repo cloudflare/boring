@@ -7,7 +7,8 @@ macro_rules! private_key_from_pem {
             unsafe {
                 ffi::init();
                 let bio = crate::bio::MemBioSlice::new(pem)?;
-                let passphrase = ::std::ffi::CString::new(passphrase).unwrap();
+                let passphrase = ::std::ffi::CString::new(passphrase)
+                    .map_err(crate::error::ErrorStack::internal_error)?;
                 cvt_p($f(bio.as_ptr(),
                          ptr::null_mut(),
                          None,
