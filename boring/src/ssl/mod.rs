@@ -3579,17 +3579,15 @@ impl SslRef {
     }
 
     /// Sets the OCSP response to be returned to the client.
-    #[corresponds(SSL_set_tlsext_status_ocsp_resp)]
+    #[corresponds(SSL_set_ocsp_response)]
     pub fn set_ocsp_status(&mut self, response: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
             assert!(response.len() <= c_int::MAX as usize);
-            let p = cvt_p(ffi::OPENSSL_malloc(response.len() as _))?;
-            ptr::copy_nonoverlapping(response.as_ptr(), p as *mut u8, response.len());
-            cvt(ffi::SSL_set_tlsext_status_ocsp_resp(
+            cvt(ffi::SSL_set_ocsp_response(
                 self.as_ptr(),
-                p as *mut c_uchar,
+                response.as_ptr(),
                 response.len(),
-            ) as c_int)
+            ))
         }
     }
 
