@@ -121,19 +121,19 @@ impl BigNumRef {
     /// Adds a `u32` to `self`.
     #[corresponds(BN_add_word)]
     pub fn add_word(&mut self, w: u32) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_add_word(self.as_ptr(), ffi::BN_ULONG::from(w))).map(|_| ()) }
+        unsafe { cvt(ffi::BN_add_word(self.as_ptr(), ffi::BN_ULONG::from(w))) }
     }
 
     /// Subtracts a `u32` from `self`.
     #[corresponds(BN_sub_word)]
     pub fn sub_word(&mut self, w: u32) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_sub_word(self.as_ptr(), ffi::BN_ULONG::from(w))).map(|_| ()) }
+        unsafe { cvt(ffi::BN_sub_word(self.as_ptr(), ffi::BN_ULONG::from(w))) }
     }
 
     /// Multiplies a `u32` by `self`.
     #[corresponds(BN_mul_word)]
     pub fn mul_word(&mut self, w: u32) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_mul_word(self.as_ptr(), ffi::BN_ULONG::from(w))).map(|_| ()) }
+        unsafe { cvt(ffi::BN_mul_word(self.as_ptr(), ffi::BN_ULONG::from(w))) }
     }
 
     /// Divides `self` by a `u32`, returning the remainder.
@@ -168,13 +168,13 @@ impl BigNumRef {
     /// number less than `self` in `rnd`.
     #[corresponds(BN_rand_range)]
     pub fn rand_range(&self, rnd: &mut BigNumRef) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_rand_range(rnd.as_ptr(), self.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::BN_rand_range(rnd.as_ptr(), self.as_ptr())) }
     }
 
     /// The cryptographically weak counterpart to `rand_in_range`.
     #[corresponds(BN_pseudo_rand_range)]
     pub fn pseudo_rand_range(&self, rnd: &mut BigNumRef) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_pseudo_rand_range(rnd.as_ptr(), self.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::BN_pseudo_rand_range(rnd.as_ptr(), self.as_ptr())) }
     }
 
     /// Sets bit `n`. Equivalent to `self |= (1 << n)`.
@@ -183,7 +183,7 @@ impl BigNumRef {
     #[corresponds(BN_set_bit)]
     #[allow(clippy::useless_conversion)]
     pub fn set_bit(&mut self, n: i32) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_set_bit(self.as_ptr(), n.into())).map(|_| ()) }
+        unsafe { cvt(ffi::BN_set_bit(self.as_ptr(), n.into())) }
     }
 
     /// Clears bit `n`, setting it to 0. Equivalent to `self &= ~(1 << n)`.
@@ -192,7 +192,7 @@ impl BigNumRef {
     #[corresponds(BN_clear_bit)]
     #[allow(clippy::useless_conversion)]
     pub fn clear_bit(&mut self, n: i32) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_clear_bit(self.as_ptr(), n.into())).map(|_| ()) }
+        unsafe { cvt(ffi::BN_clear_bit(self.as_ptr(), n.into())) }
     }
 
     /// Returns `true` if the `n`th bit of `self` is set to 1, `false` otherwise.
@@ -209,19 +209,19 @@ impl BigNumRef {
     #[corresponds(BN_mask_bits)]
     #[allow(clippy::useless_conversion)]
     pub fn mask_bits(&mut self, n: i32) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_mask_bits(self.as_ptr(), n.into())).map(|_| ()) }
+        unsafe { cvt(ffi::BN_mask_bits(self.as_ptr(), n.into())) }
     }
 
     /// Places `a << 1` in `self`.  Equivalent to `self * 2`.
     #[corresponds(BN_lshift1)]
     pub fn lshift1(&mut self, a: &BigNumRef) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_lshift1(self.as_ptr(), a.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::BN_lshift1(self.as_ptr(), a.as_ptr())) }
     }
 
     /// Places `a >> 1` in `self`. Equivalent to `self / 2`.
     #[corresponds(BN_rshift1)]
     pub fn rshift1(&mut self, a: &BigNumRef) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_rshift1(self.as_ptr(), a.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::BN_rshift1(self.as_ptr(), a.as_ptr())) }
     }
 
     /// Places `a + b` in `self`.  [`core::ops::Add`] is also implemented for `BigNumRef`.
@@ -229,7 +229,7 @@ impl BigNumRef {
     /// [`core::ops::Add`]: struct.BigNumRef.html#method.add
     #[corresponds(BN_add)]
     pub fn checked_add(&mut self, a: &BigNumRef, b: &BigNumRef) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_add(self.as_ptr(), a.as_ptr(), b.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::BN_add(self.as_ptr(), a.as_ptr(), b.as_ptr())) }
     }
 
     /// Places `a - b` in `self`. [`core::ops::Sub`] is also implemented for `BigNumRef`.
@@ -237,21 +237,21 @@ impl BigNumRef {
     /// [`core::ops::Sub`]: struct.BigNumRef.html#method.sub
     #[corresponds(BN_sub)]
     pub fn checked_sub(&mut self, a: &BigNumRef, b: &BigNumRef) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_sub(self.as_ptr(), a.as_ptr(), b.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::BN_sub(self.as_ptr(), a.as_ptr(), b.as_ptr())) }
     }
 
     /// Places `a << n` in `self`.  Equivalent to `a * 2 ^ n`.
     #[corresponds(BN_lshift)]
     #[allow(clippy::useless_conversion)]
     pub fn lshift(&mut self, a: &BigNumRef, n: i32) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_lshift(self.as_ptr(), a.as_ptr(), n.into())).map(|_| ()) }
+        unsafe { cvt(ffi::BN_lshift(self.as_ptr(), a.as_ptr(), n.into())) }
     }
 
     /// Places `a >> n` in `self`. Equivalent to `a / 2 ^ n`.
     #[corresponds(BN_rshift)]
     #[allow(clippy::useless_conversion)]
     pub fn rshift(&mut self, a: &BigNumRef, n: i32) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_rshift(self.as_ptr(), a.as_ptr(), n.into())).map(|_| ()) }
+        unsafe { cvt(ffi::BN_rshift(self.as_ptr(), a.as_ptr(), n.into())) }
     }
 
     /// Creates a new BigNum with the same value.
@@ -339,7 +339,6 @@ impl BigNumRef {
                 msb.0,
                 c_int::from(odd),
             ))
-            .map(|_| ())
         }
     }
 
@@ -354,7 +353,6 @@ impl BigNumRef {
                 msb.0,
                 c_int::from(odd),
             ))
-            .map(|_| ())
         }
     }
 
@@ -398,7 +396,6 @@ impl BigNumRef {
                 rem.map(|n| n.as_ptr()).unwrap_or(ptr::null_mut()),
                 ptr::null_mut(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -420,7 +417,6 @@ impl BigNumRef {
                 b.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -443,7 +439,6 @@ impl BigNumRef {
                 b.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -463,7 +458,6 @@ impl BigNumRef {
                 b.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -484,14 +478,13 @@ impl BigNumRef {
                 b.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
     /// Places the result of `a²` in `self`.
     #[corresponds(BN_sqr)]
     pub fn sqr(&mut self, a: &BigNumRef, ctx: &mut BigNumContextRef) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::BN_sqr(self.as_ptr(), a.as_ptr(), ctx.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::BN_sqr(self.as_ptr(), a.as_ptr(), ctx.as_ptr())) }
     }
 
     /// Places the result of `a mod m` in `self`.  As opposed to `div_rem`
@@ -510,7 +503,6 @@ impl BigNumRef {
                 m.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -531,7 +523,6 @@ impl BigNumRef {
                 m.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -552,7 +543,6 @@ impl BigNumRef {
                 m.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -573,7 +563,6 @@ impl BigNumRef {
                 m.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -592,7 +581,6 @@ impl BigNumRef {
                 m.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -611,7 +599,6 @@ impl BigNumRef {
                 p.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -632,7 +619,6 @@ impl BigNumRef {
                 m.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -670,7 +656,6 @@ impl BigNumRef {
                 b.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 

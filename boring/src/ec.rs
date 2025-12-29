@@ -143,7 +143,6 @@ impl EcGroupRef {
                 b.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -160,7 +159,6 @@ impl EcGroupRef {
                 cofactor.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -202,7 +200,6 @@ impl EcGroupRef {
                 order.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -260,7 +257,6 @@ impl EcPointRef {
                 b.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -283,7 +279,6 @@ impl EcPointRef {
                 m.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -304,7 +299,6 @@ impl EcPointRef {
                 ptr::null(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -326,7 +320,6 @@ impl EcPointRef {
                 m.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -339,7 +332,6 @@ impl EcPointRef {
                 self.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -428,7 +420,6 @@ impl EcPointRef {
                 y.as_ptr(),
                 ctx.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 }
@@ -559,7 +550,7 @@ where
     /// Checks the key for validity.
     #[corresponds(EC_KEY_check_key)]
     pub fn check_key(&self) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::EC_KEY_check_key(self.as_ptr())).map(|_| ()) }
+        unsafe { cvt(ffi::EC_KEY_check_key(self.as_ptr())) }
     }
 }
 

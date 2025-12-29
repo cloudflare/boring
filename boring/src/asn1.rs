@@ -508,7 +508,6 @@ impl Asn1IntegerRef {
                 self.as_ptr(),
                 c_long::from(value),
             ))
-            .map(|_| ())
         }
     }
 }

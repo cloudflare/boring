@@ -106,12 +106,11 @@ extern crate libc;
 #[cfg(test)]
 extern crate hex;
 
-use std::ffi::{c_long, c_void};
+use std::ffi::{c_int, c_long, c_void};
+use std::num::NonZeroUsize;
 
 #[doc(inline)]
 pub use crate::ffi::init;
-
-use libc::{c_int, size_t};
 
 use crate::error::ErrorStack;
 
@@ -162,11 +161,11 @@ fn cvt_p<T>(r: *mut T) -> Result<*mut T, ErrorStack> {
     }
 }
 
-fn cvt_0(r: size_t) -> Result<size_t, ErrorStack> {
+fn cvt_0(r: usize) -> Result<(), ErrorStack> {
     if r == 0 {
         Err(ErrorStack::get())
     } else {
-        Ok(r)
+        Ok(())
     }
 }
 
@@ -178,12 +177,19 @@ fn cvt_0i(r: c_int) -> Result<c_int, ErrorStack> {
     }
 }
 
-fn cvt(r: c_int) -> Result<c_int, ErrorStack> {
+fn cvt(r: c_int) -> Result<(), ErrorStack> {
     if r <= 0 {
         Err(ErrorStack::get())
     } else {
-        Ok(r)
+        Ok(())
     }
+}
+
+fn cvt_nz(r: c_int) -> Result<NonZeroUsize, ErrorStack> {
+    usize::try_from(r)
+        .ok()
+        .and_then(NonZeroUsize::new)
+        .ok_or_else(ErrorStack::get)
 }
 
 fn cvt_n(r: c_int) -> Result<c_int, ErrorStack> {

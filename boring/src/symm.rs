@@ -101,7 +101,6 @@ impl CipherCtxRef {
                 key.as_ptr(),
                 iv.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -129,7 +128,6 @@ impl CipherCtxRef {
                 key.as_ptr(),
                 iv.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 }
@@ -472,7 +470,6 @@ impl Crypter {
                 tag.len() as c_int,
                 tag.as_ptr() as *mut _,
             ))
-            .map(|_| ())
         }
     }
 
@@ -490,7 +487,6 @@ impl Crypter {
                 tag_len as c_int,
                 ptr::null_mut(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -509,7 +505,6 @@ impl Crypter {
                 ptr::null_mut(),
                 data_len as c_int,
             ))
-            .map(|_| ())
         }
     }
 
@@ -529,7 +524,6 @@ impl Crypter {
                 input.as_ptr(),
                 input.len() as c_int,
             ))
-            .map(|_| ())
         }
     }
 
@@ -616,7 +610,6 @@ impl Crypter {
                 tag.len() as c_int,
                 tag.as_mut_ptr() as *mut _,
             ))
-            .map(|_| ())
         }
     }
 }

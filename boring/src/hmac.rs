@@ -27,7 +27,6 @@ impl HmacCtxRef {
                 // ENGINE api is deprecated
                 core::ptr::null_mut(),
             ))
-            .map(|_| ())
         }
     }
 }
