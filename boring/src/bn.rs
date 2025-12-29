@@ -24,7 +24,7 @@
 //! [`BIGNUM`]: https://wiki.openssl.org/index.php/Manual:Bn_internal(3)
 use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::{c_int, size_t};
+use libc::c_int;
 use std::cmp::Ordering;
 use std::ffi::CString;
 use std::ops::{Add, Deref, Div, Mul, Neg, Rem, Shl, Shr, Sub};
@@ -831,7 +831,7 @@ impl BigNum {
             ffi::init();
             let c_str = CString::new(s.as_bytes()).map_err(ErrorStack::internal_error)?;
             let mut bn = ptr::null_mut();
-            cvt(ffi::BN_dec2bn(&mut bn, c_str.as_ptr() as *const _))?;
+            cvt(ffi::BN_dec2bn(&mut bn, c_str.as_ptr()))?;
             Ok(BigNum::from_ptr(bn))
         }
     }
@@ -843,7 +843,7 @@ impl BigNum {
             ffi::init();
             let c_str = CString::new(s.as_bytes()).map_err(ErrorStack::internal_error)?;
             let mut bn = ptr::null_mut();
-            cvt(ffi::BN_hex2bn(&mut bn, c_str.as_ptr() as *const _))?;
+            cvt(ffi::BN_hex2bn(&mut bn, c_str.as_ptr()))?;
             Ok(BigNum::from_ptr(bn))
         }
     }
@@ -865,12 +865,7 @@ impl BigNum {
         unsafe {
             ffi::init();
             assert!(n.len() <= c_int::MAX as usize);
-            cvt_p(ffi::BN_bin2bn(
-                n.as_ptr(),
-                n.len() as size_t,
-                ptr::null_mut(),
-            ))
-            .map(|p| BigNum::from_ptr(p))
+            cvt_p(ffi::BN_bin2bn(n.as_ptr(), n.len(), ptr::null_mut())).map(|p| BigNum::from_ptr(p))
         }
     }
 }

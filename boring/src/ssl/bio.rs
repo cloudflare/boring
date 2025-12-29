@@ -44,7 +44,7 @@ pub fn new<S: Read + Write>(stream: S) -> Result<(*mut BIO, BioMethod), ErrorSta
 
     unsafe {
         let bio = cvt_p(BIO_new(method.0.get()))?;
-        BIO_set_data(bio, Box::into_raw(state) as *mut _);
+        BIO_set_data(bio, Box::into_raw(state).cast());
         BIO_set_init(bio, 1);
 
         Ok((bio, method))
@@ -76,7 +76,7 @@ pub unsafe extern "C" fn take_stream<S>(bio: *mut BIO) -> S {
 
     assert!(!data.is_null());
 
-    let state = Box::<StreamState<S>>::from_raw(data as *mut _);
+    let state = Box::<StreamState<S>>::from_raw(data.cast());
 
     BIO_set_data(bio, ptr::null_mut());
 
@@ -91,7 +91,7 @@ pub unsafe fn set_dtls_mtu_size<S>(bio: *mut BIO, mtu_size: usize) {
 }
 
 unsafe fn state<'a, S: 'a>(bio: *mut BIO) -> &'a mut StreamState<S> {
-    let data = BIO_get_data(bio) as *mut StreamState<S>;
+    let data = BIO_get_data(bio).cast::<StreamState<S>>();
 
     assert!(!data.is_null());
 
@@ -102,7 +102,7 @@ unsafe extern "C" fn bwrite<S: Write>(bio: *mut BIO, buf: *const c_char, len: c_
     BIO_clear_retry_flags(bio);
 
     let state = state::<S>(bio);
-    let buf = slice::from_raw_parts(buf as *const _, len as usize);
+    let buf = slice::from_raw_parts(buf.cast(), len as usize);
 
     match catch_unwind(AssertUnwindSafe(|| state.stream.write(buf))) {
         Ok(Ok(len)) => len as c_int,
@@ -124,7 +124,7 @@ unsafe extern "C" fn bread<S: Read>(bio: *mut BIO, buf: *mut c_char, len: c_int)
     BIO_clear_retry_flags(bio);
 
     let state = state::<S>(bio);
-    let buf = slice::from_raw_parts_mut(buf as *mut _, len as usize);
+    let buf = slice::from_raw_parts_mut(buf.cast(), len as usize);
 
     match catch_unwind(AssertUnwindSafe(|| state.stream.read(buf))) {
         Ok(Ok(len)) => len as c_int,
@@ -201,7 +201,7 @@ unsafe extern "C" fn destroy<S>(bio: *mut BIO) -> c_int {
     let data = BIO_get_data(bio);
 
     if !data.is_null() {
-        drop(Box::<StreamState<S>>::from_raw(data as *mut _));
+        drop(Box::<StreamState<S>>::from_raw(data.cast()));
         BIO_set_data(bio, ptr::null_mut());
     }
 

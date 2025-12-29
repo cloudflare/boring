@@ -64,14 +64,7 @@ impl<'a> Deriver<'a> {
     #[corresponds(EVP_PKEY_derive)]
     pub fn derive(&mut self, buf: &mut [u8]) -> Result<usize, ErrorStack> {
         let mut len = buf.len();
-        unsafe {
-            cvt(ffi::EVP_PKEY_derive(
-                self.0,
-                buf.as_mut_ptr() as *mut _,
-                &mut len,
-            ))
-            .map(|_| len)
-        }
+        unsafe { cvt(ffi::EVP_PKEY_derive(self.0, buf.as_mut_ptr(), &mut len)).map(|_| len) }
     }
 
     /// A convenience function which derives a shared secret and returns it in a new buffer.

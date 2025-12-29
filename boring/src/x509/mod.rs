@@ -105,12 +105,9 @@ impl X509StoreContextRef {
     #[must_use]
     pub fn ex_data<T>(&self, index: Index<X509StoreContext, T>) -> Option<&T> {
         unsafe {
-            let data = ffi::X509_STORE_CTX_get_ex_data(self.as_ptr(), index.as_raw());
-            if data.is_null() {
-                None
-            } else {
-                Some(&*(data as *const T))
-            }
+            ffi::X509_STORE_CTX_get_ex_data(self.as_ptr(), index.as_raw())
+                .cast::<T>()
+                .as_ref()
         }
     }
 
@@ -118,12 +115,9 @@ impl X509StoreContextRef {
     #[corresponds(X509_STORE_CTX_get_ex_data)]
     pub fn ex_data_mut<T>(&mut self, index: Index<X509StoreContext, T>) -> Option<&mut T> {
         unsafe {
-            let data = ffi::X509_STORE_CTX_get_ex_data(self.as_ptr(), index.as_raw());
-            if data.is_null() {
-                None
-            } else {
-                Some(&mut *(data as *mut T))
-            }
+            ffi::X509_STORE_CTX_get_ex_data(self.as_ptr(), index.as_raw())
+                .cast::<T>()
+                .as_mut()
         }
     }
 
@@ -145,7 +139,7 @@ impl X509StoreContextRef {
             ffi::X509_STORE_CTX_set_ex_data(
                 self.as_ptr(),
                 index.as_raw(),
-                Box::into_raw(data) as *mut c_void,
+                Box::into_raw(data).cast(),
             );
         }
     }
@@ -546,7 +540,7 @@ impl X509Ref {
             if stack.is_null() {
                 None
             } else {
-                Some(Stack::from_ptr(stack as *mut _))
+                Some(Stack::from_ptr(stack.cast()))
             }
         }
     }
@@ -575,7 +569,7 @@ impl X509Ref {
             if stack.is_null() {
                 None
             } else {
-                Some(Stack::from_ptr(stack as *mut _))
+                Some(Stack::from_ptr(stack.cast()))
             }
         }
     }
@@ -620,7 +614,7 @@ impl X509Ref {
             cvt(ffi::X509_digest(
                 self.as_ptr(),
                 hash_type.as_ptr(),
-                digest.buf.as_mut_ptr() as *mut _,
+                digest.buf.as_mut_ptr(),
                 &mut len,
             ))?;
             digest.len = len as usize;
@@ -664,7 +658,7 @@ impl X509Ref {
             let mut signature = ptr::null();
             X509_get0_signature(&mut signature, ptr::null_mut(), self.as_ptr());
             assert!(!signature.is_null());
-            Asn1BitStringRef::from_ptr(signature as *mut _)
+            Asn1BitStringRef::from_ptr(signature.cast_mut())
         }
     }
 
@@ -676,7 +670,7 @@ impl X509Ref {
             let mut algor = ptr::null();
             X509_get0_signature(ptr::null_mut(), &mut algor, self.as_ptr());
             assert!(!algor.is_null());
-            X509AlgorithmRef::from_ptr(algor as *mut _)
+            X509AlgorithmRef::from_ptr(algor.cast_mut())
         }
     }
 
@@ -725,7 +719,7 @@ impl X509Ref {
         unsafe {
             cvt_n(ffi::X509_check_host(
                 self.as_ptr(),
-                host.as_ptr() as _,
+                host.as_ptr().cast(),
                 host.len(),
                 0,
                 std::ptr::null_mut(),
@@ -877,7 +871,7 @@ pub struct X509v3Context<'a>(ffi::X509V3_CTX, PhantomData<(&'a X509Ref, &'a Conf
 impl X509v3Context<'_> {
     #[must_use]
     pub fn as_ptr(&self) -> *mut ffi::X509V3_CTX {
-        &self.0 as *const _ as *mut _
+        std::ptr::addr_of!(self.0).cast_mut()
     }
 }
 
@@ -932,8 +926,8 @@ impl X509Extension {
                     &mut ctx
                 }
             };
-            let name = name.as_ptr() as *mut _;
-            let value = value.as_ptr() as *mut _;
+            let name = name.as_ptr().cast_mut();
+            let value = value.as_ptr().cast_mut();
 
             cvt_p(ffi::X509V3_EXT_nconf(conf, context_ptr, name, value))
                 .map(|p| X509Extension::from_ptr(p))
@@ -978,7 +972,7 @@ impl X509Extension {
                 }
             };
             let name = name.as_raw();
-            let value = value.as_ptr() as *mut _;
+            let value = value.as_ptr().cast_mut();
 
             cvt_p(ffi::X509V3_EXT_nconf_nid(conf, context_ptr, name, value))
                 .map(|p| X509Extension::from_ptr(p))
@@ -1024,7 +1018,7 @@ impl X509NameBuilder {
             assert!(value.len() <= ValueLen::MAX as usize);
             cvt(ffi::X509_NAME_add_entry_by_txt(
                 self.0.as_ptr(),
-                field.as_ptr() as *mut _,
+                field.as_ptr().cast_mut(),
                 ffi::MBSTRING_UTF8,
                 value.as_ptr(),
                 value.len() as ValueLen,
@@ -1047,7 +1041,7 @@ impl X509NameBuilder {
             assert!(value.len() <= ValueLen::MAX as usize);
             cvt(ffi::X509_NAME_add_entry_by_txt(
                 self.0.as_ptr(),
-                field.as_ptr() as *mut _,
+                field.as_ptr().cast_mut(),
                 ty.as_raw(),
                 value.as_ptr(),
                 value.len() as ValueLen,
@@ -1066,7 +1060,7 @@ impl X509NameBuilder {
                 self.0.as_ptr(),
                 field.as_raw(),
                 ffi::MBSTRING_UTF8,
-                value.as_ptr() as *mut _,
+                value.as_ptr().cast_mut(),
                 value.len() as ValueLen,
                 -1,
                 0,
@@ -1088,7 +1082,7 @@ impl X509NameBuilder {
                 self.0.as_ptr(),
                 field.as_raw(),
                 ty.as_raw(),
-                value.as_ptr() as *mut _,
+                value.as_ptr().cast_mut(),
                 value.len() as ValueLen,
                 -1,
                 0,
@@ -1756,7 +1750,7 @@ impl X509AlgorithmRef {
             let mut oid = ptr::null();
             X509_ALGOR_get0(&mut oid, ptr::null_mut(), ptr::null_mut(), self.as_ptr());
             assert!(!oid.is_null());
-            Asn1ObjectRef::from_ptr(oid as *mut _)
+            Asn1ObjectRef::from_ptr(oid.cast_mut())
         }
     }
 }
@@ -1799,7 +1793,7 @@ use crate::ffi::X509_OBJECT_get0_X509;
 #[allow(bad_style)]
 unsafe fn X509_OBJECT_free(x: *mut ffi::X509_OBJECT) {
     ffi::X509_OBJECT_free_contents(x);
-    ffi::OPENSSL_free(x as *mut libc::c_void);
+    ffi::OPENSSL_free(x.cast());
 }
 
 unsafe fn get_new_x509_store_ctx_idx(f: ffi::CRYPTO_EX_free) -> c_int {

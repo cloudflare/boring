@@ -194,7 +194,7 @@ where
         unsafe {
             let mut d = ptr::null();
             RSA_get0_key(self.as_ptr(), ptr::null_mut(), ptr::null_mut(), &mut d);
-            BigNumRef::from_ptr(d as *mut _)
+            BigNumRef::from_ptr(d.cast_mut())
         }
     }
 
@@ -208,7 +208,7 @@ where
             if p.is_null() {
                 None
             } else {
-                Some(BigNumRef::from_ptr(p as *mut _))
+                Some(BigNumRef::from_ptr(p.cast_mut()))
             }
         }
     }
@@ -223,7 +223,7 @@ where
             if q.is_null() {
                 None
             } else {
-                Some(BigNumRef::from_ptr(q as *mut _))
+                Some(BigNumRef::from_ptr(q.cast_mut()))
             }
         }
     }
@@ -238,7 +238,7 @@ where
             if dp.is_null() {
                 None
             } else {
-                Some(BigNumRef::from_ptr(dp as *mut _))
+                Some(BigNumRef::from_ptr(dp.cast_mut()))
             }
         }
     }
@@ -253,7 +253,7 @@ where
             if dq.is_null() {
                 None
             } else {
-                Some(BigNumRef::from_ptr(dq as *mut _))
+                Some(BigNumRef::from_ptr(dq.cast_mut()))
             }
         }
     }
@@ -268,7 +268,7 @@ where
             if qi.is_null() {
                 None
             } else {
-                Some(BigNumRef::from_ptr(qi as *mut _))
+                Some(BigNumRef::from_ptr(qi.cast_mut()))
             }
         }
     }
@@ -391,7 +391,7 @@ where
         unsafe {
             let mut n = ptr::null();
             RSA_get0_key(self.as_ptr(), &mut n, ptr::null_mut(), ptr::null_mut());
-            BigNumRef::from_ptr(n as *mut _)
+            BigNumRef::from_ptr(n.cast_mut())
         }
     }
 
@@ -402,7 +402,7 @@ where
         unsafe {
             let mut e = ptr::null();
             RSA_get0_key(self.as_ptr(), ptr::null_mut(), &mut e, ptr::null_mut());
-            BigNumRef::from_ptr(e as *mut _)
+            BigNumRef::from_ptr(e.cast_mut())
         }
     }
 }

@@ -30,7 +30,6 @@
 //! assert!(!eq(&a, &c));
 //! ```
 use crate::ffi;
-use libc::size_t;
 
 /// Returns `true` iff `a` and `b` contain the same bytes.
 ///
@@ -64,13 +63,7 @@ use libc::size_t;
 #[must_use]
 pub fn eq(a: &[u8], b: &[u8]) -> bool {
     assert!(a.len() == b.len());
-    let ret = unsafe {
-        ffi::CRYPTO_memcmp(
-            a.as_ptr() as *const _,
-            b.as_ptr() as *const _,
-            a.len() as size_t,
-        )
-    };
+    let ret = unsafe { ffi::CRYPTO_memcmp(a.as_ptr().cast(), b.as_ptr().cast(), a.len()) };
     ret == 0
 }
 

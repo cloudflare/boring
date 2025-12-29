@@ -2,7 +2,7 @@
 
 use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::{c_int, size_t};
+use libc::c_int;
 use openssl_macros::corresponds;
 use std::mem;
 use std::ptr;
@@ -36,10 +36,10 @@ impl EcdsaSig {
             assert!(data.len() <= c_int::MAX as usize);
             let sig = cvt_p(ffi::ECDSA_do_sign(
                 data.as_ptr(),
-                data.len() as size_t,
+                data.len(),
                 eckey.as_ptr(),
             ))?;
-            Ok(EcdsaSig::from_ptr(sig as *mut _))
+            Ok(EcdsaSig::from_ptr(sig))
         }
     }
 
@@ -51,7 +51,7 @@ impl EcdsaSig {
             let sig = cvt_p(ffi::ECDSA_SIG_new())?;
             ECDSA_SIG_set0(sig, r.as_ptr(), s.as_ptr());
             mem::forget((r, s));
-            Ok(EcdsaSig::from_ptr(sig as *mut _))
+            Ok(EcdsaSig::from_ptr(sig))
         }
     }
 
@@ -83,7 +83,7 @@ impl EcdsaSigRef {
             assert!(data.len() <= c_int::MAX as usize);
             cvt_n(ffi::ECDSA_do_verify(
                 data.as_ptr(),
-                data.len() as size_t,
+                data.len(),
                 self.as_ptr(),
                 eckey.as_ptr(),
             ))
@@ -98,7 +98,7 @@ impl EcdsaSigRef {
         unsafe {
             let mut r = ptr::null();
             ECDSA_SIG_get0(self.as_ptr(), &mut r, ptr::null_mut());
-            BigNumRef::from_ptr(r as *mut _)
+            BigNumRef::from_ptr(r.cast_mut())
         }
     }
 
@@ -109,7 +109,7 @@ impl EcdsaSigRef {
         unsafe {
             let mut s = ptr::null();
             ECDSA_SIG_get0(self.as_ptr(), ptr::null_mut(), &mut s);
-            BigNumRef::from_ptr(s as *mut _)
+            BigNumRef::from_ptr(s.cast_mut())
         }
     }
 }

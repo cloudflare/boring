@@ -361,7 +361,7 @@ impl<T> PKey<T> {
             cvt(ffi::EVP_PKEY_assign(
                 pkey.0,
                 ffi::EVP_PKEY_RSA,
-                rsa.as_ptr() as *mut _,
+                rsa.as_ptr().cast(),
             ))?;
             mem::forget(rsa);
             Ok(pkey)
@@ -377,7 +377,7 @@ impl<T> PKey<T> {
             cvt(ffi::EVP_PKEY_assign(
                 pkey.0,
                 ffi::EVP_PKEY_EC,
-                ec_key.as_ptr() as *mut _,
+                ec_key.as_ptr().cast(),
             ))?;
             mem::forget(ec_key);
             Ok(pkey)
@@ -455,7 +455,7 @@ impl PKey<Private> {
                 bio.as_ptr(),
                 ptr::null_mut(),
                 Some(invoke_passwd_cb::<F>),
-                &mut cb as *mut _ as *mut _,
+                std::ptr::addr_of_mut!(cb).cast(),
             ))
             .map(|p| PKey::from_ptr(p))
         }
@@ -479,7 +479,7 @@ impl PKey<Private> {
                 bio.as_ptr(),
                 ptr::null_mut(),
                 None,
-                passphrase.as_ptr() as *const _ as *mut _,
+                passphrase.as_ptr().cast_mut().cast(),
             ))
             .map(|p| PKey::from_ptr(p))
         }

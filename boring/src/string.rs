@@ -1,6 +1,6 @@
 use crate::ffi;
 use foreign_types::ForeignTypeRef;
-use libc::{c_char, c_void};
+use libc::c_char;
 use std::convert::AsRef;
 use std::ffi::CStr;
 use std::fmt;
@@ -83,5 +83,5 @@ impl fmt::Debug for OpensslStringRef {
 }
 
 unsafe fn free(buf: *mut c_char) {
-    crate::ffi::OPENSSL_free(buf as *mut c_void);
+    crate::ffi::OPENSSL_free(buf.cast());
 }

@@ -28,7 +28,7 @@ macro_rules! private_key_from_pem {
                 cvt_p($f(bio.as_ptr(),
                          ptr::null_mut(),
                          Some(crate::util::invoke_passwd_cb::<F>),
-                         &mut cb as *mut _ as *mut _))
+                         ptr::from_mut(&mut cb).cast()))
                     .map(|p| ::foreign_types::ForeignType::from_ptr(p))
             }
         }
