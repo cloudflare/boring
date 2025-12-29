@@ -1,11 +1,12 @@
-use crate::ffi;
-use crate::ffi::BIO_new_mem_buf;
 use std::marker::PhantomData;
 use std::ptr;
 use std::slice;
 
 use crate::cvt_p;
 use crate::error::ErrorStack;
+use crate::ffi;
+use crate::ffi::BIO_new_mem_buf;
+use crate::try_int;
 
 pub struct MemBioSlice<'a>(*mut ffi::BIO, PhantomData<&'a [u8]>);
 
@@ -19,15 +20,9 @@ impl Drop for MemBioSlice<'_> {
 
 impl<'a> MemBioSlice<'a> {
     pub fn new(buf: &'a [u8]) -> Result<MemBioSlice<'a>, ErrorStack> {
-        #[cfg(not(feature = "legacy-compat-deprecated"))]
-        type BufLen = isize;
-        #[cfg(feature = "legacy-compat-deprecated")]
-        type BufLen = libc::c_int;
-
         ffi::init();
 
-        assert!(buf.len() <= BufLen::MAX as usize);
-        let bio = unsafe { cvt_p(BIO_new_mem_buf(buf.as_ptr().cast(), buf.len() as BufLen))? };
+        let bio = unsafe { cvt_p(BIO_new_mem_buf(buf.as_ptr().cast(), try_int(buf.len())?))? };
 
         Ok(MemBioSlice(bio, PhantomData))
     }
@@ -63,7 +58,7 @@ impl MemBio {
         unsafe {
             let mut ptr = ptr::null_mut();
             let len = ffi::BIO_get_mem_data(self.0, &mut ptr);
-            if ptr.is_null() {
+            if ptr.is_null() || len < 0 {
                 return &[];
             }
             slice::from_raw_parts(ptr.cast_const().cast(), len as usize)

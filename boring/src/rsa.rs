@@ -23,7 +23,6 @@
 //! let mut buf = vec![0; rsa.size() as usize];
 //! let encrypted_len = rsa.public_encrypt(data, &mut buf, Padding::PKCS1).unwrap();
 //! ```
-use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 use libc::c_int;
 use openssl_macros::corresponds;
@@ -33,7 +32,9 @@ use std::ptr;
 
 use crate::bn::{BigNum, BigNumRef};
 use crate::error::ErrorStack;
+use crate::ffi;
 use crate::pkey::{HasPrivate, HasPublic, Private, Public};
+use crate::try_int;
 use crate::{cvt, cvt_n, cvt_p};
 
 pub const EVP_PKEY_OP_SIGN: c_int = 1 << 3;

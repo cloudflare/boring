@@ -40,7 +40,6 @@
 //! println!("{:?}", str::from_utf8(pub_key.as_slice()).unwrap());
 //! ```
 
-use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 use libc::{c_int, c_long};
 use openssl_macros::corresponds;
@@ -54,7 +53,9 @@ use crate::dh::Dh;
 use crate::dsa::Dsa;
 use crate::ec::EcKey;
 use crate::error::ErrorStack;
+use crate::ffi;
 use crate::rsa::Rsa;
+use crate::try_int;
 use crate::util::{invoke_passwd_cb, CallbackState};
 use crate::{cvt, cvt_0i, cvt_p};
 

@@ -36,6 +36,7 @@ use crate::pkey::{HasPrivate, HasPublic, PKey, PKeyRef, Public};
 use crate::ssl::SslRef;
 use crate::stack::{Stack, StackRef, Stackable};
 use crate::string::OpensslString;
+use crate::try_int;
 use crate::util::ForeignTypeRefExt;
 use crate::x509::verify::{X509VerifyParam, X509VerifyParamRef};
 use crate::{cvt, cvt_n, cvt_p};
@@ -610,14 +611,14 @@ impl X509Ref {
                 buf: [0; ffi::EVP_MAX_MD_SIZE as usize],
                 len: ffi::EVP_MAX_MD_SIZE as usize,
             };
-            let mut len = ffi::EVP_MAX_MD_SIZE.try_into().unwrap();
+            let mut len = try_int(ffi::EVP_MAX_MD_SIZE)?;
             cvt(ffi::X509_digest(
                 self.as_ptr(),
                 hash_type.as_ptr(),
                 digest.buf.as_mut_ptr(),
                 &mut len,
             ))?;
-            digest.len = len as usize;
+            digest.len = try_int(len)?;
 
             Ok(digest)
         }
@@ -1015,13 +1016,12 @@ impl X509NameBuilder {
     pub fn append_entry_by_text(&mut self, field: &str, value: &str) -> Result<(), ErrorStack> {
         unsafe {
             let field = CString::new(field).map_err(ErrorStack::internal_error)?;
-            assert!(value.len() <= ValueLen::MAX as usize);
             cvt(ffi::X509_NAME_add_entry_by_txt(
                 self.0.as_ptr(),
                 field.as_ptr().cast_mut(),
                 ffi::MBSTRING_UTF8,
                 value.as_ptr(),
-                value.len() as ValueLen,
+                try_int(value.len())?,
                 -1,
                 0,
             ))
@@ -1038,13 +1038,12 @@ impl X509NameBuilder {
     ) -> Result<(), ErrorStack> {
         unsafe {
             let field = CString::new(field).map_err(ErrorStack::internal_error)?;
-            assert!(value.len() <= ValueLen::MAX as usize);
             cvt(ffi::X509_NAME_add_entry_by_txt(
                 self.0.as_ptr(),
                 field.as_ptr().cast_mut(),
                 ty.as_raw(),
                 value.as_ptr(),
-                value.len() as ValueLen,
+                try_int(value.len())?,
                 -1,
                 0,
             ))
@@ -1055,13 +1054,12 @@ impl X509NameBuilder {
     #[corresponds(X509_NAME_add_entry_by_NID)]
     pub fn append_entry_by_nid(&mut self, field: Nid, value: &str) -> Result<(), ErrorStack> {
         unsafe {
-            assert!(value.len() <= ValueLen::MAX as usize);
             cvt(ffi::X509_NAME_add_entry_by_NID(
                 self.0.as_ptr(),
                 field.as_raw(),
                 ffi::MBSTRING_UTF8,
                 value.as_ptr().cast_mut(),
-                value.len() as ValueLen,
+                try_int(value.len())?,
                 -1,
                 0,
             ))
@@ -1077,13 +1075,12 @@ impl X509NameBuilder {
         ty: Asn1Type,
     ) -> Result<(), ErrorStack> {
         unsafe {
-            assert!(value.len() <= ValueLen::MAX as usize);
             cvt(ffi::X509_NAME_add_entry_by_NID(
                 self.0.as_ptr(),
                 field.as_raw(),
                 ty.as_raw(),
                 value.as_ptr().cast_mut(),
-                value.len() as ValueLen,
+                try_int(value.len())?,
                 -1,
                 0,
             ))
@@ -1099,11 +1096,6 @@ impl X509NameBuilder {
         X509Name::from_der(&self.0.to_der().unwrap()).unwrap()
     }
 }
-
-#[cfg(not(feature = "legacy-compat-deprecated"))]
-type ValueLen = isize;
-#[cfg(feature = "legacy-compat-deprecated")]
-type ValueLen = i32;
 
 foreign_type_and_impl_send_sync! {
     type CType = ffi::X509_NAME;

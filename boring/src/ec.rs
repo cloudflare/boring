@@ -15,7 +15,6 @@
 //! [`EcGroup`]: struct.EcGroup.html
 //! [`Nid`]: ../nid/struct.Nid.html
 //! [Eliptic Curve Cryptography]: https://wiki.openssl.org/index.php/Elliptic_Curve_Cryptography
-use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 use libc::c_int;
 use openssl_macros::corresponds;
@@ -24,8 +23,10 @@ use std::ptr;
 
 use crate::bn::{BigNumContextRef, BigNumRef};
 use crate::error::ErrorStack;
+use crate::ffi;
 use crate::nid::Nid;
 use crate::pkey::{HasParams, HasPrivate, HasPublic, Params, Private, Public};
+use crate::try_int;
 use crate::{cvt, cvt_n, cvt_p, init};
 
 /// Compressed or Uncompressed conversion
