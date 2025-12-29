@@ -198,7 +198,7 @@ impl<'a> Signer<'a> {
         unsafe {
             cvt(ffi::EVP_PKEY_CTX_set_rsa_mgf1_md(
                 self.pctx,
-                md.as_ptr() as *mut _,
+                md.as_ptr().cast_mut(),
             ))
         }
     }
@@ -212,7 +212,7 @@ impl<'a> Signer<'a> {
         unsafe {
             cvt(ffi::EVP_DigestUpdate(
                 self.md_ctx,
-                buf.as_ptr() as *const _,
+                buf.as_ptr().cast(),
                 buf.len(),
             ))
         }
@@ -251,7 +251,7 @@ impl<'a> Signer<'a> {
             let mut len = buf.len();
             cvt(ffi::EVP_DigestSignFinal(
                 self.md_ctx,
-                buf.as_mut_ptr() as *mut _,
+                buf.as_mut_ptr().cast(),
                 &mut len,
             ))?;
             Ok(len)
@@ -286,9 +286,9 @@ impl<'a> Signer<'a> {
             let mut sig_len = sig_buf.len();
             cvt(ffi::EVP_DigestSign(
                 self.md_ctx,
-                sig_buf.as_mut_ptr() as *mut _,
+                sig_buf.as_mut_ptr(),
                 &mut sig_len,
-                data_buf.as_ptr() as *const _,
+                data_buf.as_ptr(),
                 data_buf.len(),
             ))?;
             Ok(sig_len)
@@ -441,7 +441,7 @@ impl<'a> Verifier<'a> {
         unsafe {
             cvt(ffi::EVP_PKEY_CTX_set_rsa_mgf1_md(
                 self.pctx,
-                md.as_ptr() as *mut _,
+                md.as_ptr().cast_mut(),
             ))
         }
     }
@@ -455,7 +455,7 @@ impl<'a> Verifier<'a> {
         unsafe {
             cvt(ffi::EVP_DigestUpdate(
                 self.md_ctx,
-                buf.as_ptr() as *const _,
+                buf.as_ptr().cast(),
                 buf.len(),
             ))
         }
@@ -466,7 +466,7 @@ impl<'a> Verifier<'a> {
     pub fn verify(&self, signature: &[u8]) -> Result<bool, ErrorStack> {
         unsafe {
             let r =
-                EVP_DigestVerifyFinal(self.md_ctx, signature.as_ptr() as *mut _, signature.len());
+                EVP_DigestVerifyFinal(self.md_ctx, signature.as_ptr().cast_mut(), signature.len());
             match r {
                 1 => Ok(true),
                 0 => {
@@ -484,9 +484,9 @@ impl<'a> Verifier<'a> {
         unsafe {
             let r = ffi::EVP_DigestVerify(
                 self.md_ctx,
-                signature.as_ptr() as *const _,
+                signature.as_ptr().cast(),
                 signature.len(),
-                buf.as_ptr() as *const _,
+                buf.as_ptr().cast(),
                 buf.len(),
             );
             match r {

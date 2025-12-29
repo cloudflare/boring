@@ -152,7 +152,7 @@ impl Sha1 {
     #[inline]
     pub fn update(&mut self, buf: &[u8]) {
         unsafe {
-            ffi::SHA1_Update(&mut self.0, buf.as_ptr() as *const c_void, buf.len());
+            ffi::SHA1_Update(&mut self.0, buf.as_ptr().cast::<c_void>(), buf.len());
         }
     }
 
@@ -197,7 +197,7 @@ impl Sha224 {
     #[inline]
     pub fn update(&mut self, buf: &[u8]) {
         unsafe {
-            ffi::SHA224_Update(&mut self.0, buf.as_ptr() as *const c_void, buf.len());
+            ffi::SHA224_Update(&mut self.0, buf.as_ptr().cast::<c_void>(), buf.len());
         }
     }
 
@@ -242,7 +242,7 @@ impl Sha256 {
     #[inline]
     pub fn update(&mut self, buf: &[u8]) {
         unsafe {
-            ffi::SHA256_Update(&mut self.0, buf.as_ptr() as *const c_void, buf.len());
+            ffi::SHA256_Update(&mut self.0, buf.as_ptr().cast::<c_void>(), buf.len());
         }
     }
 
@@ -287,7 +287,7 @@ impl Sha384 {
     #[inline]
     pub fn update(&mut self, buf: &[u8]) {
         unsafe {
-            ffi::SHA384_Update(&mut self.0, buf.as_ptr() as *const c_void, buf.len());
+            ffi::SHA384_Update(&mut self.0, buf.as_ptr().cast::<c_void>(), buf.len());
         }
     }
 
@@ -332,7 +332,7 @@ impl Sha512 {
     #[inline]
     pub fn update(&mut self, buf: &[u8]) {
         unsafe {
-            ffi::SHA512_Update(&mut self.0, buf.as_ptr() as *const c_void, buf.len());
+            ffi::SHA512_Update(&mut self.0, buf.as_ptr().cast::<c_void>(), buf.len());
         }
     }
 
@@ -377,7 +377,7 @@ impl Sha512_256 {
     #[inline]
     pub fn update(&mut self, buf: &[u8]) {
         unsafe {
-            ffi::SHA512_256_Update(&mut self.0, buf.as_ptr() as *const c_void, buf.len());
+            ffi::SHA512_256_Update(&mut self.0, buf.as_ptr().cast::<c_void>(), buf.len());
         }
     }
 

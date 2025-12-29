@@ -38,7 +38,7 @@
 //! ```
 //!
 use crate::ffi;
-use libc::{c_int, c_uint, size_t};
+use libc::{c_int, c_uint};
 use openssl_macros::corresponds;
 use std::mem::MaybeUninit;
 use std::ptr;
@@ -63,7 +63,7 @@ impl AesKey {
 
             let mut aes_key = MaybeUninit::uninit();
             let r = ffi::AES_set_encrypt_key(
-                key.as_ptr() as *const _,
+                key.as_ptr(),
                 key.len() as c_uint * 8,
                 aes_key.as_mut_ptr(),
             );
@@ -87,7 +87,7 @@ impl AesKey {
 
             let mut aes_key = MaybeUninit::uninit();
             let r = ffi::AES_set_decrypt_key(
-                key.as_ptr() as *const _,
+                key.as_ptr(),
                 key.len() as c_uint * 8,
                 aes_key.as_mut_ptr(),
             );
@@ -125,12 +125,11 @@ pub fn wrap_key(
         assert!(out.len() >= in_.len() + 8); // Ciphertext is 64 bits longer (see 2.2.1)
 
         let written = ffi::AES_wrap_key(
-            &key.0 as *const _ as *mut _, // this is safe, the implementation only uses the key as a const pointer.
-            iv.as_ref()
-                .map_or(ptr::null(), |iv| iv.as_ptr() as *const _),
-            out.as_ptr() as *mut _,
-            in_.as_ptr() as *const _,
-            in_.len() as size_t,
+            std::ptr::addr_of!(key.0).cast_mut(), // this is safe, the implementation only uses the key as a const pointer.
+            iv.as_ref().map_or(ptr::null(), |iv| iv.as_ptr()),
+            out.as_mut_ptr(),
+            in_.as_ptr(),
+            in_.len(),
         );
         if written <= 0 {
             Err(KeyError(()))
@@ -164,12 +163,11 @@ pub fn unwrap_key(
         assert!(out.len() + 8 <= in_.len());
 
         let written = ffi::AES_unwrap_key(
-            &key.0 as *const _ as *mut _, // this is safe, the implementation only uses the key as a const pointer.
-            iv.as_ref()
-                .map_or(ptr::null(), |iv| iv.as_ptr() as *const _),
-            out.as_ptr() as *mut _,
-            in_.as_ptr() as *const _,
-            in_.len() as size_t,
+            std::ptr::addr_of!(key.0).cast_mut(), // this is safe, the implementation only uses the key as a const pointer.
+            iv.as_ref().map_or(ptr::null(), |iv| iv.as_ptr().cast()),
+            out.as_ptr().cast_mut(),
+            in_.as_ptr().cast(),
+            in_.len(),
         );
 
         if written <= 0 {

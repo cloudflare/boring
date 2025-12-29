@@ -1,7 +1,7 @@
 use crate::ffi;
 use openssl_macros::corresponds;
 use std::convert::TryInto;
-use std::ffi::{c_uint, c_void};
+use std::ffi::c_uint;
 use std::fmt;
 use std::io;
 use std::io::prelude::*;
@@ -196,7 +196,7 @@ impl Hasher {
         unsafe {
             cvt(ffi::EVP_DigestUpdate(
                 self.ctx,
-                data.as_ptr() as *mut _,
+                data.as_ptr().cast_mut().cast(),
                 data.len(),
             ))?;
         }
@@ -370,7 +370,7 @@ pub(crate) fn hmac<const N: usize>(
     cvt_p(unsafe {
         ffi::HMAC(
             digest.as_ptr(),
-            key.as_ptr() as *const c_void,
+            key.as_ptr().cast(),
             key.len(),
             data.as_ptr(),
             data.len(),

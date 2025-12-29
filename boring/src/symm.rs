@@ -425,7 +425,6 @@ impl Crypter {
                 key.len() as c_uint,
             ))?;
 
-            let key = key.as_ptr() as *mut _;
             let iv = match (iv, t.iv_len()) {
                 (Some(iv), Some(len)) => {
                     if iv.len() != len {
@@ -437,7 +436,7 @@ impl Crypter {
                             ptr::null_mut(),
                         ))?;
                     }
-                    iv.as_ptr() as *mut _
+                    iv.as_ptr().cast_mut()
                 }
                 (Some(_) | None, None) => ptr::null_mut(),
                 (None, Some(_)) => panic!("an IV is required for this cipher"),
@@ -446,7 +445,7 @@ impl Crypter {
                 crypter.ctx,
                 ptr::null(),
                 ptr::null_mut(),
-                key,
+                key.as_ptr().cast_mut(),
                 iv,
                 mode,
             ))?;
@@ -476,7 +475,7 @@ impl Crypter {
                 self.ctx,
                 ffi::EVP_CTRL_GCM_SET_TAG,
                 tag.len() as c_int,
-                tag.as_ptr() as *mut _,
+                tag.as_ptr().cast_mut().cast(),
             ))
         }
     }
@@ -616,7 +615,7 @@ impl Crypter {
                 self.ctx,
                 ffi::EVP_CTRL_GCM_GET_TAG,
                 tag.len() as c_int,
-                tag.as_mut_ptr() as *mut _,
+                tag.as_mut_ptr().cast(),
             ))
         }
     }

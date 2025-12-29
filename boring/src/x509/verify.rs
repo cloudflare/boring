@@ -120,7 +120,7 @@ impl X509VerifyParamRef {
             let raw_host = if host.is_empty() { "\0" } else { host };
             cvt(ffi::X509_VERIFY_PARAM_set1_host(
                 self.as_ptr(),
-                raw_host.as_ptr() as *const _,
+                raw_host.as_ptr().cast(),
                 host.len(),
             ))
         }
@@ -134,7 +134,7 @@ impl X509VerifyParamRef {
             let raw_email = if email.is_empty() { "\0" } else { email };
             cvt(ffi::X509_VERIFY_PARAM_set1_email(
                 self.as_ptr(),
-                raw_email.as_ptr() as *const _,
+                raw_email.as_ptr().cast(),
                 email.len(),
             ))
         }
@@ -157,7 +157,7 @@ impl X509VerifyParamRef {
             };
             cvt(ffi::X509_VERIFY_PARAM_set1_ip(
                 self.as_ptr(),
-                buf.as_ptr() as *const _,
+                buf.as_ptr().cast(),
                 len,
             ))
         }

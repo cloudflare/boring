@@ -180,8 +180,8 @@ impl Pkcs12Builder {
             let keytype = 0;
 
             cvt_p(ffi::PKCS12_create(
-                pass.as_ptr() as *const _ as *mut _,
-                friendly_name.as_ptr() as *const _ as *mut _,
+                pass.as_ptr(),
+                friendly_name.as_ptr(),
                 pkey,
                 cert,
                 ca,

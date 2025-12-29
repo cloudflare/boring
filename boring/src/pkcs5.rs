@@ -96,7 +96,7 @@ pub fn pbkdf2_hmac(
 
         ffi::init();
         cvt(ffi::PKCS5_PBKDF2_HMAC(
-            pass.as_ptr() as *const _,
+            pass.as_ptr().cast(),
             pass.len(),
             salt.as_ptr(),
             salt.len(),
@@ -121,15 +121,15 @@ pub fn scrypt(
     unsafe {
         ffi::init();
         cvt(ffi::EVP_PBE_scrypt(
-            pass.as_ptr() as *const _,
+            pass.as_ptr().cast(),
             pass.len(),
-            salt.as_ptr() as *const _,
+            salt.as_ptr().cast(),
             salt.len(),
             n,
             r,
             p,
             maxmem,
-            key.as_mut_ptr() as *mut _,
+            key.as_mut_ptr(),
             key.len(),
         ))
     }

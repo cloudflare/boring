@@ -1,6 +1,6 @@
 //! A collection of numerical identifiers for OpenSSL objects.
 use crate::ffi;
-use libc::{c_char, c_int};
+use libc::c_int;
 use openssl_macros::corresponds;
 
 use std::ffi::CStr;
@@ -87,7 +87,7 @@ impl Nid {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn long_name(&self) -> Result<&'static str, ErrorStack> {
         unsafe {
-            let nameptr = cvt_p(ffi::OBJ_nid2ln(self.0) as *mut c_char)?;
+            let nameptr = cvt_p(ffi::OBJ_nid2ln(self.0).cast_mut())?;
             CStr::from_ptr(nameptr)
                 .to_str()
                 .map_err(ErrorStack::internal_error)
@@ -99,7 +99,7 @@ impl Nid {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     pub fn short_name(&self) -> Result<&'static str, ErrorStack> {
         unsafe {
-            let nameptr = cvt_p(ffi::OBJ_nid2sn(self.0) as *mut c_char)?;
+            let nameptr = cvt_p(ffi::OBJ_nid2sn(self.0).cast_mut())?;
             CStr::from_ptr(nameptr)
                 .to_str()
                 .map_err(ErrorStack::internal_error)

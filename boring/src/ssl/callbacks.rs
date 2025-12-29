@@ -41,7 +41,7 @@ where
 
     // SAFETY: The callback won't outlive the context it's associated with
     // because there is no `X509StoreContextRef::ssl_mut(&mut self)` method.
-    let verify = unsafe { &*(verify as *const F) };
+    let verify = unsafe { &*std::ptr::from_ref::<F>(verify) };
 
     c_int::from(verify(preverify_ok != 0, ctx))
 }
@@ -90,7 +90,7 @@ where
     // SAFETY: The callback won't outlive the context it's associated with
     // because there is no way to get a mutable reference to the `SslContext`,
     // so the callback can't replace itself.
-    let verify = unsafe { &*(verify as *const F) };
+    let verify = unsafe { &*std::ptr::from_ref::<F>(verify) };
 
     c_int::from(verify(ctx))
 }
@@ -160,7 +160,7 @@ where
 
     // Give the callback mutable slices into which it can write the identity and psk.
     let identity_sl =
-        unsafe { slice::from_raw_parts_mut(identity as *mut u8, max_identity_len as usize) };
+        unsafe { slice::from_raw_parts_mut(identity.cast::<u8>(), max_identity_len as usize) };
     let psk_sl = unsafe { slice::from_raw_parts_mut(psk, max_psk_len as usize) };
 
     let ssl_context = ssl.ssl_context().to_owned();
@@ -358,7 +358,7 @@ where
 
     match callback(ssl, protos) {
         Ok(proto) => {
-            *out = proto.as_ptr() as *const c_uchar;
+            *out = proto.as_ptr();
             *outlen = proto.len() as c_uchar;
 
             ffi::SSL_TLSEXT_ERR_OK
@@ -442,7 +442,7 @@ where
     // SAFETY: We can make `callback` outlive `ssl` because it is a callback
     // stored in the session context set in `Ssl::new` so it is always
     // guaranteed to outlive the lifetime of this function's scope.
-    let callback = unsafe { &*(callback as *const F) };
+    let callback = unsafe { &*std::ptr::from_ref::<F>(callback) };
 
     callback(ssl, session);
 
@@ -495,7 +495,7 @@ where
     // SAFETY: We can make `callback` outlive `ssl` because it is a callback
     // stored in the session context set in `Ssl::new` so it is always
     // guaranteed to outlive the lifetime of this function's scope.
-    let callback = unsafe { &*(callback as *const F) };
+    let callback = unsafe { &*std::ptr::from_ref::<F>(callback) };
 
     match callback(ssl, data) {
         Ok(Some(session)) => {
@@ -515,7 +515,7 @@ where
     F: Fn(&SslRef, &str) + 'static + Sync + Send,
 {
     // SAFETY: boring provides valid inputs.
-    let ssl = unsafe { SslRef::from_ptr(ssl as *mut _) };
+    let ssl = unsafe { SslRef::from_ptr(ssl.cast_mut()) };
     let line = unsafe { CStr::from_ptr(line).to_string_lossy() };
 
     let callback = ssl
@@ -625,7 +625,7 @@ pub(super) unsafe extern "C" fn raw_info_callback<F>(
 {
     // Due to FFI signature requirements we have to pass a *const SSL into this function, but
     // foreign-types requires a *mut SSL to get the Rust SslRef
-    let mut_ref = ssl as *mut ffi::SSL;
+    let mut_ref = ssl.cast_mut();
 
     // SAFETY: boring provides valid inputs.
     let ssl = unsafe { SslRef::from_ptr(mut_ref) };

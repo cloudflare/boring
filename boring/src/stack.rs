@@ -48,7 +48,7 @@ impl<T: Stackable> Drop for Stack<T> {
     fn drop(&mut self) {
         unsafe {
             while self.pop().is_some() {}
-            OPENSSL_sk_free(self.0 as *mut _);
+            OPENSSL_sk_free(self.0.cast());
         }
     }
 }
@@ -58,7 +58,7 @@ impl<T: Stackable> Stack<T> {
         unsafe {
             ffi::init();
             let ptr = cvt_p(OPENSSL_sk_new_null())?;
-            Ok(Stack(ptr as *mut _))
+            Ok(Stack(ptr.cast()))
         }
     }
 }
@@ -132,7 +132,7 @@ impl<T: Stackable> Drop for IntoIter<T> {
     fn drop(&mut self) {
         unsafe {
             for _ in &mut *self {}
-            OPENSSL_sk_free(self.stack as *mut _);
+            OPENSSL_sk_free(self.stack.cast());
         }
     }
 }
@@ -144,7 +144,7 @@ impl<T: Stackable> Iterator for IntoIter<T> {
         unsafe {
             self.idxs
                 .next()
-                .map(|i| T::from_ptr(OPENSSL_sk_value(self.stack as *mut _, i) as *mut _))
+                .map(|i| T::from_ptr(OPENSSL_sk_value(self.stack.cast(), i).cast()))
         }
     }
 
@@ -158,7 +158,7 @@ impl<T: Stackable> DoubleEndedIterator for IntoIter<T> {
         unsafe {
             self.idxs
                 .next_back()
-                .map(|i| T::from_ptr(OPENSSL_sk_value(self.stack as *mut _, i) as *mut _))
+                .map(|i| T::from_ptr(OPENSSL_sk_value(self.stack.cast(), i).cast()))
         }
     }
 }
@@ -176,7 +176,7 @@ unsafe impl<T: Stackable> ForeignTypeRef for StackRef<T> {
 
 impl<T: Stackable> StackRef<T> {
     fn as_stack(&self) -> *mut OPENSSL_STACK {
-        self.as_ptr() as *mut _
+        self.as_ptr().cast()
     }
 
     /// Returns the number of items in the stack.
@@ -234,7 +234,7 @@ impl<T: Stackable> StackRef<T> {
     /// Pushes a value onto the top of the stack.
     pub fn push(&mut self, data: T) -> Result<(), ErrorStack> {
         unsafe {
-            cvt_0(OPENSSL_sk_push(self.as_stack(), data.as_ptr() as *mut _))?;
+            cvt_0(OPENSSL_sk_push(self.as_stack(), data.as_ptr().cast()))?;
             mem::forget(data);
             Ok(())
         }
@@ -247,13 +247,13 @@ impl<T: Stackable> StackRef<T> {
             if ptr.is_null() {
                 None
             } else {
-                Some(T::from_ptr(ptr as *mut _))
+                Some(T::from_ptr(ptr.cast()))
             }
         }
     }
 
     unsafe fn _get(&self, idx: usize) -> *mut T::CType {
-        OPENSSL_sk_value(self.as_stack(), idx) as *mut _
+        OPENSSL_sk_value(self.as_stack(), idx).cast()
     }
 }
 
@@ -323,7 +323,7 @@ impl<'a, T: Stackable> Iterator for Iter<'a, T> {
         unsafe {
             self.idxs
                 .next()
-                .map(|i| T::Ref::from_ptr(OPENSSL_sk_value(self.stack.as_stack(), i) as *mut _))
+                .map(|i| T::Ref::from_ptr(OPENSSL_sk_value(self.stack.as_stack(), i).cast()))
         }
     }
 
@@ -337,7 +337,7 @@ impl<'a, T: Stackable> DoubleEndedIterator for Iter<'a, T> {
         unsafe {
             self.idxs
                 .next_back()
-                .map(|i| T::Ref::from_ptr(OPENSSL_sk_value(self.stack.as_stack(), i) as *mut _))
+                .map(|i| T::Ref::from_ptr(OPENSSL_sk_value(self.stack.as_stack(), i).cast()))
         }
     }
 }
@@ -357,7 +357,7 @@ impl<'a, T: Stackable> Iterator for IterMut<'a, T> {
         unsafe {
             self.idxs
                 .next()
-                .map(|i| T::Ref::from_ptr_mut(OPENSSL_sk_value(self.stack.as_stack(), i) as *mut _))
+                .map(|i| T::Ref::from_ptr_mut(OPENSSL_sk_value(self.stack.as_stack(), i).cast()))
         }
     }
 
@@ -371,7 +371,7 @@ impl<'a, T: Stackable> DoubleEndedIterator for IterMut<'a, T> {
         unsafe {
             self.idxs
                 .next_back()
-                .map(|i| T::Ref::from_ptr_mut(OPENSSL_sk_value(self.stack.as_stack(), i) as *mut _))
+                .map(|i| T::Ref::from_ptr_mut(OPENSSL_sk_value(self.stack.as_stack(), i).cast()))
         }
     }
 }

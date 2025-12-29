@@ -27,7 +27,7 @@ impl SrtpProtectionProfileRef {
 
     #[must_use]
     pub fn name(&self) -> &'static str {
-        unsafe { CStr::from_ptr((*self.as_ptr()).name as *const _) }
+        unsafe { CStr::from_ptr((*self.as_ptr()).name.cast()) }
             .to_str()
             .expect("should be UTF-8")
     }
