@@ -390,7 +390,7 @@ impl BigNumRef {
         unsafe {
             cvt(ffi::BN_generate_prime_ex(
                 self.as_ptr(),
-                bits as c_int,
+                c_int::from(bits),
                 c_int::from(safe),
                 add.map(|n| n.as_ptr()).unwrap_or(ptr::null_mut()),
                 rem.map(|n| n.as_ptr()).unwrap_or(ptr::null_mut()),

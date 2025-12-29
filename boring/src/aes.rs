@@ -38,7 +38,7 @@
 //! ```
 //!
 use crate::ffi;
-use libc::{c_int, c_uint};
+use libc::c_int;
 use openssl_macros::corresponds;
 use std::mem::MaybeUninit;
 use std::ptr;
@@ -64,7 +64,7 @@ impl AesKey {
             let mut aes_key = MaybeUninit::uninit();
             let r = ffi::AES_set_encrypt_key(
                 key.as_ptr(),
-                key.len() as c_uint * 8,
+                (key.len() * 8).try_into().map_err(|_| KeyError(()))?,
                 aes_key.as_mut_ptr(),
             );
             if r == 0 {
@@ -88,7 +88,7 @@ impl AesKey {
             let mut aes_key = MaybeUninit::uninit();
             let r = ffi::AES_set_decrypt_key(
                 key.as_ptr(),
-                key.len() as c_uint * 8,
+                (key.len() * 8).try_into().map_err(|_| KeyError(()))?,
                 aes_key.as_mut_ptr(),
             );
 

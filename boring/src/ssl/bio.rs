@@ -101,8 +101,12 @@ unsafe fn state<'a, S: 'a>(bio: *mut BIO) -> &'a mut StreamState<S> {
 unsafe extern "C" fn bwrite<S: Write>(bio: *mut BIO, buf: *const c_char, len: c_int) -> c_int {
     BIO_clear_retry_flags(bio);
 
+    let Ok(len) = usize::try_from(len) else {
+        return -1;
+    };
+
     let state = state::<S>(bio);
-    let buf = slice::from_raw_parts(buf.cast(), len as usize);
+    let buf = slice::from_raw_parts(buf.cast(), len);
 
     match catch_unwind(AssertUnwindSafe(|| state.stream.write(buf))) {
         Ok(Ok(len)) => len as c_int,
@@ -123,8 +127,12 @@ unsafe extern "C" fn bwrite<S: Write>(bio: *mut BIO, buf: *const c_char, len: c_
 unsafe extern "C" fn bread<S: Read>(bio: *mut BIO, buf: *mut c_char, len: c_int) -> c_int {
     BIO_clear_retry_flags(bio);
 
+    let Ok(len) = usize::try_from(len) else {
+        return -1;
+    };
+
     let state = state::<S>(bio);
-    let buf = slice::from_raw_parts_mut(buf.cast(), len as usize);
+    let buf = slice::from_raw_parts_mut(buf.cast(), len);
 
     match catch_unwind(AssertUnwindSafe(|| state.stream.read(buf))) {
         Ok(Ok(len)) => len as c_int,

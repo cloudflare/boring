@@ -201,6 +201,15 @@ fn cvt_n(r: c_int) -> Result<c_int, ErrorStack> {
     }
 }
 
+fn try_int<F, T>(from: F) -> Result<T, ErrorStack>
+where
+    F: TryInto<T> + Send + Sync + Copy + 'static,
+    T: Send + Sync + Copy + 'static,
+{
+    from.try_into()
+        .map_err(|_| ErrorStack::internal_error_str("int overflow"))
+}
+
 unsafe extern "C" fn free_data_box<T>(
     _parent: *mut c_void,
     ptr: *mut c_void,

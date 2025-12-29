@@ -5,7 +5,6 @@
 //! using the private key that can be validated with the public key but not be generated
 //! without the private key.
 
-use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 use libc::c_uint;
 use openssl_macros::corresponds;
@@ -15,7 +14,9 @@ use std::ptr;
 
 use crate::bn::{BigNum, BigNumRef};
 use crate::error::ErrorStack;
+use crate::ffi;
 use crate::pkey::{HasParams, HasPrivate, HasPublic, Private, Public};
+use crate::try_int;
 use crate::{cvt, cvt_p};
 
 generic_foreign_type_and_impl_send_sync! {
@@ -195,7 +196,7 @@ impl Dsa<Private> {
             let dsa = Dsa::from_ptr(cvt_p(ffi::DSA_new())?);
             cvt(ffi::DSA_generate_parameters_ex(
                 dsa.0,
-                bits as c_uint,
+                c_uint::from(bits),
                 ptr::null(),
                 0,
                 ptr::null_mut(),

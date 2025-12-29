@@ -54,14 +54,14 @@
 
 use crate::ffi;
 use foreign_types::ForeignTypeRef;
-use libc::{c_int, c_uint};
 use openssl_macros::corresponds;
 use std::cmp;
+use std::ffi::c_int;
 use std::ptr;
 
 use crate::error::ErrorStack;
 use crate::nid::Nid;
-use crate::{cvt, cvt_p};
+use crate::{cvt, cvt_p, try_int};
 
 #[derive(Copy, Clone)]
 pub enum Mode {
@@ -419,20 +419,18 @@ impl Crypter {
                 mode,
             ))?;
 
-            assert!(key.len() <= c_int::MAX as usize);
             cvt(ffi::EVP_CIPHER_CTX_set_key_length(
                 crypter.ctx,
-                key.len() as c_uint,
+                try_int(key.len())?,
             ))?;
 
             let iv = match (iv, t.iv_len()) {
                 (Some(iv), Some(len)) => {
                     if iv.len() != len {
-                        assert!(iv.len() <= c_int::MAX as usize);
                         cvt(ffi::EVP_CIPHER_CTX_ctrl(
                             crypter.ctx,
                             ffi::EVP_CTRL_GCM_SET_IVLEN,
-                            iv.len() as c_int,
+                            try_int(iv.len())?,
                             ptr::null_mut(),
                         ))?;
                     }
@@ -469,12 +467,11 @@ impl Crypter {
     /// When decrypting cipher text using an AEAD cipher, this must be called before `finalize`.
     pub fn set_tag(&mut self, tag: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            assert!(tag.len() <= c_int::MAX as usize);
             // NB: this constant is actually more general than just GCM.
             cvt(ffi::EVP_CIPHER_CTX_ctrl(
                 self.ctx,
                 ffi::EVP_CTRL_GCM_SET_TAG,
-                tag.len() as c_int,
+                try_int(tag.len())?,
                 tag.as_ptr().cast_mut().cast(),
             ))
         }
@@ -486,12 +483,11 @@ impl Crypter {
     /// to use a value different than the default 12 bytes.
     pub fn set_tag_len(&mut self, tag_len: usize) -> Result<(), ErrorStack> {
         unsafe {
-            assert!(tag_len <= c_int::MAX as usize);
             // NB: this constant is actually more general than just GCM.
             cvt(ffi::EVP_CIPHER_CTX_ctrl(
                 self.ctx,
                 ffi::EVP_CTRL_GCM_SET_TAG,
-                tag_len as c_int,
+                try_int(tag_len)?,
                 ptr::null_mut(),
             ))
         }
@@ -503,14 +499,13 @@ impl Crypter {
     /// CCM mode.
     pub fn set_data_len(&mut self, data_len: usize) -> Result<(), ErrorStack> {
         unsafe {
-            assert!(data_len <= c_int::MAX as usize);
             let mut len = 0;
             cvt(ffi::EVP_CipherUpdate(
                 self.ctx,
                 ptr::null_mut(),
                 &mut len,
                 ptr::null_mut(),
-                data_len as c_int,
+                try_int(data_len)?,
             ))
         }
     }
@@ -522,14 +517,13 @@ impl Crypter {
     /// `update`.
     pub fn aad_update(&mut self, input: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            assert!(input.len() <= c_int::MAX as usize);
             let mut len = 0;
             cvt(ffi::EVP_CipherUpdate(
                 self.ctx,
                 ptr::null_mut(),
                 &mut len,
                 input.as_ptr(),
-                input.len() as c_int,
+                try_int(input.len())?,
             ))
         }
     }
@@ -546,8 +540,6 @@ impl Crypter {
     ///
     /// Panics for block ciphers if `output.len() < input.len() + block_size`,
     /// where `block_size` is the block size of the cipher (see `Cipher::block_size`).
-    ///
-    /// Panics if `output.len() > c_int::MAX`.
     pub fn update(&mut self, input: &[u8], output: &mut [u8]) -> Result<usize, ErrorStack> {
         unsafe {
             let block_size = if self.block_size > 1 {
@@ -556,16 +548,14 @@ impl Crypter {
                 0
             };
             assert!(output.len() >= input.len() + block_size);
-            assert!(output.len() <= c_int::MAX as usize);
-            let mut outl = output.len() as c_int;
-            let inl = input.len() as c_int;
+            let mut outl = try_int(output.len())?;
 
             cvt(ffi::EVP_CipherUpdate(
                 self.ctx,
                 output.as_mut_ptr(),
                 &mut outl,
                 input.as_ptr(),
-                inl,
+                try_int(input.len())?,
             ))?;
 
             Ok(outl as usize)
@@ -610,11 +600,10 @@ impl Crypter {
     /// bytes, for example.
     pub fn get_tag(&self, tag: &mut [u8]) -> Result<(), ErrorStack> {
         unsafe {
-            assert!(tag.len() <= c_int::MAX as usize);
             cvt(ffi::EVP_CIPHER_CTX_ctrl(
                 self.ctx,
                 ffi::EVP_CTRL_GCM_GET_TAG,
-                tag.len() as c_int,
+                try_int(tag.len())?,
                 tag.as_mut_ptr().cast(),
             ))
         }

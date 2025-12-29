@@ -92,6 +92,7 @@ use crate::ssl::callbacks::*;
 use crate::ssl::error::InnerError;
 use crate::stack::{Stack, StackRef, Stackable};
 use crate::symm::CipherCtxRef;
+use crate::try_int;
 use crate::x509::store::{X509Store, X509StoreBuilder, X509StoreBuilderRef, X509StoreRef};
 use crate::x509::verify::X509VerifyParamRef;
 use crate::x509::{
@@ -783,9 +784,9 @@ pub fn select_next_proto<'a>(server: &'a [u8], client: &'a [u8]) -> Option<&'a [
             &mut out,
             &mut outlen,
             server.as_ptr(),
-            server.len() as c_uint,
+            try_int(server.len()).ok()?,
             client.as_ptr(),
-            client.len() as c_uint,
+            try_int(client.len()).ok()?,
         );
 
         if r == ffi::OPENSSL_NPN_NEGOTIATED {
@@ -1018,7 +1019,7 @@ impl SslContextBuilder {
         self.ctx.check_x509();
 
         unsafe {
-            ffi::SSL_CTX_set_verify(self.as_ptr(), mode.bits() as c_int, None);
+            ffi::SSL_CTX_set_verify(self.as_ptr(), c_int::from(mode.bits()), None);
         }
     }
 
@@ -1047,7 +1048,11 @@ impl SslContextBuilder {
 
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
-            ffi::SSL_CTX_set_verify(self.as_ptr(), mode.bits() as c_int, Some(raw_verify::<F>));
+            ffi::SSL_CTX_set_verify(
+                self.as_ptr(),
+                c_int::from(mode.bits()),
+                Some(raw_verify::<F>),
+            );
         }
     }
 
@@ -1074,7 +1079,7 @@ impl SslContextBuilder {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_set_custom_verify(
                 self.as_ptr(),
-                mode.bits() as c_int,
+                c_int::from(mode.bits()),
                 Some(raw_custom_verify::<F>),
             );
         }
@@ -1175,11 +1180,10 @@ impl SslContextBuilder {
         self.ctx.check_x509();
 
         unsafe {
-            cvt(
-                ffi::SSL_CTX_set0_verify_cert_store(self.as_ptr(), cert_store.into_ptr()) as c_int,
-            )?;
-
-            Ok(())
+            cvt(ffi::SSL_CTX_set0_verify_cert_store(
+                self.as_ptr(),
+                cert_store.into_ptr(),
+            ))
         }
     }
 
@@ -1241,13 +1245,13 @@ impl SslContextBuilder {
     /// Sets the parameters to be used during ephemeral Diffie-Hellman key exchange.
     #[corresponds(SSL_CTX_set_tmp_dh)]
     pub fn set_tmp_dh(&mut self, dh: &DhRef<Params>) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_CTX_set_tmp_dh(self.as_ptr(), dh.as_ptr()) as c_int) }
+        unsafe { cvt(ffi::SSL_CTX_set_tmp_dh(self.as_ptr(), dh.as_ptr())) }
     }
 
     /// Sets the parameters to be used during ephemeral elliptic curve Diffie-Hellman key exchange.
     #[corresponds(SSL_CTX_set_tmp_ecdh)]
     pub fn set_tmp_ecdh(&mut self, key: &EcKeyRef<Params>) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_CTX_set_tmp_ecdh(self.as_ptr(), key.as_ptr()) as c_int) }
+        unsafe { cvt(ffi::SSL_CTX_set_tmp_ecdh(self.as_ptr(), key.as_ptr())) }
     }
 
     /// Use the default locations of trusted certificates for verification.
@@ -1383,8 +1387,10 @@ impl SslContextBuilder {
         self.ctx.check_x509();
 
         unsafe {
-            cvt(ffi::SSL_CTX_add_extra_chain_cert(self.as_ptr(), cert.into_ptr()) as c_int)?;
-            Ok(())
+            cvt(ffi::SSL_CTX_add_extra_chain_cert(
+                self.as_ptr(),
+                cert.into_ptr(),
+            ))
         }
     }
 
@@ -1558,17 +1564,10 @@ impl SslContextBuilder {
     #[corresponds(SSL_CTX_set_alpn_protos)]
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            #[cfg_attr(
-                not(feature = "legacy-compat-deprecated"),
-                allow(clippy::unnecessary_cast)
-            )]
-            {
-                assert!(protocols.len() <= ProtosLen::MAX as usize);
-            }
             let r = ffi::SSL_CTX_set_alpn_protos(
                 self.as_ptr(),
                 protocols.as_ptr(),
-                protocols.len() as ProtosLen,
+                try_int(protocols.len())?,
             );
             // fun fact, SSL_CTX_set_alpn_protos has a reversed return code D:
             if r == 0 {
@@ -1757,10 +1756,10 @@ impl SslContextBuilder {
     {
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
-            cvt(
-                ffi::SSL_CTX_set_tlsext_status_cb(self.as_ptr(), Some(raw_tlsext_status::<F>))
-                    as c_int,
-            )
+            cvt(ffi::SSL_CTX_set_tlsext_status_cb(
+                self.as_ptr(),
+                Some(raw_tlsext_status::<F>),
+            ))
         }
     }
 
@@ -1938,7 +1937,12 @@ impl SslContextBuilder {
     #[corresponds(SSL_CTX_set1_sigalgs_list)]
     pub fn set_sigalgs_list(&mut self, sigalgs: &str) -> Result<(), ErrorStack> {
         let sigalgs = CString::new(sigalgs).map_err(ErrorStack::internal_error)?;
-        unsafe { cvt(ffi::SSL_CTX_set1_sigalgs_list(self.as_ptr(), sigalgs.as_ptr()) as c_int) }
+        unsafe {
+            cvt(ffi::SSL_CTX_set1_sigalgs_list(
+                self.as_ptr(),
+                sigalgs.as_ptr(),
+            ))
+        }
     }
 
     /// Set's whether the context should enable GREASE.
@@ -2361,11 +2365,6 @@ impl SslContextRef {
 /// See [`SslContextBuilder::set_get_session_callback`].
 #[derive(Debug)]
 pub struct GetSessionPendingError;
-
-#[cfg(not(feature = "legacy-compat-deprecated"))]
-type ProtosLen = usize;
-#[cfg(feature = "legacy-compat-deprecated")]
-type ProtosLen = libc::c_uint;
 
 /// Information about the state of a cipher.
 pub struct CipherBits {
@@ -2941,7 +2940,7 @@ impl SslRef {
     pub fn set_verify(&mut self, mode: SslVerifyMode) {
         self.ssl_context().check_x509();
 
-        unsafe { ffi::SSL_set_verify(self.as_ptr(), mode.bits() as c_int, None) }
+        unsafe { ffi::SSL_set_verify(self.as_ptr(), c_int::from(mode.bits()), None) }
     }
 
     /// Sets the certificate verification depth.
@@ -2994,7 +2993,7 @@ impl SslRef {
             self.replace_ex_data(Ssl::cached_ex_index(), Arc::new(callback));
             ffi::SSL_set_verify(
                 self.as_ptr(),
-                mode.bits() as c_int,
+                c_int::from(mode.bits()),
                 Some(ssl_raw_verify::<F>),
             );
         }
@@ -3006,8 +3005,10 @@ impl SslRef {
         self.ssl_context().check_x509();
 
         unsafe {
-            cvt(ffi::SSL_set0_verify_cert_store(self.as_ptr(), cert_store.into_ptr()) as c_int)?;
-            Ok(())
+            cvt(ffi::SSL_set0_verify_cert_store(
+                self.as_ptr(),
+                cert_store.into_ptr(),
+            ))
         }
     }
 
@@ -3028,7 +3029,7 @@ impl SslRef {
             self.replace_ex_data(Ssl::cached_ex_index(), Arc::new(callback));
             ffi::SSL_set_custom_verify(
                 self.as_ptr(),
-                mode.bits() as c_int,
+                c_int::from(mode.bits()),
                 Some(ssl_raw_custom_verify::<F>),
             );
         }
@@ -3039,7 +3040,7 @@ impl SslRef {
     /// [`SslContextBuilder::set_tmp_dh`]: struct.SslContextBuilder.html#method.set_tmp_dh
     #[corresponds(SSL_set_tmp_dh)]
     pub fn set_tmp_dh(&mut self, dh: &DhRef<Params>) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_set_tmp_dh(self.as_ptr(), dh.as_ptr()) as c_int) }
+        unsafe { cvt(ffi::SSL_set_tmp_dh(self.as_ptr(), dh.as_ptr())) }
     }
 
     /// Like [`SslContextBuilder::set_tmp_ecdh`].
@@ -3047,7 +3048,7 @@ impl SslRef {
     /// [`SslContextBuilder::set_tmp_ecdh`]: struct.SslContextBuilder.html#method.set_tmp_ecdh
     #[corresponds(SSL_set_tmp_ecdh)]
     pub fn set_tmp_ecdh(&mut self, key: &EcKeyRef<Params>) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_set_tmp_ecdh(self.as_ptr(), key.as_ptr()) as c_int) }
+        unsafe { cvt(ffi::SSL_set_tmp_ecdh(self.as_ptr(), key.as_ptr())) }
     }
 
     /// Configures whether ClientHello extensions should be permuted.
@@ -3062,17 +3063,10 @@ impl SslRef {
     #[corresponds(SSL_set_alpn_protos)]
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            #[cfg_attr(
-                not(feature = "legacy-compat-deprecated"),
-                allow(clippy::unnecessary_cast)
-            )]
-            {
-                assert!(protocols.len() <= ProtosLen::MAX as usize);
-            }
             let r = ffi::SSL_set_alpn_protos(
                 self.as_ptr(),
                 protocols.as_ptr(),
-                protocols.len() as ProtosLen,
+                try_int(protocols.len())?,
             );
             // fun fact, SSL_set_alpn_protos has a reversed return code D:
             if r == 0 {
@@ -3544,7 +3538,12 @@ impl SslRef {
     /// Sets the status response a client wishes the server to reply with.
     #[corresponds(SSL_set_tlsext_status_type)]
     pub fn set_status_type(&mut self, type_: StatusType) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_set_tlsext_status_type(self.as_ptr(), type_.as_raw()) as c_int) }
+        unsafe {
+            cvt(ffi::SSL_set_tlsext_status_type(
+                self.as_ptr(),
+                type_.as_raw(),
+            ))
+        }
     }
 
     /// Returns the server's OCSP response, if present.
@@ -3673,7 +3672,7 @@ impl SslRef {
     /// Sets the MTU used for DTLS connections.
     #[corresponds(SSL_set_mtu)]
     pub fn set_mtu(&mut self, mtu: u32) -> Result<(), ErrorStack> {
-        unsafe { cvt(ffi::SSL_set_mtu(self.as_ptr(), mtu as c_uint) as c_int) }
+        unsafe { cvt(ffi::SSL_set_mtu(self.as_ptr(), mtu as c_uint)) }
     }
 
     /// Sets the certificate.

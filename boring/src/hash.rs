@@ -1,6 +1,4 @@
-use crate::ffi;
 use openssl_macros::corresponds;
-use std::convert::TryInto;
 use std::ffi::c_uint;
 use std::fmt;
 use std::io;
@@ -9,8 +7,10 @@ use std::ops::{Deref, DerefMut};
 use std::ptr;
 
 use crate::error::ErrorStack;
+use crate::ffi;
 use crate::ffi::{EVP_MD_CTX_free, EVP_MD_CTX_new};
 use crate::nid::Nid;
+use crate::try_int;
 use crate::{cvt, cvt_p};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -210,7 +210,7 @@ impl Hasher {
             self.init()?;
         }
         unsafe {
-            let mut len = ffi::EVP_MAX_MD_SIZE.try_into().unwrap();
+            let mut len = try_int(ffi::EVP_MAX_MD_SIZE)?;
             let mut buf = [0; ffi::EVP_MAX_MD_SIZE as usize];
             cvt(ffi::EVP_DigestFinal_ex(
                 self.ctx,
@@ -220,7 +220,7 @@ impl Hasher {
             self.state = Finalized;
             Ok(DigestBytes {
                 buf,
-                len: len as usize,
+                len: try_int(len)?,
             })
         }
     }
