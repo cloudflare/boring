@@ -134,6 +134,23 @@ foreign_type_and_impl_send_sync! {
     pub struct X509Store;
 }
 
+impl ToOwned for X509StoreRef {
+    type Owned = X509Store;
+
+    fn to_owned(&self) -> X509Store {
+        unsafe {
+            ffi::X509_STORE_up_ref(self.as_ptr());
+            X509Store::from_ptr(self.as_ptr())
+        }
+    }
+}
+
+impl Clone for X509Store {
+    fn clone(&self) -> X509Store {
+        (**self).to_owned()
+    }
+}
+
 impl X509StoreRef {
     /// **Warning: this method is unsound**
     ///
@@ -160,12 +177,15 @@ impl X509StoreRef {
 }
 
 #[test]
-#[allow(dead_code)]
-// X509Store must not implement Clone because `SslContextBuilder::cert_store_mut` lets
-// you get a mutable reference to a store that could have been cloned before being
-// passed to `SslContextBuilder::set_cert_store`.
-fn no_clone_for_x509store() {
-    trait MustNotImplementClone {}
-    impl<T: Clone> MustNotImplementClone for T {}
-    impl MustNotImplementClone for X509Store {}
+#[should_panic = "Shared X509Store can't be mutated"]
+fn set_cert_store_pevents_mutability() {
+    use crate::ssl::*;
+
+    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
+    let store = X509StoreBuilder::new().unwrap().build();
+
+    ctx.set_cert_store(store.clone());
+
+    // This is bad.
+    let _aliased_store = ctx.cert_store_mut();
 }
