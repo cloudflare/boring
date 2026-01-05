@@ -20,7 +20,7 @@ use std::net::IpAddr;
 use std::path::Path;
 use std::ptr;
 use std::str;
-use std::sync::{LazyLock, Once};
+use std::sync::LazyLock;
 
 use crate::asn1::{
     Asn1BitStringRef, Asn1IntegerRef, Asn1Object, Asn1ObjectRef, Asn1StringRef, Asn1TimeRef,
@@ -1813,12 +1813,5 @@ unsafe fn X509_OBJECT_free(x: *mut ffi::X509_OBJECT) {
 }
 
 unsafe fn get_new_x509_store_ctx_idx(f: ffi::CRYPTO_EX_free) -> c_int {
-    // hack around https://rt.openssl.org/Ticket/Display.html?id=3710&user=guest&pass=guest
-    static ONCE: Once = Once::new();
-
-    ONCE.call_once(|| {
-        ffi::X509_STORE_CTX_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, None);
-    });
-
     ffi::X509_STORE_CTX_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, f)
 }
