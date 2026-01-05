@@ -2,7 +2,7 @@
 
 use crate::stack::Stack;
 use crate::x509::store::X509StoreBuilder;
-use crate::x509::verify::{X509Flags, X509VerifyParamRef};
+use crate::x509::verify::{X509VerifyFlags, X509VerifyParamRef};
 use crate::x509::{X509Ref, X509StoreContext, X509VerifyError, X509VerifyResult, X509};
 
 #[test]
@@ -43,7 +43,7 @@ fn test_verify_cert() {
             &leaf,
             &[&root1, &root2],
             &[&intermediate, &root1_cross],
-            |param| param.set_flags(X509Flags::TRUSTED_FIRST),
+            |param| param.set_flags(X509VerifyFlags::TRUSTED_FIRST),
         )
     );
 
@@ -53,14 +53,14 @@ fn test_verify_cert() {
             &leaf,
             &[&root1, &root2],
             &[&intermediate, &root1_cross],
-            |param| param.clear_flags(X509Flags::TRUSTED_FIRST),
+            |param| param.clear_flags(X509VerifyFlags::TRUSTED_FIRST),
         )
     );
 
     assert_eq!(
         Ok(()),
         verify(&leaf, &[&root1], &[&intermediate, &root1_cross], |param| {
-            param.clear_flags(X509Flags::TRUSTED_FIRST)
+            param.clear_flags(X509VerifyFlags::TRUSTED_FIRST)
         })
     );
 }

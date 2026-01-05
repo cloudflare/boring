@@ -20,20 +20,14 @@ bitflags! {
         const NEVER_CHECK_SUBJECT = ffi::X509_CHECK_FLAG_NEVER_CHECK_SUBJECT as _;
         #[cfg(feature = "underscore-wildcards")]
         const UNDERSCORE_WILDCARDS = ffi::X509_CHECK_FLAG_UNDERSCORE_WILDCARDS as _;
-
-        #[deprecated(since = "0.10.6", note = "renamed to NO_WILDCARDS")]
-        const FLAG_NO_WILDCARDS = ffi::X509_CHECK_FLAG_NO_WILDCARDS as _;
     }
 }
-
-#[doc(hidden)]
-#[deprecated(note = "X509Flags renamed to X509VerifyFlags")]
-pub use X509VerifyFlags as X509Flags;
 
 bitflags! {
     /// Flags used to check an `X509` certificate.
     #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
     #[repr(transparent)]
+    #[doc(alias = "X509Flags")]
     pub struct X509VerifyFlags: c_ulong {
         const CB_ISSUER_CHECK = ffi::X509_V_FLAG_CB_ISSUER_CHECK as _;
         const USE_CHECK_TIME = ffi::X509_V_FLAG_USE_CHECK_TIME as _;
