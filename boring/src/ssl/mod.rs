@@ -1953,17 +1953,22 @@ impl SslContextBuilder {
         }
     }
 
+    /// DEPRECATED: use `Self::replace_ex_data()` to set the data.
+    ///
+    /// If this method is called more than once with the same index, any previous
+    /// value stored in the `SslContextBuilder` may be leaked. This will change in the future release.
+    ///
     /// Sets the extra data at the specified index.
     ///
     /// This can be used to provide data to callbacks registered with the context. Use the
     /// `SslContext::new_ex_index` method to create an `Index`.
-    ///
-    /// Note that if this method is called multiple times with the same index, any previous
-    /// value stored in the `SslContextBuilder` will be leaked.
     #[corresponds(SSL_CTX_set_ex_data)]
+    #[deprecated(
+        note = "This may leak memory. Don't rely on leaking. Use `replace_ex_data()` instead."
+    )]
     pub fn set_ex_data<T>(&mut self, index: Index<SslContext, T>, data: T) {
         unsafe {
-            self.ctx.set_ex_data(index, data);
+            self.ctx.write_ex_data(index, data);
         }
     }
 
@@ -1974,6 +1979,7 @@ impl SslContextBuilder {
     ///
     /// Any previous value will be returned and replaced by the new one.
     #[corresponds(SSL_CTX_set_ex_data)]
+    #[doc(alias = "set_ex_data")]
     pub fn replace_ex_data<T>(&mut self, index: Index<SslContext, T>, data: T) -> Option<T> {
         unsafe { self.ctx.replace_ex_data(index, data) }
     }
@@ -2292,10 +2298,11 @@ impl SslContextRef {
         }
     }
 
+    /// Internal: does not run destructors for the previous value
     // Unsafe because SSL contexts are not guaranteed to be unique, we call
     // this only from SslContextBuilder.
     #[corresponds(SSL_CTX_set_ex_data)]
-    unsafe fn set_ex_data<T>(&mut self, index: Index<SslContext, T>, data: T) {
+    unsafe fn write_ex_data<T>(&mut self, index: Index<SslContext, T>, data: T) {
         unsafe {
             let data = Box::into_raw(Box::new(data)) as *mut c_void;
             ffi::SSL_CTX_set_ex_data(self.as_ptr(), index.as_raw(), data);
@@ -2310,7 +2317,7 @@ impl SslContextRef {
             return Some(mem::replace(old, data));
         }
 
-        self.set_ex_data(index, data);
+        self.write_ex_data(index, data);
 
         None
     }
