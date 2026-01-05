@@ -132,6 +132,7 @@ impl X509StoreContextRef {
     /// This can be used to provide data to callbacks registered with the context. Use the
     /// `Ssl::new_ex_index` method to create an `Index`.
     #[corresponds(X509_STORE_CTX_set_ex_data)]
+    #[doc(alias = "replace_ex_data")]
     pub fn set_ex_data<T>(&mut self, index: Index<X509StoreContext, T>, data: T) {
         if let Some(old) = self.ex_data_mut(index) {
             *old = data;
