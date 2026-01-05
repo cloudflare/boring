@@ -1948,13 +1948,10 @@ impl SslContextBuilder {
     ///
     /// This can be used to provide data to callbacks registered with the context. Use the
     /// `SslContext::new_ex_index` method to create an `Index`.
-    ///
-    /// Note that if this method is called multiple times with the same index, any previous
-    /// value stored in the `SslContextBuilder` will be leaked.
     #[corresponds(SSL_CTX_set_ex_data)]
     pub fn set_ex_data<T>(&mut self, index: Index<SslContext, T>, data: T) {
         unsafe {
-            self.ctx.set_ex_data(index, data);
+            self.ctx.replace_ex_data(index, data);
         }
     }
 
