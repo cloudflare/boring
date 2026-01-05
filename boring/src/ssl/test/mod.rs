@@ -1118,3 +1118,46 @@ fn test_ssl_set_compliance() {
     ssl.set_compliance_policy(CompliancePolicy::NONE)
         .expect_err("Testing expect err if set compliance policy to NONE");
 }
+
+#[test]
+fn ex_data_drop() {
+    use crate::ssl::SslContextBuilder;
+    use std::sync::atomic::AtomicU32;
+    use std::sync::atomic::Ordering::Relaxed;
+    use std::sync::Arc;
+
+    struct TrackDrop(Arc<AtomicU32>);
+    impl Drop for TrackDrop {
+        fn drop(&mut self) {
+            self.0.fetch_add(1, Relaxed);
+        }
+    }
+
+    let mut ctx = SslContextBuilder::new(SslMethod::tls()).unwrap();
+    let index = SslContext::new_ex_index().unwrap();
+    let d1 = Arc::new(AtomicU32::new(100));
+    let d2 = Arc::new(AtomicU32::new(200));
+    let d3 = Arc::new(AtomicU32::new(300));
+    ctx.set_ex_data(index, TrackDrop(d1.clone()));
+    assert_eq!(100, d1.load(Relaxed));
+    assert_eq!(200, d2.load(Relaxed));
+    ctx.replace_ex_data(index, TrackDrop(d2.clone()));
+    assert_eq!(101, d1.load(Relaxed));
+    assert_eq!(200, d2.load(Relaxed));
+    ctx.replace_ex_data(index, TrackDrop(d3.clone()));
+    assert_eq!(101, d1.load(Relaxed));
+    assert_eq!(201, d2.load(Relaxed));
+    assert_eq!(300, d3.load(Relaxed));
+    drop(ctx);
+    assert_eq!(101, d1.load(Relaxed));
+    assert_eq!(201, d2.load(Relaxed));
+    assert_eq!(301, d3.load(Relaxed));
+
+    let mut ctx2 = SslContextBuilder::new(SslMethod::tls()).unwrap();
+
+    ctx2.set_ex_data(index, TrackDrop(d1.clone()));
+    ctx2.set_ex_data(index, TrackDrop(d2.clone()));
+    drop(ctx2);
+    assert_eq!(102, d1.load(Relaxed));
+    assert_eq!(202, d2.load(Relaxed));
+}
