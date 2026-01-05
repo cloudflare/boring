@@ -62,6 +62,10 @@ impl ErrorStack {
         Self(vec![Error::new_internal(Data::String(err.to_string()))])
     }
 
+    pub(crate) fn internal_error_str(message: &'static str) -> Self {
+        Self(vec![Error::new_internal(Data::String(message.into()))])
+    }
+
     /// Empties the current thread's error queue.
     #[corresponds(ERR_clear_error)]
     pub(crate) fn clear() {
