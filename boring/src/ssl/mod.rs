@@ -700,13 +700,16 @@ impl From<u16> for SslSignatureAlgorithm {
 /// Numeric identifier of a TLS curve.
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[deprecated(note = "this is not ABI-stable and will be removed in the next release")]
 pub struct SslCurveNid(c_int);
 
 /// A TLS Curve.
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[deprecated(note = "this is not ABI-stable and will be removed in the next release")]
 pub struct SslCurve(c_int);
 
+#[allow(deprecated)]
 impl SslCurve {
     pub const SECP224R1: SslCurve = SslCurve(ffi::SSL_CURVE_SECP224R1 as _);
 
@@ -2066,6 +2069,8 @@ impl SslContextBuilder {
         }
     }
 
+    /// Use `Self::set_curves_list()` instead.
+    ///
     /// Sets the context's supported curves.
     //
     // If the "kx-*" flags are used to set key exchange preference, then don't allow the user to
@@ -2073,6 +2078,10 @@ impl SslContextBuilder {
     // when the flags are used, the preferences are set just before connecting or accepting.
     #[corresponds(SSL_CTX_set1_curves)]
     #[cfg(not(feature = "kx-safe-default"))]
+    #[deprecated(
+        note = "Use set_curves_list(). set_curves() and SslCurve will be removed in the next release"
+    )]
+    #[allow(deprecated)]
     pub fn set_curves(&mut self, curves: &[SslCurve]) -> Result<(), ErrorStack> {
         let curves: Vec<i32> = curves
             .iter()
@@ -2959,6 +2968,8 @@ impl SslRef {
     /// Sets the ongoing session's supported groups by their named identifiers
     /// (formerly referred to as curves).
     #[corresponds(SSL_set1_groups)]
+    #[deprecated(note = "SslCurveNid will be removed in the next release. Use set_curves_list")]
+    #[allow(deprecated)]
     pub fn set_group_nids(&mut self, group_nids: &[SslCurveNid]) -> Result<(), ErrorStack> {
         unsafe {
             cvt_0i(ffi::SSL_set1_curves(
@@ -3007,6 +3018,8 @@ impl SslRef {
     /// Returns the [`SslCurve`] used for this `SslRef`.
     #[corresponds(SSL_get_curve_id)]
     #[must_use]
+    #[deprecated(note = "SslCurve will be removed in the next release")]
+    #[allow(deprecated)]
     pub fn curve(&self) -> Option<SslCurve> {
         let curve_id = unsafe { ffi::SSL_get_curve_id(self.as_ptr()) };
         if curve_id == 0 {
