@@ -8,6 +8,7 @@ use boring::ssl::{
 };
 use http_old::uri::Scheme;
 use hyper_old::client::connect::{Connected, Connection};
+#[cfg(feature = "runtime")]
 use hyper_old::client::HttpConnector;
 use hyper_old::service::Service;
 use hyper_old::Uri;
