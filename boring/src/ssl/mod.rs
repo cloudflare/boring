@@ -1203,16 +1203,18 @@ impl SslContextBuilder {
         }
     }
 
-    /// Use [`set_cert_store_builder`] or [`set_cert_store_ref`] instead.
+    /// Replaces the context's certificate store, and keeps it immutable.
     ///
-    /// Replaces the context's certificate store.
+    /// This method allows sharing the `X509Store`, but calls to `cert_store_mut` will panic.
+    ///
+    /// Use [`set_cert_store_builder`] to set a mutable cert store
+    /// (there's no way to have both sharing and mutability).
     #[corresponds(SSL_CTX_set_cert_store)]
-    #[deprecated(note = "Use set_cert_store_builder or set_cert_store_ref instead")]
     pub fn set_cert_store(&mut self, cert_store: X509Store) {
         #[cfg(feature = "rpk")]
         assert!(!self.is_rpk, "This API is not supported for RPK");
 
-        self.has_shared_cert_store = false;
+        self.has_shared_cert_store = true;
         unsafe {
             ffi::SSL_CTX_set_cert_store(self.as_ptr(), cert_store.into_ptr());
         }
@@ -1235,14 +1237,7 @@ impl SslContextBuilder {
     /// This method allows sharing the `X509Store`, but calls to `cert_store_mut` will panic.
     #[corresponds(SSL_CTX_set_cert_store)]
     pub fn set_cert_store_ref(&mut self, cert_store: &X509Store) {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
-
-        self.has_shared_cert_store = true;
-        unsafe {
-            ffi::X509_STORE_up_ref(cert_store.as_ptr());
-            ffi::SSL_CTX_set_cert_store(self.as_ptr(), cert_store.as_ptr());
-        }
+        self.set_cert_store(cert_store.to_owned());
     }
 
     /// Controls read ahead behavior.
@@ -1771,7 +1766,8 @@ impl SslContextBuilder {
 
         assert!(
             !self.has_shared_cert_store,
-            "Shared X509Store can't be mutated. Make a new store"
+            "Shared X509Store can't be mutated. Use set_cert_store_builder() instead of set_cert_store()
+                or completely finish building the cert store setting it."
         );
         // OTOH, it's not safe to return a shared &X509Store when the builder owns it exclusively
 
