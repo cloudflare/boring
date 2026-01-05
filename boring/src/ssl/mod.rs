@@ -4788,34 +4788,14 @@ pub trait CertificateCompressor: Send + Sync + 'static {
 
 use crate::ffi::{SSL_CTX_up_ref, SSL_SESSION_get_master_key, SSL_SESSION_up_ref, SSL_is_server};
 
-use std::sync::Once;
-
 unsafe fn get_new_idx(f: ffi::CRYPTO_EX_free) -> c_int {
-    // hack around https://rt.openssl.org/Ticket/Display.html?id=3710&user=guest&pass=guest
-    static ONCE: Once = Once::new();
-    ONCE.call_once(|| {
-        ffi::SSL_CTX_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, None);
-    });
-
     ffi::SSL_CTX_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, f)
 }
 
 unsafe fn get_new_ssl_idx(f: ffi::CRYPTO_EX_free) -> c_int {
-    // hack around https://rt.openssl.org/Ticket/Display.html?id=3710&user=guest&pass=guest
-    static ONCE: Once = Once::new();
-    ONCE.call_once(|| {
-        ffi::SSL_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, None);
-    });
-
     ffi::SSL_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, f)
 }
 
 unsafe fn get_new_ssl_credential_idx(f: ffi::CRYPTO_EX_free) -> c_int {
-    // hack around https://rt.openssl.org/Ticket/Display.html?id=3710&user=guest&pass=guest
-    static ONCE: Once = Once::new();
-    ONCE.call_once(|| {
-        ffi::SSL_CREDENTIAL_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, None);
-    });
-
     ffi::SSL_CREDENTIAL_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, f)
 }
