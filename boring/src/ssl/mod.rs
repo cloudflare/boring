@@ -2052,8 +2052,19 @@ impl SslContextBuilder {
     }
 
     /// Sets the context's supported curves.
+    ///
+    /// If the "kx-*" flags are used to set key exchange preference, then don't allow the user to
+    /// set them here. This ensures we don't override the user's preference without telling them:
+    /// when the flags are used, the preferences are set just before connecting or accepting.
+    ///
+    /// The "kx-*" flags will be removed in the next version.
     #[corresponds(SSL_CTX_set1_curves_list)]
     pub fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
+        if cfg!(feature = "kx-safe-default") {
+            return Err(ErrorStack::internal_error_str(
+                "kx-* cargo feature blocked use of set_curves_list",
+            ));
+        }
         let curves = CString::new(curves).map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt_0i(ffi::SSL_CTX_set1_curves_list(
