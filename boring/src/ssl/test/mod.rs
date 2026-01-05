@@ -1,3 +1,4 @@
+#![allow(deprecated)] // SslCurve
 use foreign_types::{ForeignType, ForeignTypeRef};
 use std::io;
 use std::io::prelude::*;
