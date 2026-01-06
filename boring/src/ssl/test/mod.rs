@@ -1010,7 +1010,7 @@ fn test_set_compliance() {
     assert_eq!(ciphers.len(), FIPS_CIPHERS.len());
 
     for cipher in ciphers.into_iter().zip(FIPS_CIPHERS) {
-        assert_eq!(cipher.0.name(), cipher.1)
+        assert_eq!(cipher.0.name(), cipher.1);
     }
 
     let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
@@ -1029,7 +1029,7 @@ fn test_set_compliance() {
     assert_eq!(ciphers.len(), WPA3_192_CIPHERS.len());
 
     for cipher in ciphers.into_iter().zip(WPA3_192_CIPHERS) {
-        assert_eq!(cipher.0.name(), cipher.1)
+        assert_eq!(cipher.0.name(), cipher.1);
     }
 
     ctx.set_compliance_policy(CompliancePolicy::NONE)
@@ -1092,7 +1092,7 @@ fn test_ssl_set_compliance() {
     assert_eq!(ciphers.len(), FIPS_CIPHERS.len());
 
     for cipher in ciphers.into_iter().zip(FIPS_CIPHERS) {
-        assert_eq!(cipher.0.name(), cipher.1)
+        assert_eq!(cipher.0.name(), cipher.1);
     }
 
     let ctx = SslContext::builder(SslMethod::tls()).unwrap().build();
@@ -1112,7 +1112,7 @@ fn test_ssl_set_compliance() {
     assert_eq!(ciphers.len(), WPA3_192_CIPHERS.len());
 
     for cipher in ciphers.into_iter().zip(WPA3_192_CIPHERS) {
-        assert_eq!(cipher.0.name(), cipher.1)
+        assert_eq!(cipher.0.name(), cipher.1);
     }
 
     ssl.set_compliance_policy(CompliancePolicy::NONE)

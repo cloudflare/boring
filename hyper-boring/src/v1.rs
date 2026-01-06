@@ -113,7 +113,7 @@ impl HttpsLayer {
     ///
     /// The session cache configuration of `ssl` will be overwritten.
     pub fn with_connector(ssl: SslConnectorBuilder) -> Result<HttpsLayer, ErrorStack> {
-        Self::with_connector_and_settings(ssl, Default::default())
+        Self::with_connector_and_settings(ssl, HttpsLayerSettings::default())
     }
 
     /// Creates a new `HttpsLayer` with settings
@@ -243,9 +243,8 @@ where
         let f = async {
             let conn = connect.await.map_err(Into::into)?.into_inner();
 
-            let (inner, uri) = match tls_setup {
-                Some((inner, uri)) => (inner, uri),
-                None => return Ok(MaybeHttpsStream::Http(conn)),
+            let Some((inner, uri)) = tls_setup else {
+                return Ok(MaybeHttpsStream::Http(conn));
             };
 
             let mut host = uri.host().ok_or("URI missing host")?;

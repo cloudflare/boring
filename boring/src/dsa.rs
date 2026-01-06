@@ -300,7 +300,7 @@ mod test {
         let mut ctx = BigNumContext::new().unwrap();
         let mut calc = BigNum::new().unwrap();
         calc.mod_exp(g, priv_key, p, &mut ctx).unwrap();
-        assert_eq!(&calc, pub_key)
+        assert_eq!(&calc, pub_key);
     }
 
     #[test]

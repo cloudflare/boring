@@ -86,9 +86,8 @@ impl SessionCache {
     }
 
     pub fn remove(&mut self, session: &SslSessionRef) {
-        let key = match self.reverse.remove(session.id()) {
-            Some(key) => key,
-            None => return,
+        let Some(key) = self.reverse.remove(session.id()) else {
+            return;
         };
 
         if let Entry::Occupied(mut sessions) = self.sessions.entry(key) {
