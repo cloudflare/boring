@@ -125,7 +125,7 @@ fn test_connect_with_srtp_ctx() {
             .unwrap();
         let mut ssl = Ssl::new(&ctx.build()).unwrap();
         ssl.set_mtu(1500).unwrap();
-        let mut stream = ssl.accept(stream).unwrap();
+        let mut stream = ssl.setup_accept(stream).handshake().unwrap();
 
         let mut buf = [0; 60];
         stream
@@ -144,7 +144,7 @@ fn test_connect_with_srtp_ctx() {
         .unwrap();
     let mut ssl = Ssl::new(&ctx.build()).unwrap();
     ssl.set_mtu(1500).unwrap();
-    let mut stream = ssl.connect(stream).unwrap();
+    let mut stream = ssl.setup_connect(stream).handshake().unwrap();
 
     let mut buf = [1; 60];
     {
@@ -194,7 +194,7 @@ fn test_connect_with_srtp_ssl() {
             profilenames
         );
         ssl.set_mtu(1500).unwrap();
-        let mut stream = ssl.accept(stream).unwrap();
+        let mut stream = ssl.setup_accept(stream).handshake().unwrap();
 
         let mut buf = [0; 60];
         stream
@@ -213,7 +213,7 @@ fn test_connect_with_srtp_ssl() {
     ssl.set_tlsext_use_srtp("SRTP_AES128_CM_SHA1_80:SRTP_AES128_CM_SHA1_32")
         .unwrap();
     ssl.set_mtu(1500).unwrap();
-    let mut stream = ssl.connect(stream).unwrap();
+    let mut stream = ssl.setup_connect(stream).handshake().unwrap();
 
     let mut buf = [1; 60];
     {
@@ -445,7 +445,10 @@ fn write_panic() {
     let stream = ExplodingStream(server.connect_tcp());
 
     let ctx = SslContext::builder(SslMethod::tls()).unwrap();
-    let _ = Ssl::new(&ctx.build()).unwrap().connect(stream);
+    let _ = Ssl::new(&ctx.build())
+        .unwrap()
+        .setup_connect(stream)
+        .handshake();
 }
 
 #[test]
@@ -476,7 +479,10 @@ fn read_panic() {
     let stream = ExplodingStream(server.connect_tcp());
 
     let ctx = SslContext::builder(SslMethod::tls()).unwrap();
-    let _ = Ssl::new(&ctx.build()).unwrap().connect(stream);
+    let _ = Ssl::new(&ctx.build())
+        .unwrap()
+        .setup_connect(stream)
+        .handshake();
 }
 
 #[test]
@@ -507,7 +513,10 @@ fn flush_panic() {
     let stream = ExplodingStream(server.connect_tcp());
 
     let ctx = SslContext::builder(SslMethod::tls()).unwrap();
-    let _ = Ssl::new(&ctx.build()).unwrap().connect(stream);
+    let _ = Ssl::new(&ctx.build())
+        .unwrap()
+        .setup_connect(stream)
+        .handshake();
 }
 
 #[test]
@@ -537,7 +546,7 @@ fn default_verify_paths() {
     };
     let mut ssl = Ssl::new(&ctx).unwrap();
     ssl.set_hostname("google.com").unwrap();
-    let mut socket = ssl.connect(s).unwrap();
+    let mut socket = ssl.setup_connect(s).handshake().unwrap();
 
     socket.write_all(b"GET / HTTP/1.0\r\n\r\n").unwrap();
     let mut result = vec![];
@@ -668,7 +677,12 @@ fn connector_valid_hostname() {
     connector.set_ca_file("test/root-ca.pem").unwrap();
 
     let s = server.connect_tcp();
-    let mut s = connector.build().connect("foobar.com", s).unwrap();
+    let mut s = connector
+        .build()
+        .setup_connect("foobar.com", s)
+        .unwrap()
+        .handshake()
+        .unwrap();
     s.read_exact(&mut [0]).unwrap();
 }
 
@@ -682,7 +696,12 @@ fn connector_invalid_hostname() {
     connector.set_ca_file("test/root-ca.pem").unwrap();
 
     let s = server.connect_tcp();
-    connector.build().connect("bogus.com", s).unwrap_err();
+    connector
+        .build()
+        .setup_connect("bogus.com", s)
+        .unwrap()
+        .handshake()
+        .unwrap_err();
 }
 
 #[test]
@@ -698,7 +717,9 @@ fn connector_invalid_no_hostname_verification() {
         .configure()
         .unwrap()
         .verify_hostname(false)
-        .connect("bogus.com", s)
+        .setup_connect("bogus.com", s)
+        .unwrap()
+        .handshake()
         .unwrap();
     s.read_exact(&mut [0]).unwrap();
 }
@@ -716,7 +737,9 @@ fn connector_no_hostname_still_verifies() {
         .configure()
         .unwrap()
         .verify_hostname(false)
-        .connect("fizzbuzz.com", s)
+        .setup_connect("fizzbuzz.com", s)
+        .unwrap()
+        .handshake()
         .is_err());
 }
 
@@ -733,7 +756,9 @@ fn connector_no_hostname_can_disable_verify() {
         .configure()
         .unwrap()
         .verify_hostname(false)
-        .connect("foobar.com", s)
+        .setup_connect("foobar.com", s)
+        .unwrap()
+        .handshake()
         .unwrap();
     s.read_exact(&mut [0]).unwrap();
 }
@@ -750,7 +775,7 @@ fn test_mozilla_server(new: fn(SslMethod) -> Result<SslAcceptorBuilder, ErrorSta
         acceptor.set_certificate(&cert).unwrap();
         let acceptor = acceptor.build();
         let stream = listener.accept().unwrap().0;
-        let mut stream = acceptor.accept(stream).unwrap();
+        let mut stream = acceptor.setup_accept(stream).unwrap().handshake().unwrap();
 
         stream.write_all(b"hello").unwrap();
     });
@@ -760,7 +785,11 @@ fn test_mozilla_server(new: fn(SslMethod) -> Result<SslAcceptorBuilder, ErrorSta
     let connector = connector.build();
 
     let stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
-    let mut stream = connector.connect("foobar.com", stream).unwrap();
+    let mut stream = connector
+        .setup_connect("foobar.com", stream)
+        .unwrap()
+        .handshake()
+        .unwrap();
 
     let mut buf = [0; 5];
     stream.read_exact(&mut buf).unwrap();
@@ -830,7 +859,7 @@ fn keying_export() {
         ctx.set_private_key_file(Path::new("test/key.pem"), SslFiletype::PEM)
             .unwrap();
         let ssl = Ssl::new(&ctx.build()).unwrap();
-        let mut stream = ssl.accept(stream).unwrap();
+        let mut stream = ssl.setup_accept(stream).handshake().unwrap();
 
         let mut buf = [0; 32];
         stream
@@ -846,7 +875,7 @@ fn keying_export() {
     let stream = TcpStream::connect(addr).unwrap();
     let ctx = SslContext::builder(SslMethod::tls()).unwrap();
     let ssl = Ssl::new(&ctx.build()).unwrap();
-    let mut stream = ssl.connect(stream).unwrap();
+    let mut stream = ssl.setup_connect(stream).handshake().unwrap();
 
     let mut buf = [1; 32];
     stream

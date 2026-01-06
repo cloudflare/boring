@@ -1,5 +1,5 @@
 use super::server::Server;
-use crate::ssl::{ErrorCode, HandshakeError, SslAlert, SslVerifyMode};
+use crate::ssl::{ErrorCode, SslAlert, SslVerifyMode};
 use crate::x509::X509StoreContext;
 use crate::{hash::MessageDigest, ssl::SslVerifyError};
 use hex;
@@ -9,11 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 fn untrusted_callback_override_bad() {
     let mut server = Server::builder();
 
-    server.err_cb(|err| {
-        let HandshakeError::Failure(handshake) = err else {
-            panic!("expected failure error");
-        };
-
+    server.err_cb(|handshake| {
         assert_eq!(
             handshake.error().to_string(),
             "[SSLV3_ALERT_CERTIFICATE_REVOKED]"
@@ -242,11 +238,7 @@ fn both_callback() {
 fn retry() {
     let mut server = Server::builder();
 
-    server.err_cb(|err| {
-        let HandshakeError::Failure(handshake) = err else {
-            panic!("expected failure error");
-        };
-
+    server.err_cb(|handshake| {
         assert_eq!(
             handshake.error().to_string(),
             "[SSLV3_ALERT_CERTIFICATE_REVOKED]"
@@ -267,9 +259,7 @@ fn retry() {
             Err(SslVerifyError::Invalid(SslAlert::CERTIFICATE_REVOKED))
         });
 
-    let HandshakeError::WouldBlock(handshake) = client.connect_err() else {
-        panic!("should be WouldBlock");
-    };
+    let handshake = client.connect_err();
 
     assert!(CALLED_BACK.load(Ordering::SeqCst));
     assert!(handshake.error().would_block());

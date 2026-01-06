@@ -34,7 +34,7 @@ mod test_rpk {
 
             let stream = listener.accept().await.unwrap().0;
 
-            tokio_boring::accept(&acceptor, stream).await
+            tokio_boring::accept(&acceptor, stream).unwrap().await
         };
 
         (server, addr)
@@ -66,6 +66,7 @@ mod test_rpk {
 
             let stream = TcpStream::connect(&addr).await.unwrap();
             let mut stream = tokio_boring::connect(config, "localhost", stream)
+                .unwrap()
                 .await
                 .unwrap();
 
@@ -97,6 +98,7 @@ mod test_rpk {
             let stream = TcpStream::connect(&addr).await.unwrap();
 
             let err = tokio_boring::connect(config, "localhost", stream)
+                .unwrap()
                 .await
                 .unwrap_err();
 

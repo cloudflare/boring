@@ -4,8 +4,8 @@ use std::ops::{Deref, DerefMut};
 use crate::dh::Dh;
 use crate::error::ErrorStack;
 use crate::ssl::{
-    HandshakeError, Ssl, SslContext, SslContextBuilder, SslContextRef, SslMethod, SslMode,
-    SslOptions, SslRef, SslStream, SslVerifyMode,
+    Ssl, SslContext, SslContextBuilder, SslContextRef, SslMethod, SslMode, SslOptions, SslRef,
+    SslVerifyMode,
 };
 use crate::version;
 use std::net::IpAddr;
@@ -110,21 +110,6 @@ impl SslConnector {
         S: Read + Write,
     {
         self.configure()?.setup_connect(domain, stream)
-    }
-
-    /// Attempts a client-side TLS session on a stream.
-    ///
-    /// The domain is used for SNI (if it is not an IP address) and hostname verification if enabled.
-    ///
-    /// This is a convenience method which combines [`Self::setup_connect`] and
-    /// [`MidHandshakeSslStream::handshake`].
-    pub fn connect<S>(&self, domain: &str, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
-    where
-        S: Read + Write,
-    {
-        self.setup_connect(domain, stream)
-            .map_err(HandshakeError::SetupFailure)?
-            .handshake()
     }
 
     /// Returns a structure allowing for configuration of a single TLS session before connection.
@@ -253,21 +238,6 @@ impl ConnectConfiguration {
     {
         Ok(self.into_ssl(domain)?.setup_connect(stream))
     }
-
-    /// Attempts a client-side TLS session on a stream.
-    ///
-    /// The domain is used for SNI (if it is not an IP address) and hostname verification if enabled.
-    ///
-    /// This is a convenience method which combines [`Self::setup_connect`] and
-    /// [`MidHandshakeSslStream::handshake`].
-    pub fn connect<S>(self, domain: &str, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
-    where
-        S: Read + Write,
-    {
-        self.setup_connect(domain, stream)
-            .map_err(HandshakeError::SetupFailure)?
-            .handshake()
-    }
 }
 
 impl Deref for ConnectConfiguration {
@@ -385,19 +355,6 @@ impl SslAcceptor {
         let ssl = Ssl::new(&self.0)?;
 
         Ok(ssl.setup_accept(stream))
-    }
-
-    /// Attempts a server-side TLS handshake on a stream.
-    ///
-    /// This is a convenience method which combines [`Self::setup_accept`] and
-    /// [`MidHandshakeSslStream::handshake`].
-    pub fn accept<S>(&self, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
-    where
-        S: Read + Write,
-    {
-        self.setup_accept(stream)
-            .map_err(HandshakeError::SetupFailure)?
-            .handshake()
     }
 
     /// Consumes the `SslAcceptor`, returning the inner raw `SslContext`.

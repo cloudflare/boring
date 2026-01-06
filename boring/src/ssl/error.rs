@@ -1,15 +1,12 @@
 use crate::ffi;
-use crate::x509::X509VerifyError;
 use libc::c_int;
 use openssl_macros::corresponds;
 use std::error;
-use std::error::Error as StdError;
 use std::ffi::CStr;
 use std::fmt;
 use std::io;
 
 use crate::error::ErrorStack;
-use crate::ssl::MidHandshakeSslStream;
 
 /// `SSL_ERROR_*` error code returned from SSL functions.
 ///
@@ -204,69 +201,5 @@ impl error::Error for Error {
             Some(InnerError::Ssl(ref e)) => Some(e),
             None => None,
         }
-    }
-}
-
-/// An error or intermediate state after a TLS handshake attempt.
-// FIXME overhaul
-#[derive(Debug)]
-pub enum HandshakeError<S> {
-    /// Setup failed.
-    SetupFailure(ErrorStack),
-    /// The handshake failed.
-    Failure(MidHandshakeSslStream<S>),
-    /// The handshake encountered a `WouldBlock` error midway through.
-    ///
-    /// This error will never be returned for blocking streams.
-    WouldBlock(MidHandshakeSslStream<S>),
-}
-
-impl<S: fmt::Debug> StdError for HandshakeError<S> {
-    fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        match *self {
-            HandshakeError::SetupFailure(ref e) => Some(e),
-            HandshakeError::Failure(ref s) | HandshakeError::WouldBlock(ref s) => Some(s.error()),
-        }
-    }
-}
-
-impl<S> fmt::Display for HandshakeError<S> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            HandshakeError::SetupFailure(ref e) => {
-                write!(f, "TLS stream setup failed {e}")
-            }
-            HandshakeError::Failure(ref s) => fmt_mid_handshake_error(s, f, "TLS handshake failed"),
-            HandshakeError::WouldBlock(ref s) => {
-                fmt_mid_handshake_error(s, f, "TLS handshake interrupted")
-            }
-        }
-    }
-}
-
-fn fmt_mid_handshake_error(
-    s: &MidHandshakeSslStream<impl Sized>,
-    f: &mut fmt::Formatter,
-    prefix: &str,
-) -> fmt::Result {
-    #[cfg(feature = "rpk")]
-    if s.ssl().ssl_context().is_rpk() {
-        write!(f, "{}", prefix)?;
-        return write!(f, " {}", s.error());
-    }
-
-    match s.ssl().verify_result() {
-        // INVALID_CALL is returned if no verification took place,
-        // such as before a cert is sent.
-        Ok(()) | Err(X509VerifyError::INVALID_CALL) => write!(f, "{prefix}")?,
-        Err(verify) => write!(f, "{prefix}: cert verification failed - {verify}")?,
-    }
-
-    write!(f, " {}", s.error())
-}
-
-impl<S> From<ErrorStack> for HandshakeError<S> {
-    fn from(e: ErrorStack) -> HandshakeError<S> {
-        HandshakeError::SetupFailure(e)
     }
 }

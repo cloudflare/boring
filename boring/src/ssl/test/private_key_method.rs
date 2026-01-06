@@ -5,8 +5,7 @@ use crate::pkey::PKey;
 use crate::rsa::Padding;
 use crate::sign::{RsaPssSaltlen, Signer};
 use crate::ssl::{
-    ErrorCode, HandshakeError, PrivateKeyMethod, PrivateKeyMethodError, SslRef,
-    SslSignatureAlgorithm,
+    ErrorCode, PrivateKeyMethod, PrivateKeyMethodError, SslRef, SslSignatureAlgorithm,
 };
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -139,11 +138,7 @@ fn test_sign_failure() {
         Err(PrivateKeyMethodError::FAILURE)
     }));
 
-    builder.err_cb(|error| {
-        let HandshakeError::Failure(mid_handshake) = error else {
-            panic!("should be Failure");
-        };
-
+    builder.err_cb(|mid_handshake| {
         assert_eq!(mid_handshake.error().code(), ErrorCode::SSL);
     });
 
@@ -174,10 +169,14 @@ fn test_sign_retry_complete_failure() {
             }),
     );
 
-    builder.err_cb(|error| {
-        let HandshakeError::WouldBlock(mid_handshake) = error else {
-            panic!("should be WouldBlock");
-        };
+    builder.err_cb(|mid_handshake| {
+        assert!(mid_handshake.error().would_block());
+        assert_eq!(
+            mid_handshake.error().code(),
+            ErrorCode::WANT_PRIVATE_KEY_OPERATION
+        );
+
+        let mid_handshake = mid_handshake.handshake().unwrap_err();
 
         assert!(mid_handshake.error().would_block());
         assert_eq!(
@@ -185,19 +184,7 @@ fn test_sign_retry_complete_failure() {
             ErrorCode::WANT_PRIVATE_KEY_OPERATION
         );
 
-        let HandshakeError::WouldBlock(mid_handshake) = mid_handshake.handshake().unwrap_err()
-        else {
-            panic!("should be WouldBlock");
-        };
-
-        assert_eq!(
-            mid_handshake.error().code(),
-            ErrorCode::WANT_PRIVATE_KEY_OPERATION
-        );
-
-        let HandshakeError::Failure(mid_handshake) = mid_handshake.handshake().unwrap_err() else {
-            panic!("should be Failure");
-        };
+        let mid_handshake = mid_handshake.handshake().unwrap_err();
 
         assert_eq!(mid_handshake.error().code(), ErrorCode::SSL);
     });
@@ -248,11 +235,7 @@ fn test_sign_retry_complete_ok() {
             }),
     );
 
-    builder.err_cb(|error| {
-        let HandshakeError::WouldBlock(mid_handshake) = error else {
-            panic!("should be WouldBlock");
-        };
-
+    builder.err_cb(|mid_handshake| {
         let mut socket = mid_handshake.handshake().unwrap();
 
         socket.write_all(&[0]).unwrap();

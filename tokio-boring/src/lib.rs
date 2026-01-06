@@ -13,6 +13,7 @@
 #![warn(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
+use boring::error::ErrorStack;
 use boring::ssl::{
     self, ConnectConfiguration, ErrorCode, MidHandshakeSslStream, ShutdownResult, SslAcceptor,
     SslRef,
@@ -42,34 +43,40 @@ pub use boring::ssl::{
 ///
 /// This function automatically sets the task waker on the `Ssl` from `config` to
 /// allow to make use of async callbacks provided by the boring crate.
-pub async fn connect<S>(
+pub fn connect<S>(
     config: ConnectConfiguration,
     domain: &str,
     stream: S,
-) -> Result<SslStream<S>, HandshakeError<S>>
+) -> Result<HandshakeFuture<S>, ErrorStack>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    let mid_handshake = config
-        .setup_connect(domain, AsyncStreamBridge::new(stream))
-        .map_err(|err| HandshakeError(ssl::HandshakeError::SetupFailure(err)))?;
-
-    HandshakeFuture(Some(mid_handshake)).await
+    handshake(|s| config.setup_connect(domain, s), stream)
 }
 
 /// Asynchronously performs a server-side TLS handshake over the provided stream.
 ///
 /// This function automatically sets the task waker on the `Ssl` from `config` to
 /// allow to make use of async callbacks provided by the boring crate.
-pub async fn accept<S>(acceptor: &SslAcceptor, stream: S) -> Result<SslStream<S>, HandshakeError<S>>
+pub fn accept<S>(acceptor: &SslAcceptor, stream: S) -> Result<HandshakeFuture<S>, ErrorStack>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    let mid_handshake = acceptor
-        .setup_accept(AsyncStreamBridge::new(stream))
-        .map_err(|err| HandshakeError(ssl::HandshakeError::SetupFailure(err)))?;
+    handshake(|s| acceptor.setup_accept(s), stream)
+}
 
-    HandshakeFuture(Some(mid_handshake)).await
+fn handshake<S>(
+    f: impl FnOnce(
+        AsyncStreamBridge<S>,
+    ) -> Result<MidHandshakeSslStream<AsyncStreamBridge<S>>, ErrorStack>,
+    stream: S,
+) -> Result<HandshakeFuture<S>, ErrorStack>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    let ongoing_handshake = Some(f(AsyncStreamBridge::new(stream))?);
+
+    Ok(HandshakeFuture(ongoing_handshake))
 }
 
 fn cvt<T>(r: io::Result<T>) -> Poll<io::Result<T>> {
@@ -252,52 +259,33 @@ where
 }
 
 /// The error type returned after a failed handshake.
-pub struct HandshakeError<S>(ssl::HandshakeError<AsyncStreamBridge<S>>);
+pub struct HandshakeError<S>(MidHandshakeSslStream<AsyncStreamBridge<S>>);
 
 impl<S> HandshakeError<S> {
     /// Returns a shared reference to the `Ssl` object associated with this error.
-    #[must_use]
-    pub fn ssl(&self) -> Option<&SslRef> {
-        match &self.0 {
-            ssl::HandshakeError::Failure(s) => Some(s.ssl()),
-            _ => None,
-        }
+    pub fn ssl(&self) -> &SslRef {
+        self.0.ssl()
     }
 
     /// Converts error to the source data stream that was used for the handshake.
-    #[must_use]
-    pub fn into_source_stream(self) -> Option<S> {
-        match self.0 {
-            ssl::HandshakeError::Failure(s) => Some(s.into_source_stream().stream),
-            _ => None,
-        }
+    pub fn into_source_stream(self) -> S {
+        self.0.into_source_stream().stream
     }
 
     /// Returns a reference to the source data stream.
-    #[must_use]
-    pub fn as_source_stream(&self) -> Option<&S> {
-        match &self.0 {
-            ssl::HandshakeError::Failure(s) => Some(&s.get_ref().stream),
-            _ => None,
-        }
+    pub fn as_source_stream(&self) -> &S {
+        &self.0.get_ref().stream
     }
 
     /// Returns the error code, if any.
-    #[must_use]
-    pub fn code(&self) -> Option<ErrorCode> {
-        match &self.0 {
-            ssl::HandshakeError::Failure(s) => Some(s.error().code()),
-            _ => None,
-        }
+    pub fn code(&self) -> ErrorCode {
+        self.0.error().code()
     }
 
     /// Returns a reference to the inner I/O error, if any.
     #[must_use]
     pub fn as_io_error(&self) -> Option<&io::Error> {
-        match &self.0 {
-            ssl::HandshakeError::Failure(s) => s.error().io_error(),
-            _ => None,
-        }
+        self.0.error().io_error()
     }
 }
 
@@ -312,7 +300,7 @@ where
 
 impl<S> fmt::Display for HandshakeError<S> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, fmt)
+        self.0.display_error().fmt(fmt)
     }
 }
 
@@ -321,7 +309,7 @@ where
     S: fmt::Debug,
 {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        self.0.source()
+        self.0.error().source()
     }
 }
 
@@ -351,7 +339,7 @@ where
 
                 Poll::Ready(Ok(SslStream(stream)))
             }
-            Err(ssl::HandshakeError::WouldBlock(mut mid_handshake)) => {
+            Err(mut mid_handshake) if mid_handshake.error().would_block() => {
                 mid_handshake.get_mut().set_waker(None);
                 mid_handshake.ssl_mut().set_task_waker(None);
 
@@ -359,15 +347,10 @@ where
 
                 Poll::Pending
             }
-            Err(ssl::HandshakeError::Failure(mut mid_handshake)) => {
+            Err(mut mid_handshake) => {
                 mid_handshake.get_mut().set_waker(None);
 
-                Poll::Ready(Err(HandshakeError(ssl::HandshakeError::Failure(
-                    mid_handshake,
-                ))))
-            }
-            Err(err @ ssl::HandshakeError::SetupFailure(_)) => {
-                Poll::Ready(Err(HandshakeError(err)))
+                Poll::Ready(Err(HandshakeError(mid_handshake)))
             }
         }
     }
