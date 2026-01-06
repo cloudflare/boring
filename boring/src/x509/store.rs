@@ -177,6 +177,7 @@ impl X509StoreRef {
 }
 
 #[test]
+#[allow(clippy::redundant_clone)]
 #[should_panic = "Shared X509Store can't be mutated"]
 fn set_cert_store_pevents_mutability() {
     use crate::ssl::*;

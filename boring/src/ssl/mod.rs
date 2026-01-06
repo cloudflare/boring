@@ -1658,7 +1658,7 @@ impl SslContextBuilder {
         C: CertificateCompressor,
     {
         const {
-            assert!(C::CAN_COMPRESS || C::CAN_DECOMPRESS, "Either compression or decompression must be supported for algorithm to be registered")
+            assert!(C::CAN_COMPRESS || C::CAN_DECOMPRESS, "Either compression or decompression must be supported for algorithm to be registered");
         };
         let success = unsafe {
             ffi::SSL_CTX_add_cert_compression_alg(
@@ -1705,7 +1705,7 @@ impl SslContextBuilder {
                     decrypt: Some(callbacks::raw_decrypt::<M>),
                     complete: Some(callbacks::raw_complete::<M>),
                 },
-            )
+            );
         }
     }
 
@@ -2327,6 +2327,7 @@ impl SslContextRef {
     }
 
     /// Returns `true` if context is configured for X.509 certificates.
+    #[must_use]
     pub fn has_x509_support(&self) -> bool {
         self.ex_data(*X509_FLAG_INDEX).copied().unwrap_or_default()
     }
@@ -2351,6 +2352,7 @@ impl SslContextRef {
     /// Returns the list of server certificate types.
     #[corresponds(SSL_CTX_get0_server_certificate_types)]
     #[cfg(feature = "rpk")]
+    #[must_use]
     pub fn server_certificate_types(&self) -> Option<&[CertificateType]> {
         let mut types = ptr::null();
         let mut types_len = 0;
@@ -4644,6 +4646,7 @@ impl SslCredentialBuilder {
         }
     }
 
+    #[must_use]
     pub fn build(self) -> SslCredential {
         self.0
     }

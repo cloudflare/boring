@@ -722,7 +722,7 @@ fn ensure_err_lib_enum_is_named(source_code: &mut Vec<u8>) {
     let src = String::from_utf8_lossy(source_code);
     let enum_type = src
         .split_once("ERR_LIB_SSL:")
-        .and_then(|(_, def)| Some(def.split_once("=")?.0))
+        .and_then(|(_, def)| Some(def.split_once('=')?.0))
         .unwrap_or("_bindgen_ty_1");
 
     source_code.extend_from_slice(
