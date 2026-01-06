@@ -49,7 +49,7 @@ fn new_get_session_callback() {
         .ctx()
         .set_session_cache_mode(SslSessionCacheMode::SERVER | SslSessionCacheMode::NO_INTERNAL);
     server.ctx().set_new_session_callback(|_, session| {
-        SERVER_SESSION_DER.set(session.to_der().unwrap()).unwrap()
+        SERVER_SESSION_DER.set(session.to_der().unwrap()).unwrap();
     });
     unsafe {
         server.ctx().set_get_session_callback(|_, id| {
@@ -76,7 +76,7 @@ fn new_get_session_callback() {
         .ctx()
         .set_session_cache_mode(SslSessionCacheMode::CLIENT);
     client.ctx().set_new_session_callback(|_, session| {
-        CLIENT_SESSION_DER.set(session.to_der().unwrap()).unwrap()
+        CLIENT_SESSION_DER.set(session.to_der().unwrap()).unwrap();
     });
 
     let client = client.build();

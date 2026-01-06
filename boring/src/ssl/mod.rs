@@ -1686,7 +1686,7 @@ impl SslContextBuilder {
         C: CertificateCompressor,
     {
         const {
-            assert!(C::CAN_COMPRESS || C::CAN_DECOMPRESS, "Either compression or decompression must be supported for algorithm to be registered")
+            assert!(C::CAN_COMPRESS || C::CAN_DECOMPRESS, "Either compression or decompression must be supported for algorithm to be registered");
         };
         let success = unsafe {
             ffi::SSL_CTX_add_cert_compression_alg(
@@ -1733,7 +1733,7 @@ impl SslContextBuilder {
                     decrypt: Some(callbacks::raw_decrypt::<M>),
                     complete: Some(callbacks::raw_complete::<M>),
                 },
-            )
+            );
         }
     }
 

@@ -26,7 +26,7 @@ async fn test() {
         builder
             .set_session_cache_mode(SslSessionCacheMode::SERVER | SslSessionCacheMode::NO_INTERNAL);
         builder.set_new_session_callback(|_, session| {
-            SERVER_SESSION_DER.set(session.to_der().unwrap()).unwrap()
+            SERVER_SESSION_DER.set(session.to_der().unwrap()).unwrap();
         });
 
         unsafe {
@@ -49,7 +49,7 @@ async fn test() {
     let connector = create_connector(|builder| {
         builder.set_session_cache_mode(SslSessionCacheMode::CLIENT);
         builder.set_new_session_callback(|_, session| {
-            CLIENT_SESSION_DER.set(session.to_der().unwrap()).unwrap()
+            CLIENT_SESSION_DER.set(session.to_der().unwrap()).unwrap();
         });
 
         builder.set_ca_file("tests/cert.pem")

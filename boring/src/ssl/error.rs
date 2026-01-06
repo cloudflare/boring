@@ -79,6 +79,7 @@ impl ErrorCode {
     }
 
     #[corresponds(SSL_error_description)]
+    #[must_use]
     pub fn description(self) -> Option<&'static str> {
         unsafe {
             let msg = ffi::SSL_error_description(self.0);
