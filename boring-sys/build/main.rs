@@ -108,14 +108,20 @@ fn get_apple_sdk_name(config: &Config) -> &'static str {
 }
 
 /// Returns an absolute path to the BoringSSL source.
-fn get_boringssl_source_path(config: &Config) -> &PathBuf {
-    if let Some(src_path) = &config.env.source_path {
-        return src_path;
-    }
-
+fn get_boringssl_source_path(config: &Config) -> &Path {
     static SOURCE_PATH: OnceLock<PathBuf> = OnceLock::new();
 
     SOURCE_PATH.get_or_init(|| {
+        if let Some(src_path) = &config.env.source_path {
+            if !src_path.exists() {
+                println!(
+                    "cargo:warning=boringssl source path doesn't exist: {}",
+                    src_path.display()
+                );
+            }
+            return src_path.into();
+        }
+
         let submodule_dir = "boringssl";
 
         let src_path = config.out_dir.join(submodule_dir);
@@ -130,7 +136,7 @@ fn get_boringssl_source_path(config: &Config) -> &PathBuf {
                     .args(["submodule", "update", "--init", "--recursive"])
                     .arg(&submodule_path),
             )
-            .unwrap();
+            .expect("git submodule update");
         }
 
         let _ = fs::remove_dir_all(&src_path);
@@ -501,7 +507,15 @@ fn apply_patch(config: &Config, patch_name: &str) -> io::Result<()> {
 }
 
 fn run_command(command: &mut Command) -> io::Result<Output> {
-    let out = command.output()?;
+    let out = command.output().map_err(|e| {
+        io::Error::new(
+            e.kind(),
+            format!(
+                "can't run {}: {e}\n{command:?} failed",
+                command.get_program().to_string_lossy(),
+            ),
+        )
+    })?;
 
     std::io::stderr().write_all(&out.stderr)?;
     std::io::stdout().write_all(&out.stdout)?;
@@ -519,13 +533,16 @@ fn run_command(command: &mut Command) -> io::Result<Output> {
 }
 
 fn built_boring_source_path(config: &Config) -> &PathBuf {
-    if let Some(path) = &config.env.path {
-        return path;
-    }
-
     static BUILD_SOURCE_PATH: OnceLock<PathBuf> = OnceLock::new();
 
     BUILD_SOURCE_PATH.get_or_init(|| {
+        if let Some(path) = &config.env.path {
+            if !path.exists() {
+                println!("cargo:warning=built path doesn't exist: {}", path.display());
+            }
+            return path.into();
+        }
+
         let mut cfg = get_boringssl_cmake_config(config);
 
         let num_jobs = std::env::var("NUM_JOBS").ok().or_else(|| {
