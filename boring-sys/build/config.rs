@@ -123,9 +123,6 @@ impl Features {
 
 impl Env {
     fn from_env(host: &str, target: &str, is_fips_like: bool) -> Self {
-        const NORMAL_PREFIX: &str = "BORING_BSSL";
-        const FIPS_PREFIX: &str = "BORING_BSSL_FIPS";
-
         let var_prefix = if host == target { "HOST" } else { "TARGET" };
         let target_with_underscores = target.replace('-', "_");
 
@@ -137,25 +134,34 @@ impl Env {
         let target_var = |name: &str| target_only_var(name).or_else(|| var(name));
 
         let boringssl_var = |name: &str| {
+            const BORING_BSSL_PREFIX: &str = "BORING_BSSL_";
+            const BORING_BSSL_FIPS_PREFIX: &str = "BORING_BSSL_FIPS_";
+
             // The passed name is the non-fips version of the environment variable,
             // to help look for them in the repository.
-            assert!(name.starts_with(NORMAL_PREFIX));
+            assert!(name.starts_with(BORING_BSSL_PREFIX));
 
+            let non_fips = target_var(name);
             if is_fips_like {
-                target_var(&name.replace(NORMAL_PREFIX, FIPS_PREFIX))
+                let fips_name = name.replace(BORING_BSSL_PREFIX, BORING_BSSL_FIPS_PREFIX);
+                let fips = target_var(&fips_name);
+                if fips.is_none() && non_fips.is_some() {
+                    println!("cargo:warning=env var {name} ignored, because FIPS is enabled. Set {fips_name} instead.");
+                }
+                fips
             } else {
-                target_var(name)
+                non_fips
             }
         };
 
         Self {
-            path: boringssl_var("BORING_BSSL_PATH").map(PathBuf::from),
-            include_path: boringssl_var("BORING_BSSL_INCLUDE_PATH").map(PathBuf::from),
-            source_path: boringssl_var("BORING_BSSL_SOURCE_PATH").map(PathBuf::from),
-            assume_patched: boringssl_var("BORING_BSSL_ASSUME_PATCHED")
+            path: boringssl_var("BORING_BSSL_PATH").map(PathBuf::from), // gets BORING_BSSL_FIPS_PATH if fips is enabled
+            include_path: boringssl_var("BORING_BSSL_INCLUDE_PATH").map(PathBuf::from), // gets BORING_BSSL_FIPS_INCLUDE_PATH if fips is enabled
+            source_path: boringssl_var("BORING_BSSL_SOURCE_PATH").map(PathBuf::from), // gets BORING_BSSL_FIPS_SOURCE_PATH if fips is enabled
+            assume_patched: boringssl_var("BORING_BSSL_ASSUME_PATCHED") // gets BORING_BSSL_FIPS_ASSUME_PATCHED if fips is enabled
                 .is_some_and(|v| !v.is_empty()),
-            sysroot: boringssl_var("BORING_BSSL_SYSROOT").map(PathBuf::from),
-            compiler_external_toolchain: boringssl_var("BORING_BSSL_COMPILER_EXTERNAL_TOOLCHAIN")
+            sysroot: boringssl_var("BORING_BSSL_SYSROOT").map(PathBuf::from), // gets BORING_BSSL_FIPS_SYSROOT if fips is enabled
+            compiler_external_toolchain: boringssl_var("BORING_BSSL_COMPILER_EXTERNAL_TOOLCHAIN") // gets BORING_BSSL_FIPS_COMPILER_EXTERNAL_TOOLCHAIN if fips is enabled
                 .map(PathBuf::from),
             debug: target_var("DEBUG"),
             opt_level: target_var("OPT_LEVEL"),
