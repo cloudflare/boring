@@ -660,7 +660,7 @@ fn generate_bindings(config: &Config) {
         );
 
         // we need to add special platform header file with env for support cross building
-        let header = format!("{}/usr/include/{}", sysroot.display().to_string(), c_target);
+        let header = format!("{}/usr/include/{}", sysroot.display(), c_target);
         if PathBuf::from(&header).is_dir() {
             builder = builder.clang_arg("-I").clang_arg(&header);
         }
