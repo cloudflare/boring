@@ -40,7 +40,7 @@ fn ech() {
     let (_server, client) = bootstrap_ech(ECH_CONFIG, ECH_KEY, ECH_CONFIG_LIST);
 
     let ssl_stream = client.connect();
-    assert!(ssl_stream.ssl().ech_accepted())
+    assert!(ssl_stream.ssl().ech_accepted());
 }
 
 #[test]
@@ -57,7 +57,7 @@ fn ech_rejection() {
         Some(b"ech.com".to_vec().as_ref())
     );
     assert!(failed_ssl_stream.ssl().get_ech_retry_configs().is_some());
-    assert!(!failed_ssl_stream.ssl().ech_accepted())
+    assert!(!failed_ssl_stream.ssl().ech_accepted());
 }
 
 #[test]
@@ -69,5 +69,5 @@ fn ech_grease() {
     client.ssl().set_enable_ech_grease(true);
 
     let ssl_stream = client.connect();
-    assert!(!ssl_stream.ssl().ech_accepted())
+    assert!(!ssl_stream.ssl().ech_accepted());
 }

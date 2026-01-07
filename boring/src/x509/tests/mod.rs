@@ -73,7 +73,7 @@ fn test_subject_read_cn() {
     let cert = X509::from_pem(cert).unwrap();
     let subject = cert.subject_name();
     let cn = subject.entries_by_nid(Nid::COMMONNAME).next().unwrap();
-    assert_eq!(cn.data().as_slice(), b"foobar.com")
+    assert_eq!(cn.data().as_slice(), b"foobar.com");
 }
 
 #[test]

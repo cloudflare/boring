@@ -113,7 +113,7 @@ impl HttpsLayer {
     ///
     /// The session cache configuration of `ssl` will be overwritten.
     pub fn with_connector(ssl: SslConnectorBuilder) -> Result<HttpsLayer, ErrorStack> {
-        Self::with_connector_and_settings(ssl, Default::default())
+        Self::with_connector_and_settings(ssl, HttpsLayerSettings::default())
     }
 
     /// Creates a new `HttpsLayer` with settings
@@ -243,9 +243,8 @@ where
         let f = async {
             let conn = connect.await.map_err(Into::into)?.into_inner();
 
-            let (inner, uri) = match tls_setup {
-                Some((inner, uri)) => (inner, uri),
-                None => return Ok(MaybeHttpsStream::Http(conn)),
+            let Some((inner, uri)) = tls_setup else {
+                return Ok(MaybeHttpsStream::Http(conn));
             };
 
             let mut host = uri.host().ok_or("URI missing host")?;
@@ -253,15 +252,12 @@ where
             // If `host` is an IPv6 address, we must strip away the square brackets that surround
             // it (otherwise, boring will fail to parse the host as an IP address, eventually
             // causing the handshake to fail due a hostname verification error).
-            if !host.is_empty() {
-                let last = host.len() - 1;
-                let mut chars = host.chars();
-
-                if let (Some('['), Some(']')) = (chars.next(), chars.last()) {
-                    if host[1..last].parse::<net::Ipv6Addr>().is_ok() {
-                        host = &host[1..last];
-                    }
-                }
+            if let Some(ipv6) = host
+                .strip_prefix('[')
+                .and_then(|h| h.strip_suffix(']'))
+                .filter(|h| h.parse::<net::Ipv6Addr>().is_ok())
+            {
+                host = ipv6;
             }
 
             let ssl = inner.setup_ssl(&uri, host)?;

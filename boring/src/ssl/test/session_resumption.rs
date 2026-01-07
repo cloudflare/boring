@@ -61,7 +61,7 @@ fn custom_callback_success() {
     unsafe {
         server
             .ctx()
-            .set_ticket_key_callback(test_success_tickey_key_callback)
+            .set_ticket_key_callback(test_success_tickey_key_callback);
     };
     let server = server.build();
 
@@ -106,7 +106,7 @@ fn custom_callback_unrecognized_decryption_ticket() {
     unsafe {
         server
             .ctx()
-            .set_ticket_key_callback(test_noop_tickey_key_callback)
+            .set_ticket_key_callback(test_noop_tickey_key_callback);
     };
     let server = server.build();
 

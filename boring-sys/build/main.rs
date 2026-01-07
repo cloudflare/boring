@@ -654,15 +654,15 @@ fn generate_bindings(config: &Config) {
             .clang_arg("--sysroot")
             .clang_arg(sysroot.display().to_string());
 
-        let c_target = format!(
-            "{}-{}-{}",
-            &config.target_arch, &config.target_os, &config.target_env
-        );
-
         // we need to add special platform header file with env for support cross building
-        let header = format!("{}/usr/include/{}", sysroot.display(), c_target);
-        if PathBuf::from(&header).is_dir() {
-            builder = builder.clang_arg("-I").clang_arg(&header);
+        let target_include_dir = sysroot.join(format!(
+            "usr/include/{}-{}-{}",
+            config.target_arch, config.target_os, config.target_env
+        ));
+        if target_include_dir.is_dir() {
+            builder = builder
+                .clang_arg("-I")
+                .clang_arg(target_include_dir.display().to_string());
         }
     }
 
@@ -717,7 +717,7 @@ fn ensure_err_lib_enum_is_named(source_code: &mut Vec<u8>) {
     let src = String::from_utf8_lossy(source_code);
     let enum_type = src
         .split_once("ERR_LIB_SSL:")
-        .and_then(|(_, def)| Some(def.split_once("=")?.0))
+        .and_then(|(_, def)| Some(def.split_once('=')?.0))
         .unwrap_or("_bindgen_ty_1");
 
     source_code.extend_from_slice(
