@@ -28,6 +28,8 @@ jobs:
   clippy:
     name: clippy
     runs-on: ubuntu-latest
+    env:
+      CARGO_HOME: ${{ github.workspace }}/.cache/cargo
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,15 +38,17 @@ jobs:
         run: rustup toolchain add stable --no-self-update --component clippy && rustup default stable
       - name: Get rust version
         id: rust-version
+        shell: bash
         run: |
           echo "version=$(rustc --version)" >> $GITHUB_OUTPUT
       - name: Cache cargo index
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
+            .cache/cargo/registry/index
+            .cache/cargo/registry/cache
           key: index-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.toml') }}
+          enableCrossOsArchive: true
       - name: Fetch dependencies
         run: cargo fetch
       - name: Cache target directory
@@ -188,15 +192,28 @@ jobs:
           os: windows-latest
           # CI's Windows doesn't have required root certs
           extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring
-
+    env:
+      CARGO_HOME: ${{ github.workspace }}/.cache/cargo
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)
-      run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
+      run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }} && rustup target add ${{ matrix.target }}
       shell: bash
-    - run: rustup target add ${{ matrix.target }}
+    - name: Get rust version
+      id: rust-version
+      shell: bash
+      run: |
+        echo "version=$(rustc --version)" >> $GITHUB_OUTPUT
+    - name: Prepopulate cargo index
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          .cache/cargo/registry/index
+          .cache/cargo/registry/cache
+        key: index-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.toml') }}
+        enableCrossOsArchive: true
     - name: Install golang
       uses: actions/setup-go@v5
       with:
@@ -221,17 +238,6 @@ jobs:
     - name: Set Android Linker path
       if: endsWith(matrix.thing, '-android')
       run: echo "CARGO_TARGET_$(echo ${{ matrix.target }} | tr \\-a-z _A-Z)_LINKER=$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/$(echo ${{ matrix.target }} | sed s/armv7/armv7a/)21-clang++" >> "$GITHUB_ENV"
-    - name: Get rust version
-      id: rust-version
-      run: |
-        echo "version=$(rustc --version)" >> $GITHUB_OUTPUT
-    - name: Prepopulate cargo index
-      uses: actions/cache/restore@v4
-      with:
-        path: |
-          ~/.cargo/registry/index
-          ~/.cargo/registry/cache
-        key: index-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.toml') }}
     - name: Build tests
       # We `build` because we want the linker to verify we are cross-compiling correctly for check-only targets.
       run: cargo build --target ${{ matrix.target }} --tests ${{ matrix.extra_test_args }}
