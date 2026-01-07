@@ -11,6 +11,18 @@ and [hyper](https://github.com/hyperium/hyper) built on top of it.
  - hyper HTTPS connector: <https://docs.rs/hyper-boring>
  - FFI bindings: <https://docs.rs/boring-sys>
 
+# Upgrading from `boring` v4
+
+ * First update to boring 4.20 and ensure it builds without any deprecation warnings.
+ * `pq-experimental` Cargo feature is no longer needed. Post-quantum crypto is enabled by default.
+ * `fips-precompiled` Cargo feature has been merged into `fips`. Set `BORING_BSSL_FIPS_PATH` env var to use a precompiled library.
+ * `fips-compat` Cargo feature has been renamed to `legacy-compat-deprecated` (4cb7e260a85b7)
+ * `SslCurve` and `SslCurveNid` have been removed. Use `set_curves_list()`.
+ * `Ssl::new_from_ref` -> `Ssl::new()`.
+ * `X509Builder::append_extension2` -> `X509Builder::append_extension`.
+ * `X509Store` is now cheaply cloneable, but immutable. `SslContextBuilder.cert_store_mut()` can't be used after `.set_cert_store()`. Use `.set_cert_store_builder()` if you need `.cert_store_mut()`.
+ * `hyper` 0.x support has been removed. Use `hyper` 1.x.
+
 ## Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally
