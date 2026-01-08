@@ -1,3 +1,4 @@
+use core::panic;
 use fslock::LockFile;
 use std::env;
 use std::ffi::OsString;
@@ -9,8 +10,10 @@ use std::process::{Command, Output};
 use std::sync::OnceLock;
 
 use crate::config::Config;
+use crate::prefix::{prefix_symbols, PrefixCallback};
 
 mod config;
+mod prefix;
 
 fn should_use_cmake_cross_compilation(config: &Config) -> bool {
     if config.host == config.target {
@@ -534,6 +537,10 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
                 .define("FIPS", "1");
         }
 
+        if config.features.prefix_symbols {
+            cfg.define("CMAKE_POSITION_INDEPENDENT_CODE", "ON");
+        }
+
         cfg.build_target("ssl").build();
         cfg.build_target("crypto").build()
     })
@@ -560,6 +567,14 @@ fn main() {
     ensure_patches_applied(&config).unwrap();
     if !config.env.docs_rs {
         emit_link_directives(&config);
+    }
+    if config.features.prefix_symbols
+        && ["macos", "ios", "windows"].contains(&config.target_os.as_str())
+    {
+        panic!("The `prefix_symbols` feature is not supported on macOS/iOS or windows targets.");
+    }
+    if config.features.prefix_symbols {
+        prefix_symbols(&config);
     }
     generate_bindings(&config);
 }
@@ -664,6 +679,10 @@ fn generate_bindings(config: &Config) {
         if PathBuf::from(&header).is_dir() {
             builder = builder.clang_arg("-I").clang_arg(&header);
         }
+    }
+
+    if config.features.prefix_symbols {
+        builder = builder.parse_callbacks(Box::new(PrefixCallback));
     }
 
     let headers = [
