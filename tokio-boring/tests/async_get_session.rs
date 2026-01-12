@@ -57,6 +57,7 @@ async fn test() {
 
     let server = async move {
         tokio_boring::accept(&acceptor, listener.accept().await.unwrap().0)
+            .unwrap()
             .await
             .unwrap();
 
@@ -64,6 +65,7 @@ async fn test() {
         assert!(!FOUND_SESSION.load(Ordering::SeqCst));
 
         tokio_boring::accept(&acceptor, listener.accept().await.unwrap().0)
+            .unwrap()
             .await
             .unwrap();
 
@@ -76,6 +78,7 @@ async fn test() {
             "localhost",
             TcpStream::connect(&addr).await.unwrap(),
         )
+        .unwrap()
         .await
         .unwrap();
 
@@ -94,6 +97,7 @@ async fn test() {
             "localhost",
             TcpStream::connect(&addr).await.unwrap(),
         )
+        .unwrap()
         .await
         .unwrap();
     };

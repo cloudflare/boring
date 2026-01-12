@@ -19,6 +19,7 @@ async fn google() {
         .configure()
         .unwrap();
     let mut stream = tokio_boring::connect(config, "google.com", stream)
+        .unwrap()
         .await
         .unwrap();
 
@@ -44,15 +45,11 @@ async fn handshake_error() {
     let (stream, addr) = create_server(|_| ());
 
     let server = async {
-        let err = stream.await.unwrap_err();
-
-        assert!(err.into_source_stream().is_some());
+        let _err = stream.await.unwrap_err();
     };
 
     let client = async {
-        let err = connect(addr, |_| Ok(())).await.unwrap_err();
-
-        assert!(err.into_source_stream().is_some());
+        let _err = connect(addr, |_| Ok(())).await.unwrap_err();
     };
 
     future::join(server, client).await;

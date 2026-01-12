@@ -4,8 +4,8 @@ use std::sync::OnceLock;
 
 use crate::ssl::test::server::Server;
 use crate::ssl::{
-    ErrorCode, GetSessionPendingError, HandshakeError, Ssl, SslContext, SslContextBuilder,
-    SslMethod, SslOptions, SslSession, SslSessionCacheMode, SslVersion,
+    ErrorCode, GetSessionPendingError, Ssl, SslContext, SslContextBuilder, SslMethod, SslOptions,
+    SslSession, SslSessionCacheMode, SslVersion,
 };
 
 #[test]
@@ -125,11 +125,7 @@ fn new_get_session_callback_pending() {
         });
     }
     server.ctx().set_session_id_context(b"foo").unwrap();
-    server.err_cb(|error| {
-        let HandshakeError::WouldBlock(mid_handshake) = error else {
-            panic!("should be WouldBlock");
-        };
-
+    server.err_cb(|mid_handshake| {
         assert!(mid_handshake.error().would_block());
         assert_eq!(mid_handshake.error().code(), ErrorCode::PENDING_SESSION);
 

@@ -3,7 +3,8 @@ use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::thread::{self, JoinHandle};
 
 use crate::ssl::{
-    HandshakeError, Ssl, SslContext, SslContextBuilder, SslFiletype, SslMethod, SslRef, SslStream,
+    MidHandshakeSslStream, Ssl, SslContext, SslContextBuilder, SslFiletype, SslMethod, SslRef,
+    SslStream,
 };
 
 pub struct Server {
@@ -78,7 +79,7 @@ pub struct Builder {
     ctx: SslContextBuilder,
     ssl_cb: Box<dyn FnMut(&mut SslRef) + Send>,
     io_cb: Box<dyn FnMut(SslStream<TcpStream>) + Send>,
-    err_cb: Box<dyn FnMut(HandshakeError<TcpStream>) + Send>,
+    err_cb: Box<dyn FnMut(MidHandshakeSslStream<TcpStream>) + Send>,
     should_error: bool,
     expected_connections_count: usize,
 }
@@ -102,7 +103,7 @@ impl Builder {
         self.io_cb = Box::new(cb);
     }
 
-    pub fn err_cb(&mut self, cb: impl FnMut(HandshakeError<TcpStream>) + Send + 'static) {
+    pub fn err_cb(&mut self, cb: impl FnMut(MidHandshakeSslStream<TcpStream>) + Send + 'static) {
         self.should_error();
 
         self.err_cb = Box::new(cb);
@@ -133,7 +134,7 @@ impl Builder {
 
                 ssl_cb(&mut ssl);
 
-                let r = ssl.accept(socket);
+                let r = ssl.setup_accept(socket).handshake();
 
                 if should_error {
                     err_cb(r.unwrap_err());
@@ -176,7 +177,7 @@ impl ClientBuilder {
         self.build().builder().connect()
     }
 
-    pub fn connect_err(self) -> HandshakeError<TcpStream> {
+    pub fn connect_err(self) -> MidHandshakeSslStream<TcpStream> {
         self.build().builder().connect_err()
     }
 }
@@ -207,12 +208,12 @@ impl ClientSslBuilder {
 
     pub fn connect(self) -> SslStream<TcpStream> {
         let socket = TcpStream::connect(self.addr).unwrap();
-        let mut s = self.ssl.connect(socket).unwrap();
+        let mut s = self.ssl.setup_connect(socket).handshake().unwrap();
         s.read_exact(&mut [0]).unwrap();
         s
     }
 
-    pub fn connect_err(self) -> HandshakeError<TcpStream> {
+    pub fn connect_err(self) -> MidHandshakeSslStream<TcpStream> {
         let socket = TcpStream::connect(self.addr).unwrap();
 
         self.ssl.setup_connect(socket).handshake().unwrap_err()
