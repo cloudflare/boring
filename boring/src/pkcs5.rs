@@ -1,5 +1,5 @@
 use crate::ffi;
-use libc::{c_int, c_uint};
+use crate::libc_types::{c_int, c_uint};
 use std::ptr;
 
 use crate::cvt;

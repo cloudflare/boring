@@ -35,8 +35,8 @@
 //! assert!(verifier.verify(&signature).unwrap());
 //! ```
 use crate::ffi;
+use crate::libc_types::c_int;
 use foreign_types::ForeignTypeRef;
-use libc::c_int;
 use openssl_macros::corresponds;
 use std::io::{self, Write};
 use std::marker::PhantomData;

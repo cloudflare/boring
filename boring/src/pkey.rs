@@ -41,8 +41,8 @@
 //! ```
 
 use crate::ffi;
+use crate::libc_types::{c_int, c_long};
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::{c_int, c_long};
 use openssl_macros::corresponds;
 use std::ffi::CString;
 use std::fmt;

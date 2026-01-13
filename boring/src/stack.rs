@@ -1,6 +1,6 @@
 use crate::ffi;
+use crate::libc_types::size_t;
 use foreign_types::{ForeignType, ForeignTypeRef, Opaque};
-use libc::size_t;
 use std::borrow::Borrow;
 use std::convert::AsRef;
 use std::fmt;

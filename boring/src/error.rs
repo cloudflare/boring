@@ -15,7 +15,7 @@
 //!     Err(e) => println!("Parsing Error: {:?}", e),
 //! }
 //! ```
-use libc::{c_char, c_int, c_uint};
+use crate::libc_types::{c_char, c_int, c_uint};
 use openssl_macros::corresponds;
 use std::borrow::Cow;
 use std::error;

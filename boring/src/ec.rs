@@ -16,8 +16,8 @@
 //! [`Nid`]: ../nid/struct.Nid.html
 //! [Eliptic Curve Cryptography]: https://wiki.openssl.org/index.php/Elliptic_Curve_Cryptography
 use crate::ffi;
+use crate::libc_types::c_int;
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::c_int;
 use openssl_macros::corresponds;
 use std::fmt;
 use std::ptr;
@@ -682,7 +682,7 @@ impl EcKey<Public> {
         public_key_from_der,
         EcKey<Public>,
         ffi::d2i_EC_PUBKEY,
-        ::libc::c_long
+        crate::libc_types::c_long
     }
 }
 
@@ -758,7 +758,7 @@ impl EcKey<Private> {
         private_key_from_der,
         EcKey<Private>,
         ffi::d2i_ECPrivateKey,
-        ::libc::c_long
+        crate::libc_types::c_long
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::ffi;
+use crate::libc_types::c_int;
 use crate::x509::X509VerifyError;
-use libc::c_int;
 use openssl_macros::corresponds;
 use std::error;
 use std::error::Error as StdError;

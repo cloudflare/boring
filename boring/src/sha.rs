@@ -44,7 +44,7 @@
 //! }
 //! ```
 use crate::ffi;
-use libc::c_void;
+use crate::libc_types::c_void;
 use std::mem::MaybeUninit;
 
 /// Computes the SHA1 hash of some data.

@@ -80,6 +80,8 @@ jobs:
           - i686-linux
           - arm-linux
           - aarch64-linux
+          - aarch64-musl
+          - x86_64-musl
           - arm64-macos
           - x86_64-macos
           - x86_64-mingw
@@ -143,9 +145,9 @@ jobs:
           - thing: arm-linux
             target: arm-unknown-linux-gnueabi
             rust: stable
-            os: ubuntu-latest
+            os: ubuntu-24.04-arm
             apt_packages: gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
-            check_only: true
+            check_only: true # 32-bit execution on 64-bit ARM needs multiarch setup
             custom_env:
               CC_arm-unknown-linux-gnueabi: arm-linux-gnueabi-gcc
               CXX_arm-unknown-linux-gnueabi: arm-linux-gnueabi-g++
@@ -153,13 +155,19 @@ jobs:
           - thing: aarch64-linux
             target: aarch64-unknown-linux-gnu
             rust: stable
-            os: ubuntu-latest
-            apt_packages: crossbuild-essential-arm64
-            check_only: true
+            os: ubuntu-24.04-arm
             custom_env:
               CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
               CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
               CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-g++
+          - thing: aarch64-musl
+            target: aarch64-unknown-linux-musl
+            rust: stable
+            os: ubuntu-24.04-arm
+          - thing: x86_64-musl
+            target: x86_64-unknown-linux-musl
+            rust: stable
+            os: ubuntu-latest
           - thing: arm64-macos
             target: aarch64-apple-darwin
             rust: stable
@@ -260,13 +268,26 @@ jobs:
       - name: Set Android Linker path
         if: endsWith(matrix.thing, '-android')
         run: echo "CARGO_TARGET_$(echo ${{ matrix.target }} | tr \\-a-z _A-Z)_LINKER=$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/$(echo ${{ matrix.target }} | sed s/armv7/armv7a/)21-clang++" >> "$GITHUB_ENV"
+      - name: Install Zig
+        if: contains(matrix.target, 'unknown-linux-musl')
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.13.0
+      - name: Install cargo-zigbuild
+        if: contains(matrix.target, 'unknown-linux-musl')
+        run: cargo install cargo-zigbuild --locked
       - name: Build tests
         # We `build` because we want the linker to verify we are cross-compiling correctly for check-only targets.
-        run: cargo build --target ${{ matrix.target }} --tests ${{ matrix.extra_test_args }}
+        run: |
+          if [[ "${{ matrix.target }}" == *"unknown-linux-musl"* ]]; then
+            cargo zigbuild --target ${{ matrix.target }} --tests ${{ matrix.extra_test_args }}
+          else
+            cargo build --target ${{ matrix.target }} --tests ${{ matrix.extra_test_args }}
+          fi
         shell: bash
         env: ${{ matrix.custom_env }}
       - name: Run tests
-        if: "!matrix.check_only"
+        if: "!matrix.check_only && !contains(matrix.target, 'unknown-linux-musl')"
         run: cargo test --target ${{ matrix.target }} ${{ matrix.extra_test_args }}
         shell: bash
         env: ${{ matrix.custom_env }}

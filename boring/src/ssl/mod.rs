@@ -57,8 +57,8 @@
 //!     }
 //! }
 //! ```
+use crate::libc_types::{c_char, c_int, c_uchar, c_uint, c_void};
 use foreign_types::{ForeignType, ForeignTypeRef, Opaque};
-use libc::{c_char, c_int, c_uchar, c_uint, c_void};
 use openssl_macros::corresponds;
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -2553,7 +2553,7 @@ impl SslSession {
         from_der,
         SslSession,
         ffi::d2i_SSL_SESSION,
-        ::libc::c_long
+        crate::libc_types::c_long
     }
 }
 

@@ -1,8 +1,8 @@
 //! Low level Elliptic Curve Digital Signature Algorithm (ECDSA) functions.
 
 use crate::ffi;
+use crate::libc_types::{c_int, size_t};
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::{c_int, size_t};
 use openssl_macros::corresponds;
 use std::mem;
 use std::ptr;
@@ -61,7 +61,7 @@ impl EcdsaSig {
         from_der,
         EcdsaSig,
         ffi::d2i_ECDSA_SIG,
-        ::libc::c_long
+        crate::libc_types::c_long
     }
 }
 

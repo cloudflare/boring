@@ -1,8 +1,8 @@
 //! PKCS #12 archives.
 
 use crate::ffi;
+use crate::libc_types::c_int;
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::c_int;
 use openssl_macros::corresponds;
 use std::ffi::CString;
 use std::ptr;
@@ -69,7 +69,7 @@ impl Pkcs12 {
         from_der,
         Pkcs12,
         ffi::d2i_PKCS12,
-        ::libc::size_t
+        crate::libc_types::size_t
     }
 
     /// Creates a new builder for a protected pkcs12 certificate.

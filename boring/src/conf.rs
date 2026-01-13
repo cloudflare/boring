@@ -1,7 +1,7 @@
 //! Interface for processing OpenSSL configuration files.
 use crate::ffi;
+use crate::libc_types::c_void;
 use foreign_types::ForeignType;
-use libc::c_void;
 
 use crate::cvt_p;
 use crate::error::ErrorStack;

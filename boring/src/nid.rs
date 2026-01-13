@@ -1,6 +1,6 @@
 //! A collection of numerical identifiers for OpenSSL objects.
 use crate::ffi;
-use libc::{c_char, c_int};
+use crate::libc_types::{c_char, c_int};
 use openssl_macros::corresponds;
 
 use std::ffi::CStr;

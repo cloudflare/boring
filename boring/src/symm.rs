@@ -53,8 +53,8 @@
 //! ```
 
 use crate::ffi;
+use crate::libc_types::{c_int, c_uint};
 use foreign_types::ForeignTypeRef;
-use libc::{c_int, c_uint};
 use openssl_macros::corresponds;
 use std::cmp;
 use std::ptr;

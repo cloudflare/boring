@@ -11,7 +11,7 @@
 //! rand_bytes(&mut buf).unwrap();
 //! ```
 use crate::ffi;
-use libc::c_int;
+use crate::libc_types::c_int;
 
 use crate::cvt;
 use crate::error::ErrorStack;

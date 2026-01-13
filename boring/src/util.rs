@@ -1,6 +1,6 @@
 use crate::error::ErrorStack;
+use crate::libc_types::{c_char, c_int, c_void};
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::{c_char, c_int, c_void};
 use std::any::Any;
 use std::panic::{self, AssertUnwindSafe};
 use std::slice;

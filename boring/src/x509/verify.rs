@@ -1,6 +1,6 @@
 use crate::ffi;
+use crate::libc_types::{c_int, c_uint, c_ulong, time_t};
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::{c_int, c_uint, c_ulong, time_t};
 use openssl_macros::corresponds;
 use std::net::IpAddr;
 

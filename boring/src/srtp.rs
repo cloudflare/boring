@@ -1,7 +1,7 @@
 use crate::ffi;
+use crate::libc_types::c_ulong;
 use crate::stack::Stackable;
 use foreign_types::ForeignTypeRef;
-use libc::c_ulong;
 use std::ffi::CStr;
 use std::str;
 

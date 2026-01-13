@@ -213,12 +213,26 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
         return boringssl_cmake;
     }
 
+    let target_is_musl = config.target.contains("unknown-linux-musl");
+    let using_zig = config
+        .env
+        .cc
+        .as_deref()
+        .and_then(|s| s.to_str())
+        .map(|s| s.contains("zig") || s.ends_with("zigcc") || s.ends_with("zigcxx"))
+        .unwrap_or_default();
+
     if should_use_cmake_cross_compilation(config) {
-        boringssl_cmake
-            .define("CMAKE_CROSSCOMPILING", "true")
-            .define("CMAKE_C_COMPILER_TARGET", &config.target)
-            .define("CMAKE_CXX_COMPILER_TARGET", &config.target)
-            .define("CMAKE_ASM_COMPILER_TARGET", &config.target);
+        boringssl_cmake.define("CMAKE_CROSSCOMPILING", "true");
+
+        // Do NOT set CMAKE_*_COMPILER_TARGET when using Zig.
+        // CMake turns these into `--target=<rust-triple>` which Zig cannot parse.
+        if !using_zig {
+            boringssl_cmake
+                .define("CMAKE_C_COMPILER_TARGET", &config.target)
+                .define("CMAKE_CXX_COMPILER_TARGET", &config.target)
+                .define("CMAKE_ASM_COMPILER_TARGET", &config.target);
+        }
     }
 
     if let Some(cc) = &config.env.cc {
@@ -343,22 +357,26 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                     );
                 }
                 "aarch64" => {
-                    boringssl_cmake.define(
-                        "CMAKE_TOOLCHAIN_FILE",
-                        config
-                            .manifest_dir
-                            .join("cmake/aarch64-linux.cmake")
-                            .as_os_str(),
-                    );
+                    if !(target_is_musl && using_zig) {
+                        boringssl_cmake.define(
+                            "CMAKE_TOOLCHAIN_FILE",
+                            config
+                                .manifest_dir
+                                .join("cmake/aarch64-linux.cmake")
+                                .as_os_str(),
+                        );
+                    }
                 }
                 "arm" => {
-                    boringssl_cmake.define(
-                        "CMAKE_TOOLCHAIN_FILE",
-                        config
-                            .manifest_dir
-                            .join("cmake/armv7-linux.cmake")
-                            .as_os_str(),
-                    );
+                    if !(target_is_musl && using_zig) {
+                        boringssl_cmake.define(
+                            "CMAKE_TOOLCHAIN_FILE",
+                            config
+                                .manifest_dir
+                                .join("cmake/armv7-linux.cmake")
+                                .as_os_str(),
+                        );
+                    }
                 }
                 _ => {
                     println!(
@@ -602,31 +620,58 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
     })
 }
 
-fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
+fn env_contains_zig(key: &str) -> bool {
+    std::env::var(key)
+        .ok()
+        .is_some_and(|v| v.contains("zig") || v.contains("zigbuild"))
+}
+
+fn using_zig_for_target(config: &Config) -> bool {
+    let triple = config.target.replace('-', "_").to_ascii_uppercase();
+
+    env_contains_zig("CC")
+        || env_contains_zig("CXX")
+        || env_contains_zig(&format!("CC_{triple}"))
+        || env_contains_zig(&format!("CXX_{triple}"))
+        || env_contains_zig("RUSTC_LINKER")
+        || env_contains_zig(&format!("CARGO_TARGET_{triple}_LINKER"))
+        || env_contains_zig("CARGO_ZIGBUILD")
+}
+
+fn get_cpp_runtime_libs(config: &Config) -> Vec<String> {
     if let Some(ref cpp_lib) = config.env.cpp_runtime_lib {
-        return cpp_lib.clone().into_string().ok();
+        if let Ok(cpp_lib_string) = cpp_lib.clone().into_string() {
+            return vec![cpp_lib_string];
+        }
     }
 
     // Decide by target triple
     let target = &config.target;
 
+    if target.contains("unknown-linux-musl") {
+        if using_zig_for_target(config) {
+            return vec!["c++".to_owned(), "c++abi".to_owned()];
+        }
+        return vec!["stdc++".to_owned()];
+    }
+
     if target.contains("-pc-windows-gnu") {
         // MinGW toolchain: link libstdc++
-        return Some("stdc++".into());
+        return vec!["stdc++".to_owned()];
     }
     if target.contains("-pc-windows-msvc") {
         // MSVC: no libstdc++ needed
-        return None;
+        return vec![];
     }
 
     if env::var_os("CARGO_CFG_UNIX").is_some() {
         match env::var("CARGO_CFG_TARGET_OS").unwrap().as_ref() {
-            "android" => Some("c++_shared".into()),
-            "macos" | "ios" | "freebsd" => Some("c++".into()),
-            _ => Some("stdc++".into()),
+            "android" => vec!["c++_shared".to_owned()],
+            "macos" | "ios" | "freebsd" => vec!["c++".to_owned()],
+            _ => vec!["stdc++".to_owned()],
         }
     } else {
-        None
+        vec![]
     }
 }
 
@@ -672,7 +717,7 @@ fn emit_link_directives(config: &Config) {
         );
     }
 
-    if let Some(cpp_lib) = get_cpp_runtime_lib(config) {
+    for cpp_lib in get_cpp_runtime_libs(config) {
         println!("cargo:rustc-link-lib={cpp_lib}");
     }
     println!("cargo:rustc-link-lib=static=crypto");

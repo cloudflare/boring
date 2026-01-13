@@ -7,8 +7,8 @@
 //! Internet protocols, including SSL/TLS, which is the basis for HTTPS,
 //! the secure protocol for browsing the web.
 
+use crate::libc_types::{c_int, c_long, c_void};
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::{c_int, c_long, c_void};
 use openssl_macros::corresponds;
 use std::convert::TryInto;
 use std::error::Error;
@@ -794,7 +794,7 @@ impl X509 {
         from_der,
         X509,
         ffi::d2i_X509,
-        ::libc::c_long
+        crate::libc_types::c_long
     }
 
     /// Deserializes a list of PEM-formatted certificates.
@@ -1144,7 +1144,7 @@ impl X509Name {
         from_der,
         X509Name,
         ffi::d2i_X509_NAME,
-        ::libc::c_long
+        crate::libc_types::c_long
     }
 }
 
@@ -1409,7 +1409,7 @@ impl X509Req {
         from_der,
         X509Req,
         ffi::d2i_X509_REQ,
-        ::libc::c_long
+        crate::libc_types::c_long
     }
 }
 
@@ -1806,7 +1806,7 @@ use crate::ffi::X509_OBJECT_get0_X509;
 #[allow(bad_style)]
 unsafe fn X509_OBJECT_free(x: *mut ffi::X509_OBJECT) {
     ffi::X509_OBJECT_free_contents(x);
-    ffi::OPENSSL_free(x as *mut libc::c_void);
+    ffi::OPENSSL_free(x as *mut crate::libc_types::c_void);
 }
 
 unsafe fn get_new_x509_store_ctx_idx(f: ffi::CRYPTO_EX_free) -> c_int {

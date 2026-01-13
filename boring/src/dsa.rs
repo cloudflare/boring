@@ -6,8 +6,8 @@
 //! without the private key.
 
 use crate::ffi;
+use crate::libc_types::c_uint;
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::c_uint;
 use openssl_macros::corresponds;
 use std::fmt;
 use std::mem;
@@ -248,7 +248,7 @@ impl Dsa<Public> {
         public_key_from_der,
         Dsa<Public>,
         ffi::d2i_DSA_PUBKEY,
-        ::libc::c_long
+        crate::libc_types::c_long
     }
 
     /// Create a new DSA key with only public components.

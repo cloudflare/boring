@@ -25,8 +25,8 @@
 //! let tomorrow = Asn1Time::days_from_now(1);
 //! ```
 use crate::ffi;
+use crate::libc_types::{c_char, c_int, c_long, time_t};
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::{c_char, c_int, c_long, time_t};
 use std::cmp::Ordering;
 use std::ffi::CString;
 use std::fmt;

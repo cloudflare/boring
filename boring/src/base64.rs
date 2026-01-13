@@ -2,7 +2,7 @@
 use crate::cvt_n;
 use crate::error::ErrorStack;
 use crate::ffi;
-use libc::c_int;
+use crate::libc_types::c_int;
 use openssl_macros::corresponds;
 
 /// Encodes a slice of bytes to a base64 string.

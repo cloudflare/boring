@@ -65,7 +65,7 @@ impl Dh<Params> {
         params_from_der,
         Dh<Params>,
         ffi::d2i_DHparams,
-        ::libc::c_long
+        crate::libc_types::c_long
     }
 }
 

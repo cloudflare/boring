@@ -24,8 +24,8 @@
 //! let encrypted_len = rsa.public_encrypt(data, &mut buf, Padding::PKCS1).unwrap();
 //! ```
 use crate::ffi;
+use crate::libc_types::c_int;
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::c_int;
 use openssl_macros::corresponds;
 use std::fmt;
 use std::mem;
@@ -448,7 +448,7 @@ impl Rsa<Public> {
         public_key_from_der,
         Rsa<Public>,
         ffi::d2i_RSA_PUBKEY,
-        ::libc::c_long
+        crate::libc_types::c_long
     }
 
     from_der! {
@@ -457,7 +457,7 @@ impl Rsa<Public> {
         public_key_from_der_pkcs1,
         Rsa<Public>,
         ffi::d2i_RSAPublicKey,
-        ::libc::c_long
+        crate::libc_types::c_long
     }
 }
 
@@ -601,7 +601,7 @@ impl Rsa<Private> {
         private_key_from_der,
         Rsa<Private>,
         ffi::d2i_RSAPrivateKey,
-        ::libc::c_long
+        crate::libc_types::c_long
     }
 }
 

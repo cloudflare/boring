@@ -1,6 +1,6 @@
 use crate::ffi;
+use crate::libc_types::c_int;
 use foreign_types::ForeignType;
-use libc::c_int;
 
 use crate::error::ErrorStack;
 use crate::hpke::HpkeKey;

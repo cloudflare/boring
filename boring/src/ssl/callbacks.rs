@@ -9,12 +9,12 @@ use super::{
 use crate::error::ErrorStack;
 use crate::ffi;
 use crate::hmac::HmacCtxRef;
+use crate::libc_types::{c_char, c_int, c_uchar, c_uint, c_void};
 use crate::ssl::TicketKeyCallbackResult;
 use crate::symm::CipherCtxRef;
 use crate::x509::{X509StoreContext, X509StoreContextRef};
 use foreign_types::ForeignType;
 use foreign_types::ForeignTypeRef;
-use libc::{c_char, c_int, c_uchar, c_uint, c_void};
 use std::ffi::CStr;
 use std::mem::{self, MaybeUninit};
 use std::ptr;

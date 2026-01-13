@@ -108,7 +108,7 @@ use std::ffi::{c_long, c_void};
 #[doc(inline)]
 pub use crate::ffi::init;
 
-use libc::{c_int, size_t};
+use crate::libc_types::{c_int, size_t};
 
 use crate::error::ErrorStack;
 
@@ -116,6 +116,7 @@ use crate::error::ErrorStack;
 mod macros;
 
 mod bio;
+mod libc_types;
 #[macro_use]
 mod util;
 pub mod aes;

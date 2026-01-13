@@ -23,8 +23,8 @@
 //!
 //! [`BIGNUM`]: https://wiki.openssl.org/index.php/Manual:Bn_internal(3)
 use crate::ffi;
+use crate::libc_types::{c_int, size_t};
 use foreign_types::{ForeignType, ForeignTypeRef};
-use libc::{c_int, size_t};
 use std::cmp::Ordering;
 use std::ffi::CString;
 use std::ops::{Add, Deref, Div, Mul, Neg, Rem, Shl, Shr, Sub};
