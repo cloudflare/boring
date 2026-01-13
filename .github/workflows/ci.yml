@@ -80,6 +80,9 @@ jobs:
           - i686-linux
           - arm-linux
           - aarch64-linux
+          - aarch64-musl
+          - x86_64-musl
+          - powerpc64le-musl
           - arm64-macos
           - x86_64-macos
           - x86_64-mingw
@@ -143,23 +146,33 @@ jobs:
           - thing: arm-linux
             target: arm-unknown-linux-gnueabi
             rust: stable
-            os: ubuntu-latest
+            os: ubuntu-24.04-arm
             apt_packages: gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
-            check_only: true
-            custom_env:
-              CC_arm-unknown-linux-gnueabi: arm-linux-gnueabi-gcc
-              CXX_arm-unknown-linux-gnueabi: arm-linux-gnueabi-g++
-              CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABI_LINKER: arm-linux-gnueabi-g++
+            check_only: true # 32-bit execution on 64-bit ARM needs multiarch setup
           - thing: aarch64-linux
             target: aarch64-unknown-linux-gnu
             rust: stable
+            os: ubuntu-24.04-arm
+          - thing: aarch64-musl
+            target: aarch64-unknown-linux-musl
+            rust: stable
+            os: ubuntu-24.04-arm
+            apt_packages: musl-tools
+          - thing: x86_64-musl
+            target: x86_64-unknown-linux-musl
+            rust: stable
             os: ubuntu-latest
-            apt_packages: crossbuild-essential-arm64
+            apt_packages: musl-tools
+          - thing: powerpc64le-musl
+            target: powerpc64le-unknown-linux-musl
+            rust: stable
+            os: ubuntu-latest
+            apt_packages: gcc-powerpc64le-linux-gnu g++-powerpc64le-linux-gnu musl-tools
             check_only: true
             custom_env:
-              CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
-              CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
-              CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-g++
+              CC_powerpc64le_unknown_linux_musl: powerpc64le-linux-gnu-gcc
+              CXX_powerpc64le_unknown_linux_musl: powerpc64le-linux-gnu-g++
+              CARGO_TARGET_POWERPC64LE_UNKNOWN_LINUX_MUSL_LINKER: powerpc64le-linux-gnu-gcc
           - thing: arm64-macos
             target: aarch64-apple-darwin
             rust: stable
