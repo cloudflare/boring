@@ -69,6 +69,7 @@ jobs:
       matrix:
         thing:
         - stable
+        - i686-mingw
         - arm-android
         - arm64-android
         - i686-android
@@ -184,6 +185,16 @@ jobs:
             LIBRARY_PATH: "C:\\msys64\\usr\\lib"
           # CI's Windows doesn't have required root certs
           extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring
+        - thing: i686-mingw
+          target: i686-pc-windows-gnu
+          rust: stable
+          os: windows-latest
+          check_only: true
+          custom_env:
+            CMAKE_GENERATOR: "MinGW Makefiles"
+            COLLECT_GCC: null
+          # CI's Windows doesn't have required root certs
+          extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring
         - thing: i686-msvc
           target: i686-pc-windows-msvc
           rust: stable-x86_64-msvc
@@ -232,6 +243,32 @@ jobs:
       if: startsWith(matrix.os, 'windows')
       run: choco install nasm
       shell: cmd
+    - name: Setup 32-bit MSYS2
+      if: matrix.thing == 'i686-mingw'
+      uses: msys2/setup-msys2@v2
+      id: msys2
+      with:
+        msystem: MINGW32
+        path-type: inherit
+        install: >-
+          mingw-w64-i686-gcc
+          mingw-w64-i686-cmake
+    - name: Setup 32-bit MSYS2 Env vars
+      if: matrix.thing == 'i686-mingw'
+      shell: bash
+      run: |
+        MSYS_ROOT='${{ steps.msys2.outputs.msys2-location }}'
+        test -d "$MSYS_ROOT\\mingw32\\bin"
+        echo >> $GITHUB_PATH "$MSYS_ROOT\\mingw32\\bin"
+        echo >> $GITHUB_PATH "$MSYS_ROOT\\usr\\bin"
+        echo >> $GITHUB_ENV CC="$MSYS_ROOT\\mingw32\\bin\\gcc"
+        echo >> $GITHUB_ENV CXX="$MSYS_ROOT\\mingw32\\bin\\g++"
+        echo >> $GITHUB_ENV AR="$MSYS_ROOT\\mingw32\\bin\\ar"
+        echo >> $GITHUB_ENV CFLAGS="-mlong-double-64 -I$MSYS_ROOT\\mingw32\\include"
+        echo >> $GITHUB_ENV CXXFLAGS="-mlong-double-64 -I$MSYS_ROOT\\mingw32\\include"
+        echo >> $GITHUB_ENV BINDGEN_EXTRA_CLANG_ARGS="-mlong-double-64 -I$MSYS_ROOT\\mingw32\\include"
+        echo >> $GITHUB_ENV LIBRARY_PATH="$MSYS_ROOT\\mingw32\\lib"
+        echo >> $GITHUB_ENV LDFLAGS="-L$MSYS_ROOT\\mingw32\\lib"
     - name: Install LLVM and Clang
       if: startsWith(matrix.os, 'windows')
       uses: KyleMayes/install-llvm-action@v1
@@ -246,7 +283,7 @@ jobs:
       run: echo "CARGO_TARGET_$(echo ${{ matrix.target }} | tr \\-a-z _A-Z)_LINKER=$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/$(echo ${{ matrix.target }} | sed s/armv7/armv7a/)21-clang++" >> "$GITHUB_ENV"
     - name: Build tests
       # We `build` because we want the linker to verify we are cross-compiling correctly for check-only targets.
-      run: cargo build --target ${{ matrix.target }} --tests ${{ matrix.extra_test_args }}
+      run: cargo build -v --target ${{ matrix.target }} --tests ${{ matrix.extra_test_args }}
       shell: bash
       env: ${{ matrix.custom_env }}
     - name: Run tests (skip=${{ matrix.check_only }})
