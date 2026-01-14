@@ -88,7 +88,9 @@ impl Nid {
     pub fn long_name(&self) -> Result<&'static str, ErrorStack> {
         unsafe {
             let nameptr = cvt_p(ffi::OBJ_nid2ln(self.0) as *mut c_char)?;
-            str::from_utf8(CStr::from_ptr(nameptr).to_bytes()).map_err(ErrorStack::internal_error)
+            CStr::from_ptr(nameptr)
+                .to_str()
+                .map_err(ErrorStack::internal_error)
         }
     }
 
@@ -98,7 +100,9 @@ impl Nid {
     pub fn short_name(&self) -> Result<&'static str, ErrorStack> {
         unsafe {
             let nameptr = cvt_p(ffi::OBJ_nid2sn(self.0) as *mut c_char)?;
-            str::from_utf8(CStr::from_ptr(nameptr).to_bytes()).map_err(ErrorStack::internal_error)
+            CStr::from_ptr(nameptr)
+                .to_str()
+                .map_err(ErrorStack::internal_error)
         }
     }
 

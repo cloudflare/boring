@@ -152,7 +152,7 @@ fn get_boringssl_source_path(config: &Config) -> &PathBuf {
 ///
 /// MSVC generator on Windows place static libs in a target sub-folder,
 /// so adjust library location based on platform and build target.
-/// See issue: https://github.com/alexcrichton/cmake-rs/issues/18
+/// See issue: <https://github.com/alexcrichton/cmake-rs/issues/18>
 fn get_boringssl_platform_output_path(config: &Config) -> String {
     if config.target.ends_with("-msvc") {
         // Code under this branch should match the logic in cmake-rs
@@ -193,7 +193,7 @@ fn get_boringssl_platform_output_path(config: &Config) -> String {
     }
 }
 
-/// Returns a new cmake::Config for building BoringSSL.
+/// Returns a new `cmake::Config` for building BoringSSL.
 ///
 /// It will add platform-specific parameters if needed.
 fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
@@ -214,6 +214,15 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
             .define("CMAKE_C_COMPILER_TARGET", &config.target)
             .define("CMAKE_CXX_COMPILER_TARGET", &config.target)
             .define("CMAKE_ASM_COMPILER_TARGET", &config.target);
+    }
+
+    if !config.features.fips {
+        if let Some(cc) = &config.env.cc {
+            boringssl_cmake.define("CMAKE_C_COMPILER", cc);
+        }
+        if let Some(cxx) = &config.env.cxx {
+            boringssl_cmake.define("CMAKE_CXX_COMPILER", cxx);
+        }
     }
 
     if let Some(sysroot) = &config.env.sysroot {
@@ -331,7 +340,7 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
     boringssl_cmake
 }
 
-/// Verify that the toolchains match https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf
+/// Verify that the toolchains match <https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3678.pdf>
 /// See "Installation Instructions" under section 12.1.
 // TODO: maybe this should also verify the Go and Ninja versions? But those haven't been an issue in practice ...
 fn verify_fips_clang_version() -> (&'static str, &'static str) {
@@ -468,6 +477,24 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
 }
 
 fn ensure_patches_applied(config: &Config) -> io::Result<()> {
+    if config.env.assume_patched || config.env.path.is_some() {
+        println!(
+            "cargo:warning=skipping git patches application, provided\
+            native BoringSSL is expected to have the patches included"
+        );
+        return Ok(());
+    } else if config.env.source_path.is_some()
+        && (config.features.rpk
+            || config.features.pq_experimental
+            || config.features.underscore_wildcards)
+    {
+        panic!(
+            "BORING_BSSL_ASSUME_PATCHED must be set when setting
+               BORING_BSSL_SOURCE_PATH and using any of the following
+               features: rpk, pq-experimental, underscore-wildcards"
+        );
+    }
+
     let mut lock_file = LockFile::open(&config.out_dir.join(".patch_lock"))?;
     let src_path = get_boringssl_source_path(config);
     let has_git = src_path.join(".git").exists();
@@ -552,25 +579,6 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
     static BUILD_SOURCE_PATH: OnceLock<PathBuf> = OnceLock::new();
 
     BUILD_SOURCE_PATH.get_or_init(|| {
-        if config.env.assume_patched {
-            println!(
-                "cargo:warning=skipping git patches application, provided\
-                native BoringSSL is expected to have the patches included"
-            );
-        } else if config.env.source_path.is_some()
-            && (config.features.rpk
-                || config.features.pq_experimental
-                || config.features.underscore_wildcards)
-        {
-            panic!(
-                "BORING_BSSL_ASSUME_PATCHED must be set when setting
-                   BORING_BSSL_SOURCE_PATH and using any of the following
-                   features: rpk, pq-experimental, underscore-wildcards"
-            );
-        } else {
-            ensure_patches_applied(config).unwrap();
-        }
-
         let mut cfg = get_boringssl_cmake_config(config);
 
         let num_jobs = std::env::var("NUM_JOBS").ok().or_else(|| {
@@ -651,7 +659,7 @@ fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
     // TODO(rmehra): figure out how to do this for windows
     if env::var_os("CARGO_CFG_UNIX").is_some() {
         match env::var("CARGO_CFG_TARGET_OS").unwrap().as_ref() {
-            "macos" | "ios" => Some("c++".into()),
+            "macos" | "ios" | "freebsd" => Some("c++".into()),
             _ => Some("stdc++".into()),
         }
     } else {
@@ -661,6 +669,7 @@ fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
 
 fn main() {
     let config = Config::from_env();
+    ensure_patches_applied(&config).unwrap();
     if !config.env.docs_rs {
         emit_link_directives(&config);
     }
@@ -732,12 +741,8 @@ fn generate_bindings(config: &Config) {
         }
     });
 
-    // bindgen 0.70 replaced the run-time layout tests with compile-time ones,
-    // but they depend on std::mem::offset_of, stabilized in 1.77.
-    let supports_layout_tests = autocfg::new().probe_rustc_version(1, 77);
-    let Ok(target_rust_version) = bindgen::RustTarget::stable(68, 0) else {
-        panic!("bindgen does not recognize target rust version");
-    };
+    let target_rust_version =
+        bindgen::RustTarget::stable(77, 0).expect("bindgen does not recognize target rust version");
 
     let mut builder = bindgen::Builder::default()
         .rust_target(target_rust_version) // bindgen MSRV is 1.70, so this is enough
@@ -753,7 +758,7 @@ fn generate_bindings(config: &Config) {
         .generate_comments(true)
         .fit_macro_constants(false)
         .size_t_is_usize(true)
-        .layout_tests(supports_layout_tests)
+        .layout_tests(config.env.debug.is_some())
         .prepend_enum_name(true)
         .blocklist_type("max_align_t") // Not supported by bindgen on all targets, not used by BoringSSL
         .clang_args(get_extra_clang_args_for_bindgen(config))
@@ -805,7 +810,24 @@ fn generate_bindings(config: &Config) {
     }
 
     let bindings = builder.generate().expect("Unable to generate bindings");
+    let mut source_code = Vec::new();
     bindings
-        .write_to_file(config.out_dir.join("bindings.rs"))
-        .expect("Couldn't write bindings!");
+        .write(Box::new(&mut source_code))
+        .expect("Couldn't serialize bindings!");
+    ensure_err_lib_enum_is_named(&mut source_code);
+    fs::write(config.out_dir.join("bindings.rs"), source_code).expect("Couldn't write bindings!");
+}
+
+/// err.h has anonymous `enum { ERR_LIB_NONE = 1 }`, which makes a dodgy `_bindgen_ty_1` name
+fn ensure_err_lib_enum_is_named(source_code: &mut Vec<u8>) {
+    let src = String::from_utf8_lossy(source_code);
+    let enum_type = src
+        .split_once("ERR_LIB_SSL:")
+        .and_then(|(_, def)| Some(def.split_once("=")?.0))
+        .unwrap_or("_bindgen_ty_1");
+
+    source_code.extend_from_slice(
+        format!("\n/// Newtype for [`ERR_LIB_SSL`] constants\npub use {enum_type} as ErrLib;\n")
+            .as_bytes(),
+    );
 }

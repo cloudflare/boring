@@ -18,8 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust
-        run: rustup update stable && rustup default stable
+      - name: Install Rustfmt
+        run: rustup default stable && rustup component add rustfmt
       - name: Check formatting
         run: cargo fmt --all -- --check
 
@@ -31,10 +31,11 @@ jobs:
         with:
           submodules: 'recursive'
       - name: Install Rust
-        run: rustup update stable && rustup default stable
+        run: rustup update --no-self-update stable && rustup default stable && rustup component add clippy
       - name: Get rust version
         id: rust-version
-        run: echo "::set-output name=version::$(rustc --version)"
+        run: |
+          echo "version=$(rustc --version)" >> $GITHUB_OUTPUT
       - name: Cache cargo index
         uses: actions/cache@v4
         with:
@@ -58,6 +59,10 @@ jobs:
           key: clippy-target-${{ runner.os }}-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
       - name: Run clippy
         run: cargo clippy --all --all-targets
+      - name: Check docs
+        run: cargo doc --no-deps -p boring -p boring-sys --features rpk,pq-experimental,underscore-wildcards
+        env:
+          DOCS_RS: 1
   test:
     name: Test
     runs-on: ${{ matrix.os }}
@@ -141,8 +146,8 @@ jobs:
           apt_packages: gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
           check_only: true
           custom_env:
-            CC: arm-linux-gnueabi-gcc
-            CXX: arm-linux-gnueabi-g++
+            CC_arm-unknown-linux-gnueabi: arm-linux-gnueabi-gcc
+            CXX_arm-unknown-linux-gnueabi: arm-linux-gnueabi-g++
             CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABI_LINKER: arm-linux-gnueabi-g++
         - thing: aarch64-linux
           target: aarch64-unknown-linux-gnu
@@ -151,8 +156,8 @@ jobs:
           apt_packages: crossbuild-essential-arm64
           check_only: true
           custom_env:
-            CC: aarch64-linux-gnu-gcc
-            CXX: aarch64-linux-gnu-g++
+            CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+            CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
             CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-g++
         - thing: arm64-macos
           target: aarch64-apple-darwin

@@ -19,7 +19,6 @@ use std::mem;
 use std::net::IpAddr;
 use std::path::Path;
 use std::ptr;
-use std::slice;
 use std::str;
 use std::sync::{LazyLock, Once};
 
@@ -169,11 +168,10 @@ impl X509StoreContextRef {
     /// * `cert_chain` - The certificates chain.
     /// * `with_context` - The closure that is called with the initialized context.
     ///
-    /// This corresponds to [`X509_STORE_CTX_init`] before calling `with_context` and to
-    /// [`X509_STORE_CTX_cleanup`] after calling `with_context`.
+    /// Calls [`X509_STORE_CTX_cleanup`] after calling `with_context`.
     ///
-    /// [`X509_STORE_CTX_init`]:  https://www.openssl.org/docs/man1.0.2/crypto/X509_STORE_CTX_init.html
     /// [`X509_STORE_CTX_cleanup`]:  https://www.openssl.org/docs/man1.0.2/crypto/X509_STORE_CTX_cleanup.html
+    #[corresponds(X509_STORE_CTX_init)]
     pub fn init<F, T>(
         &mut self,
         trust: &store::X509StoreRef,
@@ -789,6 +787,13 @@ impl X509Ref {
         }
     }
 
+    #[corresponds(X509_check_ip_asc)]
+    pub fn check_ip_asc(&self, address: &str) -> Result<bool, ErrorStack> {
+        let c_str = CString::new(address).map_err(ErrorStack::internal_error)?;
+
+        unsafe { cvt_n(ffi::X509_check_ip_asc(self.as_ptr(), c_str.as_ptr(), 0)).map(|n| n == 1) }
+    }
+
     to_pem! {
         /// Serializes the certificate into a PEM-encoded X509 structure.
         ///
@@ -859,7 +864,7 @@ impl X509 {
                     if ffi::ERR_GET_LIB(err) == ffi::ERR_LIB_PEM.0.try_into().unwrap()
                         && ffi::ERR_GET_REASON(err) == ffi::PEM_R_NO_START_LINE
                     {
-                        ffi::ERR_clear_error();
+                        ErrorStack::clear();
                         break;
                     }
 
@@ -902,7 +907,7 @@ impl fmt::Debug for X509 {
 
         if let Ok(public_key) = &self.public_key() {
             debug_struct.field("public_key", public_key);
-        };
+        }
         // TODO: Print extensions once they are supported on the X509 struct.
 
         debug_struct.finish()
@@ -1371,10 +1376,7 @@ pub struct X509ReqBuilder(X509Req);
 
 impl X509ReqBuilder {
     /// Returns a builder for a certificate request.
-    ///
-    /// This corresponds to [`X509_REQ_new`].
-    ///
-    ///[`X509_REQ_new`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_REQ_new.html
+    #[corresponds(X509_REQ_new)]
     pub fn new() -> Result<X509ReqBuilder, ErrorStack> {
         unsafe {
             ffi::init();
@@ -1383,10 +1385,7 @@ impl X509ReqBuilder {
     }
 
     /// Set the numerical value of the version field.
-    ///
-    /// This corresponds to [`X509_REQ_set_version`].
-    ///
-    ///[`X509_REQ_set_version`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_REQ_set_version.html
+    #[corresponds(X509_REQ_set_version)]
     pub fn set_version(&mut self, version: i32) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::X509_REQ_set_version(self.0.as_ptr(), version.into())).map(|_| ()) }
     }
@@ -1544,10 +1543,7 @@ impl X509ReqRef {
     }
 
     /// Returns the public key of the certificate request.
-    ///
-    /// This corresponds to [`X509_REQ_get_pubkey"]
-    ///
-    /// [`X509_REQ_get_pubkey`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_REQ_get_pubkey.html
+    #[corresponds(X509_REQ_get_pubkey)]
     pub fn public_key(&self) -> Result<PKey<Public>, ErrorStack> {
         unsafe {
             let key = cvt_p(ffi::X509_REQ_get_pubkey(self.as_ptr()))?;
@@ -1558,10 +1554,7 @@ impl X509ReqRef {
     /// Check if the certificate request is signed using the given public key.
     ///
     /// Returns `true` if verification succeeds.
-    ///
-    /// This corresponds to [`X509_REQ_verify"].
-    ///
-    /// [`X509_REQ_verify`]: https://www.openssl.org/docs/man1.1.0/crypto/X509_REQ_verify.html
+    #[corresponds(X509_REQ_verify)]
     pub fn verify<T>(&self, key: &PKeyRef<T>) -> Result<bool, ErrorStack>
     where
         T: HasPublic,
@@ -1570,8 +1563,7 @@ impl X509ReqRef {
     }
 
     /// Returns the extensions of the certificate request.
-    ///
-    /// This corresponds to [`X509_REQ_get_extensions"]
+    #[corresponds(X509_REQ_get_extensions)]
     pub fn extensions(&self) -> Result<Stack<X509Extension>, ErrorStack> {
         unsafe {
             let extensions = cvt_p(ffi::X509_REQ_get_extensions(self.as_ptr()))?;
@@ -1626,6 +1618,8 @@ impl X509VerifyError {
     }
 
     /// Return a human readable error string from the verification error.
+    ///
+    /// Returns empty string if the message was not UTF-8.
     #[corresponds(X509_verify_cert_error_string)]
     #[allow(clippy::trivially_copy_pass_by_ref)]
     #[must_use]
@@ -1634,7 +1628,7 @@ impl X509VerifyError {
 
         unsafe {
             let s = ffi::X509_verify_cert_error_string(c_long::from(self.0));
-            str::from_utf8(CStr::from_ptr(s).to_bytes()).unwrap()
+            CStr::from_ptr(s).to_str().unwrap_or_default()
         }
     }
 }
@@ -1786,14 +1780,12 @@ impl GeneralNameRef {
                 return None;
             }
 
-            let ptr = ASN1_STRING_get0_data((*self.as_ptr()).d.ia5 as *mut _);
-            let len = ffi::ASN1_STRING_length((*self.as_ptr()).d.ia5 as *mut _);
+            let asn = Asn1BitStringRef::from_ptr((*self.as_ptr()).d.ia5);
 
-            let slice = slice::from_raw_parts(ptr, len as usize);
             // IA5Strings are stated to be ASCII (specifically IA5). Hopefully
             // OpenSSL checks that when loading a certificate but if not we'll
             // use this instead of from_utf8_unchecked just in case.
-            str::from_utf8(slice).ok()
+            asn.to_str()
         }
     }
 
@@ -1823,10 +1815,7 @@ impl GeneralNameRef {
                 return None;
             }
 
-            let ptr = ASN1_STRING_get0_data((*self.as_ptr()).d.ip as *mut _);
-            let len = ffi::ASN1_STRING_length((*self.as_ptr()).d.ip as *mut _);
-
-            Some(slice::from_raw_parts(ptr, len as usize))
+            Some(Asn1BitStringRef::from_ptr((*self.as_ptr()).d.ip).as_slice())
         }
     }
 }
@@ -1902,8 +1891,8 @@ impl Stackable for X509Object {
 use crate::ffi::{X509_get0_signature, X509_getm_notAfter, X509_getm_notBefore, X509_up_ref};
 
 use crate::ffi::{
-    ASN1_STRING_get0_data, X509_ALGOR_get0, X509_REQ_get_subject_name, X509_REQ_get_version,
-    X509_STORE_CTX_get0_chain, X509_set1_notAfter, X509_set1_notBefore,
+    X509_ALGOR_get0, X509_REQ_get_subject_name, X509_REQ_get_version, X509_STORE_CTX_get0_chain,
+    X509_set1_notAfter, X509_set1_notBefore,
 };
 
 use crate::ffi::X509_OBJECT_get0_X509;
