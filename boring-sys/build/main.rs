@@ -679,6 +679,7 @@ fn generate_bindings(config: &Config) {
         "curve25519.h",
         "des.h",
         "dtls1.h",
+        "err.h",
         "hkdf.h",
         "hpke.h",
         "hmac.h",
@@ -709,7 +710,13 @@ fn generate_bindings(config: &Config) {
         .write(Box::new(&mut source_code))
         .expect("Couldn't serialize bindings!");
     ensure_err_lib_enum_is_named(&mut source_code);
-    fs::write(config.out_dir.join("bindings.rs"), source_code).expect("Couldn't write bindings!");
+    fs::write(config.out_dir.join("bindings.rs"), &source_code).expect("Couldn't write bindings!");
+    assert!(
+        std::str::from_utf8(&source_code)
+            .unwrap()
+            .contains("ERR_set_error_data"),
+        "includes lack definition of ERR_set_error_data: {include_path:?}"
+    );
 }
 
 /// err.h has anonymous `enum { ERR_LIB_NONE = 1 }`, which makes a dodgy `_bindgen_ty_1` name
