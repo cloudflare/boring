@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - master
+      - v4.x
   push:
     branches:
       - master
@@ -62,6 +63,15 @@ jobs:
         run: cargo doc --no-deps -p boring -p boring-sys --features rpk,underscore-wildcards
         env:
           DOCS_RS: 1
+      - name: Cargo.toml boring versions consistency
+        shell: bash
+        run: |
+          WORKSPACE_VERSION=$(grep -F '[workspace.package]' -A1 Cargo.toml | grep -F version | grep -Eo '".*"')
+          if [[ -z "$WORKSPACE_VERSION" ]]; then echo 2>&1 "error: can't find boring version"; exit 1; fi
+          if grep -E 'boring.* =' Cargo.toml | grep -vF "$WORKSPACE_VERSION"; then
+            echo 2>&1 "error: boring dependencies must match workspace version $WORKSPACE_VERSION"
+            exit 1
+          fi
   test:
     name: Test
     runs-on: ${{ matrix.os }}
