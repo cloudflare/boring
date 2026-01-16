@@ -679,6 +679,7 @@ fn generate_bindings(config: &Config) {
         "curve25519.h",
         "des.h",
         "dtls1.h",
+        "err.h",
         "hkdf.h",
         "hpke.h",
         "hmac.h",
