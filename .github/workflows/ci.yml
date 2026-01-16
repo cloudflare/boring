@@ -259,7 +259,7 @@ jobs:
       #
       # Both of these may no longer be the case after updating the BoringSSL
       # submodules to a new revision, so it's important to test this on CI.
-      run: cargo publish --dry-run -p boring-sys
+      run: cargo publish --dry-run --target ${{ matrix.target }} -p boring-sys
 
   test-fips:
     name: Test FIPS integration
