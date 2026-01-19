@@ -1039,7 +1039,7 @@ impl SslContextBuilder {
             has_shared_cert_store: false,
         };
 
-        builder.set_ex_data(*RPK_FLAG_INDEX, is_rpk);
+        builder.replace_ex_data(*RPK_FLAG_INDEX, is_rpk);
 
         builder
     }
