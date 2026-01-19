@@ -54,7 +54,6 @@ use std::mem::MaybeUninit;
 /// SHA1 is known to be insecure - it should not be used unless required for
 /// compatibility with existing systems.
 #[inline]
-#[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
 #[must_use]
 pub fn sha1(data: &[u8]) -> [u8; 20] {
     unsafe {
@@ -66,7 +65,6 @@ pub fn sha1(data: &[u8]) -> [u8; 20] {
 
 /// Computes the SHA224 hash of some data.
 #[inline]
-#[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
 #[must_use]
 pub fn sha224(data: &[u8]) -> [u8; 28] {
     unsafe {
@@ -78,7 +76,6 @@ pub fn sha224(data: &[u8]) -> [u8; 28] {
 
 /// Computes the SHA256 hash of some data.
 #[inline]
-#[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
 #[must_use]
 pub fn sha256(data: &[u8]) -> [u8; 32] {
     unsafe {
@@ -90,7 +87,6 @@ pub fn sha256(data: &[u8]) -> [u8; 32] {
 
 /// Computes the SHA384 hash of some data.
 #[inline]
-#[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
 #[must_use]
 pub fn sha384(data: &[u8]) -> [u8; 48] {
     unsafe {
@@ -102,7 +98,6 @@ pub fn sha384(data: &[u8]) -> [u8; 48] {
 
 /// Computes the SHA512 hash of some data.
 #[inline]
-#[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
 #[must_use]
 pub fn sha512(data: &[u8]) -> [u8; 64] {
     unsafe {
@@ -114,7 +109,6 @@ pub fn sha512(data: &[u8]) -> [u8; 64] {
 
 /// Computes the SHA512-256 hash of some data.
 #[inline]
-#[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
 #[must_use]
 pub fn sha512_256(data: &[u8]) -> [u8; 32] {
     unsafe {
@@ -143,7 +137,6 @@ impl Default for Sha1 {
 impl Sha1 {
     /// Creates a new hasher.
     #[inline]
-    #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
     #[must_use]
     pub fn new() -> Sha1 {
         unsafe {
@@ -165,7 +158,6 @@ impl Sha1 {
 
     /// Returns the hash of the data.
     #[inline]
-    #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
     #[must_use]
     pub fn finish(mut self) -> [u8; 20] {
         unsafe {
@@ -190,7 +182,6 @@ impl Default for Sha224 {
 impl Sha224 {
     /// Creates a new hasher.
     #[inline]
-    #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
     #[must_use]
     pub fn new() -> Sha224 {
         unsafe {
@@ -212,7 +203,6 @@ impl Sha224 {
 
     /// Returns the hash of the data.
     #[inline]
-    #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
     #[must_use]
     pub fn finish(mut self) -> [u8; 28] {
         unsafe {
@@ -237,7 +227,6 @@ impl Default for Sha256 {
 impl Sha256 {
     /// Creates a new hasher.
     #[inline]
-    #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
     #[must_use]
     pub fn new() -> Sha256 {
         unsafe {
@@ -259,7 +248,6 @@ impl Sha256 {
 
     /// Returns the hash of the data.
     #[inline]
-    #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
     #[must_use]
     pub fn finish(mut self) -> [u8; 32] {
         unsafe {
@@ -284,7 +272,6 @@ impl Default for Sha384 {
 impl Sha384 {
     /// Creates a new hasher.
     #[inline]
-    #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
     #[must_use]
     pub fn new() -> Sha384 {
         unsafe {
@@ -306,7 +293,6 @@ impl Sha384 {
 
     /// Returns the hash of the data.
     #[inline]
-    #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
     #[must_use]
     pub fn finish(mut self) -> [u8; 48] {
         unsafe {
@@ -331,7 +317,6 @@ impl Default for Sha512 {
 impl Sha512 {
     /// Creates a new hasher.
     #[inline]
-    #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
     #[must_use]
     pub fn new() -> Sha512 {
         unsafe {
@@ -353,7 +338,6 @@ impl Sha512 {
 
     /// Returns the hash of the data.
     #[inline]
-    #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
     #[must_use]
     pub fn finish(mut self) -> [u8; 64] {
         unsafe {
@@ -378,7 +362,6 @@ impl Default for Sha512_256 {
 impl Sha512_256 {
     /// Creates a new hasher.
     #[inline]
-    #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
     #[must_use]
     pub fn new() -> Sha512_256 {
         unsafe {
@@ -400,7 +383,6 @@ impl Sha512_256 {
 
     /// Returns the hash of the data.
     #[inline]
-    #[allow(deprecated)] // https://github.com/rust-lang/rust/issues/63566
     #[must_use]
     pub fn finish(mut self) -> [u8; 32] {
         unsafe {
