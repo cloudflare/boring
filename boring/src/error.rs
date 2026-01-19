@@ -193,7 +193,7 @@ impl Error {
                 self.line,
             );
             if let Some(cstr) = self.data_cstr() {
-                ffi::ERR_set_error_data(cstr.as_ptr().cast_mut(), ffi::ERR_FLAG_STRING);
+                ffi::ERR_add_error_data(1, cstr.as_ptr().cast_mut());
             }
         }
     }
