@@ -12,11 +12,11 @@ use crate::hash::MessageDigest;
 use crate::pkey::PKey;
 use crate::srtp::SrtpProfileId;
 use crate::ssl::test::server::Server;
-use crate::ssl::SslVersion;
 use crate::ssl::{
     self, ExtensionType, ShutdownResult, ShutdownState, Ssl, SslAcceptor, SslAcceptorBuilder,
     SslConnector, SslContext, SslFiletype, SslMethod, SslOptions, SslStream, SslVerifyMode,
 };
+use crate::ssl::{HandshakeError, SslVersion};
 use crate::x509::store::X509StoreBuilder;
 use crate::x509::verify::X509CheckFlags;
 use crate::x509::{X509Name, X509};
