@@ -4470,36 +4470,12 @@ impl<S> SslStreamBuilder<S> {
     }
 }
 
-/// A credential.
-pub struct SslCredential(NonNull<ffi::SSL_CREDENTIAL>);
-
-unsafe impl ForeignType for SslCredential {
+foreign_type_and_impl_send_sync! {
     type CType = ffi::SSL_CREDENTIAL;
-    type Ref = SslCredentialRef;
+    fn drop = ffi::SSL_CREDENTIAL_free;
 
-    #[inline]
-    unsafe fn from_ptr(ptr: *mut ffi::SSL_CREDENTIAL) -> Self {
-        Self(NonNull::new_unchecked(ptr))
-    }
-
-    #[inline]
-    fn as_ptr(&self) -> *mut ffi::SSL_CREDENTIAL {
-        self.0.as_ptr()
-    }
-}
-
-impl Drop for SslCredential {
-    fn drop(&mut self) {
-        unsafe { ffi::SSL_CREDENTIAL_free(self.as_ptr()) }
-    }
-}
-
-impl Deref for SslCredential {
-    type Target = SslCredentialRef;
-
-    fn deref(&self) -> &SslCredentialRef {
-        unsafe { SslCredentialRef::from_ptr(self.as_ptr()) }
-    }
+    /// A credential.
+    pub struct SslCredential;
 }
 
 impl SslCredential {
@@ -4545,11 +4521,6 @@ impl SslCredential {
         }
     }
 }
-
-/// Reference to an [`SslCredential`].
-///
-/// [`SslCredential`]: struct.SslCredential.html
-pub struct SslCredentialRef(Opaque);
 
 impl SslCredentialRef {
     /// Returns a reference to the extra data at the specified index.
@@ -4602,13 +4573,7 @@ impl SslCredentialRef {
     }
 }
 
-unsafe impl Send for SslCredentialRef {}
-unsafe impl Sync for SslCredentialRef {}
-
-unsafe impl ForeignTypeRef for SslCredentialRef {
-    type CType = ffi::SSL_CREDENTIAL;
-}
-
+/// A builder for [`SslCredential`]
 pub struct SslCredentialBuilder(SslCredential);
 
 impl SslCredentialBuilder {
