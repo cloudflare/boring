@@ -4659,7 +4659,7 @@ impl SslCredentialBuilder {
 
             let ret = cvt_0i(ffi::SSL_CREDENTIAL_set1_spki(self.0.as_ptr(), spki));
 
-            if spki.is_null() {
+            if !spki.is_null() {
                 ffi::CRYPTO_BUFFER_free(spki);
             }
 
