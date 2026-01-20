@@ -225,7 +225,7 @@ impl ConnectConfiguration {
         }
 
         #[cfg(feature = "rpk")]
-        let verify_hostname = !self.ssl.ssl_context().is_rpk() && self.verify_hostname;
+        let verify_hostname = self.ssl.ssl_context().has_x509_support() && self.verify_hostname;
 
         #[cfg(not(feature = "rpk"))]
         let verify_hostname = self.verify_hostname;
