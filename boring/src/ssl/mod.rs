@@ -969,7 +969,7 @@ impl SslContextBuilder {
         let ctx = SslContext::from_ptr(ctx);
         SslContextBuilder {
             #[cfg(feature = "rpk")]
-            is_rpk: ctx.is_rpk(),
+            is_rpk: !ctx.has_x509_support(),
             has_shared_cert_store: false,
             ctx,
         }
@@ -1005,8 +1005,7 @@ impl SslContextBuilder {
     where
         F: Fn(&mut X509StoreContextRef) -> bool + 'static + Sync + Send,
     {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
+        self.ctx.check_x509();
 
         // NOTE(jlarisch): Q: Why don't we wrap the callback in an Arc, since
         // `set_verify_callback` does?
@@ -1027,8 +1026,7 @@ impl SslContextBuilder {
     /// Configures the certificate verification method for new connections.
     #[corresponds(SSL_CTX_set_verify)]
     pub fn set_verify(&mut self, mode: SslVerifyMode) {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
+        self.ctx.check_x509();
 
         unsafe {
             ffi::SSL_CTX_set_verify(self.as_ptr(), mode.bits() as c_int, None);
@@ -1056,8 +1054,7 @@ impl SslContextBuilder {
     where
         F: Fn(bool, &mut X509StoreContextRef) -> bool + 'static + Sync + Send,
     {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
+        self.ctx.check_x509();
 
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
@@ -1084,8 +1081,7 @@ impl SslContextBuilder {
     where
         F: Fn(&mut SslRef) -> Result<(), SslVerifyError> + 'static + Sync + Send,
     {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
+        self.ctx.check_x509();
 
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
@@ -1166,8 +1162,7 @@ impl SslContextBuilder {
             + Sync
             + Send,
     {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
+        self.ctx.check_x509();
 
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
@@ -1180,8 +1175,7 @@ impl SslContextBuilder {
     /// If the peer's certificate chain is longer than this value, verification will fail.
     #[corresponds(SSL_CTX_set_verify_depth)]
     pub fn set_verify_depth(&mut self, depth: u32) {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
+        self.ctx.check_x509();
 
         unsafe {
             ffi::SSL_CTX_set_verify_depth(self.as_ptr(), depth as c_int);
@@ -1191,8 +1185,7 @@ impl SslContextBuilder {
     /// Sets a custom certificate store for verifying peer certificates.
     #[corresponds(SSL_CTX_set0_verify_cert_store)]
     pub fn set_verify_cert_store(&mut self, cert_store: X509Store) -> Result<(), ErrorStack> {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
+        self.ctx.check_x509();
 
         unsafe {
             cvt(
@@ -1211,8 +1204,7 @@ impl SslContextBuilder {
     /// (there's no way to have both sharing and mutability).
     #[corresponds(SSL_CTX_set_cert_store)]
     pub fn set_cert_store(&mut self, cert_store: X509Store) {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
+        self.ctx.check_x509();
 
         self.has_shared_cert_store = true;
         unsafe {
@@ -1223,8 +1215,7 @@ impl SslContextBuilder {
     /// Replaces the context's certificate store, and allows mutating the store afterwards.
     #[corresponds(SSL_CTX_set_cert_store)]
     pub fn set_cert_store_builder(&mut self, cert_store: X509StoreBuilder) {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
+        self.ctx.check_x509();
 
         self.has_shared_cert_store = false;
         unsafe {
@@ -1278,8 +1269,7 @@ impl SslContextBuilder {
     /// if present, or defaults specified at OpenSSL build time otherwise.
     #[corresponds(SSL_CTX_set_default_verify_paths)]
     pub fn set_default_verify_paths(&mut self) -> Result<(), ErrorStack> {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
+        self.ctx.check_x509();
 
         unsafe { cvt(ffi::SSL_CTX_set_default_verify_paths(self.as_ptr())).map(|_| ()) }
     }
@@ -1289,8 +1279,7 @@ impl SslContextBuilder {
     /// The file should contain a sequence of PEM-formatted CA certificates.
     #[corresponds(SSL_CTX_load_verify_locations)]
     pub fn set_ca_file<P: AsRef<Path>>(&mut self, file: P) -> Result<(), ErrorStack> {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
+        self.ctx.check_x509();
 
         let file = CString::new(file.as_ref().as_os_str().as_encoded_bytes())
             .map_err(ErrorStack::internal_error)?;
@@ -1310,8 +1299,7 @@ impl SslContextBuilder {
     /// as trusted by this method.
     #[corresponds(SSL_CTX_set_client_CA_list)]
     pub fn set_client_ca_list(&mut self, list: Stack<X509Name>) {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
+        self.ctx.check_x509();
 
         unsafe {
             ffi::SSL_CTX_set_client_CA_list(self.as_ptr(), list.as_ptr());
@@ -1323,8 +1311,7 @@ impl SslContextBuilder {
     /// requesting client-side TLS authentication.
     #[corresponds(SSL_CTX_add_client_CA)]
     pub fn add_client_ca(&mut self, cacert: &X509Ref) -> Result<(), ErrorStack> {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
+        self.ctx.check_x509();
 
         unsafe { cvt(ffi::SSL_CTX_add_client_CA(self.as_ptr(), cacert.as_ptr())).map(|_| ()) }
     }
@@ -1361,8 +1348,7 @@ impl SslContextBuilder {
         file: P,
         file_type: SslFiletype,
     ) -> Result<(), ErrorStack> {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
+        self.ctx.check_x509();
 
         let file = CString::new(file.as_ref().as_os_str().as_encoded_bytes())
             .map_err(ErrorStack::internal_error)?;
@@ -1411,8 +1397,7 @@ impl SslContextBuilder {
     /// `set_certificate` to a trusted root.
     #[corresponds(SSL_CTX_add_extra_chain_cert)]
     pub fn add_extra_chain_cert(&mut self, cert: X509) -> Result<(), ErrorStack> {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
+        self.ctx.check_x509();
 
         unsafe {
             cvt(ffi::SSL_CTX_add_extra_chain_cert(self.as_ptr(), cert.into_ptr()) as c_int)?;
@@ -1747,8 +1732,7 @@ impl SslContextBuilder {
     #[corresponds(SSL_CTX_get_cert_store)]
     #[must_use]
     pub fn cert_store(&self) -> &X509StoreBuilderRef {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
+        self.ctx.check_x509();
 
         unsafe { X509StoreBuilderRef::from_ptr(ffi::SSL_CTX_get_cert_store(self.as_ptr())) }
     }
@@ -1764,8 +1748,7 @@ impl SslContextBuilder {
     ///
     #[corresponds(SSL_CTX_get_cert_store)]
     pub fn cert_store_mut(&mut self) -> &mut X509StoreBuilderRef {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
+        self.ctx.check_x509();
 
         assert!(
             !self.has_shared_cert_store,
@@ -2169,8 +2152,7 @@ impl SslContextRef {
     #[corresponds(SSL_CTX_get0_certificate)]
     #[must_use]
     pub fn certificate(&self) -> Option<&X509Ref> {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk(), "This API is not supported for RPK");
+        self.check_x509();
 
         unsafe {
             let ptr = ffi::SSL_CTX_get0_certificate(self.as_ptr());
@@ -2200,8 +2182,7 @@ impl SslContextRef {
     #[corresponds(SSL_CTX_get_cert_store)]
     #[must_use]
     pub fn cert_store(&self) -> &X509StoreRef {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk(), "This API is not supported for RPK");
+        self.check_x509();
 
         unsafe { X509StoreRef::from_ptr(ffi::SSL_CTX_get_cert_store(self.as_ptr())) }
     }
@@ -2311,17 +2292,26 @@ impl SslContextRef {
     #[corresponds(SSL_CTX_get_verify_mode)]
     #[must_use]
     pub fn verify_mode(&self) -> SslVerifyMode {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk(), "This API is not supported for RPK");
+        self.check_x509();
 
         let mode = unsafe { ffi::SSL_CTX_get_verify_mode(self.as_ptr()) };
         SslVerifyMode::from_bits(mode).expect("SSL_CTX_get_verify_mode returned invalid mode")
     }
 
-    /// Returns `true` if context was created for Raw Public Key verification
-    #[cfg(feature = "rpk")]
-    pub fn is_rpk(&self) -> bool {
-        self.ex_data(*RPK_FLAG_INDEX).copied().unwrap_or_default()
+    /// Returns `true` if context was NOT created for Raw Public Key verification
+    pub fn has_x509_support(&self) -> bool {
+        #[cfg(feature = "rpk")]
+        return !self.ex_data(*RPK_FLAG_INDEX).copied().unwrap_or_default();
+        #[cfg(not(feature = "rpk"))]
+        return true;
+    }
+
+    #[track_caller]
+    fn check_x509(&self) {
+        assert!(
+            self.has_x509_support(),
+            "This context is not configured for X.509 certificates"
+        );
     }
 
     /// Registers a list of ECH keys on the context. This list should contain new and old
@@ -2799,7 +2789,7 @@ impl Ssl {
         {
             let ctx = self.ssl_context();
 
-            if ctx.is_rpk() {
+            if !ctx.has_x509_support() {
                 unsafe {
                     ffi::SSL_CTX_set_custom_verify(
                         ctx.as_ptr(),
@@ -2839,7 +2829,7 @@ impl fmt::Debug for SslRef {
         builder.field("state", &self.state_string_long());
 
         #[cfg(feature = "rpk")]
-        if !self.ssl_context().is_rpk() {
+        if self.ssl_context().has_x509_support() {
             builder.field("verify_result", &self.verify_result());
         }
 
@@ -2925,11 +2915,7 @@ impl SslRef {
     /// [`SslContextBuilder::set_verify`]: struct.SslContextBuilder.html#method.set_verify
     #[corresponds(SSL_set_verify)]
     pub fn set_verify(&mut self, mode: SslVerifyMode) {
-        #[cfg(feature = "rpk")]
-        assert!(
-            !self.ssl_context().is_rpk(),
-            "This API is not supported for RPK"
-        );
+        self.ssl_context().check_x509();
 
         unsafe { ffi::SSL_set_verify(self.as_ptr(), mode.bits() as c_int, None) }
     }
@@ -2939,11 +2925,7 @@ impl SslRef {
     /// If the peer's certificate chain is longer than this value, verification will fail.
     #[corresponds(SSL_set_verify_depth)]
     pub fn set_verify_depth(&mut self, depth: u32) {
-        #[cfg(feature = "rpk")]
-        assert!(
-            !self.ssl_context().is_rpk(),
-            "This API is not supported for RPK"
-        );
+        self.ssl_context().check_x509();
 
         unsafe {
             ffi::SSL_set_verify_depth(self.as_ptr(), depth as c_int);
@@ -2954,11 +2936,7 @@ impl SslRef {
     #[corresponds(SSL_get_verify_mode)]
     #[must_use]
     pub fn verify_mode(&self) -> SslVerifyMode {
-        #[cfg(feature = "rpk")]
-        assert!(
-            !self.ssl_context().is_rpk(),
-            "This API is not supported for RPK"
-        );
+        self.ssl_context().check_x509();
 
         let mode = unsafe { ffi::SSL_get_verify_mode(self.as_ptr()) };
         SslVerifyMode::from_bits(mode).expect("SSL_get_verify_mode returned invalid mode")
@@ -2985,11 +2963,7 @@ impl SslRef {
     where
         F: Fn(bool, &mut X509StoreContextRef) -> bool + 'static + Sync + Send,
     {
-        #[cfg(feature = "rpk")]
-        assert!(
-            !self.ssl_context().is_rpk(),
-            "This API is not supported for RPK"
-        );
+        self.ssl_context().check_x509();
 
         unsafe {
             // this needs to be in an Arc since the callback can register a new callback!
@@ -3005,11 +2979,7 @@ impl SslRef {
     /// Sets a custom certificate store for verifying peer certificates.
     #[corresponds(SSL_set0_verify_cert_store)]
     pub fn set_verify_cert_store(&mut self, cert_store: X509Store) -> Result<(), ErrorStack> {
-        #[cfg(feature = "rpk")]
-        assert!(
-            !self.ssl_context().is_rpk(),
-            "This API is not supported for RPK"
-        );
+        self.ssl_context().check_x509();
 
         unsafe {
             cvt(ffi::SSL_set0_verify_cert_store(self.as_ptr(), cert_store.into_ptr()) as c_int)?;
@@ -3027,11 +2997,7 @@ impl SslRef {
     where
         F: Fn(&mut SslRef) -> Result<(), SslVerifyError> + 'static + Sync + Send,
     {
-        #[cfg(feature = "rpk")]
-        assert!(
-            !self.ssl_context().is_rpk(),
-            "This API is not supported for RPK"
-        );
+        self.ssl_context().check_x509();
 
         unsafe {
             // this needs to be in an Arc since the callback can register a new callback!
@@ -3162,11 +3128,7 @@ impl SslRef {
     #[corresponds(SSL_get_peer_certificate)]
     #[must_use]
     pub fn peer_certificate(&self) -> Option<X509> {
-        #[cfg(feature = "rpk")]
-        assert!(
-            !self.ssl_context().is_rpk(),
-            "This API is not supported for RPK"
-        );
+        self.ssl_context().check_x509();
 
         unsafe {
             let ptr = ffi::SSL_get_peer_certificate(self.as_ptr());
@@ -3185,11 +3147,7 @@ impl SslRef {
     #[corresponds(SSL_get_peer_cert_chain)]
     #[must_use]
     pub fn peer_cert_chain(&self) -> Option<&StackRef<X509>> {
-        #[cfg(feature = "rpk")]
-        assert!(
-            !self.ssl_context().is_rpk(),
-            "This API is not supported for RPK"
-        );
+        self.ssl_context().check_x509();
 
         unsafe {
             let ptr = ffi::SSL_get_peer_cert_chain(self.as_ptr());
@@ -3205,11 +3163,7 @@ impl SslRef {
     #[corresponds(SSL_get_certificate)]
     #[must_use]
     pub fn certificate(&self) -> Option<&X509Ref> {
-        #[cfg(feature = "rpk")]
-        assert!(
-            !self.ssl_context().is_rpk(),
-            "This API is not supported for RPK"
-        );
+        self.ssl_context().check_x509();
 
         unsafe {
             let ptr = ffi::SSL_get_certificate(self.as_ptr());
@@ -3464,11 +3418,7 @@ impl SslRef {
     /// Returns a mutable reference to the X509 verification configuration.
     #[corresponds(SSL_get0_param)]
     pub fn verify_param_mut(&mut self) -> &mut X509VerifyParamRef {
-        #[cfg(feature = "rpk")]
-        assert!(
-            !self.ssl_context().is_rpk(),
-            "This API is not supported for RPK"
-        );
+        self.ssl_context().check_x509();
 
         unsafe { X509VerifyParamRef::from_ptr_mut(ffi::SSL_get0_param(self.as_ptr())) }
     }
@@ -3481,11 +3431,7 @@ impl SslRef {
     /// Returns the certificate verification result.
     #[corresponds(SSL_get_verify_result)]
     pub fn verify_result(&self) -> X509VerifyResult {
-        #[cfg(feature = "rpk")]
-        assert!(
-            !self.ssl_context().is_rpk(),
-            "This API is not supported for RPK"
-        );
+        self.ssl_context().check_x509();
 
         unsafe { X509VerifyError::from_raw(ffi::SSL_get_verify_result(self.as_ptr()) as c_int) }
     }
@@ -3741,11 +3687,7 @@ impl SslRef {
     /// as trusted by this method.
     #[corresponds(SSL_set_client_CA_list)]
     pub fn set_client_ca_list(&mut self, list: Stack<X509Name>) {
-        #[cfg(feature = "rpk")]
-        assert!(
-            !self.ssl_context().is_rpk(),
-            "This API is not supported for RPK"
-        );
+        self.ssl_context().check_x509();
 
         unsafe { ffi::SSL_set_client_CA_list(self.as_ptr(), list.as_ptr()) }
         mem::forget(list);
