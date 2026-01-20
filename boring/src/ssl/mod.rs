@@ -4552,22 +4552,15 @@ impl SslCredentialRef {
     // Unsafe because SSL contexts are not guaranteed to be unique, we call
     // this only from SslCredentialBuilder.
     #[corresponds(SSL_CREDENTIAL_set_ex_data)]
-    unsafe fn set_ex_data<T>(&mut self, index: Index<SslCredential, T>, data: T) {
-        unsafe {
-            let data = Box::into_raw(Box::new(data)) as *mut c_void;
-            ffi::SSL_CREDENTIAL_set_ex_data(self.as_ptr(), index.as_raw(), data);
-        }
-    }
-
-    // Unsafe because SSL contexts are not guaranteed to be unique, we call
-    // this only from SslCredentialBuilder.
-    #[corresponds(SSL_CREDENTIAL_set_ex_data)]
     unsafe fn replace_ex_data<T>(&mut self, index: Index<SslCredential, T>, data: T) -> Option<T> {
         if let Some(old) = self.ex_data_mut(index) {
             return Some(mem::replace(old, data));
         }
 
-        self.set_ex_data(index, data);
+        unsafe {
+            let data = Box::into_raw(Box::new(data)) as *mut c_void;
+            ffi::SSL_CREDENTIAL_set_ex_data(self.as_ptr(), index.as_raw(), data);
+        }
 
         None
     }
@@ -4577,20 +4570,6 @@ impl SslCredentialRef {
 pub struct SslCredentialBuilder(SslCredential);
 
 impl SslCredentialBuilder {
-    /// Sets the extra data at the specified index.
-    ///
-    /// This can be used to provide data to callbacks registered with the context. Use the
-    /// `SslCredential::new_ex_index` method to create an `Index`.
-    ///
-    /// Note that if this method is called multiple times with the same index, any previous
-    /// value stored in the `SslCredentialBuilder` will be leaked.
-    #[corresponds(SSL_CREDENTIAL_set_ex_data)]
-    pub fn set_ex_data<T>(&mut self, index: Index<SslCredential, T>, data: T) {
-        unsafe {
-            self.as_mut().set_ex_data(index, data);
-        }
-    }
-
     /// Sets or overwrites the extra data at the specified index.
     ///
     /// This can be used to provide data to callbacks registered with the context. Use the
