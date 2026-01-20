@@ -4578,7 +4578,7 @@ impl SslCredentialBuilder {
     /// Any previous value will be returned and replaced by the new one.
     #[corresponds(SSL_CREDENTIAL_set_ex_data)]
     pub fn replace_ex_data<T>(&mut self, index: Index<SslCredential, T>, data: T) -> Option<T> {
-        unsafe { self.as_mut().replace_ex_data(index, data) }
+        unsafe { self.0.replace_ex_data(index, data) }
     }
 
     // Sets the private key of the credential.
@@ -4602,12 +4602,10 @@ impl SslCredentialBuilder {
         M: PrivateKeyMethod,
     {
         unsafe {
-            let this = self.as_mut();
-
-            this.replace_ex_data(SslCredential::cached_ex_index::<M>(), method);
+            self.replace_ex_data(SslCredential::cached_ex_index::<M>(), method);
 
             cvt_0i(ffi::SSL_CREDENTIAL_set_private_key_method(
-                this.as_ptr(),
+                self.0.as_ptr(),
                 &ffi::SSL_PRIVATE_KEY_METHOD {
                     sign: Some(callbacks::raw_sign::<M>),
                     decrypt: Some(callbacks::raw_decrypt::<M>),
@@ -4636,20 +4634,14 @@ impl SslCredentialBuilder {
                 .transpose()?
                 .unwrap_or(ptr::null_mut());
 
-            let ret = cvt_0i(ffi::SSL_CREDENTIAL_set1_spki(self.0.as_ptr(), spki));
+            let ret = cvt_0i(ffi::SSL_CREDENTIAL_set1_spki(self.0.as_ptr(), spki)).map(|_| ());
 
             if !spki.is_null() {
                 ffi::CRYPTO_BUFFER_free(spki);
             }
 
-            ret?;
-
-            Ok(())
+            ret
         }
-    }
-
-    unsafe fn as_mut(&mut self) -> &mut SslCredentialRef {
-        SslCredentialRef::from_ptr_mut(self.0.as_ptr())
     }
 
     pub fn build(self) -> SslCredential {
