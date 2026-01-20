@@ -135,7 +135,10 @@ fn get_boringssl_source_path(config: &Config) -> &PathBuf {
 
         let _ = fs::remove_dir_all(&src_path);
         fs_extra::dir::copy(submodule_path, &config.out_dir, &Default::default())
-            .expect("out dir copy");
+            .inspect_err(|_| {
+                let _ = fs::remove_dir_all(&config.out_dir);
+            })
+            .expect("copying failed. Try running `cargo clean`");
 
         // NOTE: .git can be both file and dir, depening on whether it was copied from a submodule
         // or created by the patches code.
@@ -613,20 +616,33 @@ fn emit_link_directives(config: &Config) {
     }
 }
 
+fn check_include_path(path: PathBuf) -> Result<PathBuf, String> {
+    if path.join("openssl").join("x509v3.h").exists() {
+        Ok(path)
+    } else {
+        Err(format!(
+            "Include path {} {}",
+            path.display(),
+            if !path.exists() {
+                "does not exist"
+            } else {
+                "does not have expected openssl/x509v3.h"
+            }
+        ))
+    }
+}
+
 fn generate_bindings(config: &Config) {
     let include_path = config.env.include_path.clone().unwrap_or_else(|| {
         if let Some(bssl_path) = &config.env.path {
-            return bssl_path.join("include");
+            return check_include_path(bssl_path.join("include"))
+                .expect("config has invalid include path");
         }
 
         let src_path = get_boringssl_source_path(config);
-        let candidate = src_path.join("include");
-
-        if candidate.exists() {
-            candidate
-        } else {
-            src_path.join("src").join("include")
-        }
+        check_include_path(src_path.join("include"))
+            .or_else(|_| check_include_path(src_path.join("src").join("include")))
+            .expect("can't find usable include path")
     });
 
     let target_rust_version =
@@ -706,7 +722,14 @@ fn generate_bindings(config: &Config) {
         "x509v3.h",
     ];
     for header in &headers {
-        builder = builder.header(include_path.join("openssl").join(header).to_str().unwrap());
+        let header_path = include_path.join("openssl").join(header);
+        assert!(
+            header_path.exists(),
+            "{} is missing. Is {} correct? run `cargo clean`",
+            header_path.display(),
+            include_path.display()
+        );
+        builder = builder.header(header_path.to_str().unwrap());
     }
 
     let bindings = builder.generate().expect("Unable to generate bindings");
