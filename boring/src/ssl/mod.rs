@@ -4154,7 +4154,26 @@ impl<S: Read + Write> SslStream<S> {
         match unsafe { ffi::SSL_shutdown(self.ssl.as_ptr()) } {
             0 => Ok(ShutdownResult::Sent),
             1 => Ok(ShutdownResult::Received),
-            n => Err(self.make_error(n)),
+            n => {
+                let e = self.make_error(n);
+
+                // If boring returns PROTOCOL_IS_SHUTDOWN then the connection
+                // has already been shutdown and we can just return Ok(()), as
+                // this was exactly what we wanted to do anyway.
+                if e.code() == ErrorCode::SSL {
+                    if let Some(stack) = e.ssl_error() {
+                        if let Some(first) = stack.errors().first() {
+                            if first.library_reason(ffi::ERR_LIB_SSL)
+                                == Some(ffi::SSL_R_PROTOCOL_IS_SHUTDOWN)
+                            {
+                                return Ok(ShutdownResult::Received);
+                            }
+                        }
+                    }
+                }
+
+                Err(e)
+            }
         }
     }
 
