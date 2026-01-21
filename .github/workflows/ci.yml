@@ -60,8 +60,10 @@ jobs:
       - name: Run clippy
         run: cargo clippy --all --all-targets
       - name: Check docs
-        run: cargo doc --no-deps -p boring -p boring-sys --features rpk,underscore-wildcards
+        run: cargo doc --no-deps -p boring -p boring-sys -p hyper-boring -p tokio-boring --features rpk,underscore-wildcards
         env:
+          CARGO_BUILD_RUSTDOCFLAGS: "--cfg=docsrs"
+          RUST_BOOTSTRAP: 1
           DOCS_RS: 1
       - name: Cargo.toml boring versions consistency
         shell: bash
