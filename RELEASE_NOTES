@@ -1,3 +1,11 @@
+4.21.0
+
+- 2026-01-05 Warn about set_curves() removal
+- 2026-01-05 Deprecate set_ex_data()
+- 2026-01-05 Fix build with --no-default-features
+- 2026-01-05 Make set_curves_list always available
+- 2026-01-19 Use fips-build-compatible ERR_add_error_data
+
 4.20.0
 - 2025-08-26 Support TARGET_CC and CC_{target}
 - 2025-08-26 Fix swapped host/target args
