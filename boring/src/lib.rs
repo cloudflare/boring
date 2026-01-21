@@ -96,8 +96,6 @@
 //! Presently all these key agreements are deployed by Cloudflare, but we do not guarantee continued
 //! support for them.
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
-
 #[macro_use]
 extern crate bitflags;
 #[macro_use]
