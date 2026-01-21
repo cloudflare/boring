@@ -980,11 +980,11 @@ impl SslContextBuilder {
     /// whether the chain is accepted or not.
     ///
     /// *Warning*: Providing a complete verification procedure is a complex task. See
-    /// https://docs.openssl.org/master/man3/SSL_CTX_set_cert_verify_callback/#notes for more
-    /// information.
+    /// [`SSL_CTX_set_cert_verify_callback`](https://docs.openssl.org/master/man3/SSL_CTX_set_cert_verify_callback/#notes)
+    /// for more information.
     ///
-    /// TODO: Add the ability to unset the callback by either adding a new function or wrapping the
-    /// callback in an `Option`.
+    // TODO: Add the ability to unset the callback by either adding a new function or wrapping the
+    // callback in an `Option`.
     ///
     /// # Panics
     ///
@@ -1426,7 +1426,7 @@ impl SslContextBuilder {
     ///
     /// The `set_ciphersuites` method controls the cipher suites for TLSv1.3 in OpenSSL.
     /// BoringSSL doesn't implement `set_ciphersuites`.
-    /// See https://github.com/google/boringssl/blob/master/include/openssl/ssl.h#L1542-L1544
+    /// See [ssl.h](https://github.com/google/boringssl/blob/master/include/openssl/ssl.h#L1542-L1544).
     ///
     /// See [`ciphers`] for details on the format.
     ///

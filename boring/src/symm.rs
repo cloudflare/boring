@@ -79,7 +79,7 @@ foreign_type_and_impl_send_sync! {
 impl CipherCtxRef {
     /// Configures CipherCtx for a fresh encryption operation using `cipher`.
     ///
-    /// https://commondatastorage.googleapis.com/chromium-boringssl-docs/cipher.h.html#EVP_EncryptInit_ex
+    #[corresponds(EVP_EncryptInit_ex)]
     pub fn init_encrypt(
         &mut self,
         cipher: &Cipher,
@@ -107,7 +107,7 @@ impl CipherCtxRef {
 
     /// Configures CipherCtx for a fresh decryption operation using `cipher`.
     ///
-    /// https://commondatastorage.googleapis.com/chromium-boringssl-docs/cipher.h.html#EVP_DecryptInit_ex
+    #[corresponds(EVP_DecryptInit_ex)]
     pub fn init_decrypt(
         &mut self,
         cipher: &Cipher,
