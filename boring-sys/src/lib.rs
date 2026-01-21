@@ -10,7 +10,6 @@
     non_upper_case_globals,
     unused_imports
 )]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 use std::convert::TryInto;
 use std::ffi::c_void;
