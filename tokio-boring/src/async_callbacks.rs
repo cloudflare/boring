@@ -41,7 +41,7 @@ pub trait SslContextBuilderExt: private::Sealed {
     ///
     /// # Safety
     ///
-    /// The returned [`SslSession`] must not be associated with a different [`SslContext`].
+    /// The returned [`boring::ssl::SslSession`] must not be associated with a different [`boring::ssl::SslContext`].
     unsafe fn set_async_get_session_callback<F>(&mut self, callback: F)
     where
         F: Fn(&mut SslRef, &[u8]) -> Option<BoxGetSessionFuture> + Send + Sync + 'static;
