@@ -63,7 +63,7 @@ jobs:
         run: cargo doc --no-deps -p boring -p boring-sys -p hyper-boring -p tokio-boring --features rpk,underscore-wildcards
         env:
           CARGO_BUILD_RUSTDOCFLAGS: "--cfg=docsrs"
-          RUST_BOOTSTRAP: 1
+          RUSTC_BOOTSTRAP: 1
           DOCS_RS: 1
       - name: Cargo.toml boring versions consistency
         shell: bash
@@ -195,32 +195,37 @@ jobs:
             C_INCLUDE_PATH: "C:\\msys64\\usr\\include"
             CPLUS_INCLUDE_PATH: "C:\\msys64\\usr\\include"
             LIBRARY_PATH: "C:\\msys64\\usr\\lib"
+            RUSTC_BOOTSTRAP: 1 # for -Z checksum-freshness
           # CI's Windows doesn't have required root certs
-          extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring
+          extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring -Z checksum-freshness
         - thing: i686-mingw
           target: i686-pc-windows-gnu
           rust: stable
           os: windows-latest
           check_only: true
           custom_env:
+            RUSTC_BOOTSTRAP: 1 # for -Z checksum-freshness
             CMAKE_GENERATOR: "MinGW Makefiles"
             COLLECT_GCC: null
           # CI's Windows doesn't have required root certs
-          extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring
+          extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring -Z checksum-freshness
         - thing: i686-msvc
           target: i686-pc-windows-msvc
           rust: stable-x86_64-msvc
           os: windows-latest
           custom_env:
+            RUSTC_BOOTSTRAP: 1 # for -Z checksum-freshness
             CXXFLAGS: -msse2
           # CI's Windows doesn't have required root certs
-          extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring
+          extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring -Z checksum-freshness
         - thing: x86_64-msvc
           target: x86_64-pc-windows-msvc
           rust: stable-x86_64-msvc
           os: windows-latest
+          custom_env:
+            RUSTC_BOOTSTRAP: 1 # for -Z checksum-freshness
           # CI's Windows doesn't have required root certs
-          extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring
+          extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring -Z checksum-freshness
     env:
       CARGO_HOME: ${{ github.workspace }}/.cache/cargo
       CARGO_BUILD_BUILD_DIR: ${{ github.workspace }}/.cache/build-dir
@@ -301,15 +306,23 @@ jobs:
       # Windows builds are the slowest
     - name: Cache deps in Windows tests
       if: startsWith(matrix.os, 'windows')
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v4
+      id: test-cache-restore
       with:
-        path: .cache/build-dir # CARGO_BUILD_BUILD_DIR
-        key: test-${{ matrix.target }}-${{ hashFiles('Cargo.lock') }}
+        path: .cache/build-dir
+        key: wintest-${{ matrix.target }}-${{ hashFiles('Cargo.lock') }}
     - name: Build tests
       # We `build` because we want the linker to verify we are cross-compiling correctly for check-only targets.
-      run: cargo build -v --target ${{ matrix.target }} --tests ${{ matrix.extra_test_args }}
+      run: cargo build -vv --target ${{ matrix.target }} --tests ${{ matrix.extra_test_args }}
       shell: bash
       env: ${{ matrix.custom_env }}
+      # By default it'd be saved after later cargo calls, which already invalidated the cache
+    - name: Cache deps in Windows tests
+      if: startsWith(matrix.os, 'windows')
+      uses: actions/cache/save@v4
+      with:
+        path: .cache/build-dir
+        key: ${{ steps.test-cache-restore.outputs.cache-primary-key }}
     - name: Run tests (skip=${{ matrix.check_only }})
       if: "!matrix.check_only"
       run: cargo test --target ${{ matrix.target }} ${{ matrix.extra_test_args }}
