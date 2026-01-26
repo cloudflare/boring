@@ -272,10 +272,10 @@ jobs:
         if: contains(matrix.target, 'unknown-linux-musl')
         uses: mlugg/setup-zig@v2
         with:
-          version: 0.13.0
+          version: 0.15.1
       - name: Install cargo-zigbuild
         if: contains(matrix.target, 'unknown-linux-musl')
-        run: cargo install cargo-zigbuild --locked
+        run: cargo install --version 0.21.3 cargo-zigbuild --locked
       - name: Build tests
         # We `build` because we want the linker to verify we are cross-compiling correctly for check-only targets.
         run: |
