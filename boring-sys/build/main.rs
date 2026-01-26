@@ -572,7 +572,7 @@ fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
     }
 
     match &*config.target_os {
-        "macos" | "ios" | "freebsd" | "android" => Some("c++".into()),
+        "macos" | "ios" | "freebsd" | "openbsd" | "android" => Some("c++".into()),
         _ if config.unix || config.target_env == "gnu" => Some("stdc++".into()),
         // TODO(rmehra): figure out how to do this for windows
         _ => None,
