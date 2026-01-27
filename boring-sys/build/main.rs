@@ -724,6 +724,7 @@ fn generate_bindings(config: &Config) {
         "hrss.h",
         "md4.h",
         "md5.h",
+        "mlkem.h",
         "obj_mac.h",
         "objects.h",
         "opensslv.h",
