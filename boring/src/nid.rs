@@ -107,6 +107,10 @@ impl Nid {
     }
 
     pub const UNDEF: Nid = Nid(ffi::NID_undef);
+    pub const X25519: Nid = Nid(ffi::NID_X25519);
+    pub const X25519_KYBER768_DRAFT00: Nid = Nid(ffi::NID_X25519Kyber768Draft00);
+    pub const X25519_MLKEM768: Nid = Nid(ffi::NID_X25519MLKEM768);
+    pub const MLKEM1024: Nid = Nid(ffi::NID_ML_KEM_1024);
     pub const ITU_T: Nid = Nid(ffi::NID_itu_t);
     pub const ISO: Nid = Nid(ffi::NID_iso);
     pub const JOINT_ISO_ITU_T: Nid = Nid(ffi::NID_joint_iso_itu_t);

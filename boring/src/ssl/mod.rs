@@ -1994,6 +1994,29 @@ impl SslContextBuilder {
         }
     }
 
+    /// Sets the context's supported groups (curves) by their [`Nid`].
+    ///
+    /// The currently vendored version of BoringSSL supports:
+    ///
+    /// * `Nid::X9_62_PRIME256V1`
+    /// * `Nid::SECP384R1`
+    /// * `Nid::SECP521R1`
+    /// * `Nid::X25519`
+    /// * `Nid::X25519_KYBER768_DRAFT00`
+    /// * `Nid::X25519_MLKEM768`
+    /// * `Nid::MLKEM1024`
+    #[corresponds(SSL_CTX_set1_groups)]
+    pub fn set_group_nids(&mut self, group_nids: &[Nid]) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_CTX_set1_groups(
+                self.as_ptr(),
+                group_nids.as_ptr() as *const _,
+                group_nids.len(),
+            ))
+            .map(|_| ())
+        }
+    }
+
     /// Sets the context's compliance policy.
     ///
     /// This feature isn't available in the certified version of BoringSSL.
@@ -2895,6 +2918,32 @@ impl SslRef {
     pub fn clear_options(&mut self, option: SslOptions) -> SslOptions {
         let bits = unsafe { ffi::SSL_clear_options(self.as_ptr(), option.bits()) };
         SslOptions::from_bits_retain(bits)
+    }
+
+    /// Returns [`Nid`] of the curve used in negotiating the most recent handshake
+    #[corresponds(SSL_get_negotiated_group)]
+    #[must_use]
+    pub fn group_nid(&self) -> Option<Nid> {
+        unsafe {
+            Some(Nid::from_raw(ffi::SSL_get_negotiated_group(self.as_ptr())))
+                .filter(|&nid| nid != Nid::UNDEF)
+        }
+    }
+
+    /// Sets the ongoing session's supported groups by their named identifiers
+    /// (formerly referred to as curves).
+    ///
+    /// See also [`SslContextBuilder::set_group_nids`]
+    #[corresponds(SSL_set1_groups)]
+    pub fn set_group_nids(&mut self, group_nids: &[Nid]) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_set1_groups(
+                self.as_ptr(),
+                group_nids.as_ptr() as *const _,
+                group_nids.len(),
+            ))
+            .map(|_| ())
+        }
     }
 
     #[corresponds(SSL_set1_curves_list)]

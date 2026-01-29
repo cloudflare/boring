@@ -9,6 +9,7 @@ use std::thread;
 
 use crate::error::ErrorStack;
 use crate::hash::MessageDigest;
+use crate::nid::Nid;
 use crate::pkey::PKey;
 use crate::srtp::SrtpProfileId;
 use crate::ssl::test::server::Server;
@@ -1012,6 +1013,13 @@ fn sni_callback_swapped_ctx() {
     server.client().connect();
 
     assert!(CALLED_BACK.load(Ordering::SeqCst));
+}
+
+#[test]
+fn set_group_nids() {
+    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
+    ctx.set_group_nids(&[Nid::SECP521R1, Nid::SECP384R1, Nid::X25519, Nid::MLKEM1024])
+        .expect("Failed to set curves");
 }
 
 #[test]
