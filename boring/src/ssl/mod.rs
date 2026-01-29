@@ -728,6 +728,14 @@ impl From<u16> for SslSignatureAlgorithm {
     }
 }
 
+#[doc(hidden)]
+#[deprecated(note = "use `Nid` instead")]
+pub type SslCurveNid = crate::nid::Nid;
+
+#[doc(hidden)]
+#[deprecated(note = "use `Nid` instead")]
+pub type SslCurve = crate::nid::Nid;
+
 /// A compliance policy.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct CompliancePolicy(ffi::ssl_compliance_policy_t);
@@ -1994,6 +2002,12 @@ impl SslContextBuilder {
         }
     }
 
+    #[doc(hidden)]
+    #[deprecated(note = "Use `Self::set_group_nids()` instead")]
+    pub fn set_curves(&mut self, group_nids: &[Nid]) -> Result<(), ErrorStack> {
+        self.set_group_nids(group_nids)
+    }
+
     /// Sets the context's supported groups (curves) by their [`Nid`].
     ///
     /// The currently vendored version of BoringSSL supports:
@@ -2923,6 +2937,7 @@ impl SslRef {
     /// Returns [`Nid`] of the curve used in negotiating the most recent handshake
     #[corresponds(SSL_get_negotiated_group)]
     #[must_use]
+    #[doc(alias = "curve")]
     pub fn group_nid(&self) -> Option<Nid> {
         unsafe {
             Some(Nid::from_raw(ffi::SSL_get_negotiated_group(self.as_ptr())))
@@ -2935,6 +2950,7 @@ impl SslRef {
     ///
     /// See also [`SslContextBuilder::set_group_nids`]
     #[corresponds(SSL_set1_groups)]
+    #[doc(alias = "set_curves")]
     pub fn set_group_nids(&mut self, group_nids: &[Nid]) -> Result<(), ErrorStack> {
         unsafe {
             cvt_0i(ffi::SSL_set1_groups(
