@@ -137,6 +137,7 @@ pub mod hash;
 pub mod hmac;
 pub mod hpke;
 pub mod memcmp;
+pub mod mlkem;
 pub mod nid;
 pub mod pkcs12;
 pub mod pkcs5;
