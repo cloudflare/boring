@@ -359,7 +359,7 @@ pub fn hmac_sha1(key: &[u8], data: &[u8]) -> Result<[u8; 20], ErrorStack> {
     hmac(MessageDigest::sha1(), key, data)
 }
 
-fn hmac<const N: usize>(
+pub(crate) fn hmac<const N: usize>(
     digest: MessageDigest,
     key: &[u8],
     data: &[u8],
