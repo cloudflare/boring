@@ -137,7 +137,7 @@ impl CipherCtxRef {
 /// See OpenSSL doc at [`EVP_EncryptInit`] for more information on each algorithms.
 ///
 /// [`EVP_EncryptInit`]: https://www.openssl.org/docs/man1.1.0/crypto/EVP_EncryptInit.html
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Cipher(*const ffi::EVP_CIPHER);
 
 impl Cipher {
@@ -300,6 +300,14 @@ impl Cipher {
     #[must_use]
     pub fn block_size(&self) -> usize {
         unsafe { EVP_CIPHER_block_size(self.0) as usize }
+    }
+
+    /// Returns the cipher's NID.
+    #[corresponds(EVP_CIPHER_nid)]
+    pub fn nid(&self) -> Nid {
+        ffi::init();
+        let nid = unsafe { ffi::EVP_CIPHER_nid(self.as_ptr()) };
+        Nid::from_raw(nid)
     }
 }
 
@@ -1043,5 +1051,38 @@ mod tests {
         )
         .unwrap();
         assert_eq!(pt, hex::encode(out));
+    }
+
+    #[test]
+    fn test_nid_roundtrip() {
+        for cipher in [
+            Cipher::aes_128_ecb(),
+            Cipher::aes_128_cbc(),
+            Cipher::aes_128_ctr(),
+            Cipher::aes_128_ofb(),
+            Cipher::aes_192_ecb(),
+            Cipher::aes_192_cbc(),
+            Cipher::aes_192_ctr(),
+            Cipher::aes_192_ofb(),
+            Cipher::aes_256_ecb(),
+            Cipher::aes_256_cbc(),
+            Cipher::aes_256_ctr(),
+            Cipher::aes_256_ofb(),
+            Cipher::des_ecb(),
+            Cipher::des_ede3_cbc(),
+            Cipher::des_cbc(),
+            Cipher::rc4(),
+        ] {
+            assert_eq!(Cipher::from_nid(cipher.nid()), Some(cipher));
+        }
+
+        for cipher in [
+            Cipher::aes_128_gcm(),
+            Cipher::aes_192_gcm(),
+            Cipher::aes_256_gcm(),
+            Cipher::des_ede3(),
+        ] {
+            assert_eq!(Cipher::from_nid(cipher.nid()), None);
+        }
     }
 }
