@@ -319,12 +319,6 @@ impl Drop for MlKem768PrivateKey {
     }
 }
 
-impl AsRef<MlKemPrivateKeySeed> for MlKem768PrivateKey {
-    fn as_ref(&self) -> &MlKemPrivateKeySeed {
-        &self.seed
-    }
-}
-
 /// ML-KEM-768 public key.
 #[derive(Clone)]
 struct MlKem768PublicKey {
@@ -336,6 +330,8 @@ impl MlKem768PublicKey {
     pub const PUBLIC_KEY_BYTES: usize = ffi::MLKEM768_PUBLIC_KEY_BYTES as usize;
 
     /// Parse and validate a public key.
+    ///
+    /// The slice must be [`Self::PUBLIC_KEY_BYTES`] long.
     fn from_slice(slice: &[u8]) -> Result<Self, ErrorStack> {
         if slice.len() != Self::PUBLIC_KEY_BYTES {
             return Err(ErrorStack::internal_error_str("invalid public key length"));
@@ -364,12 +360,6 @@ impl MlKem768PublicKey {
                 parsed: parsed.assume_init(),
             })
         }
-    }
-
-    /// Raw public key bytes.
-    #[cfg(test)]
-    fn as_bytes(&self) -> &[u8; Self::PUBLIC_KEY_BYTES] {
-        &self.bytes
     }
 
     /// Encapsulate: returns (ciphertext, shared_secret).
@@ -401,12 +391,6 @@ impl fmt::Debug for MlKem768PublicKey {
         f.debug_struct("MlKem768PublicKey")
             .field("bytes", &format!("[{}]", self.bytes.len()))
             .finish()
-    }
-}
-
-impl AsRef<[u8; Self::PUBLIC_KEY_BYTES]> for MlKem768PublicKey {
-    fn as_ref(&self) -> &[u8; Self::PUBLIC_KEY_BYTES] {
-        &self.bytes
     }
 }
 
@@ -552,12 +536,6 @@ impl Drop for MlKem1024PrivateKey {
     }
 }
 
-impl AsRef<MlKemPrivateKeySeed> for MlKem1024PrivateKey {
-    fn as_ref(&self) -> &MlKemPrivateKeySeed {
-        &self.seed
-    }
-}
-
 /// ML-KEM-1024 public key.
 ///
 /// Prefer ML-KEM-768 unless you need AES-256 equivalent security.
@@ -570,7 +548,9 @@ struct MlKem1024PublicKey {
 impl MlKem1024PublicKey {
     pub const PUBLIC_KEY_BYTES: usize = ffi::MLKEM1024_PUBLIC_KEY_BYTES as usize;
 
-    /// Parse and validate a public key.
+    /// Parse and validate a serialized public key.
+    ///
+    /// The slice must be [`Self::PUBLIC_KEY_BYTES`] long.
     fn from_slice(slice: &[u8]) -> Result<Self, ErrorStack> {
         if slice.len() != Self::PUBLIC_KEY_BYTES {
             return Err(ErrorStack::internal_error_str("invalid public key length"));
@@ -599,12 +579,6 @@ impl MlKem1024PublicKey {
                 parsed: parsed.assume_init(),
             })
         }
-    }
-
-    /// Raw public key bytes.
-    #[cfg(test)]
-    fn as_bytes(&self) -> &[u8; Self::PUBLIC_KEY_BYTES] {
-        &self.bytes
     }
 
     /// Encapsulate: returns (ciphertext, shared_secret).
@@ -639,12 +613,6 @@ impl fmt::Debug for MlKem1024PublicKey {
     }
 }
 
-impl AsRef<[u8; Self::PUBLIC_KEY_BYTES]> for MlKem1024PublicKey {
-    fn as_ref(&self) -> &[u8; Self::PUBLIC_KEY_BYTES] {
-        &self.bytes
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -665,7 +633,7 @@ mod tests {
                 #[test]
                 fn seed_roundtrip() {
                     let (sk, pk) = <$priv>::generate();
-                    let sk2 = <$priv>::from_seed(*sk.as_ref()).unwrap();
+                    let sk2 = <$priv>::from_seed(sk.seed).unwrap();
                     let (ct, ss1) = pk.encapsulate();
                     let ss2 = sk2.decapsulate(&ct);
                     assert_eq!(ss1, ss2);
@@ -674,7 +642,7 @@ mod tests {
                 #[test]
                 fn derive_pubkey() {
                     let (sk, pk) = <$priv>::generate();
-                    assert_eq!(pk.as_bytes(), sk.public_key().unwrap().as_bytes());
+                    assert_eq!(pk.bytes, sk.public_key().unwrap().bytes);
                 }
 
                 #[test]
@@ -686,8 +654,8 @@ mod tests {
                 #[test]
                 fn from_slice_roundtrip() {
                     let (_, pk) = <$priv>::generate();
-                    let pk2 = <$pub>::from_slice(pk.as_bytes()).unwrap();
-                    assert_eq!(pk.as_bytes(), pk2.as_bytes());
+                    let pk2 = <$pub>::from_slice(&pk.bytes).unwrap();
+                    assert_eq!(pk.bytes, pk2.bytes);
                 }
 
                 #[test]
