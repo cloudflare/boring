@@ -33,9 +33,16 @@ fn cbs_init(data: &[u8]) -> ffi::CBS {
 }
 
 /// Private key seed size (64 bytes).
-pub const PRIVATE_KEY_SEED_BYTES: usize = 64;
+pub const PRIVATE_KEY_SEED_BYTES: usize = ffi::MLKEM_SEED_BYTES as usize;
+
 /// Shared secret size (32 bytes).
-pub const SHARED_SECRET_BYTES: usize = 32;
+pub const SHARED_SECRET_BYTES: usize = ffi::MLKEM_SHARED_SECRET_BYTES as usize;
+
+/// Raw bytes of the private key seed ([`PRIVATE_KEY_SEED_BYTES`] long)
+pub type MlKemPrivateKeySeed = [u8; PRIVATE_KEY_SEED_BYTES];
+
+/// Raw bytes of the shared secret ([`SHARED_SECRET_BYTES`] long)
+pub type MlKemSharedSecret = [u8; SHARED_SECRET_BYTES];
 
 /// ML-KEM variant selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,8 +58,8 @@ impl MlKemParams {
     #[must_use]
     pub const fn public_key_bytes(&self) -> usize {
         match self {
-            MlKemParams::MlKem768 => mlkem768::PUBLIC_KEY_BYTES,
-            MlKemParams::MlKem1024 => mlkem1024::PUBLIC_KEY_BYTES,
+            MlKemParams::MlKem768 => MlKem768PublicKey::PUBLIC_KEY_BYTES,
+            MlKemParams::MlKem1024 => MlKem1024PublicKey::PUBLIC_KEY_BYTES,
         }
     }
 
@@ -60,8 +67,8 @@ impl MlKemParams {
     #[must_use]
     pub const fn ciphertext_bytes(&self) -> usize {
         match self {
-            MlKemParams::MlKem768 => mlkem768::CIPHERTEXT_BYTES,
-            MlKemParams::MlKem1024 => mlkem1024::CIPHERTEXT_BYTES,
+            MlKemParams::MlKem768 => MlKem768PrivateKey::CIPHERTEXT_BYTES,
+            MlKemParams::MlKem1024 => MlKem1024PrivateKey::CIPHERTEXT_BYTES,
         }
     }
 }
@@ -108,7 +115,7 @@ impl MlKem {
     /// Generates a new key pair, returning `(public_key, private_key)`.
     ///
     /// The private key is a 64-byte seed. Keep it secret.
-    pub fn generate_key(&self) -> Result<(Vec<u8>, [u8; PRIVATE_KEY_SEED_BYTES]), ErrorStack> {
+    pub fn generate_key(&self) -> Result<(Vec<u8>, MlKemPrivateKeySeed), ErrorStack> {
         match self.params {
             MlKemParams::MlKem768 => {
                 let (sk, pk) = MlKem768PrivateKey::generate();
@@ -126,7 +133,7 @@ impl MlKem {
     pub fn encapsulate(
         &self,
         public_key: &[u8],
-    ) -> Result<(Vec<u8>, [u8; SHARED_SECRET_BYTES]), ErrorStack> {
+    ) -> Result<(Vec<u8>, MlKemSharedSecret), ErrorStack> {
         match self.params {
             MlKemParams::MlKem768 => {
                 let pk = MlKem768PublicKey::from_slice(public_key)?;
@@ -146,22 +153,22 @@ impl MlKem {
         &self,
         private_key: &[u8],
         ciphertext: &[u8],
-    ) -> Result<[u8; SHARED_SECRET_BYTES], ErrorStack> {
+    ) -> Result<MlKemSharedSecret, ErrorStack> {
         if private_key.len() != PRIVATE_KEY_SEED_BYTES {
             return Err(ErrorStack::internal_error_str("invalid private key length"));
         }
-        let seed_arr: [u8; PRIVATE_KEY_SEED_BYTES] = private_key.try_into().unwrap();
+        let seed_arr: MlKemPrivateKeySeed = private_key.try_into().unwrap();
 
         match self.params {
             MlKemParams::MlKem768 => {
-                let ct: &[u8; mlkem768::CIPHERTEXT_BYTES] = ciphertext
+                let ct: &[u8; MlKem768PrivateKey::CIPHERTEXT_BYTES] = ciphertext
                     .try_into()
                     .map_err(|_| ErrorStack::internal_error_str("invalid ciphertext length"))?;
                 let sk = MlKem768PrivateKey::from_seed(seed_arr)?;
                 Ok(sk.decapsulate(ct))
             }
             MlKemParams::MlKem1024 => {
-                let ct: &[u8; mlkem1024::CIPHERTEXT_BYTES] = ciphertext
+                let ct: &[u8; MlKem1024PrivateKey::CIPHERTEXT_BYTES] = ciphertext
                     .try_into()
                     .map_err(|_| ErrorStack::internal_error_str("invalid ciphertext length"))?;
                 let sk = MlKem1024PrivateKey::from_seed(seed_arr)?;
@@ -171,22 +178,11 @@ impl MlKem {
     }
 }
 
-// ML-KEM-768
-
-/// Size constants for ML-KEM-768.
-pub mod mlkem768 {
-    use super::ffi;
-    pub const PUBLIC_KEY_BYTES: usize = ffi::MLKEM768_PUBLIC_KEY_BYTES as usize;
-    pub const SEED_BYTES: usize = ffi::MLKEM_SEED_BYTES as usize;
-    pub const CIPHERTEXT_BYTES: usize = ffi::MLKEM768_CIPHERTEXT_BYTES as usize;
-    pub const SHARED_SECRET_BYTES: usize = ffi::MLKEM_SHARED_SECRET_BYTES as usize;
-}
-
 /// ML-KEM-768 private key.
 ///
 /// Caches the expanded key for fast decapsulation.
 struct MlKem768PrivateKey {
-    seed: [u8; mlkem768::SEED_BYTES],
+    seed: MlKemPrivateKeySeed,
     expanded: ffi::MLKEM768_private_key,
 }
 
@@ -198,15 +194,17 @@ impl Clone for MlKem768PrivateKey {
 }
 
 impl MlKem768PrivateKey {
+    pub const CIPHERTEXT_BYTES: usize = ffi::MLKEM768_CIPHERTEXT_BYTES as usize;
+
     /// Generate a new key pair.
     #[must_use]
     fn generate() -> (MlKem768PrivateKey, MlKem768PublicKey) {
         // SAFETY: all buffers are out parameters, correctly sized
         unsafe {
             ffi::init();
-            let mut public_key_bytes: MaybeUninit<[u8; mlkem768::PUBLIC_KEY_BYTES]> =
+            let mut public_key_bytes: MaybeUninit<[u8; MlKem768PublicKey::PUBLIC_KEY_BYTES]> =
                 MaybeUninit::uninit();
-            let mut seed: MaybeUninit<[u8; mlkem768::SEED_BYTES]> = MaybeUninit::uninit();
+            let mut seed: MaybeUninit<MlKemPrivateKeySeed> = MaybeUninit::uninit();
             let mut expanded: MaybeUninit<ffi::MLKEM768_private_key> = MaybeUninit::uninit();
 
             ffi::MLKEM768_generate_key(
@@ -236,7 +234,7 @@ impl MlKem768PrivateKey {
     }
 
     /// Restore private key from seed.
-    fn from_seed(seed: [u8; mlkem768::SEED_BYTES]) -> Result<Self, ErrorStack> {
+    fn from_seed(seed: MlKemPrivateKeySeed) -> Result<Self, ErrorStack> {
         // SAFETY: seed is 64 bytes, out parameter correctly sized
         unsafe {
             ffi::init();
@@ -262,7 +260,7 @@ impl MlKem768PrivateKey {
             let mut parsed: MaybeUninit<ffi::MLKEM768_public_key> = MaybeUninit::uninit();
             ffi::MLKEM768_public_from_private(parsed.as_mut_ptr(), &self.expanded);
 
-            let mut bytes = [0u8; mlkem768::PUBLIC_KEY_BYTES];
+            let mut bytes = [0u8; MlKem768PublicKey::PUBLIC_KEY_BYTES];
             let mut cbb: MaybeUninit<ffi::CBB> = MaybeUninit::uninit();
             cvt(ffi::CBB_init_fixed(
                 cbb.as_mut_ptr(),
@@ -282,14 +280,11 @@ impl MlKem768PrivateKey {
     }
 
     /// Decapsulate to get the shared secret.
-    fn decapsulate(
-        &self,
-        ciphertext: &[u8; mlkem768::CIPHERTEXT_BYTES],
-    ) -> [u8; mlkem768::SHARED_SECRET_BYTES] {
+    fn decapsulate(&self, ciphertext: &[u8; Self::CIPHERTEXT_BYTES]) -> MlKemSharedSecret {
         // SAFETY: expanded key is valid, ciphertext is correctly sized
         unsafe {
             ffi::init();
-            let mut shared_secret = [0u8; mlkem768::SHARED_SECRET_BYTES];
+            let mut shared_secret = [0u8; SHARED_SECRET_BYTES];
 
             ffi::MLKEM768_decap(
                 shared_secret.as_mut_ptr(),
@@ -324,8 +319,8 @@ impl Drop for MlKem768PrivateKey {
     }
 }
 
-impl AsRef<[u8; mlkem768::SEED_BYTES]> for MlKem768PrivateKey {
-    fn as_ref(&self) -> &[u8; mlkem768::SEED_BYTES] {
+impl AsRef<MlKemPrivateKeySeed> for MlKem768PrivateKey {
+    fn as_ref(&self) -> &MlKemPrivateKeySeed {
         &self.seed
     }
 }
@@ -333,14 +328,16 @@ impl AsRef<[u8; mlkem768::SEED_BYTES]> for MlKem768PrivateKey {
 /// ML-KEM-768 public key.
 #[derive(Clone)]
 struct MlKem768PublicKey {
-    bytes: [u8; mlkem768::PUBLIC_KEY_BYTES],
+    bytes: [u8; Self::PUBLIC_KEY_BYTES],
     parsed: ffi::MLKEM768_public_key,
 }
 
 impl MlKem768PublicKey {
+    pub const PUBLIC_KEY_BYTES: usize = ffi::MLKEM768_PUBLIC_KEY_BYTES as usize;
+
     /// Parse and validate a public key.
     fn from_slice(slice: &[u8]) -> Result<Self, ErrorStack> {
-        if slice.len() != mlkem768::PUBLIC_KEY_BYTES {
+        if slice.len() != Self::PUBLIC_KEY_BYTES {
             return Err(ErrorStack::internal_error_str("invalid public key length"));
         }
 
@@ -360,7 +357,7 @@ impl MlKem768PublicKey {
                 ));
             }
 
-            let mut bytes = [0u8; mlkem768::PUBLIC_KEY_BYTES];
+            let mut bytes = [0u8; Self::PUBLIC_KEY_BYTES];
             bytes.copy_from_slice(slice);
             Ok(Self {
                 bytes,
@@ -371,7 +368,7 @@ impl MlKem768PublicKey {
 
     /// Raw public key bytes.
     #[cfg(test)]
-    fn as_bytes(&self) -> &[u8; mlkem768::PUBLIC_KEY_BYTES] {
+    fn as_bytes(&self) -> &[u8; Self::PUBLIC_KEY_BYTES] {
         &self.bytes
     }
 
@@ -379,14 +376,14 @@ impl MlKem768PublicKey {
     fn encapsulate(
         &self,
     ) -> (
-        [u8; mlkem768::CIPHERTEXT_BYTES],
-        [u8; mlkem768::SHARED_SECRET_BYTES],
+        [u8; MlKem768PrivateKey::CIPHERTEXT_BYTES],
+        MlKemSharedSecret,
     ) {
         // SAFETY: buffers correctly sized, parsed key is valid
         unsafe {
             ffi::init();
-            let mut ciphertext = [0u8; mlkem768::CIPHERTEXT_BYTES];
-            let mut shared_secret = [0u8; mlkem768::SHARED_SECRET_BYTES];
+            let mut ciphertext = [0u8; MlKem768PrivateKey::CIPHERTEXT_BYTES];
+            let mut shared_secret = [0u8; SHARED_SECRET_BYTES];
 
             ffi::MLKEM768_encap(
                 ciphertext.as_mut_ptr(),
@@ -407,21 +404,10 @@ impl fmt::Debug for MlKem768PublicKey {
     }
 }
 
-impl AsRef<[u8; mlkem768::PUBLIC_KEY_BYTES]> for MlKem768PublicKey {
-    fn as_ref(&self) -> &[u8; mlkem768::PUBLIC_KEY_BYTES] {
+impl AsRef<[u8; Self::PUBLIC_KEY_BYTES]> for MlKem768PublicKey {
+    fn as_ref(&self) -> &[u8; Self::PUBLIC_KEY_BYTES] {
         &self.bytes
     }
-}
-
-// ML-KEM-1024
-
-/// Size constants for ML-KEM-1024.
-pub mod mlkem1024 {
-    use super::ffi;
-    pub const PUBLIC_KEY_BYTES: usize = ffi::MLKEM1024_PUBLIC_KEY_BYTES as usize;
-    pub const SEED_BYTES: usize = ffi::MLKEM_SEED_BYTES as usize;
-    pub const CIPHERTEXT_BYTES: usize = ffi::MLKEM1024_CIPHERTEXT_BYTES as usize;
-    pub const SHARED_SECRET_BYTES: usize = ffi::MLKEM_SHARED_SECRET_BYTES as usize;
 }
 
 /// ML-KEM-1024 private key.
@@ -429,7 +415,7 @@ pub mod mlkem1024 {
 /// Prefer ML-KEM-768 unless you need AES-256 equivalent security.
 /// Caches the expanded key for fast decapsulation.
 struct MlKem1024PrivateKey {
-    seed: [u8; mlkem1024::SEED_BYTES],
+    seed: MlKemPrivateKeySeed,
     expanded: ffi::MLKEM1024_private_key,
 }
 
@@ -441,15 +427,17 @@ impl Clone for MlKem1024PrivateKey {
 }
 
 impl MlKem1024PrivateKey {
+    pub const CIPHERTEXT_BYTES: usize = ffi::MLKEM1024_CIPHERTEXT_BYTES as usize;
+
     /// Generate a new key pair.
     #[must_use]
     fn generate() -> (MlKem1024PrivateKey, MlKem1024PublicKey) {
         // SAFETY: all buffers are out parameters, correctly sized
         unsafe {
             ffi::init();
-            let mut public_key_bytes: MaybeUninit<[u8; mlkem1024::PUBLIC_KEY_BYTES]> =
+            let mut public_key_bytes: MaybeUninit<[u8; MlKem1024PublicKey::PUBLIC_KEY_BYTES]> =
                 MaybeUninit::uninit();
-            let mut seed: MaybeUninit<[u8; mlkem1024::SEED_BYTES]> = MaybeUninit::uninit();
+            let mut seed: MaybeUninit<MlKemPrivateKeySeed> = MaybeUninit::uninit();
             let mut expanded: MaybeUninit<ffi::MLKEM1024_private_key> = MaybeUninit::uninit();
 
             ffi::MLKEM1024_generate_key(
@@ -479,7 +467,7 @@ impl MlKem1024PrivateKey {
     }
 
     /// Restore private key from seed.
-    fn from_seed(seed: [u8; mlkem1024::SEED_BYTES]) -> Result<Self, ErrorStack> {
+    fn from_seed(seed: MlKemPrivateKeySeed) -> Result<Self, ErrorStack> {
         // SAFETY: seed is 64 bytes, out parameter correctly sized
         unsafe {
             ffi::init();
@@ -505,7 +493,7 @@ impl MlKem1024PrivateKey {
             let mut parsed: MaybeUninit<ffi::MLKEM1024_public_key> = MaybeUninit::uninit();
             ffi::MLKEM1024_public_from_private(parsed.as_mut_ptr(), &self.expanded);
 
-            let mut bytes = [0u8; mlkem1024::PUBLIC_KEY_BYTES];
+            let mut bytes = [0u8; MlKem1024PublicKey::PUBLIC_KEY_BYTES];
             let mut cbb: MaybeUninit<ffi::CBB> = MaybeUninit::uninit();
             cvt(ffi::CBB_init_fixed(
                 cbb.as_mut_ptr(),
@@ -525,14 +513,11 @@ impl MlKem1024PrivateKey {
     }
 
     /// Decapsulate to get the shared secret.
-    fn decapsulate(
-        &self,
-        ciphertext: &[u8; mlkem1024::CIPHERTEXT_BYTES],
-    ) -> [u8; mlkem1024::SHARED_SECRET_BYTES] {
+    fn decapsulate(&self, ciphertext: &[u8; Self::CIPHERTEXT_BYTES]) -> MlKemSharedSecret {
         // SAFETY: expanded key is valid, ciphertext is correctly sized
         unsafe {
             ffi::init();
-            let mut shared_secret = [0u8; mlkem1024::SHARED_SECRET_BYTES];
+            let mut shared_secret = [0u8; SHARED_SECRET_BYTES];
 
             ffi::MLKEM1024_decap(
                 shared_secret.as_mut_ptr(),
@@ -567,8 +552,8 @@ impl Drop for MlKem1024PrivateKey {
     }
 }
 
-impl AsRef<[u8; mlkem1024::SEED_BYTES]> for MlKem1024PrivateKey {
-    fn as_ref(&self) -> &[u8; mlkem1024::SEED_BYTES] {
+impl AsRef<MlKemPrivateKeySeed> for MlKem1024PrivateKey {
+    fn as_ref(&self) -> &MlKemPrivateKeySeed {
         &self.seed
     }
 }
@@ -578,14 +563,16 @@ impl AsRef<[u8; mlkem1024::SEED_BYTES]> for MlKem1024PrivateKey {
 /// Prefer ML-KEM-768 unless you need AES-256 equivalent security.
 #[derive(Clone)]
 struct MlKem1024PublicKey {
-    bytes: [u8; mlkem1024::PUBLIC_KEY_BYTES],
+    bytes: [u8; Self::PUBLIC_KEY_BYTES],
     parsed: ffi::MLKEM1024_public_key,
 }
 
 impl MlKem1024PublicKey {
+    pub const PUBLIC_KEY_BYTES: usize = ffi::MLKEM1024_PUBLIC_KEY_BYTES as usize;
+
     /// Parse and validate a public key.
     fn from_slice(slice: &[u8]) -> Result<Self, ErrorStack> {
-        if slice.len() != mlkem1024::PUBLIC_KEY_BYTES {
+        if slice.len() != Self::PUBLIC_KEY_BYTES {
             return Err(ErrorStack::internal_error_str("invalid public key length"));
         }
 
@@ -605,7 +592,7 @@ impl MlKem1024PublicKey {
                 ));
             }
 
-            let mut bytes = [0u8; mlkem1024::PUBLIC_KEY_BYTES];
+            let mut bytes = [0u8; Self::PUBLIC_KEY_BYTES];
             bytes.copy_from_slice(slice);
             Ok(Self {
                 bytes,
@@ -616,7 +603,7 @@ impl MlKem1024PublicKey {
 
     /// Raw public key bytes.
     #[cfg(test)]
-    fn as_bytes(&self) -> &[u8; mlkem1024::PUBLIC_KEY_BYTES] {
+    fn as_bytes(&self) -> &[u8; Self::PUBLIC_KEY_BYTES] {
         &self.bytes
     }
 
@@ -624,14 +611,14 @@ impl MlKem1024PublicKey {
     fn encapsulate(
         &self,
     ) -> (
-        [u8; mlkem1024::CIPHERTEXT_BYTES],
-        [u8; mlkem1024::SHARED_SECRET_BYTES],
+        [u8; MlKem1024PrivateKey::CIPHERTEXT_BYTES],
+        [u8; SHARED_SECRET_BYTES],
     ) {
         // SAFETY: buffers correctly sized, parsed key is valid
         unsafe {
             ffi::init();
-            let mut ciphertext = [0u8; mlkem1024::CIPHERTEXT_BYTES];
-            let mut shared_secret = [0u8; mlkem1024::SHARED_SECRET_BYTES];
+            let mut ciphertext = [0u8; MlKem1024PrivateKey::CIPHERTEXT_BYTES];
+            let mut shared_secret = [0u8; SHARED_SECRET_BYTES];
 
             ffi::MLKEM1024_encap(
                 ciphertext.as_mut_ptr(),
@@ -652,8 +639,8 @@ impl fmt::Debug for MlKem1024PublicKey {
     }
 }
 
-impl AsRef<[u8; mlkem1024::PUBLIC_KEY_BYTES]> for MlKem1024PublicKey {
-    fn as_ref(&self) -> &[u8; mlkem1024::PUBLIC_KEY_BYTES] {
+impl AsRef<[u8; Self::PUBLIC_KEY_BYTES]> for MlKem1024PublicKey {
+    fn as_ref(&self) -> &[u8; Self::PUBLIC_KEY_BYTES] {
         &self.bytes
     }
 }
