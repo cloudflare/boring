@@ -17,6 +17,9 @@ features = ["rpk", "underscore-wildcards"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
+# Enable SslCredential (requires boring-sys v5)
+credential = []
+
 # Controlling the build
 
 # Use a FIPS-validated version of BoringSSL.
@@ -34,7 +37,7 @@ pq-experimental = []
 # default branch of boringSSL. Alternatively, a version of boringSSL that
 # implements the same feature set can be provided by setting
 # `BORING_BSSL{,_FIPS}_SOURCE_PATH` and `BORING_BSSL{,_FIPS}_ASSUME_PATCHED`.
-rpk = ["boring-sys/rpk"]
+rpk = ["credential", "boring-sys/rpk"]
 
 # Applies a patch to enable `ffi::X509_CHECK_FLAG_UNDERSCORE_WILDCARDS`. This
 # feature is necessary in order to compile the bindings for the default branch
