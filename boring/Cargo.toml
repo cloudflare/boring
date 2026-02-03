@@ -25,6 +25,10 @@ fips = ["boring-sys/fips"]
 # **DO NOT USE** This will be removed without warning in future releases.
 legacy-compat-deprecated = []
 
+# **DO NOT USE** This will be removed without warning in future releases.
+# PQ is always enabled. This feature is a no-op, only for backwards compatibility.
+pq-experimental = []
+
 # Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
 # This feature is necessary in order to compile the bindings for the
 # default branch of boringSSL. Alternatively, a version of boringSSL that
