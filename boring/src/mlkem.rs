@@ -7,11 +7,11 @@
 //! Provides ML-KEM-768 (recommended) and ML-KEM-1024 variants via [`Algorithm`].
 //!
 //! ```
-//! use boring::mlkem::Algorithm;
+//! use boring::mlkem::{Algorithm, MlKemPrivateKey};
 //!
-//! let (public_key, private_key) = Algorithm::MlKem768.generate_key().unwrap();
-//! let (ciphertext, shared_secret) = Algorithm::MlKem768.encapsulate(&public_key).unwrap();
-//! let decrypted = Algorithm::MlKem768.decapsulate(&private_key, &ciphertext).unwrap();
+//! let (public_key, private_key) = MlKemPrivateKey::generate(Algorithm::MlKem768).unwrap();
+//! let (ciphertext, shared_secret) = public_key.encapsulate().unwrap();
+//! let decrypted = private_key.decapsulate(&ciphertext).unwrap();
 //! assert_eq!(shared_secret, decrypted);
 //! ```
 
@@ -43,16 +43,7 @@ pub type MlKemPrivateKeySeed = [u8; PRIVATE_KEY_SEED_BYTES];
 /// Raw bytes of the shared secret ([`SHARED_SECRET_BYTES`] long)
 pub type MlKemSharedSecret = [u8; SHARED_SECRET_BYTES];
 
-/// ML-KEM with runtime algorithm selection. Works with byte slices.
-///
-/// ```
-/// use boring::mlkem::Algorithm;
-///
-/// let (public_key, private_key) = Algorithm::MlKem768.generate_key().unwrap();
-/// let (ciphertext, shared_secret) = Algorithm::MlKem768.encapsulate(&public_key).unwrap();
-/// let decrypted = Algorithm::MlKem768.decapsulate(&private_key, &ciphertext).unwrap();
-/// assert_eq!(shared_secret, decrypted);
-/// ```
+/// ML-KEM runtime algorithm selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Algorithm {
     /// Recommended. AES-192 equivalent security.
@@ -79,69 +70,135 @@ impl Algorithm {
             Self::MlKem1024 => MlKem1024PrivateKey::CIPHERTEXT_BYTES,
         }
     }
+}
 
+#[derive(Clone)]
+pub struct MlKemPublicKey(Either<Box<MlKem768PublicKey>, Box<MlKem1024PublicKey>>);
+
+#[derive(Clone)]
+pub struct MlKemPrivateKey(Either<Box<MlKem768PrivateKey>, Box<MlKem1024PrivateKey>>);
+
+#[derive(Clone)]
+enum Either<T768, T1024> {
+    MlKem768(T768),
+    MlKem1024(T1024),
+}
+
+impl MlKemPrivateKey {
     /// Generates a new key pair, returning `(public_key, private_key)`.
     ///
     /// The private key is a 64-byte seed. Keep it secret.
-    pub fn generate_key(&self) -> Result<(Vec<u8>, MlKemPrivateKeySeed), ErrorStack> {
-        match self {
-            Self::MlKem768 => {
-                let (sk, pk) = MlKem768PrivateKey::generate();
-                Ok((pk.bytes.to_vec(), sk.seed))
+    pub fn generate(algorithm: Algorithm) -> Result<(MlKemPublicKey, MlKemPrivateKey), ErrorStack> {
+        match algorithm {
+            Algorithm::MlKem768 => {
+                let (pk, sk) = MlKem768PrivateKey::generate();
+                Ok((
+                    MlKemPublicKey(Either::MlKem768(pk)),
+                    MlKemPrivateKey(Either::MlKem768(sk)),
+                ))
             }
-            Self::MlKem1024 => {
-                let (sk, pk) = MlKem1024PrivateKey::generate();
-                Ok((pk.bytes.to_vec(), sk.seed))
+            Algorithm::MlKem1024 => {
+                let (pk, sk) = MlKem1024PrivateKey::generate();
+                Ok((
+                    MlKemPublicKey(Either::MlKem1024(pk)),
+                    MlKemPrivateKey(Either::MlKem1024(sk)),
+                ))
             }
+        }
+    }
+}
+
+impl MlKemPublicKey {
+    pub fn from_slice(algorithm: Algorithm, public_key: &[u8]) -> Result<Self, ErrorStack> {
+        match algorithm {
+            Algorithm::MlKem768 => Ok(Self(Either::MlKem768(Box::new(
+                MlKem768PublicKey::from_slice(public_key)?,
+            )))),
+            Algorithm::MlKem1024 => Ok(Self(Either::MlKem1024(Box::new(
+                MlKem1024PublicKey::from_slice(public_key)?,
+            )))),
+        }
+    }
+
+    /// Serialized bytes of the public key
+    pub fn as_bytes(&self) -> &[u8] {
+        match &self.0 {
+            Either::MlKem768(pk) => &pk.bytes,
+            Either::MlKem1024(pk) => &pk.bytes,
         }
     }
 
     /// Encapsulates a shared secret to the given public key, returning
     /// `(ciphertext, shared_secret)`.
-    pub fn encapsulate(
-        &self,
-        public_key: &[u8],
-    ) -> Result<(Vec<u8>, MlKemSharedSecret), ErrorStack> {
-        match self {
-            Self::MlKem768 => {
-                let pk = MlKem768PublicKey::from_slice(public_key)?;
+    pub fn encapsulate(&self) -> Result<(Vec<u8>, MlKemSharedSecret), ErrorStack> {
+        match &self.0 {
+            Either::MlKem768(pk) => {
                 let (ct, ss) = pk.encapsulate();
                 Ok((ct.to_vec(), ss))
             }
-            Self::MlKem1024 => {
-                let pk = MlKem1024PublicKey::from_slice(public_key)?;
+            Either::MlKem1024(pk) => {
                 let (ct, ss) = pk.encapsulate();
                 Ok((ct.to_vec(), ss))
             }
         }
     }
 
-    /// Decapsulates a shared secret from a ciphertext using the private key.
-    pub fn decapsulate(
-        &self,
-        private_key: &[u8],
-        ciphertext: &[u8],
-    ) -> Result<MlKemSharedSecret, ErrorStack> {
-        if private_key.len() != PRIVATE_KEY_SEED_BYTES {
-            return Err(ErrorStack::internal_error_str("invalid private key length"));
+    /// Query public key and ciphertext length
+    pub fn algorithm(&self) -> Algorithm {
+        match self.0 {
+            Either::MlKem768(_) => Algorithm::MlKem768,
+            Either::MlKem1024(_) => Algorithm::MlKem1024,
         }
-        let seed_arr: MlKemPrivateKeySeed = private_key.try_into().unwrap();
+    }
+}
 
-        match self {
-            Self::MlKem768 => {
+impl MlKemPrivateKey {
+    /// Expand private key from the seed bytes
+    pub fn from_seed(
+        algorithm: Algorithm,
+        private_seed: &MlKemPrivateKeySeed,
+    ) -> Result<Self, ErrorStack> {
+        match algorithm {
+            Algorithm::MlKem768 => Ok(Self(Either::MlKem768(Box::new(
+                MlKem768PrivateKey::from_seed(private_seed)?,
+            )))),
+            Algorithm::MlKem1024 => Ok(Self(Either::MlKem1024(Box::new(
+                MlKem1024PrivateKey::from_seed(private_seed)?,
+            )))),
+        }
+    }
+
+    /// Secret seed bytes of this private key
+    pub fn seed_bytes(&self) -> &MlKemPrivateKeySeed {
+        match &self.0 {
+            Either::MlKem768(sk) => &sk.seed,
+            Either::MlKem1024(sk) => &sk.seed,
+        }
+    }
+
+    /// Decapsulates a shared secret from a ciphertext using the private key.
+    pub fn decapsulate(&self, ciphertext: &[u8]) -> Result<MlKemSharedSecret, ErrorStack> {
+        match &self.0 {
+            Either::MlKem768(sk) => {
                 let ct: &[u8; MlKem768PrivateKey::CIPHERTEXT_BYTES] = ciphertext
                     .try_into()
                     .map_err(|_| ErrorStack::internal_error_str("invalid ciphertext length"))?;
-                let sk = MlKem768PrivateKey::from_seed(seed_arr)?;
                 Ok(sk.decapsulate(ct))
             }
-            Self::MlKem1024 => {
+            Either::MlKem1024(sk) => {
                 let ct: &[u8; MlKem1024PrivateKey::CIPHERTEXT_BYTES] = ciphertext
                     .try_into()
                     .map_err(|_| ErrorStack::internal_error_str("invalid ciphertext length"))?;
-                let sk = MlKem1024PrivateKey::from_seed(seed_arr)?;
                 Ok(sk.decapsulate(ct))
             }
+        }
+    }
+
+    /// Query public key and ciphertext length
+    pub fn algorithm(&self) -> Algorithm {
+        match self.0 {
+            Either::MlKem768(_) => Algorithm::MlKem768,
+            Either::MlKem1024(_) => Algorithm::MlKem1024,
         }
     }
 }
@@ -157,7 +214,7 @@ struct MlKem768PrivateKey {
 impl Clone for MlKem768PrivateKey {
     fn clone(&self) -> Self {
         // unwrap is safe: cloning a valid key with a valid seed always succeeds
-        Self::from_seed(self.seed).unwrap()
+        Self::from_seed(&self.seed).unwrap()
     }
 }
 
@@ -166,7 +223,7 @@ impl MlKem768PrivateKey {
 
     /// Generate a new key pair.
     #[must_use]
-    fn generate() -> (MlKem768PrivateKey, MlKem768PublicKey) {
+    fn generate() -> (Box<MlKem768PublicKey>, Box<MlKem768PrivateKey>) {
         // SAFETY: all buffers are out parameters, correctly sized
         unsafe {
             ffi::init();
@@ -189,20 +246,20 @@ impl MlKem768PrivateKey {
             ffi::MLKEM768_parse_public_key(parsed.as_mut_ptr(), &mut cbs);
 
             (
-                MlKem768PrivateKey {
-                    seed: seed.assume_init(),
-                    expanded: expanded.assume_init(),
-                },
-                MlKem768PublicKey {
+                Box::new(MlKem768PublicKey {
                     bytes,
                     parsed: parsed.assume_init(),
-                },
+                }),
+                Box::new(MlKem768PrivateKey {
+                    seed: seed.assume_init(),
+                    expanded: expanded.assume_init(),
+                }),
             )
         }
     }
 
     /// Restore private key from seed.
-    fn from_seed(seed: MlKemPrivateKeySeed) -> Result<Self, ErrorStack> {
+    fn from_seed(seed: &MlKemPrivateKeySeed) -> Result<Self, ErrorStack> {
         // SAFETY: seed is 64 bytes, out parameter correctly sized
         unsafe {
             ffi::init();
@@ -213,7 +270,7 @@ impl MlKem768PrivateKey {
                 seed.len(),
             ))?;
             Ok(Self {
-                seed,
+                seed: *seed,
                 expanded: expanded.assume_init(),
             })
         }
@@ -357,7 +414,7 @@ impl MlKem768PublicKey {
 impl fmt::Debug for MlKem768PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("MlKem768PublicKey")
-            .field("bytes", &format!("[{}]", self.bytes.len()))
+            .field("bytes", &format_args!("[{}]", self.bytes.len()))
             .finish()
     }
 }
@@ -374,7 +431,7 @@ struct MlKem1024PrivateKey {
 impl Clone for MlKem1024PrivateKey {
     fn clone(&self) -> Self {
         // unwrap is safe: cloning a valid key with a valid seed always succeeds
-        Self::from_seed(self.seed).unwrap()
+        Self::from_seed(&self.seed).unwrap()
     }
 }
 
@@ -383,7 +440,7 @@ impl MlKem1024PrivateKey {
 
     /// Generate a new key pair.
     #[must_use]
-    fn generate() -> (MlKem1024PrivateKey, MlKem1024PublicKey) {
+    fn generate() -> (Box<MlKem1024PublicKey>, Box<MlKem1024PrivateKey>) {
         // SAFETY: all buffers are out parameters, correctly sized
         unsafe {
             ffi::init();
@@ -406,20 +463,20 @@ impl MlKem1024PrivateKey {
             ffi::MLKEM1024_parse_public_key(parsed.as_mut_ptr(), &mut cbs);
 
             (
-                MlKem1024PrivateKey {
-                    seed: seed.assume_init(),
-                    expanded: expanded.assume_init(),
-                },
-                MlKem1024PublicKey {
+                Box::new(MlKem1024PublicKey {
                     bytes,
                     parsed: parsed.assume_init(),
-                },
+                }),
+                Box::new(MlKem1024PrivateKey {
+                    seed: seed.assume_init(),
+                    expanded: expanded.assume_init(),
+                }),
             )
         }
     }
 
     /// Restore private key from seed.
-    fn from_seed(seed: MlKemPrivateKeySeed) -> Result<Self, ErrorStack> {
+    fn from_seed(seed: &MlKemPrivateKeySeed) -> Result<Self, ErrorStack> {
         // SAFETY: seed is 64 bytes, out parameter correctly sized
         unsafe {
             ffi::init();
@@ -430,7 +487,7 @@ impl MlKem1024PrivateKey {
                 seed.len(),
             ))?;
             Ok(Self {
-                seed,
+                seed: *seed,
                 expanded: expanded.assume_init(),
             })
         }
@@ -576,7 +633,7 @@ impl MlKem1024PublicKey {
 impl fmt::Debug for MlKem1024PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("MlKem1024PublicKey")
-            .field("bytes", &format!("[{}]", self.bytes.len()))
+            .field("bytes", &format_args!("[{}]", self.bytes.len()))
             .finish()
     }
 }
@@ -592,7 +649,7 @@ mod tests {
 
                 #[test]
                 fn roundtrip() {
-                    let (sk, pk) = <$priv>::generate();
+                    let (pk, sk) = <$priv>::generate();
                     let (ct, ss1) = pk.encapsulate();
                     let ss2 = sk.decapsulate(&ct);
                     assert_eq!(ss1, ss2);
@@ -600,8 +657,8 @@ mod tests {
 
                 #[test]
                 fn seed_roundtrip() {
-                    let (sk, pk) = <$priv>::generate();
-                    let sk2 = <$priv>::from_seed(sk.seed).unwrap();
+                    let (pk, sk) = <$priv>::generate();
+                    let sk2 = <$priv>::from_seed(&sk.seed).unwrap();
                     let (ct, ss1) = pk.encapsulate();
                     let ss2 = sk2.decapsulate(&ct);
                     assert_eq!(ss1, ss2);
@@ -609,7 +666,7 @@ mod tests {
 
                 #[test]
                 fn derive_pubkey() {
-                    let (sk, pk) = <$priv>::generate();
+                    let (pk, sk) = <$priv>::generate();
                     assert_eq!(pk.bytes, sk.public_key().unwrap().bytes);
                 }
 
@@ -621,14 +678,14 @@ mod tests {
 
                 #[test]
                 fn from_slice_roundtrip() {
-                    let (_, pk) = <$priv>::generate();
+                    let (pk, _) = <$priv>::generate();
                     let pk2 = <$pub>::from_slice(&pk.bytes).unwrap();
                     assert_eq!(pk.bytes, pk2.bytes);
                 }
 
                 #[test]
                 fn implicit_rejection() {
-                    let (sk, _) = <$priv>::generate();
+                    let (_, sk) = <$priv>::generate();
                     let bad_ct = [0x42u8; $ct_len];
                     // bad ciphertext still "works", just returns deterministic garbage
                     let ss1 = sk.decapsulate(&bad_ct);
@@ -638,7 +695,7 @@ mod tests {
 
                 #[test]
                 fn debug_redacts_seed() {
-                    let (sk, _) = <$priv>::generate();
+                    let (_, sk) = <$priv>::generate();
                     let dbg = format!("{:?}", sk);
                     assert!(dbg.contains("redacted"));
                 }
@@ -660,49 +717,36 @@ mod tests {
 
                     #[test]
                     fn roundtrip() {
-                        let kem = $algorithm;
-                        let (pk, seed) = kem.generate_key().unwrap();
-                        let (ct, ss1) = kem.encapsulate(&pk).unwrap();
-                        let ss2 = kem.decapsulate(&seed, &ct).unwrap();
+                        let (pk, sk) = MlKemPrivateKey::generate($algorithm).unwrap();
+                        let (ct, ss1) = pk.encapsulate().unwrap();
+                        let ss2 = sk.decapsulate(&ct).unwrap();
                         assert_eq!(ss1, ss2);
                     }
 
                     #[test]
                     fn key_sizes() {
-                        let kem = $algorithm;
-                        assert_eq!(kem.public_key_bytes(), $pk_len);
-                        assert_eq!(kem.ciphertext_bytes(), $ct_len);
+                        assert_eq!($algorithm.public_key_bytes(), $pk_len);
+                        assert_eq!($algorithm.ciphertext_bytes(), $ct_len);
 
-                        let (pk, private_key) = kem.generate_key().unwrap();
-                        assert_eq!(pk.len(), $pk_len);
-                        assert_eq!(private_key.len(), PRIVATE_KEY_SEED_BYTES);
+                        let (pk, private_key) = MlKemPrivateKey::generate($algorithm).unwrap();
+                        assert_eq!(pk.as_bytes().len(), $pk_len);
+                        assert_eq!(private_key.seed_bytes().len(), PRIVATE_KEY_SEED_BYTES);
 
-                        let (ct, ss) = kem.encapsulate(&pk).unwrap();
+                        let (ct, ss) = pk.encapsulate().unwrap();
                         assert_eq!(ct.len(), $ct_len);
                         assert_eq!(ss.len(), SHARED_SECRET_BYTES);
                     }
 
                     #[test]
                     fn invalid_public_key_length() {
-                        let kem = $algorithm;
-                        let result = kem.encapsulate(&[0u8; 100]);
-                        assert!(result.is_err());
-                    }
-
-                    #[test]
-                    fn invalid_private_key_length() {
-                        let kem = $algorithm;
-                        let (pk, _) = kem.generate_key().unwrap();
-                        let (ct, _) = kem.encapsulate(&pk).unwrap();
-                        let result = kem.decapsulate(&[0u8; 32], &ct);
+                        let result = MlKemPublicKey::from_slice($algorithm, &[0u8; 100]);
                         assert!(result.is_err());
                     }
 
                     #[test]
                     fn invalid_ciphertext_length() {
-                        let kem = $algorithm;
-                        let (_, private_key) = kem.generate_key().unwrap();
-                        let result = kem.decapsulate(&private_key, &[0u8; 100]);
+                        let (_, sk) = MlKemPrivateKey::generate($algorithm).unwrap();
+                        let result = sk.decapsulate(&[0u8; 100]);
                         assert!(result.is_err());
                     }
                 }
@@ -718,21 +762,6 @@ mod tests {
             assert_eq!(Algorithm::MlKem768.ciphertext_bytes(), 1088);
             assert_eq!(Algorithm::MlKem1024.public_key_bytes(), 1568);
             assert_eq!(Algorithm::MlKem1024.ciphertext_bytes(), 1568);
-        }
-
-        #[test]
-        fn cross_kem_incompatibility() {
-            // Keys from one KEM variant should not work with another
-            let kem768 = Algorithm::MlKem768;
-            let kem1024 = Algorithm::MlKem1024;
-
-            let (pk768, _) = kem768.generate_key().unwrap();
-            let (pk1024, _) = kem1024.generate_key().unwrap();
-
-            // 768 public key is wrong length for 1024
-            assert!(kem1024.encapsulate(&pk768).is_err());
-            // 1024 public key is wrong length for 768
-            assert!(kem768.encapsulate(&pk1024).is_err());
         }
     }
 }
