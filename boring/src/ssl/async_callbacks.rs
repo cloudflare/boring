@@ -4,8 +4,10 @@ use super::{
     Ssl, SslAlert, SslContextBuilder, SslRef, SslSession, SslSignatureAlgorithm, SslVerifyError,
     SslVerifyMode,
 };
+#[cfg(feature = "credential")]
 use crate::error::ErrorStack;
 use crate::ex_data::Index;
+#[cfg(feature = "credential")]
 use crate::ssl::SslCredentialBuilder;
 use std::convert::identity;
 use std::future::Future;
@@ -173,6 +175,7 @@ impl SslContextBuilder {
     }
 }
 
+#[cfg(feature = "credential")]
 impl SslCredentialBuilder {
     /// Configures a custom private key method on the context.
     ///

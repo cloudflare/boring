@@ -108,6 +108,7 @@ pub use self::async_callbacks::{
 pub use self::connector::{
     ConnectConfiguration, SslAcceptor, SslAcceptorBuilder, SslConnector, SslConnectorBuilder,
 };
+#[cfg(feature = "credential")]
 pub use self::credential::{SslCredential, SslCredentialBuilder, SslCredentialRef};
 pub use self::ech::{SslEchKeys, SslEchKeysRef};
 pub use self::error::{Error, ErrorCode, HandshakeError};
@@ -116,6 +117,7 @@ mod async_callbacks;
 mod bio;
 mod callbacks;
 mod connector;
+#[cfg(feature = "credential")]
 mod credential;
 mod ech;
 mod error;
@@ -2025,6 +2027,7 @@ impl SslContextBuilder {
 
     /// Adds a credential.
     #[corresponds(SSL_CTX_add1_credential)]
+    #[cfg(feature = "credential")]
     pub fn add_credential(&mut self, credential: &SslCredentialRef) -> Result<(), ErrorStack> {
         unsafe {
             cvt_0i(ffi::SSL_CTX_add1_credential(
@@ -3844,6 +3847,7 @@ impl SslRef {
 
     /// Adds a credential.
     #[corresponds(SSL_add1_credential)]
+    #[cfg(feature = "credential")]
     pub fn add_credential(&mut self, credential: &SslCredentialRef) -> Result<(), ErrorStack> {
         unsafe { cvt_0i(ffi::SSL_add1_credential(self.as_ptr(), credential.as_ptr())).map(|_| ()) }
     }
