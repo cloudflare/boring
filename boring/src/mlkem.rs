@@ -4,14 +4,14 @@
 //! using higher-level constructions like HPKE is preferred.
 //! Note that it's also enabled in TLS by default, in the X25519MLKEM768 exchange.
 //!
-//! Provides ML-KEM-768 (recommended) and ML-KEM-1024 variants via [`MlKem`].
+//! Provides ML-KEM-768 (recommended) and ML-KEM-1024 variants via [`Algorithm`].
 //!
 //! ```
-//! use boring::mlkem::MlKem;
+//! use boring::mlkem::Algorithm;
 //!
-//! let (public_key, private_key) = MlKem::MlKem768.generate_key().unwrap();
-//! let (ciphertext, shared_secret) = MlKem::MlKem768.encapsulate(&public_key).unwrap();
-//! let decrypted = MlKem::MlKem768.decapsulate(&private_key, &ciphertext).unwrap();
+//! let (public_key, private_key) = Algorithm::MlKem768.generate_key().unwrap();
+//! let (ciphertext, shared_secret) = Algorithm::MlKem768.encapsulate(&public_key).unwrap();
+//! let decrypted = Algorithm::MlKem768.decapsulate(&private_key, &ciphertext).unwrap();
 //! assert_eq!(shared_secret, decrypted);
 //! ```
 
@@ -46,22 +46,22 @@ pub type MlKemSharedSecret = [u8; SHARED_SECRET_BYTES];
 /// ML-KEM with runtime algorithm selection. Works with byte slices.
 ///
 /// ```
-/// use boring::mlkem::MlKem;
+/// use boring::mlkem::Algorithm;
 ///
-/// let (public_key, private_key) = MlKem::MlKem768.generate_key().unwrap();
-/// let (ciphertext, shared_secret) = MlKem::MlKem768.encapsulate(&public_key).unwrap();
-/// let decrypted = kem.decapsulate(&private_key, &ciphertext).unwrap();
+/// let (public_key, private_key) = Algorithm::MlKem768.generate_key().unwrap();
+/// let (ciphertext, shared_secret) = Algorithm::MlKem768.encapsulate(&public_key).unwrap();
+/// let decrypted = Algorithm::MlKem768.decapsulate(&private_key, &ciphertext).unwrap();
 /// assert_eq!(shared_secret, decrypted);
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MlKem {
+pub enum Algorithm {
     /// Recommended. AES-192 equivalent security.
     MlKem768,
     /// AES-256 equivalent security.
     MlKem1024,
 }
 
-impl MlKem {
+impl Algorithm {
     /// Returns 1184 for ML-KEM-768, 1568 for ML-KEM-1024.
     #[must_use]
     pub const fn public_key_bytes(&self) -> usize {
@@ -709,22 +709,22 @@ mod tests {
             };
         }
 
-        unified_tests!(mlkem768, MlKem::MlKem768, 1184, 1088);
-        unified_tests!(mlkem1024, MlKem::MlKem1024, 1568, 1568);
+        unified_tests!(mlkem768, Algorithm::MlKem768, 1184, 1088);
+        unified_tests!(mlkem1024, Algorithm::MlKem1024, 1568, 1568);
 
         #[test]
         fn params_constants() {
-            assert_eq!(MlKem::MlKem768.public_key_bytes(), 1184);
-            assert_eq!(MlKem::MlKem768.ciphertext_bytes(), 1088);
-            assert_eq!(MlKem::MlKem1024.public_key_bytes(), 1568);
-            assert_eq!(MlKem::MlKem1024.ciphertext_bytes(), 1568);
+            assert_eq!(Algorithm::MlKem768.public_key_bytes(), 1184);
+            assert_eq!(Algorithm::MlKem768.ciphertext_bytes(), 1088);
+            assert_eq!(Algorithm::MlKem1024.public_key_bytes(), 1568);
+            assert_eq!(Algorithm::MlKem1024.ciphertext_bytes(), 1568);
         }
 
         #[test]
         fn cross_kem_incompatibility() {
             // Keys from one KEM variant should not work with another
-            let kem768 = MlKem::MlKem768;
-            let kem1024 = MlKem::MlKem1024;
+            let kem768 = Algorithm::MlKem768;
+            let kem1024 = Algorithm::MlKem1024;
 
             let (pk768, _) = kem768.generate_key().unwrap();
             let (pk1024, _) = kem1024.generate_key().unwrap();
