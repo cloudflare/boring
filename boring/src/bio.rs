@@ -1,12 +1,11 @@
 use std::marker::PhantomData;
 use std::ptr;
-use std::slice;
 
-use crate::cvt_p;
 use crate::error::ErrorStack;
 use crate::ffi;
 use crate::ffi::BIO_new_mem_buf;
-use crate::try_int;
+use crate::{cvt, cvt_p};
+use crate::{try_int, try_slice};
 
 pub struct MemBioSlice<'a>(*mut ffi::BIO, PhantomData<&'a [u8]>);
 
@@ -54,14 +53,17 @@ impl MemBio {
         self.0
     }
 
+    /// An empty slice may indicate an error, use [`Self::try_get_buf`] instead.
     pub fn get_buf(&self) -> &[u8] {
+        self.try_get_buf().unwrap_or(&[])
+    }
+
+    pub fn try_get_buf(&self) -> Result<&[u8], ErrorStack> {
         unsafe {
-            let mut ptr = ptr::null_mut();
-            let len = ffi::BIO_get_mem_data(self.0, &mut ptr);
-            if ptr.is_null() || len < 0 {
-                return &[];
-            }
-            slice::from_raw_parts(ptr.cast_const().cast(), len as usize)
+            let mut ptr: *const u8 = ptr::null_mut();
+            let mut len = 0;
+            cvt(ffi::BIO_mem_contents(self.0, &mut ptr, &mut len))?;
+            try_slice(ptr, len).ok_or_else(|| ErrorStack::internal_error_str("invalid slice"))
         }
     }
 }

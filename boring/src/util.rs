@@ -1,9 +1,9 @@
 use crate::error::ErrorStack;
+use crate::try_slice_mut;
 use foreign_types::{ForeignType, ForeignTypeRef};
 use libc::{c_char, c_int, c_void};
 use std::any::Any;
 use std::panic::{self, AssertUnwindSafe};
-use std::slice;
 
 /// Wraps a user-supplied callback and a slot for panics thrown inside the callback (while FFI
 /// frames are on the stack).
@@ -49,7 +49,7 @@ where
     let callback = &mut *cb_state.cast::<CallbackState<F>>();
 
     let result = panic::catch_unwind(AssertUnwindSafe(|| {
-        let pass_slice = slice::from_raw_parts_mut(buf.cast::<u8>(), size as usize);
+        let pass_slice = try_slice_mut(buf.cast::<u8>(), size)?;
         callback.cb.take().unwrap()(pass_slice)
     }));
 
