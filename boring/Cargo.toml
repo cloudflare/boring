@@ -7,7 +7,7 @@ description = "BoringSSL bindings"
 repository = { workspace = true }
 documentation = "https://docs.rs/boring"
 readme = "README.md"
-keywords = ["crypto", "tls", "ssl", "dtls"]
+keywords = ["tls", "ssl", "dtls", "post-quantum", "fips"]
 categories = ["cryptography", "api-bindings"]
 edition = { workspace = true }
 rust-version = { workspace = true }
