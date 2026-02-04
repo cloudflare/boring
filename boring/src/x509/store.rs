@@ -36,7 +36,7 @@
 //!
 //! let certificate: X509 = builder.build();
 //! let mut builder = X509StoreBuilder::new().unwrap();
-//! let _ = builder.add_cert(certificate);
+//! let _ = builder.add_cert(&certificate);
 //! let store: X509Store = builder.build();
 //! ```
 
@@ -44,7 +44,7 @@ use crate::error::ErrorStack;
 use crate::ffi;
 use crate::stack::StackRef;
 use crate::x509::verify::{X509VerifyFlags, X509VerifyParamRef};
-use crate::x509::{X509Object, X509};
+use crate::x509::{X509Object, X509Ref};
 use crate::{cvt, cvt_p};
 use foreign_types::{ForeignType, ForeignTypeRef};
 use openssl_macros::corresponds;
@@ -79,9 +79,8 @@ impl X509StoreBuilder {
 
 impl X509StoreBuilderRef {
     /// Adds a certificate to the certificate store.
-    // FIXME should take an &X509Ref
     #[corresponds(X509_STORE_add_cert)]
-    pub fn add_cert(&mut self, cert: X509) -> Result<(), ErrorStack> {
+    pub fn add_cert(&mut self, cert: &X509Ref) -> Result<(), ErrorStack> {
         unsafe { cvt(ffi::X509_STORE_add_cert(self.as_ptr(), cert.as_ptr())) }
     }
 

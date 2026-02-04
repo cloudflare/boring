@@ -417,7 +417,7 @@ impl Rsa<Public> {
     pub fn from_public_components(n: BigNum, e: BigNum) -> Result<Rsa<Public>, ErrorStack> {
         unsafe {
             let rsa = cvt_p(ffi::RSA_new())?;
-            RSA_set0_key(rsa, n.as_ptr(), e.as_ptr(), ptr::null_mut());
+            cvt(RSA_set0_key(rsa, n.as_ptr(), e.as_ptr(), ptr::null_mut()))?;
             mem::forget((n, e));
             Ok(Rsa::from_ptr(rsa))
         }
@@ -475,7 +475,7 @@ impl RsaPrivateKeyBuilder {
     pub fn new(n: BigNum, e: BigNum, d: BigNum) -> Result<RsaPrivateKeyBuilder, ErrorStack> {
         unsafe {
             let rsa = cvt_p(ffi::RSA_new())?;
-            RSA_set0_key(rsa, n.as_ptr(), e.as_ptr(), d.as_ptr());
+            cvt(RSA_set0_key(rsa, n.as_ptr(), e.as_ptr(), d.as_ptr()))?;
             mem::forget((n, e, d));
             Ok(RsaPrivateKeyBuilder {
                 rsa: Rsa::from_ptr(rsa),
@@ -486,12 +486,10 @@ impl RsaPrivateKeyBuilder {
     /// Sets the factors of the Rsa key.
     ///
     /// `p` and `q` are the first and second factors of `n`.
-    ///
-    // FIXME should be infallible
     #[corresponds(RSA_set0_factors)]
     pub fn set_factors(self, p: BigNum, q: BigNum) -> Result<RsaPrivateKeyBuilder, ErrorStack> {
         unsafe {
-            RSA_set0_factors(self.rsa.as_ptr(), p.as_ptr(), q.as_ptr());
+            cvt(RSA_set0_factors(self.rsa.as_ptr(), p.as_ptr(), q.as_ptr()))?;
             mem::forget((p, q));
         }
         Ok(self)
@@ -501,8 +499,6 @@ impl RsaPrivateKeyBuilder {
     ///
     /// `dmp1`, `dmq1`, and `iqmp` are the exponents and coefficient for
     /// CRT calculations which is used to speed up RSA operations.
-    ///
-    // FIXME should be infallible
     #[corresponds(RSA_set0_crt_params)]
     pub fn set_crt_params(
         self,
@@ -511,12 +507,12 @@ impl RsaPrivateKeyBuilder {
         iqmp: BigNum,
     ) -> Result<RsaPrivateKeyBuilder, ErrorStack> {
         unsafe {
-            RSA_set0_crt_params(
+            cvt(RSA_set0_crt_params(
                 self.rsa.as_ptr(),
                 dmp1.as_ptr(),
                 dmq1.as_ptr(),
                 iqmp.as_ptr(),
-            );
+            ))?;
             mem::forget((dmp1, dmq1, iqmp));
         }
         Ok(self)
