@@ -24,23 +24,23 @@
 //! use boring::asn1::Asn1Time;
 //! let tomorrow = Asn1Time::days_from_now(1);
 //! ```
-use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 use libc::{c_int, c_long, time_t};
 use std::cmp::Ordering;
 use std::ffi::CString;
 use std::fmt;
 use std::ptr;
-use std::slice;
 use std::str;
 
 use crate::bio::MemBio;
 use crate::bn::{BigNum, BigNumRef};
 use crate::error::ErrorStack;
+use crate::ffi;
 use crate::nid::Nid;
 use crate::stack::Stackable;
 use crate::string::OpensslString;
-use crate::{cvt, cvt_p};
+use crate::try_slice;
+use crate::{cvt, cvt_n, cvt_p};
 use openssl_macros::corresponds;
 
 foreign_type_and_impl_send_sync! {
@@ -403,11 +403,7 @@ impl Asn1StringRef {
     pub fn as_utf8(&self) -> Result<OpensslString, ErrorStack> {
         unsafe {
             let mut ptr = ptr::null_mut();
-            let len = ffi::ASN1_STRING_to_UTF8(&mut ptr, self.as_ptr());
-            if len < 0 {
-                return Err(ErrorStack::get());
-            }
-
+            cvt_n(ffi::ASN1_STRING_to_UTF8(&mut ptr, self.as_ptr()))?;
             Ok(OpensslString::from_ptr(ptr.cast()))
         }
     }
@@ -421,7 +417,7 @@ impl Asn1StringRef {
     #[corresponds(ASN1_STRING_get0_data)]
     #[must_use]
     pub fn as_slice(&self) -> &[u8] {
-        unsafe { slice::from_raw_parts(ASN1_STRING_get0_data(self.as_ptr()), self.len()) }
+        unsafe { try_slice(ASN1_STRING_get0_data(self.as_ptr()), self.len()).unwrap_or(&[]) }
     }
 
     /// Returns the number of bytes in the string.
@@ -529,13 +525,7 @@ impl Asn1BitStringRef {
     #[corresponds(ASN1_STRING_get0_data)]
     #[must_use]
     pub fn as_slice(&self) -> &[u8] {
-        unsafe {
-            let ptr = ASN1_STRING_get0_data(self.as_ptr().cast());
-            if ptr.is_null() {
-                return &[];
-            }
-            slice::from_raw_parts(ptr, self.len())
-        }
+        unsafe { try_slice(ASN1_STRING_get0_data(self.as_ptr().cast()), self.len()).unwrap_or(&[]) }
     }
 
     /// Returns the Asn1BitString as a str, if possible.

@@ -170,11 +170,11 @@ fn cvt_0(r: usize) -> Result<(), ErrorStack> {
     }
 }
 
-fn cvt_0i(r: c_int) -> Result<c_int, ErrorStack> {
+fn cvt_0i(r: c_int) -> Result<(), ErrorStack> {
     if r == 0 {
         Err(ErrorStack::get())
     } else {
-        Ok(r)
+        Ok(())
     }
 }
 
@@ -198,6 +198,48 @@ fn cvt_n(r: c_int) -> Result<c_int, ErrorStack> {
         Err(ErrorStack::get())
     } else {
         Ok(r)
+    }
+}
+
+unsafe fn try_slice<'a, T: Sized + 'static, L: TryInto<usize> + Copy + 'static>(
+    ptr: *const T,
+    len_in_items: L,
+) -> Option<&'a [T]> {
+    safe_slice_size::<T, L>(len_in_items)
+        .filter(|_| !ptr.is_null())
+        .map(|len| {
+            // C/C++ may assume the pointer can be anything if it's not dereferenced, which isn't true in Rust
+            if len > 0 {
+                std::slice::from_raw_parts(ptr, len)
+            } else {
+                &[]
+            }
+        })
+}
+
+unsafe fn try_slice_mut<'a, T: Sized + 'static, L: TryInto<usize> + Copy + 'static>(
+    ptr: *mut T,
+    len_in_items: L,
+) -> Result<&'a mut [T], ErrorStack> {
+    safe_slice_size::<T, L>(len_in_items)
+        .filter(|_| !ptr.is_null())
+        .map(|len| {
+            if len > 0 {
+                std::slice::from_raw_parts_mut(ptr, len)
+            } else {
+                &mut []
+            }
+        })
+        .ok_or_else(|| ErrorStack::internal_error_str("invalid slice"))
+}
+
+fn safe_slice_size<T: Sized, L: TryInto<usize>>(len_in_items: L) -> Option<usize> {
+    let len = len_in_items.try_into().ok()?;
+    // it's UB to have larger allocation size in Rust
+    if len.checked_mul(size_of::<T>())? < isize::MAX as usize {
+        Some(len)
+    } else {
+        None
     }
 }
 
