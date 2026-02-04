@@ -12,6 +12,7 @@ use crate::hmac::HmacCtxRef;
 use crate::ssl::TicketKeyCallbackResult;
 use crate::symm::CipherCtxRef;
 use crate::x509::{X509StoreContext, X509StoreContextRef};
+use crate::{try_slice, try_slice_mut};
 use foreign_types::ForeignType;
 use foreign_types::ForeignTypeRef;
 use libc::{c_char, c_int, c_uchar, c_uint, c_void};
@@ -666,7 +667,9 @@ where
         .ex_data(SslContext::cached_ex_index::<C>())
         .expect("BUG: certificate compression missed");
 
-    let input_slice = unsafe { std::slice::from_raw_parts(input, input_len) };
+    let Some(input_slice) = (unsafe { try_slice(input, input_len) }) else {
+        return 0;
+    };
     let mut writer = CryptoByteBuilder::from_ptr(out);
     if compressor.compress(input_slice, &mut writer).is_err() {
         return 0;
@@ -755,7 +758,7 @@ impl<'a> CryptoBufferBuilder<'a> {
         let buffer = unsafe { crate::cvt_p(ffi::CRYPTO_BUFFER_alloc(&mut data, capacity))? };
         Ok(CryptoBufferBuilder {
             buffer,
-            cursor: std::io::Cursor::new(unsafe { std::slice::from_raw_parts_mut(data, capacity) }),
+            cursor: std::io::Cursor::new(unsafe { try_slice_mut(data, capacity)? }),
         })
     }
 
