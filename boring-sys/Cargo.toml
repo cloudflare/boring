@@ -12,6 +12,7 @@ links = "boringssl"
 build = "build/main.rs"
 readme = "README.md"
 categories = ["cryptography", "external-ffi-bindings"]
+keywords = ["tls", "boringssl", "openssl", "fips", "ml-kem"]
 edition = { workspace = true }
 rust-version = { workspace = true }
 include = [
