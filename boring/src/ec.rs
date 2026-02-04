@@ -267,8 +267,7 @@ impl EcPointRef {
         group: &EcGroupRef,
         q: &EcPointRef,
         m: &BigNumRef,
-        // FIXME should be &mut
-        ctx: &BigNumContextRef,
+        ctx: &mut BigNumContextRef,
     ) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::EC_POINT_mul(
@@ -287,8 +286,7 @@ impl EcPointRef {
         &mut self,
         group: &EcGroupRef,
         n: &BigNumRef,
-        // FIXME should be &mut
-        ctx: &BigNumContextRef,
+        ctx: &mut BigNumContextRef,
     ) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::EC_POINT_mul(
@@ -838,7 +836,7 @@ mod test {
         let mut ctx = BigNumContext::new().unwrap();
         let mut public_key = EcPoint::new(&group).unwrap();
         public_key
-            .mul_generator(&group, key.private_key(), &ctx)
+            .mul_generator(&group, key.private_key(), &mut ctx)
             .unwrap();
         assert!(public_key.eq(&group, key.public_key(), &mut ctx).unwrap());
     }
@@ -850,7 +848,7 @@ mod test {
         let one = BigNum::from_u32(1).unwrap();
         let mut ctx = BigNumContext::new().unwrap();
         let mut ecp = EcPoint::new(&group).unwrap();
-        ecp.mul_generator(&group, &one, &ctx).unwrap();
+        ecp.mul_generator(&group, &one, &mut ctx).unwrap();
         assert!(ecp.eq(&group, gen, &mut ctx).unwrap());
     }
 

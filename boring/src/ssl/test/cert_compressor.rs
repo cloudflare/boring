@@ -54,7 +54,7 @@ fn server_only_cert_compression() {
 
     let mut store = X509StoreBuilder::new().unwrap();
     let x509 = X509::from_pem(super::ROOT_CERT).unwrap();
-    store.add_cert(x509).unwrap();
+    store.add_cert(&x509).unwrap();
 
     let client = server.client();
 
@@ -67,7 +67,7 @@ fn client_only_cert_compression() {
 
     let mut store = X509StoreBuilder::new().unwrap();
     let x509 = X509::from_pem(super::ROOT_CERT).unwrap();
-    store.add_cert(x509).unwrap();
+    store.add_cert(&x509).unwrap();
 
     let mut client = server_builder.client();
     client
@@ -90,7 +90,7 @@ fn client_and_server_cert_compression() {
 
     let mut store = X509StoreBuilder::new().unwrap();
     let x509 = X509::from_pem(super::ROOT_CERT).unwrap();
-    store.add_cert(x509).unwrap();
+    store.add_cert(&x509).unwrap();
 
     let mut client = server.client();
     client

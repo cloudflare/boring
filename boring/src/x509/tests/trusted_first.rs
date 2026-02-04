@@ -75,7 +75,7 @@ fn verify(
         let mut builder = X509StoreBuilder::new().unwrap();
 
         for cert in trusted {
-            builder.add_cert((**cert).to_owned()).unwrap();
+            builder.add_cert(cert).unwrap();
         }
 
         builder.build()

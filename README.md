@@ -21,6 +21,7 @@ and [hyper](https://github.com/hyperium/hyper) built on top of it.
  * `Ssl::new_from_ref` -> `Ssl::new()`.
  * `X509Builder::append_extension2` -> `X509Builder::append_extension`.
  * `X509Store` is now cheaply cloneable, but immutable. `SslContextBuilder.cert_store_mut()` can't be used after `.set_cert_store()`. Use `.set_cert_store_builder()` if you need `.cert_store_mut()`.
+ * `X509StoreBuilder::add_cert` takes a reference.
  * `hyper` 0.x support has been removed. Use `hyper` 1.x.
 
 ## Contribution
