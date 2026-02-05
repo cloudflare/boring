@@ -65,6 +65,10 @@ rpk = []
 # `BORING_BSSL{,_FIPS}_SOURCE_PATH`.
 underscore-wildcards = []
 
+# Add a prefix to all symbols in libcrypto and libssl to prevent conflicts
+# with other OpenSSL or BoringSSL versions that might be linked in the same process.
+prefix-symbols = []
+
 [build-dependencies]
 bindgen = { workspace = true }
 cmake = { workspace = true }

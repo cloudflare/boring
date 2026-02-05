@@ -43,6 +43,10 @@ rpk = ["boring-sys/rpk"]
 # `BORING_BSSL{,_FIPS}_ASSUME_PATCHED`.
 underscore-wildcards = ["boring-sys/underscore-wildcards"]
 
+# Add a prefix to all symbols in libcrypto and libssl to prevent conflicts
+# with other OpenSSL or BoringSSL versions that might be linked in the same process.
+prefix-symbols = ["boring-sys/prefix-symbols"]
+
 [dependencies]
 bitflags = { workspace = true }
 foreign-types = { workspace = true }
