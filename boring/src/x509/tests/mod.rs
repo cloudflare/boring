@@ -451,7 +451,7 @@ fn test_verify_cert() {
     let chain = Stack::new().unwrap();
 
     let mut store_bldr = X509StoreBuilder::new().unwrap();
-    store_bldr.add_cert(ca).unwrap();
+    store_bldr.add_cert(&ca).unwrap();
     let store = store_bldr.build();
     let empty_store = X509StoreBuilder::new().unwrap().build();
 
@@ -484,7 +484,7 @@ fn test_verify_fails() {
     let chain = Stack::new().unwrap();
 
     let mut store_bldr = X509StoreBuilder::new().unwrap();
-    store_bldr.add_cert(ca).unwrap();
+    store_bldr.add_cert(&ca).unwrap();
     let store = store_bldr.build();
 
     let mut context = X509StoreContext::new().unwrap();
