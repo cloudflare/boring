@@ -15,6 +15,9 @@ use std::convert::TryInto;
 use std::ffi::c_void;
 use std::os::raw::{c_char, c_int, c_uint, c_ulong};
 
+#[cfg(not(feature = "mlkem"))]
+mod mlkem_dummy;
+
 #[allow(
     clippy::useless_transmute,
     clippy::derive_partial_eq_without_eq,

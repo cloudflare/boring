@@ -756,20 +756,26 @@ fn generate_bindings(config: &Config) {
     bindings
         .write(Box::new(&mut source_code))
         .expect("Couldn't serialize bindings!");
+    let mut source_code = String::from_utf8_lossy(&source_code).into_owned();
+
+    if !source_code.contains("MLKEM768_encap") {
+        // Fail at runtime to allow boring v5 to compile with mlkem disabled
+        source_code.push_str("\n#[cfg(not(feature = \"mlkem\"))] #[allow(deprecated)] pub use crate::mlkem_dummy::*;\n");
+    }
+
     ensure_err_lib_enum_is_named(&mut source_code);
-    fs::write(config.out_dir.join("bindings.rs"), source_code).expect("Couldn't write bindings!");
+    fs::write(config.out_dir.join("bindings.rs"), source_code.as_bytes())
+        .expect("Couldn't write bindings!");
 }
 
 /// err.h has anonymous `enum { ERR_LIB_NONE = 1 }`, which makes a dodgy `_bindgen_ty_1` name
-fn ensure_err_lib_enum_is_named(source_code: &mut Vec<u8>) {
-    let src = String::from_utf8_lossy(source_code);
-    let enum_type = src
+fn ensure_err_lib_enum_is_named(source_code: &mut String) {
+    let enum_type = source_code
         .split_once("ERR_LIB_SSL:")
         .and_then(|(_, def)| Some(def.split_once('=')?.0))
         .unwrap_or("_bindgen_ty_1");
 
-    source_code.extend_from_slice(
-        format!("\n/// Newtype for [`ERR_LIB_SSL`] constants\npub use {enum_type} as ErrLib;\n")
-            .as_bytes(),
-    );
+    let ty =
+        format!("\n/// Newtype for [`ERR_LIB_SSL`] constants\npub use {enum_type} as ErrLib;\n");
+    source_code.push_str(&ty);
 }
