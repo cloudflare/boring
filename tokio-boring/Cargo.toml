@@ -17,6 +17,8 @@ features = ["rpk"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
+default = ["boring/default"]
+
 # Use a FIPS-validated version of boringssl.
 fips = ["boring/fips", "boring-sys/fips"]
 
@@ -24,8 +26,8 @@ fips = ["boring/fips", "boring-sys/fips"]
 rpk = ["boring/rpk"]
 
 [dependencies]
-boring = { workspace = true }
-boring-sys = { workspace = true }
+boring = { workspace = true, default-features = false }
+boring-sys = { workspace = true, default-features = false }
 tokio = { workspace = true }
 
 [dev-dependencies]

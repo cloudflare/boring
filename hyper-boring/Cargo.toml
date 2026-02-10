@@ -16,6 +16,8 @@ features = []
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
+default = ["boring/default", "tokio-boring/default"]
+
 # Use a FIPS-validated version of boringssl.
 fips = ["boring/fips", "tokio-boring/fips"]
 
@@ -25,9 +27,9 @@ http = { workspace = true }
 hyper = { workspace = true }
 hyper-util = { workspace = true, features = ["client", "client-legacy"] }
 linked_hash_set = { workspace = true }
-boring = { workspace = true }
+boring = { workspace = true, default-features = false }
 tokio = { workspace = true }
-tokio-boring = { workspace = true }
+tokio-boring = { workspace = true, default-features = false  }
 tower-layer = { workspace = true }
 tower-service = { workspace = true }
 

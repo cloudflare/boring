@@ -58,7 +58,7 @@ jobs:
           path: target
           key: clippy-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
       - name: Run clippy
-        run: cargo clippy --all --all-targets
+        run: cargo clippy --all --all-targets --features rpk,mlkem
       - name: Check docs
         run: cargo doc --no-deps -p boring -p boring-sys -p hyper-boring -p tokio-boring --features rpk,underscore-wildcards
         env:
@@ -415,9 +415,15 @@ jobs:
     - name: Install Rust (rustup)
       run: rustup update stable --no-self-update && rustup default stable
       shell: bash
+    - run: cargo check --no-default-features
+      name: Check `--no-default-features`
+    - run: cargo check --features mlkem,credential
+      name: Check `mlkem,credential`
     - run: cargo test --features rpk
       name: Run `rpk` tests
     - run: cargo test --features underscore-wildcards
       name: Run `underscore-wildcards` tests
     - run: cargo test --features rpk,underscore-wildcards
+      name: Run `rpk,underscore-wildcards` tests
+    - run: cargo test --features rpk,underscore-wildcards,mlkem
       name: Run `rpk,underscore-wildcards` tests
