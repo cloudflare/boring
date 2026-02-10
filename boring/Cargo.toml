@@ -29,6 +29,9 @@ legacy-compat-deprecated = []
 # PQ is always enabled. This feature is a no-op, only for backwards compatibility.
 pq-experimental = []
 
+# Interface for ML-KEM (FIPS 203) post-quantum key encapsulation. Does not affect ciphers used in TLS.
+mlkem = []
+
 # Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
 # This feature is necessary in order to compile the bindings for the
 # default branch of boringSSL. Alternatively, a version of boringSSL that
