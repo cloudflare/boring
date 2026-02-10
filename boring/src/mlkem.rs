@@ -226,34 +226,20 @@ impl MlKem768PrivateKey {
         // SAFETY: all buffers are out parameters, correctly sized
         unsafe {
             ffi::init();
-            let mut public_key_bytes: MaybeUninit<[u8; MlKem768PublicKey::PUBLIC_KEY_BYTES]> =
-                MaybeUninit::uninit();
-            let mut seed: MaybeUninit<MlKemPrivateKeySeed> = MaybeUninit::uninit();
+            let mut bytes = [0; MlKem768PublicKey::PUBLIC_KEY_BYTES];
+            let mut seed = [0; PRIVATE_KEY_SEED_BYTES];
             let mut expanded: MaybeUninit<ffi::MLKEM768_private_key> = MaybeUninit::uninit();
 
             ffi::MLKEM768_generate_key(
-                public_key_bytes.as_mut_ptr().cast(),
-                seed.as_mut_ptr().cast(),
+                bytes.as_mut_ptr().cast(),
+                seed.as_mut_ptr(),
                 expanded.as_mut_ptr(),
             );
 
-            let bytes = public_key_bytes.assume_init();
-
-            // Parse the public key bytes to get the parsed struct
-            let mut cbs = cbs_init(&bytes);
-            let mut parsed: MaybeUninit<ffi::MLKEM768_public_key> = MaybeUninit::uninit();
-            cvt(ffi::MLKEM768_parse_public_key(
-                parsed.as_mut_ptr(),
-                &mut cbs,
-            ))?;
-
             Ok((
-                Box::new(MlKem768PublicKey {
-                    bytes,
-                    parsed: parsed.assume_init(),
-                }),
+                Box::new(MlKem768PublicKey::from_slice(&bytes)?),
                 Box::new(MlKem768PrivateKey {
-                    seed: seed.assume_init(),
+                    seed,
                     expanded: expanded.assume_init(),
                 }),
             ))
@@ -445,34 +431,20 @@ impl MlKem1024PrivateKey {
         // SAFETY: all buffers are out parameters, correctly sized
         unsafe {
             ffi::init();
-            let mut public_key_bytes: MaybeUninit<[u8; MlKem1024PublicKey::PUBLIC_KEY_BYTES]> =
-                MaybeUninit::uninit();
-            let mut seed: MaybeUninit<MlKemPrivateKeySeed> = MaybeUninit::uninit();
+            let mut bytes = [0; MlKem1024PublicKey::PUBLIC_KEY_BYTES];
+            let mut seed = [0; PRIVATE_KEY_SEED_BYTES];
             let mut expanded: MaybeUninit<ffi::MLKEM1024_private_key> = MaybeUninit::uninit();
 
             ffi::MLKEM1024_generate_key(
-                public_key_bytes.as_mut_ptr().cast(),
-                seed.as_mut_ptr().cast(),
+                bytes.as_mut_ptr().cast(),
+                seed.as_mut_ptr(),
                 expanded.as_mut_ptr(),
             );
 
-            let bytes = public_key_bytes.assume_init();
-
-            // Parse the public key bytes to get the parsed struct
-            let mut cbs = cbs_init(&bytes);
-            let mut parsed: MaybeUninit<ffi::MLKEM1024_public_key> = MaybeUninit::uninit();
-            cvt(ffi::MLKEM1024_parse_public_key(
-                parsed.as_mut_ptr(),
-                &mut cbs,
-            ))?;
-
             Ok((
-                Box::new(MlKem1024PublicKey {
-                    bytes,
-                    parsed: parsed.assume_init(),
-                }),
+                Box::new(MlKem1024PublicKey::from_slice(&bytes)?),
                 Box::new(MlKem1024PrivateKey {
-                    seed: seed.assume_init(),
+                    seed,
                     expanded: expanded.assume_init(),
                 }),
             ))
@@ -653,8 +625,8 @@ mod tests {
 
                 #[test]
                 fn roundtrip() {
-                    let (pk, sk) = <$priv>::generate();
-                    let (ct, ss1) = pk.encapsulate().unwrap();
+                    let (pk, sk) = <$priv>::generate().unwrap();
+                    let (ct, ss1) = pk.encapsulate();
                     let ss2 = sk.decapsulate(&ct);
                     assert_eq!(ss1, ss2);
                 }
