@@ -741,12 +741,13 @@ fn generate_bindings(config: &Config) {
     ];
     for header in &headers {
         let header_path = include_path.join("openssl").join(header);
-        assert!(
-            header_path.exists(),
-            "{} is missing. Is {} correct? run `cargo clean`",
-            header_path.display(),
-            include_path.display()
-        );
+        if !header_path.exists() {
+            println!(
+                "cargo::warning={} is missing. Is {} correct?",
+                header_path.display(),
+                include_path.display()
+            );
+        }
         builder = builder.header(header_path.to_str().unwrap());
     }
 
