@@ -3,7 +3,9 @@
 [BoringSSL](https://boringssl.googlesource.com/boringssl) is Google's fork of OpenSSL for Chrome/Chromium and Android.
 
 This crate builds the BoringSSL library (or optionally links a pre-built version) and generates FFI bindings for it.
-It supports FIPS-compatible builds of BoringSSL, as well as Post-Quantum crypto and Raw Public Key features.
+It supports [FIPS-compatible builds of BoringSSL](https://boringssl.googlesource.com/boringssl/+/master/crypto/fipsmodule/FIPS.md),
+as well as [Post-Quantum crypto](https://datatracker.ietf.org/doc/draft-ietf-tls-ecdhe-mlkem/)
+and [Raw Public Key](https://docs.rs/boring/latest/boring/ssl/struct.SslRef.html#method.peer_pubkey) extensions.
 
 To use BoringSSL from Rust, prefer the [higher-level safe API](https://docs.rs/boring).
 

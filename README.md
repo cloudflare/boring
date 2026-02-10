@@ -7,6 +7,10 @@
 This crate provides safe bindings for the Rust programming language and TLS adapters for [tokio](https://github.com/tokio-rs/tokio)
 and [hyper](https://github.com/hyperium/hyper) built on top of it.
 
+It supports [FIPS-compatible builds of BoringSSL](https://boringssl.googlesource.com/boringssl/+/master/crypto/fipsmodule/FIPS.md),
+as well as [Post-Quantum crypto](https://datatracker.ietf.org/doc/draft-ietf-tls-ecdhe-mlkem/)
+and [Raw Public Key](https://docs.rs/boring/latest/boring/ssl/struct.SslRef.html#method.peer_pubkey) extensions.
+
 ## Documentation
  - Boring API: <https://docs.rs/boring>
  - tokio TLS adapters: <https://docs.rs/tokio-boring>
