@@ -145,7 +145,7 @@ impl Cipher {
     #[corresponds(EVP_get_cipherbynid)]
     #[must_use]
     pub fn from_nid(nid: Nid) -> Option<Cipher> {
-        let ptr = unsafe { ffi::EVP_get_cipherbyname(ffi::OBJ_nid2sn(nid.as_raw())) };
+        let ptr = unsafe { ffi::EVP_get_cipherbynid(nid.as_raw()) };
         if ptr.is_null() {
             None
         } else {
@@ -1044,6 +1044,9 @@ mod tests {
     #[test]
     fn test_nid_roundtrip() {
         for cipher in [
+            Cipher::aes_128_gcm(),
+            Cipher::aes_192_gcm(),
+            Cipher::aes_256_gcm(),
             Cipher::aes_128_ecb(),
             Cipher::aes_128_cbc(),
             Cipher::aes_128_ctr(),
@@ -1065,15 +1068,7 @@ mod tests {
             assert_eq!(Cipher::from_nid(cipher.nid()), Some(cipher), "{}", name);
         }
 
-        for cipher in [
-            Cipher::aes_128_gcm(),
-            Cipher::aes_192_gcm(),
-            Cipher::aes_256_gcm(),
-            Cipher::des_ede3(),
-        ] {
-            let name = cipher.nid().short_name().unwrap_or("unknown");
-            assert_eq!(Cipher::from_nid(cipher.nid()), None, "{}", name);
-        }
+        assert_eq!(Cipher::from_nid(Cipher::des_ede3().nid()), None);
     }
 
     // Make sure the NIDs don't actually change upstream.
