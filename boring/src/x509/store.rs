@@ -80,7 +80,8 @@ impl X509StoreBuilder {
 impl X509StoreBuilderRef {
     /// Adds a certificate to the certificate store.
     #[corresponds(X509_STORE_add_cert)]
-    pub fn add_cert(&mut self, cert: &X509Ref) -> Result<(), ErrorStack> {
+    pub fn add_cert(&mut self, cert: impl AsRef<X509Ref>) -> Result<(), ErrorStack> {
+        let cert = cert.as_ref();
         unsafe { cvt(ffi::X509_STORE_add_cert(self.as_ptr(), cert.as_ptr())) }
     }
 

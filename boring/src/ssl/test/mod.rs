@@ -317,13 +317,13 @@ fn test_mutable_store() {
     let cert2 = X509::from_pem(cert2).unwrap();
 
     let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
-    ctx.cert_store_mut().add_cert(&cert.clone()).unwrap();
+    ctx.cert_store_mut().add_cert(cert.clone()).unwrap();
     assert_eq!(1, ctx.cert_store().objects_len());
 
     ctx.set_cert_store_builder(X509StoreBuilder::new().unwrap());
     assert_eq!(0, ctx.cert_store().objects_len());
 
-    ctx.cert_store_mut().add_cert(&cert.clone()).unwrap();
+    ctx.cert_store_mut().add_cert(cert.clone()).unwrap();
     assert_eq!(1, ctx.cert_store().objects_len());
 
     let mut new_store = X509StoreBuilder::new().unwrap();
