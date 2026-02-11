@@ -8,7 +8,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "5.0.0"
+version = "5.0.1"
 rust-version = "1.85"
 repository = "https://github.com/cloudflare/boring"
 edition = "2021"
@@ -20,9 +20,9 @@ tag-prefix = ""
 publish = false
 
 [workspace.dependencies]
-boring-sys = { version = "5.0.0", path = "./boring-sys", default-features = false }
-boring = { version = "5.0.0", path = "./boring", default-features = false }
-tokio-boring = { version = "5.0.0", path = "./tokio-boring", default-features = false }
+boring-sys = { version = "5.0.1", path = "./boring-sys", default-features = false }
+boring = { version = "5.0.1", path = "./boring", default-features = false }
+tokio-boring = { version = "5.0.1", path = "./tokio-boring", default-features = false }
 
 bindgen = { version = "0.72.0", default-features = false, features = ["runtime"] }
 bitflags = "2.9"
