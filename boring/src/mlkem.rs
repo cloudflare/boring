@@ -89,6 +89,7 @@ impl MlKemPrivateKey {
     ///
     /// The private key is a 64-byte seed. Keep it secret.
     pub fn generate(algorithm: Algorithm) -> Result<(MlKemPublicKey, MlKemPrivateKey), ErrorStack> {
+        mlkem_available()?;
         match algorithm {
             Algorithm::MlKem768 => {
                 let (pk, sk) = MlKem768PrivateKey::generate()?;
@@ -110,6 +111,7 @@ impl MlKemPrivateKey {
 
 impl MlKemPublicKey {
     pub fn from_slice(algorithm: Algorithm, public_key: &[u8]) -> Result<Self, ErrorStack> {
+        mlkem_available()?;
         match algorithm {
             Algorithm::MlKem768 => Ok(Self(Either::MlKem768(Box::new(
                 MlKem768PublicKey::from_slice(public_key)?,
@@ -158,6 +160,7 @@ impl MlKemPrivateKey {
         algorithm: Algorithm,
         private_seed: &MlKemPrivateKeySeed,
     ) -> Result<Self, ErrorStack> {
+        mlkem_available()?;
         match algorithm {
             Algorithm::MlKem768 => Ok(Self(Either::MlKem768(Box::new(
                 MlKem768PrivateKey::from_seed(private_seed)?,
@@ -612,6 +615,15 @@ impl fmt::Debug for MlKem1024PublicKey {
             .field("bytes", &format_args!("[{}]", self.bytes.len()))
             .finish()
     }
+}
+
+fn mlkem_available() -> Result<(), ErrorStack> {
+    if SHARED_SECRET_BYTES != 32 || PRIVATE_KEY_SEED_BYTES != 64 {
+        return Err(ErrorStack::internal_error_str(
+            "ML-KEM is unavailable in this build",
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
