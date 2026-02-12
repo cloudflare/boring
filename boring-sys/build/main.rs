@@ -161,7 +161,7 @@ fn get_boringssl_source_path(config: &Config) -> &Path {
 /// MSVC generator on Windows place static libs in a target sub-folder,
 /// so adjust library location based on platform and build target.
 /// See issue: <https://github.com/alexcrichton/cmake-rs/issues/18>
-fn get_boringssl_platform_output_path(config: &Config) -> String {
+fn msvc_lib_subdir(config: &Config) -> Option<&'static str> {
     if config.target.ends_with("-msvc") {
         // Code under this branch should match the logic in cmake-rs
         let debug_env_var = config
@@ -195,9 +195,9 @@ fn get_boringssl_platform_output_path(config: &Config) -> String {
             _ => panic!("Unknown OPT_LEVEL={opt_env_var:?} env var."),
         };
 
-        subdir.to_string()
+        Some(subdir)
     } else {
-        String::new()
+        None
     }
 }
 
@@ -536,7 +536,7 @@ fn run_command(command: &mut Command) -> io::Result<Output> {
     Ok(out)
 }
 
-fn built_boring_source_path(config: &Config) -> &PathBuf {
+fn build_boringssl_or_get_prebuilt(config: &Config) -> &Path {
     static BUILD_SOURCE_PATH: OnceLock<PathBuf> = OnceLock::new();
 
     BUILD_SOURCE_PATH.get_or_init(|| {
@@ -566,7 +566,13 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
         }
 
         cfg.build_target("ssl").build();
-        cfg.build_target("crypto").build()
+        let path = cfg.build_target("crypto").build();
+        let build_dir = path.join("build");
+        if build_dir.exists() {
+            build_dir
+        } else {
+            path
+        }
     })
 }
 
@@ -593,36 +599,23 @@ fn main() {
 }
 
 fn emit_link_directives(config: &Config) {
-    let bssl_dir = built_boring_source_path(config);
-    let build_path = get_boringssl_platform_output_path(config);
+    let bssl_dir = build_boringssl_or_get_prebuilt(config);
+    let msvc_lib_subdir = msvc_lib_subdir(config);
 
-    if config.is_bazel || (config.features.is_fips_like() && config.env.path.is_some()) {
-        println!(
-            "cargo:rustc-link-search=native={}/lib/{}",
-            bssl_dir.display(),
-            build_path
-        );
-    } else {
-        // todo(rmehra): clean this up, I think these are pretty redundant
-        println!(
-            "cargo:rustc-link-search=native={}/build/crypto/{}",
-            bssl_dir.display(),
-            build_path
-        );
-        println!(
-            "cargo:rustc-link-search=native={}/build/ssl/{}",
-            bssl_dir.display(),
-            build_path
-        );
-        println!(
-            "cargo:rustc-link-search=native={}/build/{}",
-            bssl_dir.display(),
-            build_path
-        );
-        println!(
-            "cargo:rustc-link-search=native={}/build",
-            bssl_dir.display(),
-        );
+    let subdirs =
+        if config.is_bazel || (config.features.is_fips_like() && config.env.path.is_some()) {
+            &["lib"][..]
+        } else {
+            &["lib", "crypto", "ssl", ""][..]
+        };
+
+    for subdir in subdirs {
+        let dir = bssl_dir.join(subdir);
+        let dir = msvc_lib_subdir
+            .map(|s| dir.join(s))
+            .filter(|d| d.exists())
+            .unwrap_or(dir);
+        println!("cargo:rustc-link-search=native={}", dir.display());
     }
 
     if let Some(cpp_lib) = get_cpp_runtime_lib(config) {
