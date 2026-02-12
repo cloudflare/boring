@@ -226,6 +226,15 @@ jobs:
             RUSTC_BOOTSTRAP: 1 # for -Z checksum-freshness
           # CI's Windows doesn't have required root certs
           extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring -Z checksum-freshness
+        - thing: x86_64-msvc-static
+          target: x86_64-pc-windows-msvc
+          rust: stable-x86_64-msvc
+          os: windows-latest
+          custom_env:
+            RUSTC_BOOTSTRAP: 1 # for -Z checksum-freshness
+            RUSTFLAGS: -Dwarnings -C target-feature=+crt-static
+          # CI's Windows doesn't have required root certs
+          extra_test_args: --workspace --exclude tokio-boring --exclude hyper-boring -Z checksum-freshness
     env:
       CARGO_HOME: ${{ github.workspace }}/.cache/cargo
       CARGO_BUILD_BUILD_DIR: ${{ github.workspace }}/.cache/build-dir
