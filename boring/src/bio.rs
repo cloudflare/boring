@@ -19,18 +19,11 @@ impl Drop for MemBioSlice<'_> {
 
 impl<'a> MemBioSlice<'a> {
     pub fn new(buf: &'a [u8]) -> Result<MemBioSlice<'a>, ErrorStack> {
-        #[cfg(not(feature = "fips-compat"))]
-        type BufLen = isize;
-        #[cfg(feature = "fips-compat")]
-        type BufLen = libc::c_int;
-
         ffi::init();
-
-        assert!(buf.len() <= BufLen::MAX as usize);
         let bio = unsafe {
             cvt_p(BIO_new_mem_buf(
                 buf.as_ptr() as *const _,
-                buf.len() as BufLen,
+                buf.len().try_into().map_err(ErrorStack::internal_error)?,
             ))?
         };
 
