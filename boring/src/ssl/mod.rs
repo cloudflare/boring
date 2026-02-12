@@ -1612,14 +1612,14 @@ impl SslContextBuilder {
     #[corresponds(SSL_CTX_set_alpn_protos)]
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            #[cfg_attr(not(feature = "fips-compat"), allow(clippy::unnecessary_cast))]
-            {
-                assert!(protocols.len() <= ProtosLen::MAX as usize);
-            }
             let r = ffi::SSL_CTX_set_alpn_protos(
                 self.as_ptr(),
                 protocols.as_ptr(),
-                protocols.len() as ProtosLen,
+                #[allow(clippy::useless_conversion)]
+                protocols
+                    .len()
+                    .try_into()
+                    .map_err(ErrorStack::internal_error)?,
             );
             // fun fact, SSL_CTX_set_alpn_protos has a reversed return code D:
             if r == 0 {
@@ -2400,11 +2400,6 @@ impl SslContextRef {
 /// See [`SslContextBuilder::set_get_session_callback`].
 #[derive(Debug)]
 pub struct GetSessionPendingError;
-
-#[cfg(not(feature = "fips-compat"))]
-type ProtosLen = usize;
-#[cfg(feature = "fips-compat")]
-type ProtosLen = libc::c_uint;
 
 /// Information about the state of a cipher.
 pub struct CipherBits {
@@ -3187,14 +3182,14 @@ impl SslRef {
     #[corresponds(SSL_set_alpn_protos)]
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
-            #[cfg_attr(not(feature = "fips-compat"), allow(clippy::unnecessary_cast))]
-            {
-                assert!(protocols.len() <= ProtosLen::MAX as usize);
-            }
             let r = ffi::SSL_set_alpn_protos(
                 self.as_ptr(),
                 protocols.as_ptr(),
-                protocols.len() as ProtosLen,
+                #[allow(clippy::useless_conversion)]
+                protocols
+                    .len()
+                    .try_into()
+                    .map_err(ErrorStack::internal_error)?,
             );
             // fun fact, SSL_set_alpn_protos has a reversed return code D:
             if r == 0 {
