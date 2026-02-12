@@ -153,7 +153,7 @@ fn get_boringssl_source_path(config: &Config) -> &PathBuf {
 /// MSVC generator on Windows place static libs in a target sub-folder,
 /// so adjust library location based on platform and build target.
 /// See issue: <https://github.com/alexcrichton/cmake-rs/issues/18>
-fn get_boringssl_platform_output_path(config: &Config) -> String {
+fn msvc_lib_subdir(config: &Config) -> Option<&'static str> {
     if config.target.ends_with("-msvc") {
         // Code under this branch should match the logic in cmake-rs
         let debug_env_var = config
@@ -187,9 +187,9 @@ fn get_boringssl_platform_output_path(config: &Config) -> String {
             _ => panic!("Unknown OPT_LEVEL={opt_env_var:?} env var."),
         };
 
-        subdir.to_string()
+        Some(subdir)
     } else {
-        String::new()
+        None
     }
 }
 
@@ -571,7 +571,7 @@ fn run_command(command: &mut Command) -> io::Result<Output> {
     Ok(out)
 }
 
-fn built_boring_source_path(config: &Config) -> &PathBuf {
+fn built_boring_source_path(config: &Config) -> &Path {
     if let Some(path) = &config.env.path {
         return path;
     }
@@ -603,7 +603,13 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
         }
 
         cfg.build_target("ssl").build();
-        cfg.build_target("crypto").build()
+        let path = cfg.build_target("crypto").build();
+        let build_dir = path.join("build");
+        if build_dir.exists() {
+            build_dir
+        } else {
+            path
+        }
     })
 }
 
@@ -614,12 +620,9 @@ fn link_in_precompiled_bcm_o(config: &Config) {
     let bcm_o_src_path = config.env.precompiled_bcm_o.as_ref()
         .expect("`fips-link-precompiled` requires `BORING_BSSL_FIPS_PRECOMPILED_BCM_O` env variable to be specified");
 
-    let libcrypto_path = bssl_dir
-        .join("build/crypto/libcrypto.a")
-        .canonicalize()
-        .unwrap();
+    let libcrypto_path = bssl_dir.join("crypto/libcrypto.a").canonicalize().unwrap();
 
-    let bcm_o_dst_path = bssl_dir.join("build/bcm-fips.o");
+    let bcm_o_dst_path = bssl_dir.join("bcm-fips.o");
 
     fs::copy(bcm_o_src_path, &bcm_o_dst_path).unwrap();
 
@@ -678,35 +681,22 @@ fn main() {
 
 fn emit_link_directives(config: &Config) {
     let bssl_dir = built_boring_source_path(config);
-    let build_path = get_boringssl_platform_output_path(config);
+    let msvc_lib_subdir = msvc_lib_subdir(config);
 
-    if config.is_bazel || (config.features.is_fips_like() && config.env.path.is_some()) {
-        println!(
-            "cargo:rustc-link-search=native={}/lib/{}",
-            bssl_dir.display(),
-            build_path
-        );
-    } else {
-        // todo(rmehra): clean this up, I think these are pretty redundant
-        println!(
-            "cargo:rustc-link-search=native={}/build/crypto/{}",
-            bssl_dir.display(),
-            build_path
-        );
-        println!(
-            "cargo:rustc-link-search=native={}/build/ssl/{}",
-            bssl_dir.display(),
-            build_path
-        );
-        println!(
-            "cargo:rustc-link-search=native={}/build/{}",
-            bssl_dir.display(),
-            build_path
-        );
-        println!(
-            "cargo:rustc-link-search=native={}/build",
-            bssl_dir.display(),
-        );
+    let subdirs =
+        if config.is_bazel || (config.features.is_fips_like() && config.env.path.is_some()) {
+            &["lib"][..]
+        } else {
+            &["lib", "crypto", "ssl", ""][..]
+        };
+
+    for subdir in subdirs {
+        let dir = bssl_dir.join(subdir);
+        let dir = msvc_lib_subdir
+            .map(|s| dir.join(s))
+            .filter(|d| d.exists())
+            .unwrap_or(dir);
+        println!("cargo:rustc-link-search=native={}", dir.display());
     }
 
     if config.features.fips_link_precompiled {
