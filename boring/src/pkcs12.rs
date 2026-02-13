@@ -10,7 +10,7 @@ use std::ptr;
 use crate::error::ErrorStack;
 use crate::nid::Nid;
 use crate::pkey::{HasPrivate, PKey, PKeyRef, Private};
-use crate::stack::Stack;
+use crate::stack::{Stack, StackRef};
 use crate::x509::{X509Ref, X509};
 use crate::{cvt_0i, cvt_p};
 
@@ -31,33 +31,43 @@ impl Pkcs12Ref {
         ffi::i2d_PKCS12
     }
 
-    /// Extracts the contents of the `Pkcs12`.
+    /// Extracts the contents of the `Pkcs12` with `pkey` and `cert` required.
     pub fn parse(&self, pass: &str) -> Result<ParsedPkcs12, ErrorStack> {
+        let p2 = self.parse2(pass)?;
+        Ok(ParsedPkcs12 {
+            pkey: p2
+                .pkey
+                .ok_or_else(|| ErrorStack::internal_error_str("missing pkey"))?,
+            cert: p2
+                .cert
+                .ok_or_else(|| ErrorStack::internal_error_str("missing cert"))?,
+            chain: p2.ca,
+        })
+    }
+
+    /// Extracts the contents of the `Pkcs12` with `pkey` and `cert` optional.
+    #[corresponds(PKCS12_parse)]
+    pub fn parse2(&self, pass: &str) -> Result<ParsedPkcs12_2, ErrorStack> {
         unsafe {
             let pass = CString::new(pass.as_bytes()).map_err(ErrorStack::internal_error)?;
 
             let mut pkey = ptr::null_mut();
             let mut cert = ptr::null_mut();
-            let mut chain = ptr::null_mut();
+            let mut ca = ptr::null_mut();
 
             cvt_0i(ffi::PKCS12_parse(
                 self.as_ptr(),
                 pass.as_ptr(),
                 &mut pkey,
                 &mut cert,
-                &mut chain,
+                &mut ca,
             ))?;
 
-            let pkey = PKey::from_ptr(pkey);
-            let cert = X509::from_ptr(cert);
+            let pkey = (!pkey.is_null()).then(|| PKey::from_ptr(pkey));
+            let cert = (!cert.is_null()).then(|| X509::from_ptr(cert));
+            let ca = (!ca.is_null()).then(|| Stack::from_ptr(ca));
 
-            let chain = if chain.is_null() {
-                None
-            } else {
-                Some(Stack::from_ptr(chain))
-            };
-
-            Ok(ParsedPkcs12 { pkey, cert, chain })
+            Ok(ParsedPkcs12_2 { pkey, cert, ca })
         }
     }
 }
@@ -98,6 +108,19 @@ pub struct ParsedPkcs12 {
     pub pkey: PKey<Private>,
     pub cert: X509,
     pub chain: Option<Stack<X509>>,
+}
+
+/// [`ParsedPkcs12`] with optional fields
+pub struct ParsedPkcs12_2 {
+    pub pkey: Option<PKey<Private>>,
+    pub cert: Option<X509>,
+    pub ca: Option<Stack<X509>>,
+}
+
+impl ParsedPkcs12_2 {
+    pub fn chain(&self) -> Option<&StackRef<X509>> {
+        self.ca.as_deref()
+    }
 }
 
 pub struct Pkcs12Builder {
