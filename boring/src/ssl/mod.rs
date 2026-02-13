@@ -1272,15 +1272,26 @@ impl SslContextBuilder {
     /// The file should contain a sequence of PEM-formatted CA certificates.
     #[corresponds(SSL_CTX_load_verify_locations)]
     pub fn set_ca_file<P: AsRef<Path>>(&mut self, file: P) -> Result<(), ErrorStack> {
+        self.load_verify_locations(Some(file.as_ref()), None)
+    }
+
+    /// Loads trusted root certificates from a file and/or a directory.
+    #[corresponds(SSL_CTX_load_verify_locations)]
+    pub fn load_verify_locations(
+        &mut self,
+        ca_file: Option<&Path>,
+        ca_path: Option<&Path>,
+    ) -> Result<(), ErrorStack> {
         self.ctx.check_x509();
 
-        let file = CString::new(file.as_ref().as_os_str().as_encoded_bytes())
-            .map_err(ErrorStack::internal_error)?;
+        let ca_file = ca_file.map(path_to_cstring).transpose()?;
+        let ca_path = ca_path.map(path_to_cstring).transpose()?;
+
         unsafe {
             cvt(ffi::SSL_CTX_load_verify_locations(
                 self.as_ptr(),
-                file.as_ptr(),
-                ptr::null(),
+                ca_file.as_ref().map_or(ptr::null(), |s| s.as_ptr()),
+                ca_path.as_ref().map_or(ptr::null(), |s| s.as_ptr()),
             ))
         }
     }
@@ -1341,8 +1352,7 @@ impl SslContextBuilder {
     ) -> Result<(), ErrorStack> {
         self.ctx.check_x509();
 
-        let file = CString::new(file.as_ref().as_os_str().as_encoded_bytes())
-            .map_err(ErrorStack::internal_error)?;
+        let file = path_to_cstring(file.as_ref())?;
         unsafe {
             cvt(ffi::SSL_CTX_use_certificate_file(
                 self.as_ptr(),
@@ -1362,8 +1372,7 @@ impl SslContextBuilder {
         &mut self,
         file: P,
     ) -> Result<(), ErrorStack> {
-        let file = CString::new(file.as_ref().as_os_str().as_encoded_bytes())
-            .map_err(ErrorStack::internal_error)?;
+        let file = path_to_cstring(file.as_ref())?;
         unsafe {
             cvt(ffi::SSL_CTX_use_certificate_chain_file(
                 self.as_ptr(),
@@ -1403,8 +1412,7 @@ impl SslContextBuilder {
         file: P,
         file_type: SslFiletype,
     ) -> Result<(), ErrorStack> {
-        let file = CString::new(file.as_ref().as_os_str().as_encoded_bytes())
-            .map_err(ErrorStack::internal_error)?;
+        let file = path_to_cstring(file.as_ref())?;
         unsafe {
             cvt(ffi::SSL_CTX_use_PrivateKey_file(
                 self.as_ptr(),
@@ -4573,4 +4581,8 @@ unsafe fn get_new_idx(f: ffi::CRYPTO_EX_free) -> c_int {
 
 unsafe fn get_new_ssl_idx(f: ffi::CRYPTO_EX_free) -> c_int {
     ffi::SSL_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, f)
+}
+
+fn path_to_cstring(path: &Path) -> Result<CString, ErrorStack> {
+    CString::new(path.as_os_str().as_encoded_bytes()).map_err(ErrorStack::internal_error)
 }
