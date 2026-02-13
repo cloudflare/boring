@@ -49,6 +49,10 @@ rpk = ["credential", "boring-sys/rpk"]
 # `BORING_BSSL{,_FIPS}_ASSUME_PATCHED`.
 underscore-wildcards = ["boring-sys/underscore-wildcards"]
 
+# **DO NOT USE** This will be removed without warning in future releases.
+# Alias for 'fips', only for backwards compatibility.
+fips-precompiled = ["fips"]
+
 [dependencies]
 bitflags = { workspace = true }
 foreign-types = { workspace = true }
