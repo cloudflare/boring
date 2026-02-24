@@ -35,13 +35,13 @@ async fn test_async_select_certificate_callback_yield() {
 
 #[tokio::test]
 async fn test_async_select_certificate_callback_return_error() {
-    with_async_select_certificate_callback_error(|_| Err(AsyncSelectCertError)).await;
+    with_async_select_certificate_callback_error(|_| Err(AsyncSelectCertError::Error)).await;
 }
 
 #[tokio::test]
 async fn test_async_select_certificate_callback_future_error() {
     with_async_select_certificate_callback_error(|_| {
-        Ok(Box::pin(async move { Err(AsyncSelectCertError) }))
+        Ok(Box::pin(async move { Err(AsyncSelectCertError::Error) }))
     })
     .await;
 }
@@ -52,7 +52,7 @@ async fn test_async_select_certificate_callback_future_yield_error() {
         Ok(Box::pin(async move {
             yield_now().await;
 
-            Err(AsyncSelectCertError)
+            Err(AsyncSelectCertError::Error)
         }))
     })
     .await;
@@ -64,7 +64,10 @@ async fn test_async_select_certificate_callback_finish_error() {
         Ok(Box::pin(async move {
             yield_now().await;
 
-            Ok(Box::new(|_: ClientHello<'_>| Err(AsyncSelectCertError)) as BoxSelectCertFinish)
+            Ok(
+                Box::new(|_: ClientHello<'_>| Err(AsyncSelectCertError::Error))
+                    as BoxSelectCertFinish,
+            )
         }))
     })
     .await;
