@@ -1026,6 +1026,51 @@ fn get_curve() {
 }
 
 #[test]
+fn used_hello_retry_request_true() {
+    let mut server_builder = Server::builder();
+    // Configures the server to prefer it's options over the client
+    server_builder
+        .ctx()
+        .set_options(SslOptions::CIPHER_SERVER_PREFERENCE);
+    server_builder
+        .ctx()
+        .set_curves_list("P-256:X25519")
+        .unwrap();
+    let server = server_builder.build();
+    let mut client_builder = server.client_with_root_ca();
+    // configures the client to send this supported groups
+    client_builder
+        .ctx()
+        .set_curves_list("X25519:P-256")
+        .unwrap();
+
+    let client_stream = client_builder.connect();
+    let ssl = client_stream.ssl();
+    assert!(ssl.used_hello_retry_request());
+}
+
+#[test]
+fn used_hello_retry_request_false() {
+    let mut server_builder = Server::builder();
+    // Server doesn't configure CIPHER_SERVER_PREFERENCE, so it will use the preference of the client
+    server_builder
+        .ctx()
+        .set_curves_list("P-256:X25519")
+        .unwrap();
+    let server = server_builder.build();
+    let mut client_builder = server.client_with_root_ca();
+    // configures the client to send this supported groups
+    client_builder
+        .ctx()
+        .set_curves_list("X25519:P-256")
+        .unwrap();
+
+    let client_stream = client_builder.connect();
+    let ssl = client_stream.ssl();
+    assert!(!ssl.used_hello_retry_request());
+}
+
+#[test]
 fn test_get_ciphers() {
     let ctx_builder = SslContext::builder(SslMethod::tls()).unwrap();
     let ctx_builder_ciphers: Vec<&str> = ctx_builder
