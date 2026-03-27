@@ -204,11 +204,19 @@ impl EcGroupRef {
         }
     }
 
-    /// Sets the flag determining if the group corresponds to a named curve or must be explicitly
-    /// parameterized.
-    ///
-    /// This defaults to `EXPLICIT_CURVE` in OpenSSL 1.0.1 and 1.0.2, but `NAMED_CURVE` in OpenSSL
-    /// 1.1.0.
+    /// Returns [`Asn1Flag::NAMED_CURVE`].
+    #[doc(hidden)]
+    #[deprecated(note = "BoringSSL always returns `OPENSSL_EC_NAMED_CURVE`")]
+    #[corresponds(EC_GROUP_get_asn1_flag)]
+    #[must_use]
+    pub fn asn1_flag(&self) -> Asn1Flag {
+        unsafe { Asn1Flag(ffi::EC_GROUP_get_asn1_flag(self.as_ptr())) }
+    }
+
+    /// No-op
+    #[doc(hidden)]
+    #[deprecated(note = "Ignored in BoringSSL")]
+    #[corresponds(EC_GROUP_set_asn1_flag)]
     pub fn set_asn1_flag(&mut self, flag: Asn1Flag) {
         unsafe {
             ffi::EC_GROUP_set_asn1_flag(self.as_ptr(), flag.0);
