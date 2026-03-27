@@ -450,6 +450,7 @@ impl fmt::Debug for Asn1StringRef {
 foreign_type_and_impl_send_sync! {
     type CType = ffi::ASN1_INTEGER;
     fn drop = ffi::ASN1_INTEGER_free;
+    fn clone = ffi::ASN1_INTEGER_dup;
 
     /// Numeric representation
     ///
@@ -476,24 +477,88 @@ impl Asn1Integer {
     }
 }
 
+impl Ord for Asn1IntegerRef {
+    #[corresponds(ASN1_INTEGER_cmp)]
+    fn cmp(&self, other: &Self) -> Ordering {
+        let res = unsafe { ffi::ASN1_INTEGER_cmp(self.as_ptr(), other.as_ptr()) };
+        res.cmp(&0)
+    }
+}
+
+impl PartialOrd for Asn1IntegerRef {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialOrd<Asn1Integer> for Asn1IntegerRef {
+    fn partial_cmp(&self, other: &Asn1Integer) -> Option<Ordering> {
+        Some(self.cmp(&**other))
+    }
+}
+
+impl Eq for Asn1IntegerRef {}
+
+impl PartialEq for Asn1IntegerRef {
+    #[corresponds(ASN1_INTEGER_cmp)]
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == Ordering::Equal
+    }
+}
+
+impl PartialEq<Asn1Integer> for Asn1IntegerRef {
+    fn eq(&self, other: &Asn1Integer) -> bool {
+        self.eq(&**other)
+    }
+}
+
+impl Ord for Asn1Integer {
+    fn cmp(&self, other: &Self) -> Ordering {
+        Asn1IntegerRef::cmp(self, other)
+    }
+}
+
+impl PartialOrd for Asn1Integer {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialOrd<Asn1IntegerRef> for Asn1Integer {
+    fn partial_cmp(&self, other: &Asn1IntegerRef) -> Option<Ordering> {
+        (**self).partial_cmp(other)
+    }
+}
+
+impl Eq for Asn1Integer {}
+
+impl PartialEq for Asn1Integer {
+    fn eq(&self, other: &Self) -> bool {
+        Asn1IntegerRef::eq(self, other)
+    }
+}
+
+impl PartialEq<Asn1IntegerRef> for Asn1Integer {
+    fn eq(&self, other: &Asn1IntegerRef) -> bool {
+        Asn1IntegerRef::eq(self, other)
+    }
+}
+
 impl Asn1IntegerRef {
     #[allow(clippy::unnecessary_cast)]
     #[allow(missing_docs)]
     #[deprecated(since = "0.10.6", note = "use to_bn instead")]
     #[must_use]
     pub fn get(&self) -> i64 {
-        unsafe { crate::ffi::ASN1_INTEGER_get(self.as_ptr()) as i64 }
+        unsafe { ffi::ASN1_INTEGER_get(self.as_ptr()) as i64 }
     }
 
     /// Converts the integer to a `BigNum`.
     #[corresponds(ASN1_INTEGER_to_BN)]
     pub fn to_bn(&self) -> Result<BigNum, ErrorStack> {
         unsafe {
-            cvt_p(crate::ffi::ASN1_INTEGER_to_BN(
-                self.as_ptr(),
-                ptr::null_mut(),
-            ))
-            .map(|p| BigNum::from_ptr(p))
+            cvt_p(ffi::ASN1_INTEGER_to_BN(self.as_ptr(), ptr::null_mut()))
+                .map(|p| BigNum::from_ptr(p))
         }
     }
 
@@ -503,12 +568,7 @@ impl Asn1IntegerRef {
     /// [`bn`]: ../bn/struct.BigNumRef.html#method.to_asn1_integer
     #[corresponds(ASN1_INTEGER_set)]
     pub fn set(&mut self, value: i32) -> Result<(), ErrorStack> {
-        unsafe {
-            cvt(crate::ffi::ASN1_INTEGER_set(
-                self.as_ptr(),
-                c_long::from(value),
-            ))
-        }
+        unsafe { cvt(ffi::ASN1_INTEGER_set(self.as_ptr(), c_long::from(value))) }
     }
 }
 
@@ -722,5 +782,43 @@ mod tests {
         Asn1Object::from_str("NOT AN OID")
             .map(|object| object.to_string())
             .expect_err("parsing invalid OID should fail");
+    }
+
+    #[test]
+    fn integer_eq_ord() {
+        let make = |n: u32| Asn1Integer::from_bn(&BigNum::from_u32(n).unwrap()).unwrap();
+
+        let a = make(1);
+        let b = make(1);
+        let c = make(2);
+
+        assert!(a == b);
+        assert!(a.as_ref() == b.as_ref());
+        assert!(a != c);
+        assert!(*a == *b);
+        assert!(*a != *c);
+        assert!(a == *b);
+        assert!(*a == b);
+        assert!(a <= b);
+        assert!(a >= b);
+        assert!(a < c);
+        assert!(c > a);
+        assert!(*a <= *b);
+        assert!(*a >= *b);
+        assert!(*a < *c);
+        assert!(*c > *a);
+        assert!(*a <= b);
+        assert!(*c > a);
+    }
+
+    #[test]
+    fn integer_to_owned() {
+        let bn = BigNum::from_dec_str("1234567890").unwrap();
+        let orig = Asn1Integer::from_bn(&bn).unwrap();
+        let copy = orig.clone();
+        assert!(
+            orig == copy,
+            "duplicated Asn1Integer should be equal to the original"
+        );
     }
 }
