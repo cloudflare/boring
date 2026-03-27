@@ -411,6 +411,7 @@ impl EcPointRef {
 
     /// Place affine coordinates of a curve over a prime field in the provided
     /// `x` and `y` `BigNum`s
+    #[doc(alias = "affine_coordinates")]
     #[corresponds(EC_POINT_get_affine_coordinates_GFp)]
     pub fn affine_coordinates_gfp(
         &self,
@@ -429,6 +430,28 @@ impl EcPointRef {
             ))
         }
     }
+
+    /// An alias for [`affine_coordinates_gfp`](Self::affine_coordinates_gfp).
+    #[corresponds(EC_POINT_get_affine_coordinates)]
+    #[doc(hidden)]
+    pub fn affine_coordinates(
+        &self,
+        group: &EcGroupRef,
+        x: &mut BigNumRef,
+        y: &mut BigNumRef,
+        ctx: &mut BigNumContextRef,
+    ) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt(ffi::EC_POINT_get_affine_coordinates(
+                group.as_ptr(),
+                self.as_ptr(),
+                x.as_ptr(),
+                y.as_ptr(),
+                ctx.as_ptr(),
+            ))
+        }
+    }
+
 }
 
 impl EcPoint {
