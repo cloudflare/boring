@@ -4,6 +4,7 @@ use std::fs;
 use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 use std::process::{Command, Output};
 use std::sync::OnceLock;
 
@@ -360,7 +361,7 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
     boringssl_cmake
 }
 
-fn pick_best_android_ndk_toolchain(toolchains_dir: &Path) -> std::io::Result<OsString> {
+fn pick_best_android_ndk_toolchain(toolchains_dir: &Path) -> io::Result<OsString> {
     let toolchains = std::fs::read_dir(toolchains_dir)?.collect::<Result<Vec<_>, _>>()?;
     // First look for one of the toolchains that Google has documented.
     // https://developer.android.com/ndk/guides/other_build_systems
@@ -589,13 +590,27 @@ fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
     }
 }
 
-fn main() {
-    let config = Config::from_env();
-    ensure_patches_applied(&config).unwrap();
+fn main() -> ExitCode {
+    if let Err(e) = run() {
+        eprintln!("boring-sys failed: {e}");
+        println!(
+            "cargo::error={}",
+            e.to_string().trim_ascii().replace("\n", "\ncargo::error=")
+        );
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
+    }
+}
+
+fn run() -> Result<(), Box<dyn std::error::Error>> {
+    let config = Config::from_env()?;
+    ensure_patches_applied(&config)?;
     if !config.env.docs_rs {
         emit_link_directives(&config);
     }
-    generate_bindings(&config);
+    generate_bindings(&config).map_err(|e| format!("could not generate bindings: {e}"))?;
+    Ok(())
 }
 
 fn emit_link_directives(config: &Config) {
@@ -660,11 +675,11 @@ fn get_include_path(config: &Config) -> Result<PathBuf, String> {
         .or_else(|_| check_include_path(src_path.join("src").join("include")))
 }
 
-fn generate_bindings(config: &Config) {
-    let include_path = get_include_path(config).expect("can't find usable include path");
+fn generate_bindings(config: &Config) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let include_path = get_include_path(config)?;
 
-    let target_rust_version =
-        bindgen::RustTarget::stable(77, 0).expect("bindgen does not recognize target rust version");
+    let target_rust_version = bindgen::RustTarget::stable(77, 0)
+        .map_err(|e| format!("bindgen does not recognize target rust version: {e}"))?;
 
     let mut builder = bindgen::Builder::default()
         .rust_target(target_rust_version) // bindgen MSRV is 1.70, so this is enough
@@ -749,21 +764,27 @@ fn generate_bindings(config: &Config) {
             builder = builder.header(header_path.to_str().unwrap());
         } else {
             let err = format!("'openssl/{header}' is missing from '{}'. The include path may be incorrect or contain an outdated version of OpenSSL/BoringSSL", include_path.display());
-            let required = i < must_have_headers.len();
-            println!(
-                "cargo::{}={err}",
-                if required { "error" } else { "warning" }
-            );
+            if i < must_have_headers.len() {
+                return Err(err.into());
+            }
+            println!("cargo::warning={err}");
         }
     }
 
-    let bindings = builder.generate().expect("Unable to generate bindings");
+    let bindings = builder.generate()?;
     let mut source_code = Vec::new();
     bindings
         .write(Box::new(&mut source_code))
-        .expect("Couldn't serialize bindings!");
+        .map_err(|e| format!("Couldn't serialize bindings: {e}"))?;
     ensure_err_lib_enum_is_named(&mut source_code);
-    fs::write(config.out_dir.join("bindings.rs"), source_code).expect("Couldn't write bindings!");
+    let bindings_path = config.out_dir.join("bindings.rs");
+    fs::write(&bindings_path, source_code).map_err(|e| {
+        format!(
+            "Couldn't write bindings to {}: {e}",
+            bindings_path.display()
+        )
+    })?;
+    Ok(bindings_path)
 }
 
 /// err.h has anonymous `enum { ERR_LIB_NONE = 1 }`, which makes a dodgy `_bindgen_ty_1` name
