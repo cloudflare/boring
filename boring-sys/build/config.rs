@@ -42,9 +42,11 @@ pub(crate) struct Env {
 }
 
 impl Config {
-    pub(crate) fn from_env() -> Self {
-        let manifest_dir = env::var_os("CARGO_MANIFEST_DIR").unwrap().into();
-        let out_dir = env::var_os("OUT_DIR").unwrap().into();
+    pub(crate) fn from_env() -> Result<Self, &'static str> {
+        let manifest_dir = env::var_os("CARGO_MANIFEST_DIR")
+            .ok_or("CARGO_MANIFEST_DIR")?
+            .into();
+        let out_dir = env::var_os("OUT_DIR").ok_or("OUT_DIR")?.into();
         let host = env::var("HOST").unwrap();
         let target = env::var("TARGET").unwrap();
         let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
@@ -81,14 +83,14 @@ impl Config {
             env,
         };
 
-        config.check_feature_compatibility();
+        config.check_feature_compatibility()?;
 
-        config
+        Ok(config)
     }
 
-    fn check_feature_compatibility(&self) {
+    fn check_feature_compatibility(&self) -> Result<(), &'static str> {
         if self.features.fips && self.features.rpk {
-            panic!("`fips` and `rpk` features are mutually exclusive");
+            return Err("`fips` and `rpk` features are mutually exclusive");
         }
 
         let is_precompiled_native_lib = self.env.path.is_some();
@@ -96,9 +98,9 @@ impl Config {
             !is_precompiled_native_lib && self.env.source_path.is_none();
 
         if self.env.assume_patched && is_external_native_lib_source {
-            panic!(
+            return Err(
                 "`BORING_BSSL_{{,_FIPS}}_ASSUME_PATCHED` env variable is supposed to be used with\
-                `BORING_BSSL{{,_FIPS}}_PATH` or `BORING_BSSL{{,_FIPS}}_SOURCE_PATH` env variables"
+                `BORING_BSSL{{,_FIPS}}_PATH` or `BORING_BSSL{{,_FIPS}}_SOURCE_PATH` env variables",
             );
         }
 
@@ -111,6 +113,7 @@ impl Config {
                 "cargo:warning=precompiled BoringSSL was provided, so patches will be ignored"
             );
         }
+        Ok(())
     }
 }
 
