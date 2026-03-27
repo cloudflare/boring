@@ -646,18 +646,22 @@ fn check_include_path(path: PathBuf) -> Result<PathBuf, String> {
     }
 }
 
-fn generate_bindings(config: &Config) {
-    let include_path = config.env.include_path.clone().unwrap_or_else(|| {
-        if let Some(bssl_path) = &config.env.path {
-            return check_include_path(bssl_path.join("include"))
-                .expect("config has invalid include path");
-        }
+fn get_include_path(config: &Config) -> Result<PathBuf, String> {
+    if let Some(path) = &config.env.include_path {
+        return check_include_path(path.to_owned());
+    }
 
-        let src_path = get_boringssl_source_path(config);
-        check_include_path(src_path.join("include"))
-            .or_else(|_| check_include_path(src_path.join("src").join("include")))
-            .expect("can't find usable include path")
-    });
+    if let Some(bssl_path) = &config.env.path {
+        return check_include_path(bssl_path.join("include"));
+    }
+
+    let src_path = get_boringssl_source_path(config);
+    check_include_path(src_path.join("include"))
+        .or_else(|_| check_include_path(src_path.join("src").join("include")))
+}
+
+fn generate_bindings(config: &Config) {
+    let include_path = get_include_path(config).expect("can't find usable include path");
 
     let target_rust_version =
         bindgen::RustTarget::stable(77, 0).expect("bindgen does not recognize target rust version");
