@@ -48,6 +48,8 @@ impl SrtpProfileId {
         SrtpProfileId(ffi::SRTP_AES128_F8_SHA1_32 as _);
     pub const SRTP_NULL_SHA1_80: SrtpProfileId = SrtpProfileId(ffi::SRTP_NULL_SHA1_80 as _);
     pub const SRTP_NULL_SHA1_32: SrtpProfileId = SrtpProfileId(ffi::SRTP_NULL_SHA1_32 as _);
+    pub const SRTP_AEAD_AES_128_GCM: SrtpProfileId = SrtpProfileId(ffi::SRTP_AEAD_AES_128_GCM as _);
+    pub const SRTP_AEAD_AES_256_GCM: SrtpProfileId = SrtpProfileId(ffi::SRTP_AEAD_AES_256_GCM as _);
 
     /// Creates a `SrtpProfileId` from an integer representation.
     #[must_use]

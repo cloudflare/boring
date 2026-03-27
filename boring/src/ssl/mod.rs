@@ -633,6 +633,12 @@ impl SslVersion {
 
     /// TLSv1.3
     pub const TLS1_3: SslVersion = SslVersion(ffi::TLS1_3_VERSION as _);
+
+    /// DTLSv1.0
+    pub const DTLS1: SslVersion = SslVersion(ffi::DTLS1_VERSION as _);
+
+    /// DTLSv1.2
+    pub const DTLS1_2: SslVersion = SslVersion(ffi::DTLS1_2_VERSION as _);
 }
 
 impl TryFrom<u16> for SslVersion {
