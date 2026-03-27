@@ -79,7 +79,7 @@ impl BasicConstraints {
             value.push_str("FALSE");
         }
         if let Some(pathlen) = self.pathlen {
-            write!(value, ",pathlen:{pathlen}").unwrap();
+            write!(value, ",pathlen:{pathlen}").map_err(ErrorStack::internal_error)?;
         }
         X509Extension::new_nid(None, None, Nid::BASIC_CONSTRAINTS, &value)
     }
@@ -454,31 +454,31 @@ impl SubjectAlternativeName {
 
     /// Sets the `email` flag.
     pub fn email(&mut self, email: &str) -> &mut SubjectAlternativeName {
-        self.items.push(RustGeneralName::Email(email.to_string()));
+        self.items.push(RustGeneralName::Email(email.to_owned()));
         self
     }
 
     /// Sets the `uri` flag.
     pub fn uri(&mut self, uri: &str) -> &mut SubjectAlternativeName {
-        self.items.push(RustGeneralName::Uri(uri.to_string()));
+        self.items.push(RustGeneralName::Uri(uri.to_owned()));
         self
     }
 
     /// Sets the `dns` flag.
     pub fn dns(&mut self, dns: &str) -> &mut SubjectAlternativeName {
-        self.items.push(RustGeneralName::Dns(dns.to_string()));
+        self.items.push(RustGeneralName::Dns(dns.to_owned()));
         self
     }
 
     /// Sets the `rid` flag.
     pub fn rid(&mut self, rid: &str) -> &mut SubjectAlternativeName {
-        self.items.push(RustGeneralName::Rid(rid.to_string()));
+        self.items.push(RustGeneralName::Rid(rid.to_owned()));
         self
     }
 
     /// Sets the `ip` flag.
     pub fn ip(&mut self, ip: &str) -> &mut SubjectAlternativeName {
-        self.items.push(RustGeneralName::Ip(ip.to_string()));
+        self.items.push(RustGeneralName::Ip(ip.to_owned()));
         self
     }
 
