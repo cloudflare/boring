@@ -888,10 +888,6 @@ impl BigNum {
 
     /// Creates a new `BigNum` from an unsigned, big-endian encoded number of arbitrary length.
     ///
-    /// OpenSSL documentation at [`BN_bin2bn`]
-    ///
-    /// [`BN_bin2bn`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_bin2bn.html
-    ///
     /// ```
     /// # use boring::bn::BigNum;
     /// let bignum = BigNum::from_slice(&[0x12, 0x00, 0x34]).unwrap();
@@ -904,6 +900,15 @@ impl BigNum {
             ffi::init();
             assert!(n.len() <= c_int::MAX as usize);
             cvt_p(ffi::BN_bin2bn(n.as_ptr(), n.len(), ptr::null_mut())).map(|p| BigNum::from_ptr(p))
+        }
+    }
+
+    /// Copies data from a big-endian byte slice into `self`, overwriting its current value.
+    #[corresponds(BN_bin2bn)]
+    pub fn copy_from_slice(&mut self, n: &[u8]) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_p(ffi::BN_bin2bn(n.as_ptr(), n.len(), self.as_ptr()))?;
+            Ok(())
         }
     }
 }
@@ -1167,11 +1172,15 @@ mod tests {
 
     #[test]
     fn test_to_from_slice() {
-        let v0 = BigNum::from_u32(10_203_004).unwrap();
+        let mut v0 = BigNum::from_u32(10_203_004).unwrap();
         let vec = v0.to_vec();
         let v1 = BigNum::from_slice(&vec).unwrap();
-
         assert_eq!(v0, v1);
+
+        v0.copy_from_slice(&[0x12, 0, 0x34]).unwrap();
+        assert_eq!(v0, BigNum::from_u32(0x12_0034).unwrap());
+        v0.copy_from_slice(&[0xff]).unwrap();
+        assert_eq!(v0, BigNum::from_u32(0xff).unwrap());
     }
 
     #[test]
