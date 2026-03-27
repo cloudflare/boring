@@ -292,6 +292,18 @@ impl BigNumRef {
         unsafe { BN_is_negative(self.as_ptr()) == 1 }
     }
 
+    #[corresponds(BN_is_odd)]
+    #[must_use]
+    pub fn is_odd(&self) -> bool {
+        unsafe { ffi::BN_is_odd(self.as_ptr()) == 1 }
+    }
+
+    #[corresponds(BN_is_even)]
+    #[must_use]
+    pub fn is_even(&self) -> bool {
+        !self.is_odd()
+    }
+
     /// Returns the number of significant bits in `self`.
     #[corresponds(BN_num_bits)]
     #[must_use]
