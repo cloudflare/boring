@@ -682,6 +682,7 @@ fn generate_bindings(config: &Config) {
         .fit_macro_constants(false)
         .size_t_is_usize(true)
         .layout_tests(config.env.debug.is_some())
+        .merge_extern_blocks(true)
         .prepend_enum_name(true)
         .blocklist_type("max_align_t") // Not supported by bindgen on all targets, not used by BoringSSL
         .clang_args(get_extra_clang_args_for_bindgen(config))
