@@ -807,6 +807,32 @@ impl BigNumRef {
         }
     }
 
+    /// Places into `self` the modular square root of `a` such that `self^2 = a (mod p)`.
+    ///
+    /// Returns an error or if `a` is not a square mod `p`. In the latter case, it will add
+    /// `BN_R_NOT_A_SQUARE` to the error queue. If `a` is a square and `p` > 2, there are two
+    /// possible square roots; this function may return either.
+    ///
+    /// This function only works if `p` is a prime. If `p` is composite, it may fail or return an
+    /// arbitrary value. Callers should not pass attacker-controlled values of `p`.
+    #[corresponds(BN_mod_sqrt)]
+    pub fn mod_sqrt(
+        &mut self,
+        a: &BigNumRef,
+        p: &BigNumRef,
+        ctx: &mut BigNumContextRef,
+    ) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_p(ffi::BN_mod_sqrt(
+                self.as_ptr(),
+                a.as_ptr(),
+                p.as_ptr(),
+                ctx.as_ptr(),
+            ))
+            .map(|_| ())
+        }
+    }
+
     /// Returns an `Asn1Integer` containing the value of `self`.
     #[corresponds(BN_to_ASN1_INTEGER)]
     pub fn to_asn1_integer(&self) -> Result<Asn1Integer, ErrorStack> {
@@ -1188,5 +1214,26 @@ mod tests {
         let mut ctx = BigNumContext::new().unwrap();
         assert!(p.is_prime(100, &mut ctx).unwrap());
         assert!(p.is_prime_fasttest(100, &mut ctx, true).unwrap());
+    }
+
+    #[test]
+    fn test_mod_sqrt() {
+        let mut ctx = BigNumContext::new().unwrap();
+
+        // 2 is a quadratic residue mod 0x7DEB1 (a prime)
+        let s = BigNum::from_hex_str("2").unwrap();
+        let p = BigNum::from_hex_str("7DEB1").unwrap();
+        let mut sqrt = BigNum::new().unwrap();
+        let mut out = BigNum::new().unwrap();
+
+        // Square the root since there are two possible roots; verify the square equals s mod p
+        sqrt.mod_sqrt(&s, &p, &mut ctx).unwrap();
+        out.mod_sqr(&sqrt, &p, &mut ctx).unwrap();
+        assert_eq!(out, s);
+
+        // 3 is not a quadratic residue mod 5, so mod_sqrt must fail
+        let non_residue = BigNum::from_hex_str("3").unwrap();
+        let p5 = BigNum::from_hex_str("5").unwrap();
+        assert!(out.mod_sqrt(&non_residue, &p5, &mut ctx).is_err());
     }
 }
