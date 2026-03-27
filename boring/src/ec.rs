@@ -452,6 +452,31 @@ impl EcPointRef {
         }
     }
 
+    /// Returns `true` if `self` is the point at infinity and `false` otherwise.
+    #[corresponds(EC_POINT_is_at_infinity)]
+    #[must_use]
+    pub fn is_infinity(&self, group: &EcGroupRef) -> bool {
+        unsafe { ffi::EC_POINT_is_at_infinity(group.as_ptr(), self.as_ptr()) == 1 }
+    }
+
+    /// Returns `Ok(true)` if `self` is an element of `group` and `Ok(false)` otherwise.
+    /// `ctx` is ignored. This method exists for rust-openssl interoperability.
+    #[corresponds(EC_POINT_is_on_curve)]
+    #[doc(hidden)]
+    pub fn is_on_curve(
+        &self,
+        group: &EcGroupRef,
+        ctx: &mut BigNumContextRef,
+    ) -> Result<bool, ErrorStack> {
+        unsafe {
+            let res = cvt_n(ffi::EC_POINT_is_on_curve(
+                group.as_ptr(),
+                self.as_ptr(),
+                ctx.as_ptr(),
+            ))?;
+            Ok(res == 1)
+        }
+    }
 }
 
 impl EcPoint {
