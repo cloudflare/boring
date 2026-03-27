@@ -43,7 +43,7 @@ fn test_verify_cert() {
             &leaf,
             &[&root1, &root2],
             &[&intermediate, &root1_cross],
-            |param| param.set_flags(X509VerifyFlags::TRUSTED_FIRST),
+            |param| param.try_set_flags(X509VerifyFlags::TRUSTED_FIRST).unwrap(),
         )
     );
 
@@ -60,7 +60,9 @@ fn test_verify_cert() {
     assert_eq!(
         Ok(()),
         verify(&leaf, &[&root1], &[&intermediate, &root1_cross], |param| {
-            param.clear_flags(X509VerifyFlags::TRUSTED_FIRST);
+            param
+                .try_clear_flags(X509VerifyFlags::TRUSTED_FIRST)
+                .unwrap();
         })
     );
 }

@@ -278,7 +278,7 @@ impl fmt::Display for Asn1TimeRef {
 
 impl fmt::Debug for Asn1TimeRef {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&self.to_string())
+        fmt::Display::fmt(self, f)
     }
 }
 
@@ -626,7 +626,7 @@ impl fmt::Display for Asn1ObjectRef {
 
 impl fmt::Debug for Asn1ObjectRef {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(self.to_string().as_str())
+        fmt::Display::fmt(self, fmt)
     }
 }
 
