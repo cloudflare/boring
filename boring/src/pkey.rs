@@ -74,7 +74,12 @@ pub struct Id(c_int);
 
 impl Id {
     pub const RSA: Id = Id(ffi::EVP_PKEY_RSA);
+    /// RSA-PSS key type
+    #[doc(alias = "RSA_PSS")]
     pub const RSAPSS: Id = Id(ffi::EVP_PKEY_RSA_PSS);
+    /// rust-openssl alias
+    #[doc(hidden)]
+    pub const RSA_PSS: Id = Self::RSAPSS;
     pub const DSA: Id = Id(ffi::EVP_PKEY_DSA);
     pub const DH: Id = Id(ffi::EVP_PKEY_DH);
     pub const EC: Id = Id(ffi::EVP_PKEY_EC);
@@ -82,6 +87,7 @@ impl Id {
     pub const ED448: Id = Id(ffi::EVP_PKEY_ED448);
     pub const X25519: Id = Id(ffi::EVP_PKEY_X25519);
     pub const X448: Id = Id(ffi::EVP_PKEY_X448);
+    pub const HKDF: Id = Id(ffi::EVP_PKEY_HKDF);
 
     /// Creates a `Id` from an integer representation.
     #[must_use]
