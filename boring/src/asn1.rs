@@ -450,6 +450,7 @@ impl fmt::Debug for Asn1StringRef {
 foreign_type_and_impl_send_sync! {
     type CType = ffi::ASN1_INTEGER;
     fn drop = ffi::ASN1_INTEGER_free;
+    fn clone = ffi::ASN1_INTEGER_dup;
 
     /// Numeric representation
     ///
