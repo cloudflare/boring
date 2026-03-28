@@ -307,12 +307,10 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
             boringssl_cmake.cflag(&cflag);
         }
 
-        "windows" => {
-            if config.host.contains("windows") {
-                // BoringSSL's CMakeLists.txt isn't set up for cross-compiling using Visual Studio.
-                // Disable assembly support so that it at least builds.
-                boringssl_cmake.define("OPENSSL_NO_ASM", "YES");
-            }
+        "windows" if config.host.contains("windows") => {
+            // BoringSSL's CMakeLists.txt isn't set up for cross-compiling using Visual Studio.
+            // Disable assembly support so that it at least builds.
+            boringssl_cmake.define("OPENSSL_NO_ASM", "YES");
         }
 
         "linux" => match &*config.target_arch {
