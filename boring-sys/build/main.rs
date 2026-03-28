@@ -590,6 +590,47 @@ fn get_cpp_runtime_lib(config: &Config) -> Option<String> {
     }
 }
 
+/// Copies built BoringSSL artifacts (libraries and patched headers) into a
+/// user-specified directory. This is intended for producing a pre-built package.
+///
+/// The destination directory must exist and be empty. Writes:
+///
+///   - `lib/libcrypto.a`
+///   - `lib/libssl.a`
+///   - `lib/bcm.o` (if FIPS is enabled)
+///   - `include/openssl/...` (patched headers)
+fn install_artifacts(
+    config: &Config,
+    install_dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let install_dir = match install_dir.canonicalize() {
+        Ok(dir) if dir.read_dir().is_ok_and(|mut d| d.next().is_none()) => dir,
+        dir => {
+            let path = dir.as_deref().unwrap_or(install_dir).display();
+            return Err(format!("{path} must be an empty dir",).into());
+        }
+    };
+    let bssl_build_dir = build_boringssl_or_get_prebuilt(config);
+
+    let lib_dir = install_dir.join("lib");
+    fs::create_dir(&lib_dir)?;
+
+    for lib in ["libcrypto.a", "libssl.a", "bcm.o"] {
+        if !config.features.fips && lib == "bcm.o" {
+            continue;
+        }
+        fs::copy(bssl_build_dir.join(lib), lib_dir.join(lib))?;
+    }
+
+    fs_extra::dir::copy(get_include_path(config)?, &install_dir, &Default::default())?;
+
+    eprintln!(
+        "installed BoringSSL artifacts into {}",
+        install_dir.display()
+    );
+    Ok(())
+}
+
 fn main() -> ExitCode {
     if let Err(e) = run() {
         eprintln!("boring-sys failed: {e}");
@@ -610,6 +651,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         emit_link_directives(&config);
     }
     generate_bindings(&config).map_err(|e| format!("could not generate bindings: {e}"))?;
+    if let Some(install_dir) = &config.env.export_to_install_dir {
+        install_artifacts(&config, install_dir)
+            .map_err(|e| format!("install artifacts failed: {e}"))?;
+    }
     Ok(())
 }
 
