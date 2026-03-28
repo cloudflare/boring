@@ -39,6 +39,9 @@ pub(crate) struct Env {
     pub(crate) cc: Option<OsString>,
     pub(crate) cxx: Option<OsString>,
     pub(crate) docs_rs: bool,
+    /// If set, built artifacts (libraries and patched headers) will be copied
+    /// into this directory. The directory must exist and be empty.
+    pub(crate) export_to_install_dir: Option<PathBuf>,
 }
 
 impl Config {
@@ -113,6 +116,10 @@ impl Config {
                 "cargo:warning=precompiled BoringSSL was provided, so patches will be ignored"
             );
         }
+
+        if self.env.export_to_install_dir.is_some() && is_precompiled_native_lib {
+            return Err("`BORING_BSSL{{,_FIPS_}}INSTALL_DIR` cannot be used together with a precompiled library");
+        }
         Ok(())
     }
 }
@@ -186,6 +193,7 @@ impl Env {
             cc: target_only_var("CC"),
             cxx: target_only_var("CXX"),
             docs_rs: var("DOCS_RS").is_some(),
+            export_to_install_dir: boringssl_var("BORING_BSSL_INSTALL_DIR").map(PathBuf::from),
         }
     }
 }
