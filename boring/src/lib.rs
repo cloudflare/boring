@@ -120,6 +120,7 @@ mod macros;
 mod bio;
 #[macro_use]
 mod util;
+pub mod aead;
 pub mod aes;
 pub mod asn1;
 pub mod base64;
