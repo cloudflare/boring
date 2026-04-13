@@ -32,6 +32,9 @@ pq-experimental = []
 # Interface for ML-KEM (FIPS 203) post-quantum key encapsulation. Does not affect ciphers used in TLS.
 mlkem = []
 
+# Expose internal `tls1_prf`
+prf = []
+
 # SslCredential API
 credential = []
 

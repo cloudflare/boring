@@ -143,6 +143,7 @@ pub mod nid;
 pub mod pkcs12;
 pub mod pkcs5;
 pub mod pkey;
+#[cfg(feature = "prf")]
 pub mod prf;
 pub mod rand;
 pub mod rsa;

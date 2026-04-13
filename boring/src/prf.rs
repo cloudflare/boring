@@ -42,7 +42,7 @@ pub fn tls1_prf(
     unsafe {
         ffi::init();
 
-        cvt(ffi::CRYPTO_tls1_prf(
+        cvt(ffi::internal::CRYPTO_tls1_prf(
             digest.as_ptr(),
             out.as_mut_ptr(),
             out.len(),

@@ -58,7 +58,7 @@ jobs:
           path: target
           key: clippy-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
       - name: Run clippy
-        run: cargo clippy --all --all-targets --features rpk,mlkem
+        run: cargo clippy --all --all-targets --features rpk,prf,mlkem
       - name: Check docs
         run: cargo doc --no-deps -p boring -p boring-sys -p hyper-boring -p tokio-boring --features rpk,underscore-wildcards
         env:
@@ -426,9 +426,9 @@ jobs:
       shell: bash
     - run: cargo check --no-default-features
       name: Check `--no-default-features`
-    - run: cargo check --features mlkem,credential
+    - run: cargo check --features prf,mlkem,credential
       name: Check `mlkem,credential`
-    - run: cargo test --features rpk
+    - run: cargo test --features rpk,prf
       name: Run `rpk` tests
     - run: cargo test --features underscore-wildcards
       name: Run `underscore-wildcards` tests
