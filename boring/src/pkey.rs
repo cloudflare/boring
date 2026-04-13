@@ -387,6 +387,36 @@ impl<T> PKey<T> {
 }
 
 impl PKey<Private> {
+    /// Generates a private key for key types that support parameterless
+    /// `EVP_PKEY_keygen`.
+    ///
+    /// This is primarily useful for modern "raw" key types such as X25519,
+    /// Ed25519, Ed448, and X448.
+    ///
+    /// Algorithms that require explicit generation parameters (for example RSA
+    /// key size or an EC group) should use their dedicated APIs instead, such
+    /// as [`Rsa::generate`] and [`EcKey::generate`].
+    #[corresponds(EVP_PKEY_keygen)]
+    pub fn generate(id: Id) -> Result<PKey<Private>, ErrorStack> {
+        unsafe {
+            ffi::init();
+
+            let ctx = cvt_p(ffi::EVP_PKEY_CTX_new_id(id.as_raw(), ptr::null_mut()))?;
+
+            let result = (|| {
+                cvt(ffi::EVP_PKEY_keygen_init(ctx))?;
+
+                let mut pkey = ptr::null_mut();
+                cvt(ffi::EVP_PKEY_keygen(ctx, &mut pkey))?;
+
+                Ok(PKey::from_ptr(pkey))
+            })();
+
+            ffi::EVP_PKEY_CTX_free(ctx);
+            result
+        }
+    }
+
     private_key_from_pem! {
         /// Deserializes a private key from a PEM-encoded key type specific format.
         #[corresponds(PEM_read_bio_PrivateKey)]
@@ -514,6 +544,7 @@ use crate::ffi::EVP_PKEY_up_ref;
 mod tests {
     use hex::FromHex as _;
 
+    use crate::derive::Deriver;
     use crate::ec::EcKey;
     use crate::nid::Nid;
     use crate::rsa::Rsa;
@@ -653,5 +684,36 @@ mod tests {
         assert_ne!(raw_public_key, raw_private_key);
         pkey.raw_public_key(&mut [0; 5])
             .expect_err("buffer too small");
+    }
+
+    #[test]
+    fn test_generate_x25519() {
+        let key = PKey::generate(Id::X25519).unwrap();
+        assert_eq!(key.id(), Id::X25519);
+
+        let mut pubkey = [0u8; 32];
+        assert_eq!(key.raw_public_key(&mut pubkey).unwrap().len(), 32);
+    }
+
+    #[test]
+    fn test_generate_x25519_derivation() {
+        let alice = PKey::generate(Id::X25519).unwrap();
+        let bob = PKey::generate(Id::X25519).unwrap();
+
+        let mut alice_deriver = Deriver::new(&alice).unwrap();
+        alice_deriver.set_peer(&bob).unwrap();
+        let shared_alice = alice_deriver.derive_to_vec().unwrap();
+
+        let mut bob_deriver = Deriver::new(&bob).unwrap();
+        bob_deriver.set_peer(&alice).unwrap();
+        let shared_bob = bob_deriver.derive_to_vec().unwrap();
+
+        assert!(!shared_alice.is_empty());
+        assert_eq!(shared_alice, shared_bob);
+    }
+
+    #[test]
+    fn test_generate_invalid_id() {
+        assert!(PKey::generate(Id::from_raw(0)).is_err());
     }
 }
