@@ -1,3 +1,23 @@
+5.1.0
+- 2026-04-13 Add EVP_AEAD-based detached AEAD module
+- 2026-04-13 Add generic PKey private key generation API
+- 2026-04-13 Add TLS 1.2 PRF module and bindings
+- 2026-03-25 Add used_hello_retry_request
+- 2026-03-28 Prebuilt lib export option
+- 2026-03-27 Display sys crate errors using cargo::error
+
+5.0.2
+- 2026-02-13 Re-add fips-precompiled for v4 compat
+- 2026-02-12 Don't add build/ to non-FIPS pre-built path
+- 2026-02-13 Expose load_verify_locations like rust-openssl
+- 2026-02-12 Support static MSVC runtime
+
+5.0.1
+- 2026-02-03 Make SslCredential optional
+- 2026-02-10 Make ML-KEM optional
+- 2026-02-10 Don't always require all headers from all versions of BoringSSL
+- 2026-02-10 Ensure we don't leave unit memory if generate_key fails
+
 5.0.0
 - 2025-12-19 Update vendored boring to a newer version (2023.11 to 2025.11)
 - 2025-12-20 Rework RPK/SslMethod (c2f063cf4711f15b8b417b6926496fbf1c2a03ac)
