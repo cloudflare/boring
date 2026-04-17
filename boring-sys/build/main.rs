@@ -308,12 +308,10 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
             boringssl_cmake.cflag(&cflag);
         }
 
-        "windows" => {
-            if config.host.contains("windows") {
-                // BoringSSL's CMakeLists.txt isn't set up for cross-compiling using Visual Studio.
-                // Disable assembly support so that it at least builds.
-                boringssl_cmake.define("OPENSSL_NO_ASM", "YES");
-            }
+        "windows" if config.host.contains("windows") => {
+            // BoringSSL's CMakeLists.txt isn't set up for cross-compiling using Visual Studio.
+            // Disable assembly support so that it at least builds.
+            boringssl_cmake.define("OPENSSL_NO_ASM", "YES");
         }
 
         "linux" => match &*config.target_arch {
@@ -607,7 +605,7 @@ fn install_artifacts(
         Ok(dir) if dir.read_dir().is_ok_and(|mut d| d.next().is_none()) => dir,
         dir => {
             let path = dir.as_deref().unwrap_or(install_dir).display();
-            return Err(format!("{path} must be an empty dir",).into());
+            return Err(format!("{path} must be an empty dir").into());
         }
     };
     let bssl_build_dir = build_boringssl_or_get_prebuilt(config);
@@ -636,7 +634,7 @@ fn main() -> ExitCode {
         eprintln!("boring-sys failed: {e}");
         println!(
             "cargo::error={}",
-            e.to_string().trim_ascii().replace("\n", "\ncargo::error=")
+            e.to_string().trim_ascii().replace('\n', "\ncargo::error=")
         );
         ExitCode::FAILURE
     } else {
