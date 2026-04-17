@@ -57,6 +57,14 @@ jobs:
         with:
           path: target
           key: clippy-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+      - name: Cache cargo index (save)
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .cache/cargo/registry/index
+            .cache/cargo/registry/cache
+          key: index-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.toml') }}
+          enableCrossOsArchive: true
       - name: Run clippy
         run: cargo clippy --all --all-targets --features rpk,prf,mlkem
       - name: Check docs
@@ -250,14 +258,6 @@ jobs:
       shell: bash
       run: |
         echo "version=$(rustc --version)" >> $GITHUB_OUTPUT
-    - name: Prepopulate cargo index
-      uses: actions/cache/restore@v4
-      with:
-        path: |
-          .cache/cargo/registry/index
-          .cache/cargo/registry/cache
-        key: index-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.toml') }}
-        enableCrossOsArchive: true
     - name: Install golang
       uses: actions/setup-go@v5
       with:
@@ -308,6 +308,14 @@ jobs:
     - name: Set Android Linker path
       if: endsWith(matrix.thing, '-android')
       run: echo "CARGO_TARGET_$(echo ${{ matrix.target }} | tr \\-a-z _A-Z)_LINKER=$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/$(echo ${{ matrix.target }} | sed s/armv7/armv7a/)21-clang++" >> "$GITHUB_ENV"
+    - name: Prepopulate cargo index
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          .cache/cargo/registry/index
+          .cache/cargo/registry/cache
+        key: index-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.toml') }}
+        enableCrossOsArchive: true
     - name: Fetch deps
       run: cargo fetch --target ${{ matrix.target }}
       shell: bash
