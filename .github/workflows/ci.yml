@@ -16,6 +16,18 @@ env:
   CARGO_PROFILE_DEV_DEBUG: 0
 
 jobs:
+  bonk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Bonk
+        uses: ask-bonk/ask-bonk/github@main
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_GATEWAY_ID: ${{ secrets.CLOUDFLARE_GATEWAY_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        with:
+          model: cloudflare-ai-gateway/anthropic/claude-opus-4-5
+
   rustfmt:
     name: rustfmt
     runs-on: ubuntu-latest
