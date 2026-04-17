@@ -346,6 +346,7 @@ jobs:
       shell: bash
       env: ${{ matrix.custom_env }}
     - name: Test boring-sys cargo publish
+      if: "matrix.thing != 'i686-mingw' && matrix.thing != 'i686-msvc' && matrix.thing != 'x86_64-mingw'" # slowest builds
       # Running `cargo publish --dry-run` tests two things:
       #
       # 1. That `boring-sys` can build BoringSSL with just the files included
