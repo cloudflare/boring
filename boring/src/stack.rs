@@ -253,7 +253,7 @@ impl<T: Stackable> StackRef<T> {
     }
 
     unsafe fn _get(&self, idx: usize) -> *mut T::CType {
-        OPENSSL_sk_value(self.as_stack(), idx).cast()
+        unsafe { OPENSSL_sk_value(self.as_stack(), idx).cast() }
     }
 }
 

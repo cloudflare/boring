@@ -66,7 +66,9 @@ impl SslContextBuilderExt for SslContextBuilder {
     where
         F: Fn(&mut SslRef, &[u8]) -> Option<BoxGetSessionFuture> + Send + Sync + 'static,
     {
-        self.set_async_get_session_callback(callback);
+        unsafe {
+            self.set_async_get_session_callback(callback);
+        }
     }
 }
 

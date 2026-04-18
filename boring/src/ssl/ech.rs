@@ -22,7 +22,7 @@ impl SslEchKeysBuilder {
 
     pub unsafe fn from_ptr(keys: *mut ffi::SSL_ECH_KEYS) -> Self {
         Self {
-            keys: SslEchKeys::from_ptr(keys),
+            keys: unsafe { SslEchKeys::from_ptr(keys) },
         }
     }
 

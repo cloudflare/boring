@@ -186,10 +186,12 @@ where
     ///
     /// The caller must ensure the pointer is valid.
     pub unsafe fn from_raw_parts(ssl: *mut ffi::SSL, stream: S) -> Self {
-        Self(ssl::SslStream::from_raw_parts(
-            ssl,
-            AsyncStreamBridge::new(stream),
-        ))
+        unsafe {
+            Self(ssl::SslStream::from_raw_parts(
+                ssl,
+                AsyncStreamBridge::new(stream),
+            ))
+        }
     }
 }
 

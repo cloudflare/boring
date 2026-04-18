@@ -986,8 +986,10 @@ impl X509Extension {
         value: *mut c_void,
     ) -> Result<X509Extension, ErrorStack> {
         ffi::init();
-        cvt_p(ffi::X509V3_EXT_i2d(nid.as_raw(), critical as _, value))
-            .map(|p| X509Extension::from_ptr(p))
+        unsafe {
+            cvt_p(ffi::X509V3_EXT_i2d(nid.as_raw(), critical as _, value))
+                .map(|p| X509Extension::from_ptr(p))
+        }
     }
 }
 
@@ -1613,14 +1615,16 @@ impl GeneralName {
         value: &[u8],
     ) -> Result<GeneralName, ErrorStack> {
         ffi::init();
-        let gn = GeneralName::from_ptr(cvt_p(ffi::GENERAL_NAME_new())?);
-        (*gn.as_ptr()).type_ = type_;
-        let s = cvt_p(ffi::ASN1_STRING_type_new(asn1_type.as_raw()))?;
-        ffi::ASN1_STRING_set(s, value.as_ptr().cast(), value.len().try_into().unwrap());
+        unsafe {
+            let gn = GeneralName::from_ptr(cvt_p(ffi::GENERAL_NAME_new())?);
+            (*gn.as_ptr()).type_ = type_;
+            let s = cvt_p(ffi::ASN1_STRING_type_new(asn1_type.as_raw()))?;
+            ffi::ASN1_STRING_set(s, value.as_ptr().cast(), value.len().try_into().unwrap());
 
-        (*gn.as_ptr()).d.ptr = s.cast();
+            (*gn.as_ptr()).d.ptr = s.cast();
 
-        Ok(gn)
+            Ok(gn)
+        }
     }
 
     pub(crate) fn new_email(email: &[u8]) -> Result<GeneralName, ErrorStack> {
@@ -1784,10 +1788,12 @@ use crate::ffi::X509_OBJECT_get0_X509;
 
 #[allow(bad_style)]
 unsafe fn X509_OBJECT_free(x: *mut ffi::X509_OBJECT) {
-    ffi::X509_OBJECT_free_contents(x);
-    ffi::OPENSSL_free(x.cast());
+    unsafe {
+        ffi::X509_OBJECT_free_contents(x);
+        ffi::OPENSSL_free(x.cast());
+    }
 }
 
 unsafe fn get_new_x509_store_ctx_idx(f: ffi::CRYPTO_EX_free) -> c_int {
-    ffi::X509_STORE_CTX_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, f)
+    unsafe { ffi::X509_STORE_CTX_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, f) }
 }

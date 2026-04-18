@@ -52,100 +52,113 @@ pub fn new<S: Read + Write>(stream: S) -> Result<(*mut BIO, BioMethod), ErrorSta
 }
 
 pub unsafe fn take_error<S>(bio: *mut BIO) -> Option<io::Error> {
-    let state = state::<S>(bio);
-    state.error.take()
+    unsafe {
+        let state = state::<S>(bio);
+        state.error.take()
+    }
 }
 
 pub unsafe fn take_panic<S>(bio: *mut BIO) -> Option<Box<dyn Any + Send>> {
-    let state = state::<S>(bio);
-    state.panic.take()
+    unsafe {
+        let state = state::<S>(bio);
+        state.panic.take()
+    }
 }
 
 pub unsafe fn get_ref<'a, S: 'a>(bio: *mut BIO) -> &'a S {
-    &state(bio).stream
+    unsafe { &state(bio).stream }
 }
 
 pub unsafe fn get_mut<'a, S: 'a>(bio: *mut BIO) -> &'a mut S {
-    &mut state(bio).stream
+    unsafe { &mut state(bio).stream }
 }
 
 pub unsafe extern "C" fn take_stream<S>(bio: *mut BIO) -> S {
     assert!(!bio.is_null());
+    unsafe {
+        let data = BIO_get_data(bio);
 
-    let data = BIO_get_data(bio);
+        assert!(!data.is_null());
 
-    assert!(!data.is_null());
+        let state = Box::<StreamState<S>>::from_raw(data.cast());
 
-    let state = Box::<StreamState<S>>::from_raw(data.cast());
+        BIO_set_data(bio, ptr::null_mut());
 
-    BIO_set_data(bio, ptr::null_mut());
-
-    state.stream
+        state.stream
+    }
 }
 
 pub unsafe fn set_dtls_mtu_size<S>(bio: *mut BIO, mtu_size: usize) {
-    if mtu_size as u64 > c_long::MAX as u64 {
-        panic!("Given MTU size {mtu_size} can't be represented in a positive `c_long` range")
+    unsafe {
+        if mtu_size as u64 > c_long::MAX as u64 {
+            panic!("Given MTU size {mtu_size} can't be represented in a positive `c_long` range")
+        }
+        state::<S>(bio).dtls_mtu_size = mtu_size as c_long;
     }
-    state::<S>(bio).dtls_mtu_size = mtu_size as c_long;
 }
 
 unsafe fn state<'a, S: 'a>(bio: *mut BIO) -> &'a mut StreamState<S> {
-    let data = BIO_get_data(bio).cast::<StreamState<S>>();
+    unsafe {
+        let data = BIO_get_data(bio).cast::<StreamState<S>>();
 
-    assert!(!data.is_null());
+        assert!(!data.is_null());
 
-    &mut *data
+        &mut *data
+    }
 }
 
 unsafe extern "C" fn bwrite<S: Write>(bio: *mut BIO, buf: *const c_char, len: c_int) -> c_int {
-    BIO_clear_retry_flags(bio);
+    unsafe {
+        BIO_clear_retry_flags(bio);
 
-    let Ok(len) = usize::try_from(len) else {
-        return -1;
-    };
+        let Ok(len) = usize::try_from(len) else {
+            return -1;
+        };
 
-    let state = state::<S>(bio);
-    let buf = slice::from_raw_parts(buf.cast(), len);
+        let state = state::<S>(bio);
+        let buf = slice::from_raw_parts(buf.cast(), len);
 
-    match catch_unwind(AssertUnwindSafe(|| state.stream.write(buf))) {
-        Ok(Ok(len)) => len as c_int,
-        Ok(Err(err)) => {
-            if retriable_error(&err) {
-                BIO_set_retry_write(bio);
+        match catch_unwind(AssertUnwindSafe(|| state.stream.write(buf))) {
+            Ok(Ok(len)) => len as c_int,
+            Ok(Err(err)) => {
+                if retriable_error(&err) {
+                    BIO_set_retry_write(bio);
+                }
+                state.error = Some(err);
+                -1
             }
-            state.error = Some(err);
-            -1
-        }
-        Err(err) => {
-            state.panic = Some(err);
-            -1
+            Err(err) => {
+                state.panic = Some(err);
+                -1
+            }
         }
     }
 }
 
 unsafe extern "C" fn bread<S: Read>(bio: *mut BIO, buf: *mut c_char, len: c_int) -> c_int {
-    BIO_clear_retry_flags(bio);
+    unsafe {
+        BIO_clear_retry_flags(bio);
 
-    let Ok(len) = usize::try_from(len) else {
-        return -1;
-    };
+        let Ok(len) = usize::try_from(len) else {
+            return -1;
+        };
 
-    let state = state::<S>(bio);
-    let buf = slice::from_raw_parts_mut(buf.cast(), len);
+        let state = state::<S>(bio);
+        let buf = slice::from_raw_parts_mut(buf.cast(), len);
 
-    match catch_unwind(AssertUnwindSafe(|| state.stream.read(buf))) {
-        Ok(Ok(len)) => len as c_int,
-        Ok(Err(err)) => {
-            if retriable_error(&err) {
-                BIO_set_retry_read(bio);
+        match catch_unwind(AssertUnwindSafe(|| state.stream.read(buf))) {
+            Ok(Ok(len)) => len as c_int,
+            Ok(Err(err)) => {
+                if retriable_error(&err) {
+                    BIO_set_retry_read(bio);
+                }
+                state.error = Some(err);
+                -1
             }
-            state.error = Some(err);
-            -1
-        }
-        Err(err) => {
-            state.panic = Some(err);
-            -1
+            Err(err) => {
+                state.panic = Some(err);
+                -1
+            }
         }
     }
 }
@@ -159,7 +172,7 @@ fn retriable_error(err: &io::Error) -> bool {
 }
 
 unsafe extern "C" fn bputs<S: Write>(bio: *mut BIO, s: *const c_char) -> c_int {
-    bwrite::<S>(bio, s, strlen(s) as c_int)
+    unsafe { bwrite::<S>(bio, s, strlen(s) as c_int) }
 }
 
 unsafe extern "C" fn ctrl<S: Write>(
@@ -168,37 +181,41 @@ unsafe extern "C" fn ctrl<S: Write>(
     _num: c_long,
     _ptr: *mut c_void,
 ) -> c_long {
-    let state = state::<S>(bio);
+    unsafe {
+        let state = state::<S>(bio);
 
-    if cmd == BIO_CTRL_FLUSH {
-        BIO_clear_retry_flags(bio);
-        match catch_unwind(AssertUnwindSafe(|| state.stream.flush())) {
-            Ok(Ok(())) => 1,
-            Ok(Err(err)) => {
-                if retriable_error(&err) {
-                    BIO_set_retry_write(bio);
+        if cmd == BIO_CTRL_FLUSH {
+            BIO_clear_retry_flags(bio);
+            match catch_unwind(AssertUnwindSafe(|| state.stream.flush())) {
+                Ok(Ok(())) => 1,
+                Ok(Err(err)) => {
+                    if retriable_error(&err) {
+                        BIO_set_retry_write(bio);
+                    }
+                    state.error = Some(err);
+                    0
                 }
-                state.error = Some(err);
-                0
+                Err(err) => {
+                    state.panic = Some(err);
+                    0
+                }
             }
-            Err(err) => {
-                state.panic = Some(err);
-                0
-            }
+        } else if cmd == BIO_CTRL_DGRAM_QUERY_MTU {
+            state.dtls_mtu_size
+        } else {
+            0
         }
-    } else if cmd == BIO_CTRL_DGRAM_QUERY_MTU {
-        state.dtls_mtu_size
-    } else {
-        0
     }
 }
 
 unsafe extern "C" fn create(bio: *mut BIO) -> c_int {
-    BIO_set_init(bio, 0);
-    BIO_set_num(bio, 0);
-    BIO_set_data(bio, ptr::null_mut());
-    BIO_set_flags(bio, 0);
-    1
+    unsafe {
+        BIO_set_init(bio, 0);
+        BIO_set_num(bio, 0);
+        BIO_set_data(bio, ptr::null_mut());
+        BIO_set_flags(bio, 0);
+        1
+    }
 }
 
 unsafe extern "C" fn destroy<S>(bio: *mut BIO) -> c_int {
@@ -206,15 +223,17 @@ unsafe extern "C" fn destroy<S>(bio: *mut BIO) -> c_int {
         return 0;
     }
 
-    let data = BIO_get_data(bio);
+    unsafe {
+        let data = BIO_get_data(bio);
 
-    if !data.is_null() {
-        drop(Box::<StreamState<S>>::from_raw(data.cast()));
-        BIO_set_data(bio, ptr::null_mut());
+        if !data.is_null() {
+            drop(Box::<StreamState<S>>::from_raw(data.cast()));
+            BIO_set_data(bio, ptr::null_mut());
+        }
+
+        BIO_set_init(bio, 0);
+        1
     }
-
-    BIO_set_init(bio, 0);
-    1
 }
 
 use crate::ffi::{BIO_get_data, BIO_set_data, BIO_set_flags, BIO_set_init};

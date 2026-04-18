@@ -148,7 +148,9 @@ impl SslContextBuilder {
             }
         };
 
-        self.set_get_session_callback(async_callback);
+        unsafe {
+            self.set_get_session_callback(async_callback);
+        }
     }
 
     /// Configures certificate verification.
