@@ -191,7 +191,7 @@ impl Env {
             android_ndk_home: target_var("ANDROID_NDK_HOME").map(Into::into),
             cmake_toolchain_file_is_set: var("CMAKE_TOOLCHAIN_FILE").is_some(),
             cpp_runtime_lib: target_var("BORING_BSSL_RUST_CPPLIB"),
-            // matches the `cc` crate
+            // matches the `cc` crate. Not used when fips is enabled or cmake toolchain is set
             cc: target_only_var("CC"),
             cxx: target_only_var("CXX"),
             docs_rs: var("DOCS_RS").is_some(),

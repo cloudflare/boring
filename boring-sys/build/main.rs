@@ -237,15 +237,6 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
             .define("CMAKE_ASM_COMPILER_TARGET", &config.target);
     }
 
-    if !config.features.fips {
-        if let Some(cc) = &config.env.cc {
-            boringssl_cmake.define("CMAKE_C_COMPILER", cc);
-        }
-        if let Some(cxx) = &config.env.cxx {
-            boringssl_cmake.define("CMAKE_CXX_COMPILER", cxx);
-        }
-    }
-
     if let Some(sysroot) = &config.env.sysroot {
         boringssl_cmake.define("CMAKE_SYSROOT", sysroot);
     }
@@ -304,11 +295,19 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
         _ => None,
     };
 
-    if let Some(tf) = toolchain_file {
+    if let Some(tf) = toolchain_file.filter(|tf| tf.exists()) {
         eprintln!("{} toolchain={}", config.target_os, tf.display());
         boringssl_cmake.define("CMAKE_TOOLCHAIN_FILE", tf);
     } else {
         println!("cargo:warning=no toolchain file set for {}", config.target);
+        if !config.features.fips {
+            if let Some(cc) = &config.env.cc {
+                boringssl_cmake.define("CMAKE_C_COMPILER", cc);
+            }
+            if let Some(cxx) = &config.env.cxx {
+                boringssl_cmake.define("CMAKE_CXX_COMPILER", cxx);
+            }
+        }
     }
 
     boringssl_cmake
