@@ -33,7 +33,7 @@ pub(crate) struct Env {
     pub(crate) debug: Option<OsString>,
     pub(crate) opt_level: Option<OsString>,
     pub(crate) android_ndk_home: Option<PathBuf>,
-    pub(crate) cmake_toolchain_file: Option<PathBuf>,
+    pub(crate) cmake_toolchain_file_is_set: bool,
     pub(crate) cpp_runtime_lib: Option<OsString>,
     /// C compiler (ignored if using FIPS)
     pub(crate) cc: Option<OsString>,
@@ -160,7 +160,7 @@ impl Env {
 
             // The passed name is the non-fips version of the environment variable,
             // to help look for them in the repository.
-            assert!(name.starts_with(BORING_BSSL_PREFIX));
+            debug_assert!(name.starts_with(BORING_BSSL_PREFIX));
 
             let non_fips = target_var(name);
             if is_fips_like {
@@ -181,13 +181,15 @@ impl Env {
             source_path: boringssl_var("BORING_BSSL_SOURCE_PATH").map(PathBuf::from), // gets BORING_BSSL_FIPS_SOURCE_PATH if fips is enabled
             assume_patched: boringssl_var("BORING_BSSL_ASSUME_PATCHED") // gets BORING_BSSL_FIPS_ASSUME_PATCHED if fips is enabled
                 .is_some_and(|v| !v.is_empty()),
+            // only used when cross-compiling
             sysroot: boringssl_var("BORING_BSSL_SYSROOT").map(PathBuf::from), // gets BORING_BSSL_FIPS_SYSROOT if fips is enabled
+            // only used when cross-compiling
             compiler_external_toolchain: boringssl_var("BORING_BSSL_COMPILER_EXTERNAL_TOOLCHAIN") // gets BORING_BSSL_FIPS_COMPILER_EXTERNAL_TOOLCHAIN if fips is enabled
                 .map(PathBuf::from),
             debug: target_var("DEBUG"),
             opt_level: target_var("OPT_LEVEL"),
             android_ndk_home: target_var("ANDROID_NDK_HOME").map(Into::into),
-            cmake_toolchain_file: target_var("CMAKE_TOOLCHAIN_FILE").map(Into::into),
+            cmake_toolchain_file_is_set: var("CMAKE_TOOLCHAIN_FILE").is_some(),
             cpp_runtime_lib: target_var("BORING_BSSL_RUST_CPPLIB"),
             // matches the `cc` crate
             cc: target_only_var("CC"),
