@@ -1,23 +1,22 @@
 use crate::cache::{SessionCache, SessionKey};
-use crate::{key_index, HttpsLayerSettings, MaybeHttpsStream};
+use crate::{HttpsLayerSettings, MaybeHttpsStream, key_index};
 use antidote::Mutex;
 use boring::error::ErrorStack;
 use boring::ssl::{
     ConnectConfiguration, Ssl, SslConnector, SslConnectorBuilder, SslMethod, SslRef,
     SslSessionCacheMode,
 };
-use http::uri::Scheme;
 use http::Uri;
+use http::uri::Scheme;
 use hyper::rt::{Read, ReadBufCursor, Write};
 use hyper_util::client::legacy::connect::{Connected, Connection, HttpConnector};
 use hyper_util::rt::TokioIo;
 use std::error::Error;
-use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::{io, net};
+use std::{fmt, io, net};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tower_layer::Layer;
 use tower_service::Service;

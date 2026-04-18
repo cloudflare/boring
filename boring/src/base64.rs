@@ -1,7 +1,6 @@
 //! Base64 encoding support.
-use crate::cvt_n;
 use crate::error::ErrorStack;
-use crate::ffi;
+use crate::{cvt_n, ffi};
 use libc::c_int;
 use openssl_macros::corresponds;
 

@@ -12,7 +12,7 @@ use crate::x509::extension::{
     SubjectKeyIdentifier,
 };
 use crate::x509::store::X509StoreBuilder;
-use crate::x509::{X509Extension, X509Name, X509Req, X509StoreContext, X509};
+use crate::x509::{X509, X509Extension, X509Name, X509Req, X509StoreContext};
 
 mod trusted_first;
 
@@ -345,10 +345,12 @@ fn x509_extension_to_der() {
 
 #[test]
 fn eku_invalid_other() {
-    assert!(ExtendedKeyUsage::new()
-        .other("1.1.1.1.1,2.2.2.2.2")
-        .build()
-        .is_err());
+    assert!(
+        ExtendedKeyUsage::new()
+            .other("1.1.1.1.1,2.2.2.2.2")
+            .build()
+            .is_err()
+    );
 }
 
 #[test]
@@ -456,15 +458,21 @@ fn test_verify_cert() {
     let empty_store = X509StoreBuilder::new().unwrap().build();
 
     let mut context = X509StoreContext::new().unwrap();
-    assert!(context
-        .init(&store, &cert, &chain, |c| c.verify_cert())
-        .unwrap());
-    assert!(!context
-        .init(&empty_store, &cert, &chain, |c| c.verify_cert())
-        .unwrap());
-    assert!(context
-        .init(&store, &cert, &chain, |c| c.verify_cert())
-        .unwrap());
+    assert!(
+        context
+            .init(&store, &cert, &chain, |c| c.verify_cert())
+            .unwrap()
+    );
+    assert!(
+        !context
+            .init(&empty_store, &cert, &chain, |c| c.verify_cert())
+            .unwrap()
+    );
+    assert!(
+        context
+            .init(&store, &cert, &chain, |c| c.verify_cert())
+            .unwrap()
+    );
 
     context
         .reset_with_context_data(empty_store, cert.clone(), Stack::new().unwrap())
@@ -488,9 +496,11 @@ fn test_verify_fails() {
     let store = store_bldr.build();
 
     let mut context = X509StoreContext::new().unwrap();
-    assert!(!context
-        .init(&store, &cert, &chain, |c| c.verify_cert())
-        .unwrap());
+    assert!(
+        !context
+            .init(&store, &cert, &chain, |c| c.verify_cert())
+            .unwrap()
+    );
 }
 
 #[test]

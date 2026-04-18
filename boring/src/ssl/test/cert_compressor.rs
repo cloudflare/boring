@@ -2,8 +2,8 @@ use std::io::Write as _;
 
 use super::server::Server;
 use crate::ssl::CertificateCompressor;
-use crate::x509::store::X509StoreBuilder;
 use crate::x509::X509;
+use crate::x509::store::X509StoreBuilder;
 
 struct BrotliCompressor {
     q: u32,

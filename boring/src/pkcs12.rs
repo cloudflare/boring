@@ -11,7 +11,7 @@ use crate::error::ErrorStack;
 use crate::nid::Nid;
 use crate::pkey::{HasPrivate, PKey, PKeyRef, Private};
 use crate::stack::{Stack, StackRef};
-use crate::x509::{X509Ref, X509};
+use crate::x509::{X509, X509Ref};
 use crate::{cvt_0i, cvt_p};
 
 pub const PKCS12_DEFAULT_ITER: c_int = 2048;
@@ -229,7 +229,7 @@ mod test {
     use crate::pkey::PKey;
     use crate::rsa::Rsa;
     use crate::x509::extension::KeyUsage;
-    use crate::x509::{X509Name, X509};
+    use crate::x509::{X509, X509Name};
 
     use super::*;
 

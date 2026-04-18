@@ -1,19 +1,17 @@
 #![forbid(unsafe_op_in_unsafe_fn)]
 
-use super::{
-    AlpnError, CertificateCompressor, ClientHello, GetSessionPendingError, PrivateKeyMethod,
-    PrivateKeyMethodError, SelectCertError, SniError, Ssl, SslAlert, SslContext, SslContextRef,
-    SslInfoCallbackAlert, SslInfoCallbackMode, SslInfoCallbackValue, SslRef, SslSession,
-    SslSessionRef, SslSignatureAlgorithm, SslVerifyError, SESSION_CTX_INDEX,
-};
 use crate::error::ErrorStack;
 use crate::ffi;
 use crate::hmac::HmacCtxRef;
 use crate::ssl::TicketKeyCallbackResult;
+use crate::ssl::{AlpnError, CertificateCompressor, ClientHello, GetSessionPendingError};
+use crate::ssl::{PrivateKeyMethod, PrivateKeyMethodError, SESSION_CTX_INDEX, SelectCertError};
+use crate::ssl::{SniError, Ssl, SslAlert, SslContext, SslContextRef, SslInfoCallbackAlert};
+use crate::ssl::{SslInfoCallbackMode, SslInfoCallbackValue, SslRef, SslSession};
+use crate::ssl::{SslSessionRef, SslSignatureAlgorithm, SslVerifyError};
 use crate::symm::CipherCtxRef;
 use crate::x509::{X509StoreContext, X509StoreContextRef};
-use foreign_types::ForeignType;
-use foreign_types::ForeignTypeRef;
+use foreign_types::{ForeignType, ForeignTypeRef};
 use libc::{c_char, c_int, c_uchar, c_uint, c_void};
 use std::ffi::CStr;
 use std::mem::{self, MaybeUninit};

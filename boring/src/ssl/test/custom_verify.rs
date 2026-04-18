@@ -1,7 +1,7 @@
 use super::server::Server;
-use crate::ssl::{ErrorCode, HandshakeError, SslAlert, SslVerifyMode};
+use crate::hash::MessageDigest;
+use crate::ssl::{ErrorCode, HandshakeError, SslAlert, SslVerifyError, SslVerifyMode};
 use crate::x509::X509StoreContext;
-use crate::{hash::MessageDigest, ssl::SslVerifyError};
 use hex;
 use std::sync::atomic::{AtomicBool, Ordering};
 

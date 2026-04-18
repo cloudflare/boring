@@ -72,9 +72,9 @@ async fn test_async_select_certificate_callback_finish_error() {
 
 async fn with_async_select_certificate_callback_error(
     callback: impl Fn(&mut ClientHello<'_>) -> Result<BoxSelectCertFuture, AsyncSelectCertError>
-        + Send
-        + Sync
-        + 'static,
+    + Send
+    + Sync
+    + 'static,
 ) {
     let (stream, addr) = create_server(|builder| {
         builder.set_async_select_certificate_callback(callback);

@@ -41,11 +41,10 @@
 //! ```
 
 use crate::error::ErrorStack;
-use crate::ffi;
 use crate::stack::StackRef;
 use crate::x509::verify::{X509VerifyFlags, X509VerifyParamRef};
 use crate::x509::{X509Object, X509Ref};
-use crate::{cvt, cvt_p};
+use crate::{cvt, cvt_p, ffi};
 use foreign_types::{ForeignType, ForeignTypeRef};
 use openssl_macros::corresponds;
 use std::mem::ManuallyDrop;

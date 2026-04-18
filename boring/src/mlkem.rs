@@ -18,9 +18,8 @@
 use std::fmt;
 use std::mem::MaybeUninit;
 
-use crate::cvt;
 use crate::error::ErrorStack;
-use crate::ffi;
+use crate::{cvt, ffi};
 
 // CBS_init is inline in BoringSSL, so bindgen can't generate bindings for it.
 #[inline]

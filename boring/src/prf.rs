@@ -22,10 +22,9 @@ use std::ptr;
 
 use openssl_macros::corresponds;
 
-use crate::cvt;
 use crate::error::ErrorStack;
-use crate::ffi;
 use crate::hash::MessageDigest;
+use crate::{cvt, ffi};
 
 /// Computes TLS 1.2 PRF output using `digest`.
 ///

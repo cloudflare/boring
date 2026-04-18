@@ -78,7 +78,6 @@ foreign_type_and_impl_send_sync! {
 
 impl CipherCtxRef {
     /// Configures CipherCtx for a fresh encryption operation using `cipher`.
-    ///
     #[corresponds(EVP_EncryptInit_ex)]
     pub fn init_encrypt(
         &mut self,
@@ -105,7 +104,6 @@ impl CipherCtxRef {
     }
 
     /// Configures CipherCtx for a fresh decryption operation using `cipher`.
-    ///
     #[corresponds(EVP_DecryptInit_ex)]
     pub fn init_decrypt(
         &mut self,
@@ -283,11 +281,7 @@ impl Cipher {
     pub fn iv_len(&self) -> Option<usize> {
         unsafe {
             let len = EVP_CIPHER_iv_length(self.0) as usize;
-            if len == 0 {
-                None
-            } else {
-                Some(len)
-            }
+            if len == 0 { None } else { Some(len) }
         }
     }
 

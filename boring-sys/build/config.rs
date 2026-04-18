@@ -118,7 +118,9 @@ impl Config {
         }
 
         if self.env.export_to_install_dir.is_some() && is_precompiled_native_lib {
-            return Err("`BORING_BSSL{{,_FIPS_}}INSTALL_DIR` cannot be used together with a precompiled library");
+            return Err(
+                "`BORING_BSSL{{,_FIPS_}}INSTALL_DIR` cannot be used together with a precompiled library",
+            );
         }
         Ok(())
     }
@@ -167,7 +169,9 @@ impl Env {
                 let fips_name = name.replace(BORING_BSSL_PREFIX, BORING_BSSL_FIPS_PREFIX);
                 let fips = target_var(&fips_name);
                 if fips.is_none() && non_fips.is_some() {
-                    println!("cargo:warning=env var {name} ignored, because FIPS is enabled. Set {fips_name} instead.");
+                    println!(
+                        "cargo:warning=env var {name} ignored, because FIPS is enabled. Set {fips_name} instead."
+                    );
                 }
                 fips
             } else {

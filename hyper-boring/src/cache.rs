@@ -1,5 +1,4 @@
-use boring::ssl::SslVersion;
-use boring::ssl::{SslSession, SslSessionRef};
+use boring::ssl::{SslSession, SslSessionRef, SslVersion};
 use linked_hash_set::LinkedHashSet;
 use std::borrow::Borrow;
 use std::collections::hash_map::{Entry, HashMap};

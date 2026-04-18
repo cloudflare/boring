@@ -14,10 +14,8 @@ use std::ptr;
 
 use crate::bn::{BigNum, BigNumRef};
 use crate::error::ErrorStack;
-use crate::ffi;
 use crate::pkey::{HasParams, HasPrivate, HasPublic, Private, Public};
-use crate::try_int;
-use crate::{cvt, cvt_p};
+use crate::{cvt, cvt_p, ffi, try_int};
 
 generic_foreign_type_and_impl_send_sync! {
     type CType = ffi::DSA;

@@ -2,11 +2,9 @@ use std::marker::PhantomData;
 use std::ptr;
 use std::slice;
 
-use crate::cvt_p;
 use crate::error::ErrorStack;
-use crate::ffi;
 use crate::ffi::BIO_new_mem_buf;
-use crate::try_int;
+use crate::{cvt_p, ffi, try_int};
 
 pub struct MemBioSlice<'a>(*mut ffi::BIO, PhantomData<&'a [u8]>);
 

@@ -11,15 +11,14 @@ use crate::error::ErrorStack;
 use crate::hash::MessageDigest;
 use crate::pkey::PKey;
 use crate::srtp::SrtpProfileId;
+use crate::ssl;
 use crate::ssl::test::server::Server;
-use crate::ssl::{
-    self, ExtensionType, ShutdownResult, ShutdownState, Ssl, SslAcceptor, SslAcceptorBuilder,
-    SslConnector, SslContext, SslFiletype, SslMethod, SslOptions, SslStream, SslVerifyMode,
-};
-use crate::ssl::{HandshakeError, SslVersion};
+use crate::ssl::{ExtensionType, HandshakeError, ShutdownResult, ShutdownState, Ssl};
+use crate::ssl::{SslAcceptor, SslAcceptorBuilder, SslConnector, SslContext, SslFiletype};
+use crate::ssl::{SslMethod, SslOptions, SslStream, SslVerifyMode, SslVersion};
 use crate::x509::store::X509StoreBuilder;
 use crate::x509::verify::X509CheckFlags;
-use crate::x509::{X509Name, X509};
+use crate::x509::{X509, X509Name};
 
 use super::CompliancePolicy;
 
@@ -774,12 +773,14 @@ fn connector_no_hostname_still_verifies() {
     let connector = SslConnector::builder(SslMethod::tls()).unwrap().build();
 
     let s = server.connect_tcp();
-    assert!(connector
-        .configure()
-        .unwrap()
-        .verify_hostname(false)
-        .connect("fizzbuzz.com", s)
-        .is_err());
+    assert!(
+        connector
+            .configure()
+            .unwrap()
+            .verify_hostname(false)
+            .connect("fizzbuzz.com", s)
+            .is_err()
+    );
 }
 
 #[test]
@@ -1229,9 +1230,9 @@ fn test_ssl_set_compliance() {
 #[test]
 fn ex_data_drop() {
     use crate::ssl::SslContextBuilder;
+    use std::sync::Arc;
     use std::sync::atomic::AtomicU32;
     use std::sync::atomic::Ordering::Relaxed;
-    use std::sync::Arc;
 
     struct TrackDrop(Arc<AtomicU32>);
     impl Drop for TrackDrop {

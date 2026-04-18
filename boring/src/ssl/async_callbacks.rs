@@ -13,7 +13,7 @@ use std::convert::identity;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::LazyLock;
-use std::task::{ready, Context, Poll, Waker};
+use std::task::{Context, Poll, Waker, ready};
 
 /// The type of futures to pass to [`SslContextBuilder::set_async_select_certificate_callback`].
 pub type BoxSelectCertFuture = ExDataFuture<Result<BoxSelectCertFinish, AsyncSelectCertError>>;

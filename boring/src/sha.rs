@@ -470,8 +470,7 @@ mod test {
     #[test]
     fn standalone_384() {
         let data = b"abc";
-        let expected =
-            "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e\
+        let expected = "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e\
              7cc2358baeca134c825a7";
 
         assert_eq!(hex::encode(&sha384(data)[..]), expected);
@@ -479,8 +478,7 @@ mod test {
 
     #[test]
     fn struct_384() {
-        let expected =
-            "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e\
+        let expected = "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e\
              7cc2358baeca134c825a7";
 
         let mut hasher = Sha384::new();
@@ -492,8 +490,7 @@ mod test {
     #[test]
     fn standalone_512() {
         let data = b"abc";
-        let expected =
-            "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274\
+        let expected = "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274\
              fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f";
 
         assert_eq!(hex::encode(&sha512(data)[..]), expected);
@@ -501,8 +498,7 @@ mod test {
 
     #[test]
     fn struct_512() {
-        let expected =
-            "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274\
+        let expected = "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274\
              fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f";
 
         let mut hasher = Sha512::new();

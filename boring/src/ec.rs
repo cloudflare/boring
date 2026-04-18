@@ -23,11 +23,9 @@ use std::ptr;
 
 use crate::bn::{BigNumContextRef, BigNumRef};
 use crate::error::ErrorStack;
-use crate::ffi;
 use crate::nid::Nid;
 use crate::pkey::{HasParams, HasPrivate, HasPublic, Params, Private, Public};
-use crate::try_int;
-use crate::{cvt, cvt_n, cvt_p, init};
+use crate::{cvt, cvt_n, cvt_p, ffi, init, try_int};
 
 /// Compressed or Uncompressed conversion
 ///

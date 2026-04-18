@@ -62,10 +62,7 @@ use openssl_macros::corresponds;
 use std::any::TypeId;
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::ffi::{c_char, c_int, c_uchar, c_uint};
-use std::ffi::{CStr, CString};
-use std::fmt;
-use std::io;
+use std::ffi::{CStr, CString, c_char, c_int, c_uchar, c_uint};
 use std::io::prelude::*;
 use std::marker::PhantomData;
 use std::mem::{self, ManuallyDrop, MaybeUninit};
@@ -92,14 +89,11 @@ use crate::ssl::callbacks::*;
 use crate::ssl::error::InnerError;
 use crate::stack::{Stack, StackRef, Stackable};
 use crate::symm::CipherCtxRef;
-use crate::try_int;
 use crate::x509::store::{X509Store, X509StoreBuilder, X509StoreBuilderRef, X509StoreRef};
 use crate::x509::verify::X509VerifyParamRef;
-use crate::x509::{
-    X509Name, X509Ref, X509StoreContextRef, X509VerifyError, X509VerifyResult, X509,
-};
-use crate::{cvt, cvt_0i, cvt_n, cvt_p, init};
-use crate::{ffi, free_data_box};
+use crate::x509::{X509, X509Name, X509Ref};
+use crate::x509::{X509StoreContextRef, X509VerifyError, X509VerifyResult};
+use crate::{cvt, cvt_0i, cvt_n, cvt_p, ffi, free_data_box, init, try_int};
 
 pub use self::async_callbacks::{
     AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError, BoxCustomVerifyFinish,
@@ -145,16 +139,14 @@ bitflags! {
         const NO_TICKET = ffi::SSL_OP_NO_TICKET as _;
 
         /// Always start a new session when performing a renegotiation on the server side.
-        const NO_SESSION_RESUMPTION_ON_RENEGOTIATION =
-            ffi::SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION as _;
+        const NO_SESSION_RESUMPTION_ON_RENEGOTIATION = ffi::SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION as _;
 
         /// Disables the use of TLS compression.
         const NO_COMPRESSION = ffi::SSL_OP_NO_COMPRESSION as _;
 
         /// Allow legacy insecure renegotiation with servers or clients that do not support secure
         /// renegotiation.
-        const ALLOW_UNSAFE_LEGACY_RENEGOTIATION =
-            ffi::SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION as _;
+        const ALLOW_UNSAFE_LEGACY_RENEGOTIATION = ffi::SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION as _;
 
         /// Creates a new key for each session when using ECDHE.
         const SINGLE_ECDH_USE = ffi::SSL_OP_SINGLE_ECDH_USE as _;
@@ -987,7 +979,6 @@ impl SslContextBuilder {
     /// *Warning*: Providing a complete verification procedure is a complex task. See
     /// [`SSL_CTX_set_cert_verify_callback`](https://docs.openssl.org/master/man3/SSL_CTX_set_cert_verify_callback/#notes)
     /// for more information.
-    ///
     // TODO: Add the ability to unset the callback by either adding a new function or wrapping the
     // callback in an `Option`.
     ///
@@ -1096,7 +1087,6 @@ impl SslContextBuilder {
     ///
     /// Obtain the server name with the `servername` method and then set the corresponding context
     /// with `set_ssl_context`
-    ///
     // FIXME tlsext prefix?
     #[corresponds(SSL_CTX_set_tlsext_servername_callback)]
     pub fn set_servername_callback<F>(&mut self, callback: F)
@@ -1546,11 +1536,7 @@ impl SslContextBuilder {
     pub fn min_proto_version(&mut self) -> Option<SslVersion> {
         unsafe {
             let r = ffi::SSL_CTX_get_min_proto_version(self.as_ptr());
-            if r == 0 {
-                None
-            } else {
-                Some(SslVersion(r))
-            }
+            if r == 0 { None } else { Some(SslVersion(r)) }
         }
     }
 
@@ -1559,11 +1545,7 @@ impl SslContextBuilder {
     pub fn max_proto_version(&mut self) -> Option<SslVersion> {
         unsafe {
             let r = ffi::SSL_CTX_get_max_proto_version(self.as_ptr());
-            if r == 0 {
-                None
-            } else {
-                Some(SslVersion(r))
-            }
+            if r == 0 { None } else { Some(SslVersion(r)) }
         }
     }
 
@@ -1660,7 +1642,10 @@ impl SslContextBuilder {
         C: CertificateCompressor,
     {
         const {
-            assert!(C::CAN_COMPRESS || C::CAN_DECOMPRESS, "Either compression or decompression must be supported for algorithm to be registered");
+            assert!(
+                C::CAN_COMPRESS || C::CAN_DECOMPRESS,
+                "Either compression or decompression must be supported for algorithm to be registered"
+            );
         };
         let success = unsafe {
             ffi::SSL_CTX_add_cert_compression_alg(
@@ -1734,7 +1719,6 @@ impl SslContextBuilder {
     ///
     /// * If a shared store has been set via [`set_cert_store_ref`]
     /// * If context has been created for Raw Public Key verification (requires `rpk` Cargo feature)
-    ///
     #[corresponds(SSL_CTX_get_cert_store)]
     pub fn cert_store_mut(&mut self) -> &mut X509StoreBuilderRef {
         self.ctx.check_x509();
@@ -2603,11 +2587,7 @@ impl SslCipherRef {
     #[must_use]
     pub fn cipher_auth_nid(&self) -> Option<Nid> {
         let n = unsafe { ffi::SSL_CIPHER_get_auth_nid(self.as_ptr()) };
-        if n == 0 {
-            None
-        } else {
-            Some(Nid::from_raw(n))
-        }
+        if n == 0 { None } else { Some(Nid::from_raw(n)) }
     }
 
     /// Returns the NID corresponding to the cipher.
@@ -2615,11 +2595,7 @@ impl SslCipherRef {
     #[must_use]
     pub fn cipher_nid(&self) -> Option<Nid> {
         let n = unsafe { ffi::SSL_CIPHER_get_cipher_nid(self.as_ptr()) };
-        if n == 0 {
-            None
-        } else {
-            Some(Nid::from_raw(n))
-        }
+        if n == 0 { None } else { Some(Nid::from_raw(n)) }
     }
 }
 
@@ -3295,11 +3271,7 @@ impl SslRef {
     pub fn min_proto_version(&mut self) -> Option<SslVersion> {
         unsafe {
             let r = ffi::SSL_get_min_proto_version(self.as_ptr());
-            if r == 0 {
-                None
-            } else {
-                Some(SslVersion(r))
-            }
+            if r == 0 { None } else { Some(SslVersion(r)) }
         }
     }
 
@@ -3308,11 +3280,7 @@ impl SslRef {
     #[must_use]
     pub fn max_proto_version(&self) -> Option<SslVersion> {
         let r = unsafe { ffi::SSL_get_max_proto_version(self.as_ptr()) };
-        if r == 0 {
-            None
-        } else {
-            Some(SslVersion(r))
-        }
+        if r == 0 { None } else { Some(SslVersion(r)) }
     }
 
     /// Returns the protocol selected via Application Layer Protocol Negotiation (ALPN).
@@ -3407,7 +3375,6 @@ impl SslRef {
     /// ASCII), OpenSSL does not enforce this restriction. If the servername provided by the client
     /// is not valid UTF-8, this function will return `None`. The `servername_raw` method returns
     /// the raw bytes and does not have this restriction.
-    ///
     // FIXME maybe rethink in 0.11?
     #[corresponds(SSL_get_servername)]
     #[must_use]
@@ -4543,7 +4510,7 @@ pub trait PrivateKeyMethod: Send + Sync + 'static {
     ///
     /// This method may be called arbitrarily many times before completion.
     fn complete(&self, ssl: &mut SslRef, output: &mut [u8])
-        -> Result<usize, PrivateKeyMethodError>;
+    -> Result<usize, PrivateKeyMethodError>;
 }
 
 /// An error returned from a private key method.

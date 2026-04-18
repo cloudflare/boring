@@ -1,5 +1,5 @@
-use super::server::{Builder, Server};
 use super::KEY;
+use super::server::{Builder, Server};
 use crate::hash::MessageDigest;
 use crate::pkey::PKey;
 use crate::rsa::Padding;
@@ -51,14 +51,14 @@ impl Method {
     pub(super) fn sign(
         mut self,
         sign: impl Fn(
-                &mut SslRef,
-                &[u8],
-                SslSignatureAlgorithm,
-                &mut [u8],
-            ) -> Result<usize, PrivateKeyMethodError>
-            + Send
-            + Sync
-            + 'static,
+            &mut SslRef,
+            &[u8],
+            SslSignatureAlgorithm,
+            &mut [u8],
+        ) -> Result<usize, PrivateKeyMethodError>
+        + Send
+        + Sync
+        + 'static,
     ) -> Self {
         self.sign = Box::new(sign);
 
@@ -69,9 +69,9 @@ impl Method {
     pub(super) fn decrypt(
         mut self,
         decrypt: impl Fn(&mut SslRef, &[u8], &mut [u8]) -> Result<usize, PrivateKeyMethodError>
-            + Send
-            + Sync
-            + 'static,
+        + Send
+        + Sync
+        + 'static,
     ) -> Self {
         self.decrypt = Box::new(decrypt);
 
@@ -81,9 +81,9 @@ impl Method {
     pub(super) fn complete(
         mut self,
         complete: impl Fn(&mut SslRef, &mut [u8]) -> Result<usize, PrivateKeyMethodError>
-            + Send
-            + Sync
-            + 'static,
+        + Send
+        + Sync
+        + 'static,
     ) -> Self {
         self.complete = Box::new(complete);
 

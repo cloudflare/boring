@@ -13,7 +13,6 @@ foreign_type_and_impl_send_sync! {
 
 impl HmacCtxRef {
     /// Configures HmacCtx to use `md` as the hash function and `key` as the key.
-    ///
     #[corresponds(HMAC_Init_ex)]
     pub fn init(&mut self, key: &[u8], md: &MessageDigest) -> Result<(), ErrorStack> {
         ffi::init();

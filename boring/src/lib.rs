@@ -84,14 +84,12 @@
 //! users should stick to that one for now. Enabling this feature, adds a few other post-quantum key
 //! agreements:
 //!
-//! - `X25519MLKEM768` is the successor of `X25519Kyber768Draft00`. We expect servers to switch
-//!   before the end of 2024.
+//! - `X25519MLKEM768` is the successor of `X25519Kyber768Draft00`. We expect servers to switch before the end of 2024.
 //! - `X25519Kyber768Draft00Old` is the same as `X25519Kyber768Draft00`, but under its old codepoint.
-//! - `X25519Kyber512Draft00`. Similar to `X25519Kyber768Draft00`, but uses level 1 parameter set for
-//!   Kyber. Not recommended. It's useful to test whether the shorter ClientHello upsets fewer middle
-//!   boxes.
-//! - `P256Kyber768Draft00`. Similar again to `X25519Kyber768Draft00`, but uses P256 as classical
-//!   part. It uses a non-standard codepoint. Not recommended.
+//! - `X25519Kyber512Draft00`. Similar to `X25519Kyber768Draft00`, but uses level 1 parameter set for Kyber. Not recommended. It's
+//!   useful to test whether the shorter ClientHello upsets fewer middle boxes.
+//! - `P256Kyber768Draft00`. Similar again to `X25519Kyber768Draft00`, but uses P256 as classical part. It uses a non-standard
+//!   codepoint. Not recommended.
 //!
 //! Presently all these key agreements are deployed by Cloudflare, but we do not guarantee continued
 //! support for them.
@@ -198,11 +196,7 @@ fn cvt_nz(r: c_int) -> Result<NonZeroUsize, ErrorStack> {
 }
 
 fn cvt_n(r: c_int) -> Result<c_int, ErrorStack> {
-    if r < 0 {
-        Err(ErrorStack::get())
-    } else {
-        Ok(r)
-    }
+    if r < 0 { Err(ErrorStack::get()) } else { Ok(r) }
 }
 
 fn try_int<F, T>(from: F) -> Result<T, ErrorStack>

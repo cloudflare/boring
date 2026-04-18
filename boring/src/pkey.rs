@@ -53,11 +53,9 @@ use crate::dh::Dh;
 use crate::dsa::Dsa;
 use crate::ec::EcKey;
 use crate::error::ErrorStack;
-use crate::ffi;
 use crate::rsa::Rsa;
-use crate::try_int;
-use crate::util::{invoke_passwd_cb, CallbackState};
-use crate::{cvt, cvt_0i, cvt_p};
+use crate::util::{CallbackState, invoke_passwd_cb};
+use crate::{cvt, cvt_0i, cvt_p, ffi, try_int};
 
 /// A tag type indicating that a key only has parameters.
 pub enum Params {}

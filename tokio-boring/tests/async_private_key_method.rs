@@ -47,14 +47,14 @@ impl Method {
     fn sign(
         mut self,
         sign: impl Fn(
-                &mut SslRef,
-                &[u8],
-                SslSignatureAlgorithm,
-                &mut [u8],
-            ) -> Result<BoxPrivateKeyMethodFuture, AsyncPrivateKeyMethodError>
-            + Send
-            + Sync
-            + 'static,
+            &mut SslRef,
+            &[u8],
+            SslSignatureAlgorithm,
+            &mut [u8],
+        ) -> Result<BoxPrivateKeyMethodFuture, AsyncPrivateKeyMethodError>
+        + Send
+        + Sync
+        + 'static,
     ) -> Self {
         self.sign = Box::new(sign);
 
@@ -65,13 +65,13 @@ impl Method {
     fn decrypt(
         mut self,
         decrypt: impl Fn(
-                &mut SslRef,
-                &[u8],
-                &mut [u8],
-            ) -> Result<BoxPrivateKeyMethodFuture, AsyncPrivateKeyMethodError>
-            + Send
-            + Sync
-            + 'static,
+            &mut SslRef,
+            &[u8],
+            &mut [u8],
+        ) -> Result<BoxPrivateKeyMethodFuture, AsyncPrivateKeyMethodError>
+        + Send
+        + Sync
+        + 'static,
     ) -> Self {
         self.decrypt = Box::new(decrypt);
 

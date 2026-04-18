@@ -63,8 +63,7 @@ use foreign_types::{ForeignType, ForeignTypeRef};
 use openssl_macros::corresponds;
 
 use crate::error::ErrorStack;
-use crate::ffi;
-use crate::{cvt, cvt_p};
+use crate::{cvt, cvt_p, ffi};
 
 /// Represents a specific AEAD algorithm.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -337,8 +336,7 @@ impl AeadCtxRef {
     ///
     /// - `nonce`: The same nonce that was used during encryption.
     /// - `in_out`: Ciphertext input and in-place plaintext output.
-    /// - `in_tag`: Detached tag bytes produced by
-    ///   [`seal_scatter`](AeadCtxRef::seal_scatter).
+    /// - `in_tag`: Detached tag bytes produced by [`seal_scatter`](AeadCtxRef::seal_scatter).
     /// - `associated_data`: The same AAD that was passed during encryption.
     #[corresponds(EVP_AEAD_CTX_open_gather)]
     pub fn open_gather(
@@ -371,15 +369,11 @@ impl AeadCtxRef {
     ///
     /// # Parameters
     ///
-    /// - `nonce`: Per-message nonce. Must match the length returned by
-    ///   [`Algorithm::nonce_len`].
-    /// - `buffer`: Plaintext on input, ciphertext on output (encrypted in
-    ///   place).
-    /// - `tag`: Output buffer for the authentication tag. Must be at least
-    ///   [`Algorithm::max_overhead`] bytes; use [`AeadCtxRef::tag_len`] for
-    ///   the exact size.
-    /// - `associated_data`: Additional authenticated data (AAD) that is
-    ///   authenticated but not encrypted.
+    /// - `nonce`: Per-message nonce. Must match the length returned by [`Algorithm::nonce_len`].
+    /// - `buffer`: Plaintext on input, ciphertext on output (encrypted in place).
+    /// - `tag`: Output buffer for the authentication tag. Must be at least [`Algorithm::max_overhead`] bytes; use
+    ///   [`AeadCtxRef::tag_len`] for the exact size.
+    /// - `associated_data`: Additional authenticated data (AAD) that is authenticated but not encrypted.
     ///
     /// Returns the sub-slice of `tag` that was written to.
     pub fn seal_in_place<'a>(
@@ -400,10 +394,8 @@ impl AeadCtxRef {
     /// # Parameters
     ///
     /// - `nonce`: The same nonce that was used during encryption.
-    /// - `buffer`: Ciphertext on input, plaintext on output (decrypted in
-    ///   place).
-    /// - `tag`: The authentication tag produced by
-    ///   [`seal_in_place`](AeadCtxRef::seal_in_place).
+    /// - `buffer`: Ciphertext on input, plaintext on output (decrypted in place).
+    /// - `tag`: The authentication tag produced by [`seal_in_place`](AeadCtxRef::seal_in_place).
     /// - `associated_data`: The same AAD that was passed during encryption.
     pub fn open_in_place(
         &self,

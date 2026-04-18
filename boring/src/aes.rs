@@ -36,7 +36,6 @@
 //!
 //! assert_eq!(&orig_key[..], &key_to_wrap[..]);
 //! ```
-//!
 use crate::ffi;
 use libc::c_int;
 use openssl_macros::corresponds;

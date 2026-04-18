@@ -1,8 +1,8 @@
 use super::server::Server;
 use crate::hash::MessageDigest;
 use crate::ssl::SslVerifyMode;
-use crate::x509::store::X509StoreBuilder;
 use crate::x509::X509;
+use crate::x509::store::X509StoreBuilder;
 use hex;
 use std::sync::atomic::{AtomicBool, Ordering};
 

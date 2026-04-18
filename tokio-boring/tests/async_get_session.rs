@@ -1,7 +1,7 @@
 use boring::ssl::{SslOptions, SslRef, SslSession, SslSessionCacheMode, SslVersion};
 use futures::future;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::net::TcpStream;
 use tokio::task::yield_now;
 use tokio_boring::BoxGetSessionFinish;

@@ -7,11 +7,9 @@ use std::ops::{Deref, DerefMut};
 use std::ptr;
 
 use crate::error::ErrorStack;
-use crate::ffi;
 use crate::ffi::{EVP_MD_CTX_free, EVP_MD_CTX_new};
 use crate::nid::Nid;
-use crate::try_int;
-use crate::{cvt, cvt_p};
+use crate::{cvt, cvt_p, ffi, try_int};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct MessageDigest(*const ffi::EVP_MD);

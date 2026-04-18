@@ -266,7 +266,7 @@ mod tests {
             .unwrap(),
             super::KeyIvPair {
                 key: expected_key,
-                iv: Some(expected_iv),
+                iv: Some(expected_iv)
             }
         );
     }
@@ -277,8 +277,7 @@ mod tests {
 
         let pass = "pleaseletmein";
         let salt = "SodiumChloride";
-        let expected =
-            "7023bdcb3afd7348461c06cd81fd38ebfda8fbba904f8e3ea9b543f6545da1f2d5432955613\
+        let expected = "7023bdcb3afd7348461c06cd81fd38ebfda8fbba904f8e3ea9b543f6545da1f2d5432955613\
              f0fcf62d49705242a9af9e61e85dc0d651e40dfcf017b45575887";
 
         let mut actual = [0; 64];

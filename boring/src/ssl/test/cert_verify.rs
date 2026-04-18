@@ -1,6 +1,6 @@
 use crate::hash::MessageDigest;
-use crate::ssl::test::Server;
 use crate::ssl::SslVerifyMode;
+use crate::ssl::test::Server;
 
 #[test]
 fn error_when_trusted_but_callback_returns_false() {

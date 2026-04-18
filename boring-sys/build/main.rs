@@ -4,8 +4,7 @@ use std::fs;
 use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
-use std::process::{Command, Output};
+use std::process::{Command, ExitCode, Output};
 use std::sync::OnceLock;
 
 use crate::config::Config;
@@ -425,7 +424,9 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
                     params.push(android_sysroot.into_os_string().into_string().unwrap());
                 }
                 Err(e) => {
-                    println!("cargo:warning=failed to find prebuilt Android NDK toolchain for bindgen: {e}");
+                    println!(
+                        "cargo:warning=failed to find prebuilt Android NDK toolchain for bindgen: {e}"
+                    );
                     // Uh... let's try anyway, I guess?
                 }
             }
@@ -439,8 +440,7 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
 fn ensure_patches_applied(config: &Config) -> io::Result<()> {
     if config.env.assume_patched || config.env.path.is_some() {
         println!(
-            "cargo:warning=skipping git patches application, provided\
-            native BoringSSL is expected to have the patches included"
+            "cargo:warning=skipping git patches application, providednative BoringSSL is expected to have the patches included"
         );
         return Ok(());
     } else if config.env.source_path.is_some()
@@ -567,11 +567,7 @@ fn build_boringssl_or_get_prebuilt(config: &Config) -> &Path {
         cfg.build_target("ssl").build();
         let path = cfg.build_target("crypto").build();
         let build_dir = path.join("build");
-        if build_dir.exists() {
-            build_dir
-        } else {
-            path
-        }
+        if build_dir.exists() { build_dir } else { path }
     })
 }
 
@@ -807,7 +803,10 @@ fn generate_bindings(config: &Config) -> Result<PathBuf, Box<dyn std::error::Err
         if header_path.exists() {
             builder = builder.header(header_path.to_str().unwrap());
         } else {
-            let err = format!("'openssl/{header}' is missing from '{}'. The include path may be incorrect or contain an outdated version of OpenSSL/BoringSSL", include_path.display());
+            let err = format!(
+                "'openssl/{header}' is missing from '{}'. The include path may be incorrect or contain an outdated version of OpenSSL/BoringSSL",
+                include_path.display()
+            );
             if i < must_have_headers.len() {
                 return Err(err.into());
             }

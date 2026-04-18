@@ -36,11 +36,9 @@ use crate::pkey::{HasPrivate, HasPublic, PKey, PKeyRef, Public};
 use crate::ssl::SslRef;
 use crate::stack::{Stack, StackRef, Stackable};
 use crate::string::OpensslString;
-use crate::try_int;
 use crate::util::ForeignTypeRefExt;
 use crate::x509::verify::{X509VerifyParam, X509VerifyParamRef};
-use crate::{cvt, cvt_n, cvt_p};
-use crate::{ffi, free_data_box};
+use crate::{cvt, cvt_n, cvt_p, ffi, free_data_box, try_int};
 
 pub mod extension;
 pub mod store;

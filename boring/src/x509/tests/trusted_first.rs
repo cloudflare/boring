@@ -3,7 +3,7 @@
 use crate::stack::Stack;
 use crate::x509::store::X509StoreBuilder;
 use crate::x509::verify::{X509VerifyFlags, X509VerifyParamRef};
-use crate::x509::{X509Ref, X509StoreContext, X509VerifyError, X509VerifyResult, X509};
+use crate::x509::{X509, X509Ref, X509StoreContext, X509VerifyError, X509VerifyResult};
 
 #[test]
 fn test_verify_cert() {
