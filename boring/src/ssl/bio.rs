@@ -8,10 +8,10 @@ use std::io;
 use std::io::prelude::*;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::ptr;
-use std::slice;
 
-use crate::cvt_p;
 use crate::error::ErrorStack;
+use crate::{cvt_p, try_int};
+use crate::{try_slice, try_slice_mut};
 
 pub struct StreamState<S> {
     pub stream: S,
@@ -106,7 +106,9 @@ unsafe extern "C" fn bwrite<S: Write>(bio: *mut BIO, buf: *const c_char, len: c_
     };
 
     let state = state::<S>(bio);
-    let buf = slice::from_raw_parts(buf.cast(), len);
+    let Some(buf) = try_slice(buf.cast(), len) else {
+        return -1;
+    };
 
     match catch_unwind(AssertUnwindSafe(|| state.stream.write(buf))) {
         Ok(Ok(len)) => len as c_int,
@@ -127,15 +129,20 @@ unsafe extern "C" fn bwrite<S: Write>(bio: *mut BIO, buf: *const c_char, len: c_
 unsafe extern "C" fn bread<S: Read>(bio: *mut BIO, buf: *mut c_char, len: c_int) -> c_int {
     BIO_clear_retry_flags(bio);
 
-    let Ok(len) = usize::try_from(len) else {
-        return -1;
-    };
-
     let state = state::<S>(bio);
-    let buf = slice::from_raw_parts_mut(buf.cast(), len);
 
-    match catch_unwind(AssertUnwindSafe(|| state.stream.read(buf))) {
-        Ok(Ok(len)) => len as c_int,
+    let buf = try_int(len)
+        .and_then(|len: usize| unsafe { try_slice_mut(buf.cast(), len) })
+        .map_err(io::Error::other);
+
+    let res = catch_unwind(AssertUnwindSafe(|| {
+        state
+            .stream
+            .read(buf?)
+            .and_then(|len| c_int::try_from(len).map_err(io::Error::other))
+    }));
+    match res {
+        Ok(Ok(len)) => len,
         Ok(Err(err)) => {
             if retriable_error(&err) {
                 BIO_set_retry_read(bio);

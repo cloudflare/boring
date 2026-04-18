@@ -92,7 +92,6 @@ use crate::ssl::callbacks::*;
 use crate::ssl::error::InnerError;
 use crate::stack::{Stack, StackRef, Stackable};
 use crate::symm::CipherCtxRef;
-use crate::try_int;
 use crate::x509::store::{X509Store, X509StoreBuilder, X509StoreBuilderRef, X509StoreRef};
 use crate::x509::verify::X509VerifyParamRef;
 use crate::x509::{
@@ -100,6 +99,7 @@ use crate::x509::{
 };
 use crate::{cvt, cvt_0i, cvt_n, cvt_p, init};
 use crate::{ffi, free_data_box};
+use crate::{try_int, try_slice};
 
 pub use self::async_callbacks::{
     AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError, BoxCustomVerifyFinish,
@@ -792,7 +792,7 @@ pub fn select_next_proto<'a>(server: &'a [u8], client: &'a [u8]) -> Option<&'a [
         );
 
         if r == ffi::OPENSSL_NPN_NEGOTIATED {
-            Some(slice::from_raw_parts(out.cast_const(), outlen as usize))
+            try_slice(out.cast_const(), outlen)
         } else {
             None
         }
@@ -1977,9 +1977,8 @@ impl SslContextBuilder {
             cvt_0i(ffi::SSL_CTX_set_verify_algorithm_prefs(
                 self.as_ptr(),
                 prefs.as_ptr().cast(),
-                prefs.len(),
+                try_int(prefs.len())?,
             ))
-            .map(|_| ())
         }
     }
 
@@ -2004,7 +2003,6 @@ impl SslContextBuilder {
                 self.as_ptr(),
                 curves.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -2013,7 +2011,7 @@ impl SslContextBuilder {
     /// This feature isn't available in the certified version of BoringSSL.
     #[corresponds(SSL_CTX_set_compliance_policy)]
     pub fn set_compliance_policy(&mut self, policy: CompliancePolicy) -> Result<(), ErrorStack> {
-        unsafe { cvt_0i(ffi::SSL_CTX_set_compliance_policy(self.as_ptr(), policy.0)).map(|_| ()) }
+        unsafe { cvt_0i(ffi::SSL_CTX_set_compliance_policy(self.as_ptr(), policy.0)) }
     }
 
     /// Sets the context's info callback.
@@ -2046,7 +2044,6 @@ impl SslContextBuilder {
                 self.as_ptr(),
                 credential.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -2064,7 +2061,6 @@ impl SslContextBuilder {
                 types.as_ptr() as *const u8,
                 types.len(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -2361,11 +2357,7 @@ impl SslContextRef {
             if types_len == 0 {
                 return None;
             }
-
-            Some(slice::from_raw_parts(
-                types as *const CertificateType,
-                types_len,
-            ))
+            try_slice(types.cast::<CertificateType>(), types_len)
         }
     }
 }
@@ -2402,7 +2394,7 @@ impl ClientHello<'_> {
             if result == 0 {
                 return None;
             }
-            Some(slice::from_raw_parts(ptr, len))
+            try_slice(ptr, len)
         }
     }
 
@@ -2436,19 +2428,19 @@ impl ClientHello<'_> {
     /// Returns the raw data of the client hello message
     #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
-        unsafe { slice::from_raw_parts(self.0.client_hello, self.0.client_hello_len) }
+        unsafe { try_slice(self.0.client_hello, self.0.client_hello_len).unwrap_or(&[]) }
     }
 
     /// Returns the client random data
     #[must_use]
     pub fn random(&self) -> &[u8] {
-        unsafe { slice::from_raw_parts(self.0.random, self.0.random_len) }
+        unsafe { try_slice(self.0.random, self.0.random_len).unwrap_or(&[]) }
     }
 
     /// Returns the raw list of ciphers supported by the client in its Client Hello record.
     #[must_use]
     pub fn ciphers(&self) -> &[u8] {
-        unsafe { slice::from_raw_parts(self.0.cipher_suites, self.0.cipher_suites_len) }
+        unsafe { try_slice(self.0.cipher_suites, self.0.cipher_suites_len).unwrap_or(&[]) }
     }
 }
 
@@ -2659,7 +2651,7 @@ impl SslSessionRef {
         unsafe {
             let mut len = 0;
             let p = ffi::SSL_SESSION_get_id(self.as_ptr(), &mut len);
-            slice::from_raw_parts(p, len as usize)
+            try_slice(p, len).unwrap_or(&[])
         }
     }
 
@@ -2907,7 +2899,7 @@ impl SslRef {
     #[corresponds(SSL_set1_curves_list)]
     pub fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
         let curves = CString::new(curves).map_err(ErrorStack::internal_error)?;
-        unsafe { cvt_0i(ffi::SSL_set1_curves_list(self.as_ptr(), curves.as_ptr())).map(|_| ()) }
+        unsafe { cvt_0i(ffi::SSL_set1_curves_list(self.as_ptr(), curves.as_ptr())) }
     }
 
     /// Returns the curve ID (aka group ID) used for this `SslRef`.
@@ -3318,12 +3310,7 @@ impl SslRef {
             // Get the negotiated protocol from the SSL instance.
             // `data` will point at a `c_uchar` array; `len` will contain the length of this array.
             ffi::SSL_get0_alpn_selected(self.as_ptr(), &mut data, &mut len);
-
-            if data.is_null() {
-                None
-            } else {
-                Some(slice::from_raw_parts(data, len as usize))
-            }
+            try_slice(data, len)
         }
     }
 
@@ -3569,12 +3556,7 @@ impl SslRef {
         unsafe {
             let mut p = ptr::null();
             let len = ffi::SSL_get_tlsext_status_ocsp_resp(self.as_ptr(), &mut p);
-
-            if len == 0 {
-                None
-            } else {
-                Some(slice::from_raw_parts(p, len))
-            }
+            try_slice(p, len)
         }
     }
 
@@ -3759,7 +3741,6 @@ impl SslRef {
                 ech_config_list.as_ptr(),
                 ech_config_list.len(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -3776,12 +3757,7 @@ impl SslRef {
             let mut data = ptr::null();
             let mut len: usize = 0;
             ffi::SSL_get0_ech_retry_configs(self.as_ptr(), &mut data, &mut len);
-
-            if data.is_null() {
-                None
-            } else {
-                Some(slice::from_raw_parts(data, len))
-            }
+            try_slice(data, len)
         }
     }
 
@@ -3798,12 +3774,7 @@ impl SslRef {
             let mut data: *const c_char = ptr::null();
             let mut len: usize = 0;
             ffi::SSL_get0_ech_name_override(self.as_ptr(), &mut data, &mut len);
-
-            if data.is_null() {
-                None
-            } else {
-                Some(slice::from_raw_parts(data.cast::<u8>(), len))
-            }
+            try_slice(data.cast(), len)
         }
     }
 
@@ -3827,14 +3798,14 @@ impl SslRef {
     /// Sets the compliance policy on `SSL`.
     #[corresponds(SSL_set_compliance_policy)]
     pub fn set_compliance_policy(&mut self, policy: CompliancePolicy) -> Result<(), ErrorStack> {
-        unsafe { cvt_0i(ffi::SSL_set_compliance_policy(self.as_ptr(), policy.0)).map(|_| ()) }
+        unsafe { cvt_0i(ffi::SSL_set_compliance_policy(self.as_ptr(), policy.0)) }
     }
 
     /// Adds a credential.
     #[corresponds(SSL_add1_credential)]
     #[cfg(feature = "credential")]
     pub fn add_credential(&mut self, credential: &SslCredentialRef) -> Result<(), ErrorStack> {
-        unsafe { cvt_0i(ffi::SSL_add1_credential(self.as_ptr(), credential.as_ptr())).map(|_| ()) }
+        unsafe { cvt_0i(ffi::SSL_add1_credential(self.as_ptr(), credential.as_ptr())) }
     }
 
     /// Returns the public key sent by the other peer, `None` if there is no ongoing handshake.
@@ -3866,7 +3837,6 @@ impl SslRef {
                 types.as_ptr() as *const u8,
                 types.len(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -3883,11 +3853,7 @@ impl SslRef {
             if types_len == 0 {
                 return None;
             }
-
-            Some(slice::from_raw_parts(
-                types as *const CertificateType,
-                types_len,
-            ))
+            try_slice(types.cast::<CertificateType>(), types_len)
         }
     }
 
