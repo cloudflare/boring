@@ -44,13 +44,13 @@ fn cmake_params_android(config: &Config) -> &'static [(&'static str, &'static st
 }
 
 const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
-    // iOS
     (
         "aarch64-apple-ios",
         &[
             ("CMAKE_OSX_ARCHITECTURES", "arm64"),
             ("CMAKE_OSX_SYSROOT", "iphoneos"),
             ("CMAKE_MACOSX_BUNDLE", "OFF"),
+            ("CMAKE_ASM_FLAGS", "-fembed-bitcode"),
         ],
     ),
     (
@@ -59,6 +59,7 @@ const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
             ("CMAKE_OSX_ARCHITECTURES", "arm64"),
             ("CMAKE_OSX_SYSROOT", "iphonesimulator"),
             ("CMAKE_MACOSX_BUNDLE", "OFF"),
+            ("CMAKE_ASM_FLAGS", "-fembed-bitcode"),
         ],
     ),
     (
@@ -67,9 +68,12 @@ const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
             ("CMAKE_OSX_ARCHITECTURES", "x86_64"),
             ("CMAKE_OSX_SYSROOT", "iphonesimulator"),
             ("CMAKE_MACOSX_BUNDLE", "OFF"),
+            (
+                "CMAKE_ASM_FLAGS",
+                "-fembed-bitcode -target x86_64-apple-ios-simulator",
+            ),
         ],
     ),
-    // macOS
     (
         "aarch64-apple-darwin",
         &[
@@ -87,25 +91,16 @@ const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
 ];
 
 fn cmake_params_apple(config: &Config) -> &'static [(&'static str, &'static str)] {
-    for (next_target, params) in CMAKE_PARAMS_APPLE {
-        if *next_target == config.target {
-            return params;
-        }
-    }
-    &[]
+    CMAKE_PARAMS_APPLE
+        .iter()
+        .find_map(|&(target, params)| (target == config.target).then_some(params))
+        .unwrap_or_default()
 }
 
-fn get_apple_sdk_name(config: &Config) -> &'static str {
-    for (name, value) in cmake_params_apple(config) {
-        if *name == "CMAKE_OSX_SYSROOT" {
-            return value;
-        }
-    }
-
-    panic!(
-        "cannot find SDK for {} in CMAKE_PARAMS_APPLE",
-        config.target
-    );
+fn get_apple_sdk_name(config: &Config) -> Option<&'static str> {
+    cmake_params_apple(config)
+        .iter()
+        .find_map(|&(name, value)| (name == "CMAKE_OSX_SYSROOT").then_some(value))
 }
 
 /// Returns an absolute path to the BoringSSL source.
@@ -280,32 +275,11 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
             boringssl_cmake.define("CMAKE_ANDROID_STL_TYPE", "c++_shared");
         }
 
-        "macos" => {
+        os @ ("macos" | "ios") => {
             for (name, value) in cmake_params_apple(config) {
-                eprintln!("macos arch={} add {}={}", config.target_arch, name, value);
+                eprintln!("{os} arch={} add {}={}", config.target_arch, name, value);
                 boringssl_cmake.define(name, value);
             }
-        }
-
-        "ios" => {
-            for (name, value) in cmake_params_apple(config) {
-                eprintln!("ios arch={} add {}={}", config.target_arch, name, value);
-                boringssl_cmake.define(name, value);
-            }
-
-            // Bitcode is always on.
-            let bitcode_cflag = "-fembed-bitcode";
-
-            // Hack for Xcode 10.1.
-            let target_cflag = if config.target_arch == "x86_64" {
-                "-target x86_64-apple-ios-simulator"
-            } else {
-                ""
-            };
-
-            let cflag = format!("{bitcode_cflag} {target_cflag}");
-            boringssl_cmake.define("CMAKE_ASM_FLAGS", &cflag);
-            boringssl_cmake.cflag(&cflag);
         }
 
         "windows" if config.host.contains("windows") => {
@@ -394,8 +368,11 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
         "ios" | "macos" => {
             // When cross-compiling for Apple targets, tell bindgen to use SDK sysroot,
             // and *don't* use system headers of the host macOS.
-            let sdk = get_apple_sdk_name(config);
-            match run_command(Command::new("xcrun").args(["--show-sdk-path", "--sdk", sdk])) {
+            match get_apple_sdk_name(config)
+                .ok_or_else(|| io::Error::other(format!("can't find SDK for {}", config.target)))
+                .and_then(|sdk| {
+                    run_command(Command::new("xcrun").args(["--show-sdk-path", "--sdk", sdk]))
+                }) {
                 Ok(output) => {
                     let sysroot = std::str::from_utf8(&output.stdout).expect("xcrun output");
                     params.push("-isysroot".to_string());
