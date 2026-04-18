@@ -721,11 +721,12 @@ fn get_include_path(config: &Config) -> Result<PathBuf, String> {
 fn generate_bindings(config: &Config) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let include_path = get_include_path(config)?;
 
-    let target_rust_version = bindgen::RustTarget::stable(77, 0)
+    let target_rust_version = bindgen::RustTarget::stable(85, 0)
         .map_err(|e| format!("bindgen does not recognize target rust version: {e}"))?;
 
     let mut builder = bindgen::Builder::default()
-        .rust_target(target_rust_version) // bindgen MSRV is 1.70, so this is enough
+        .rust_target(target_rust_version)
+        .rust_edition(bindgen::RustEdition::Edition2024)
         .derive_copy(true)
         .derive_debug(true)
         .derive_default(true)

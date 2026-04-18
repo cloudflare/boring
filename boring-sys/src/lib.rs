@@ -72,7 +72,7 @@ pub mod internal {
     use super::EVP_MD;
     use std::os::raw::c_int;
 
-    extern "C" {
+    unsafe extern "C" {
         /// Calculates `out_len` bytes of the TLS 1.2 PRF using `digest` and writes
         /// them to `out`.
         ///

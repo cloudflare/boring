@@ -11,7 +11,7 @@ resolver = "2"
 version = "5.1.0"
 rust-version = "1.85"
 repository = "https://github.com/cloudflare/boring"
-edition = "2021"
+edition = "2024"
 
 [workspace.metadata.release]
 pre-release-commit-message = "Release {{version}}"
