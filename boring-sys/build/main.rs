@@ -204,7 +204,8 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
     let src_path = get_boringssl_source_path(config);
     let mut boringssl_cmake = cmake::Config::new(src_path);
 
-    if config.env.cmake_toolchain_file.is_some() {
+    if config.env.cmake_toolchain_file_is_set {
+        println!("cargo::warning=CMAKE_TOOLCHAIN_FILE var set; won't customize cmake vars");
         return boringssl_cmake;
     }
 
@@ -213,14 +214,18 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
         // This is required now because newest BoringSSL requires CMake 3.22 which
         // uses the new logic with CMAKE_MSVC_RUNTIME_LIBRARY introduced in CMake 3.15.
         // https://github.com/rust-lang/cmake-rs/pull/30#issuecomment-2969758499
-        if config.target_features.iter().any(|f| f == "crt-static") {
-            boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreaded");
+        let rt = if config.target_features.iter().any(|f| f == "crt-static") {
+            "MultiThreaded"
         } else {
-            boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreadedDLL");
-        }
+            "MultiThreadedDLL"
+        };
+        boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", rt);
     }
 
     if config.host == config.target {
+        if config.env.compiler_external_toolchain.is_some() {
+            println!("cargo::warning=COMPILER_EXTERNAL_TOOLCHAIN won't be used");
+        }
         return boringssl_cmake;
     }
 
@@ -253,7 +258,7 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
     }
 
     // Add platform-specific parameters for cross-compilation.
-    match &*config.target_os {
+    let toolchain_file = match &*config.target_os {
         "android" => {
             // We need ANDROID_NDK_HOME to be set properly.
             let android_ndk_home = config
@@ -266,68 +271,44 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                 boringssl_cmake.define(name, value);
             }
             let toolchain_file = android_ndk_home.join("build/cmake/android.toolchain.cmake");
-            let toolchain_file = toolchain_file.to_str().unwrap();
-            eprintln!("android toolchain={toolchain_file}");
-            boringssl_cmake.define("CMAKE_TOOLCHAIN_FILE", toolchain_file);
 
             // 21 is the minimum level tested. You can give higher value.
             boringssl_cmake.define("CMAKE_SYSTEM_VERSION", "21");
             boringssl_cmake.define("CMAKE_ANDROID_STL_TYPE", "c++_shared");
+            Some(toolchain_file)
         }
-
         os @ ("macos" | "ios") => {
             for (name, value) in cmake_params_apple(config) {
                 eprintln!("{os} arch={} add {}={}", config.target_arch, name, value);
                 boringssl_cmake.define(name, value);
             }
+            None
         }
-
         "windows" if config.host.contains("windows") => {
             // BoringSSL's CMakeLists.txt isn't set up for cross-compiling using Visual Studio.
             // Disable assembly support so that it at least builds.
             boringssl_cmake.define("OPENSSL_NO_ASM", "YES");
+            None
         }
-
         "linux" => match &*config.target_arch {
-            "x86" => {
-                boringssl_cmake.define(
-                    "CMAKE_TOOLCHAIN_FILE",
-                    // `src_path` can be a path relative to the manifest dir, but
-                    // cmake hates that.
-                    config
-                        .manifest_dir
-                        .join(src_path)
-                        .join("util/32-bit-toolchain.cmake")
-                        .as_os_str(),
-                );
-            }
-            "aarch64" => {
-                boringssl_cmake.define(
-                    "CMAKE_TOOLCHAIN_FILE",
-                    config
-                        .manifest_dir
-                        .join("cmake/aarch64-linux.cmake")
-                        .as_os_str(),
-                );
-            }
-            "arm" => {
-                boringssl_cmake.define(
-                    "CMAKE_TOOLCHAIN_FILE",
-                    config
-                        .manifest_dir
-                        .join("cmake/armv7-linux.cmake")
-                        .as_os_str(),
-                );
-            }
-            _ => {
-                println!(
-                    "cargo:warning=no toolchain file configured by boring-sys for {}",
-                    config.target
-                );
-            }
+            "x86" => Some(
+                config
+                    .manifest_dir
+                    .join(src_path)
+                    .join("util/32-bit-toolchain.cmake"),
+            ),
+            "aarch64" => Some(config.manifest_dir.join("cmake/aarch64-linux.cmake")),
+            "arm" => Some(config.manifest_dir.join("cmake/armv7-linux.cmake")),
+            _ => None,
         },
+        _ => None,
+    };
 
-        _ => {}
+    if let Some(tf) = toolchain_file.filter(|tf| tf.exists()) {
+        eprintln!("{} toolchain={}", config.target_os, tf.display());
+        boringssl_cmake.define("CMAKE_TOOLCHAIN_FILE", tf);
+    } else {
+        println!("cargo::warning=no toolchain file set for {}", config.target);
     }
 
     boringssl_cmake
