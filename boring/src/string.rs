@@ -83,5 +83,7 @@ impl fmt::Debug for OpensslStringRef {
 }
 
 unsafe fn free(buf: *mut c_char) {
-    crate::ffi::OPENSSL_free(buf.cast());
+    unsafe {
+        crate::ffi::OPENSSL_free(buf.cast());
+    }
 }

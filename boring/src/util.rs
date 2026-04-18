@@ -46,22 +46,24 @@ pub unsafe extern "C" fn invoke_passwd_cb<F>(
 where
     F: FnOnce(&mut [u8]) -> Result<usize, ErrorStack>,
 {
-    let callback = &mut *cb_state.cast::<CallbackState<F>>();
+    unsafe {
+        let callback = &mut *cb_state.cast::<CallbackState<F>>();
 
-    let result = panic::catch_unwind(AssertUnwindSafe(|| {
-        let pass_slice = slice::from_raw_parts_mut(buf.cast::<u8>(), size as usize);
-        callback.cb.take().unwrap()(pass_slice)
-    }));
+        let result = panic::catch_unwind(AssertUnwindSafe(|| {
+            let pass_slice = slice::from_raw_parts_mut(buf.cast::<u8>(), size as usize);
+            callback.cb.take().unwrap()(pass_slice)
+        }));
 
-    match result {
-        Ok(Ok(len)) => len as c_int,
-        Ok(Err(err)) => {
-            err.put();
-            0
-        }
-        Err(err) => {
-            callback.panic = Some(err);
-            0
+        match result {
+            Ok(Ok(len)) => len as c_int,
+            Ok(Err(err)) => {
+                err.put();
+                0
+            }
+            Err(err) => {
+                callback.panic = Some(err);
+                0
+            }
         }
     }
 }
@@ -72,7 +74,7 @@ pub trait ForeignTypeExt: ForeignType {
         if ptr.is_null() {
             None
         } else {
-            Some(Self::from_ptr(ptr))
+            Some(unsafe { Self::from_ptr(ptr) })
         }
     }
 }
@@ -80,14 +82,14 @@ impl<FT: ForeignType> ForeignTypeExt for FT {}
 
 pub trait ForeignTypeRefExt: ForeignTypeRef {
     unsafe fn from_const_ptr<'a>(ptr: *const Self::CType) -> &'a Self {
-        Self::from_ptr(ptr.cast_mut())
+        unsafe { Self::from_ptr(ptr.cast_mut()) }
     }
 
     unsafe fn from_const_ptr_opt<'a>(ptr: *const Self::CType) -> Option<&'a Self> {
         if ptr.is_null() {
             None
         } else {
-            Some(Self::from_const_ptr(ptr.cast_mut()))
+            Some(unsafe { Self::from_const_ptr(ptr.cast_mut()) })
         }
     }
 }
