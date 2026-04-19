@@ -292,6 +292,18 @@ impl BigNumRef {
         unsafe { BN_is_negative(self.as_ptr()) == 1 }
     }
 
+    #[corresponds(BN_is_odd)]
+    #[must_use]
+    pub fn is_odd(&self) -> bool {
+        unsafe { ffi::BN_is_odd(self.as_ptr()) == 1 }
+    }
+
+    #[corresponds(BN_is_even)]
+    #[must_use]
+    pub fn is_even(&self) -> bool {
+        !self.is_odd()
+    }
+
     /// Returns the number of significant bits in `self`.
     #[corresponds(BN_num_bits)]
     #[must_use]
@@ -795,6 +807,32 @@ impl BigNumRef {
         }
     }
 
+    /// Places into `self` the modular square root of `a` such that `self^2 = a (mod p)`.
+    ///
+    /// Returns an error or if `a` is not a square mod `p`. In the latter case, it will add
+    /// `BN_R_NOT_A_SQUARE` to the error queue. If `a` is a square and `p` > 2, there are two
+    /// possible square roots; this function may return either.
+    ///
+    /// This function only works if `p` is a prime. If `p` is composite, it may fail or return an
+    /// arbitrary value. Callers should not pass attacker-controlled values of `p`.
+    #[corresponds(BN_mod_sqrt)]
+    pub fn mod_sqrt(
+        &mut self,
+        a: &BigNumRef,
+        p: &BigNumRef,
+        ctx: &mut BigNumContextRef,
+    ) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_p(ffi::BN_mod_sqrt(
+                self.as_ptr(),
+                a.as_ptr(),
+                p.as_ptr(),
+                ctx.as_ptr(),
+            ))
+            .map(|_| ())
+        }
+    }
+
     /// Returns an `Asn1Integer` containing the value of `self`.
     #[corresponds(BN_to_ASN1_INTEGER)]
     pub fn to_asn1_integer(&self) -> Result<Asn1Integer, ErrorStack> {
@@ -850,10 +888,6 @@ impl BigNum {
 
     /// Creates a new `BigNum` from an unsigned, big-endian encoded number of arbitrary length.
     ///
-    /// OpenSSL documentation at [`BN_bin2bn`]
-    ///
-    /// [`BN_bin2bn`]: https://www.openssl.org/docs/man1.1.0/crypto/BN_bin2bn.html
-    ///
     /// ```
     /// # use boring::bn::BigNum;
     /// let bignum = BigNum::from_slice(&[0x12, 0x00, 0x34]).unwrap();
@@ -866,6 +900,15 @@ impl BigNum {
             ffi::init();
             assert!(n.len() <= c_int::MAX as usize);
             cvt_p(ffi::BN_bin2bn(n.as_ptr(), n.len(), ptr::null_mut())).map(|p| BigNum::from_ptr(p))
+        }
+    }
+
+    /// Copies data from a big-endian byte slice into `self`, overwriting its current value.
+    #[corresponds(BN_bin2bn)]
+    pub fn copy_from_slice(&mut self, n: &[u8]) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_p(ffi::BN_bin2bn(n.as_ptr(), n.len(), self.as_ptr()))?;
+            Ok(())
         }
     }
 }
@@ -1129,11 +1172,15 @@ mod tests {
 
     #[test]
     fn test_to_from_slice() {
-        let v0 = BigNum::from_u32(10_203_004).unwrap();
+        let mut v0 = BigNum::from_u32(10_203_004).unwrap();
         let vec = v0.to_vec();
         let v1 = BigNum::from_slice(&vec).unwrap();
-
         assert_eq!(v0, v1);
+
+        v0.copy_from_slice(&[0x12, 0, 0x34]).unwrap();
+        assert_eq!(v0, BigNum::from_u32(0x12_0034).unwrap());
+        v0.copy_from_slice(&[0xff]).unwrap();
+        assert_eq!(v0, BigNum::from_u32(0xff).unwrap());
     }
 
     #[test]
@@ -1176,5 +1223,26 @@ mod tests {
         let mut ctx = BigNumContext::new().unwrap();
         assert!(p.is_prime(100, &mut ctx).unwrap());
         assert!(p.is_prime_fasttest(100, &mut ctx, true).unwrap());
+    }
+
+    #[test]
+    fn test_mod_sqrt() {
+        let mut ctx = BigNumContext::new().unwrap();
+
+        // 2 is a quadratic residue mod 0x7DEB1 (a prime)
+        let s = BigNum::from_hex_str("2").unwrap();
+        let p = BigNum::from_hex_str("7DEB1").unwrap();
+        let mut sqrt = BigNum::new().unwrap();
+        let mut out = BigNum::new().unwrap();
+
+        // Square the root since there are two possible roots; verify the square equals s mod p
+        sqrt.mod_sqrt(&s, &p, &mut ctx).unwrap();
+        out.mod_sqr(&sqrt, &p, &mut ctx).unwrap();
+        assert_eq!(out, s);
+
+        // 3 is not a quadratic residue mod 5, so mod_sqrt must fail
+        let non_residue = BigNum::from_hex_str("3").unwrap();
+        let p5 = BigNum::from_hex_str("5").unwrap();
+        assert!(out.mod_sqrt(&non_residue, &p5, &mut ctx).is_err());
     }
 }

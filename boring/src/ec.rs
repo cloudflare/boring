@@ -204,11 +204,19 @@ impl EcGroupRef {
         }
     }
 
-    /// Sets the flag determining if the group corresponds to a named curve or must be explicitly
-    /// parameterized.
-    ///
-    /// This defaults to `EXPLICIT_CURVE` in OpenSSL 1.0.1 and 1.0.2, but `NAMED_CURVE` in OpenSSL
-    /// 1.1.0.
+    /// Returns [`Asn1Flag::NAMED_CURVE`].
+    #[doc(hidden)]
+    #[deprecated(note = "BoringSSL always returns `OPENSSL_EC_NAMED_CURVE`")]
+    #[corresponds(EC_GROUP_get_asn1_flag)]
+    #[must_use]
+    pub fn asn1_flag(&self) -> Asn1Flag {
+        unsafe { Asn1Flag(ffi::EC_GROUP_get_asn1_flag(self.as_ptr())) }
+    }
+
+    /// No-op
+    #[doc(hidden)]
+    #[deprecated(note = "Ignored in BoringSSL")]
+    #[corresponds(EC_GROUP_set_asn1_flag)]
     pub fn set_asn1_flag(&mut self, flag: Asn1Flag) {
         unsafe {
             ffi::EC_GROUP_set_asn1_flag(self.as_ptr(), flag.0);
@@ -403,6 +411,7 @@ impl EcPointRef {
 
     /// Place affine coordinates of a curve over a prime field in the provided
     /// `x` and `y` `BigNum`s
+    #[doc(alias = "affine_coordinates")]
     #[corresponds(EC_POINT_get_affine_coordinates_GFp)]
     pub fn affine_coordinates_gfp(
         &self,
@@ -419,6 +428,53 @@ impl EcPointRef {
                 y.as_ptr(),
                 ctx.as_ptr(),
             ))
+        }
+    }
+
+    /// An alias for [`affine_coordinates_gfp`](Self::affine_coordinates_gfp).
+    #[corresponds(EC_POINT_get_affine_coordinates)]
+    #[doc(hidden)]
+    pub fn affine_coordinates(
+        &self,
+        group: &EcGroupRef,
+        x: &mut BigNumRef,
+        y: &mut BigNumRef,
+        ctx: &mut BigNumContextRef,
+    ) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt(ffi::EC_POINT_get_affine_coordinates(
+                group.as_ptr(),
+                self.as_ptr(),
+                x.as_ptr(),
+                y.as_ptr(),
+                ctx.as_ptr(),
+            ))
+        }
+    }
+
+    /// Returns `true` if `self` is the point at infinity and `false` otherwise.
+    #[corresponds(EC_POINT_is_at_infinity)]
+    #[must_use]
+    pub fn is_infinity(&self, group: &EcGroupRef) -> bool {
+        unsafe { ffi::EC_POINT_is_at_infinity(group.as_ptr(), self.as_ptr()) == 1 }
+    }
+
+    /// Returns `Ok(true)` if `self` is an element of `group` and `Ok(false)` otherwise.
+    /// `ctx` is ignored. This method exists for rust-openssl interoperability.
+    #[corresponds(EC_POINT_is_on_curve)]
+    #[doc(hidden)]
+    pub fn is_on_curve(
+        &self,
+        group: &EcGroupRef,
+        ctx: &mut BigNumContextRef,
+    ) -> Result<bool, ErrorStack> {
+        unsafe {
+            let res = cvt_n(ffi::EC_POINT_is_on_curve(
+                group.as_ptr(),
+                self.as_ptr(),
+                ctx.as_ptr(),
+            ))?;
+            Ok(res == 1)
         }
     }
 }
