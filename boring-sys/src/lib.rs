@@ -68,6 +68,15 @@ pub fn init() {
     }
 }
 
+// CBS_init is inline in BoringSSL, so bindgen can't generate bindings for it.
+#[inline]
+pub fn cbs_init(data: &[u8]) -> CBS {
+    CBS {
+        data: data.as_ptr(),
+        len: data.len(),
+    }
+}
+
 pub mod internal {
     use super::EVP_MD;
     use std::os::raw::c_int;

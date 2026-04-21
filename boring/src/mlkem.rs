@@ -21,15 +21,7 @@ use std::mem::MaybeUninit;
 use crate::cvt;
 use crate::error::ErrorStack;
 use crate::ffi;
-
-// CBS_init is inline in BoringSSL, so bindgen can't generate bindings for it.
-#[inline]
-fn cbs_init(data: &[u8]) -> ffi::CBS {
-    ffi::CBS {
-        data: data.as_ptr(),
-        len: data.len(),
-    }
-}
+use crate::ffi::cbs_init;
 
 /// Private key seed size (64 bytes).
 pub const PRIVATE_KEY_SEED_BYTES: usize = ffi::MLKEM_SEED_BYTES as usize;
