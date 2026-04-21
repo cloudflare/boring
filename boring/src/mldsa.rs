@@ -23,15 +23,7 @@ use std::mem::MaybeUninit;
 use crate::cvt;
 use crate::error::ErrorStack;
 use crate::ffi;
-
-// CBS_init is inline in BoringSSL, so bindgen can't generate bindings for it.
-#[inline]
-fn cbs_init(data: &[u8]) -> ffi::CBS {
-    ffi::CBS {
-        data: data.as_ptr(),
-        len: data.len(),
-    }
-}
+use crate::ffi::cbs_init;
 
 /// Seed size (32 bytes, shared across all ML-DSA parameter sets).
 pub const SEED_BYTES: usize = ffi::MLDSA_SEED_BYTES as usize;
