@@ -31,6 +31,8 @@ pq-experimental = []
 
 # Interface for ML-KEM (FIPS 203) post-quantum key encapsulation. Does not affect ciphers used in TLS.
 mlkem = []
+# ML-DSA (FIPS 204) post-quantum digital signature.
+mldsa = []
 
 # Expose internal `tls1_prf`
 prf = []
