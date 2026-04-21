@@ -69,7 +69,7 @@ jobs:
           key: index-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.toml') }}
           enableCrossOsArchive: true
       - name: Run clippy
-        run: cargo clippy --all --all-targets --features rpk,prf,mlkem
+        run: cargo clippy --all --all-targets --features rpk,prf,mlkem,mldsa
       - name: Check docs
         run: cargo doc --no-deps -p boring -p boring-sys -p hyper-boring -p tokio-boring --features rpk,underscore-wildcards
         env:
@@ -438,7 +438,7 @@ jobs:
       shell: bash
     - run: cargo check --no-default-features
       name: Check `--no-default-features`
-    - run: cargo check --features prf,mlkem,credential
+    - run: cargo check --features prf,mlkem,mldsa,credential
       name: Check `mlkem,credential`
     - run: cargo test --features rpk,prf
       name: Run `rpk` tests
@@ -446,5 +446,5 @@ jobs:
       name: Run `underscore-wildcards` tests
     - run: cargo test --features rpk,underscore-wildcards
       name: Run `rpk,underscore-wildcards` tests
-    - run: cargo test --features rpk,underscore-wildcards,mlkem
+    - run: cargo test --features rpk,underscore-wildcards,mlkem,mldsa
       name: Run `rpk,underscore-wildcards` tests
