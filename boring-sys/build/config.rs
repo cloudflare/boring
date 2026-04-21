@@ -21,6 +21,7 @@ pub(crate) struct Features {
     pub(crate) fips: bool,
     pub(crate) rpk: bool,
     pub(crate) underscore_wildcards: bool,
+    pub(crate) allow_crl_extensions_bad_version: bool,
 }
 
 pub(crate) struct Env {
@@ -130,6 +131,7 @@ impl Features {
             fips: cfg!(feature = "fips"),
             rpk: cfg!(feature = "rpk"),
             underscore_wildcards: cfg!(feature = "underscore-wildcards"),
+            allow_crl_extensions_bad_version: cfg!(feature = "allow-crl-extensions-bad-version"),
         }
     }
 

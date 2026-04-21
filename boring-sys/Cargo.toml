@@ -61,6 +61,9 @@ rpk = []
 # Require mlkem.h
 mlkem = []
 
+# Violate RFC 5280 5.1.2.1 and allow certs with CRL extensions without a correct version
+allow-crl-extensions-bad-version = []
+
 # Applies a patch (`patches/underscore-wildcards.patch`) to enable
 # `ffi::X509_CHECK_FLAG_UNDERSCORE_WILDCARDS`. This feature is necessary in
 # order to compile the bindings for the default branch of boringSSL
