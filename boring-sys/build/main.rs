@@ -791,6 +791,7 @@ fn generate_bindings(config: &Config) -> Result<PathBuf, Box<dyn std::error::Err
         "md4.h",
         "md5.h",
         "mlkem.h",
+        "mldsa.h",
         "obj_mac.h",
         "objects.h",
         "opensslv.h",
