@@ -43,7 +43,7 @@ credential = []
 # default branch of boringSSL. Alternatively, a version of boringSSL that
 # implements the same feature set can be provided by setting
 # `BORING_BSSL{,_FIPS}_SOURCE_PATH` and `BORING_BSSL{,_FIPS}_ASSUME_PATCHED`.
-rpk = ["credential", "boring-sys/rpk"]
+rpk = ["credential"]
 
 # Applies a patch to enable `ffi::X509_CHECK_FLAG_UNDERSCORE_WILDCARDS`. This
 # feature is necessary in order to compile the bindings for the default branch

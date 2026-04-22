@@ -43,7 +43,7 @@ include = [
 ]
 
 [package.metadata.docs.rs]
-features = ["rpk", "underscore-wildcards", "mlkem"]
+features = ["underscore-wildcards", "mlkem"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -54,9 +54,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 # https://boringssl.googlesource.com/boringssl/+/master/crypto/fipsmodule/FIPS.md
 # for instructions and more details on the boringssl FIPS flag.
 fips = []
-
-# Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
-rpk = []
 
 # Require mlkem.h
 mlkem = []

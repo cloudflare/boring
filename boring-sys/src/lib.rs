@@ -32,8 +32,6 @@ pub use generated::{BIO_new, OPENSSL_free, SSL_ERROR_NONE}; // if these are miss
 pub use generated::{FIPS_mode, SSL_CTX_set_compliance_policy}; // your include path is incorrect or has a version of boringssl without FIPS support
 #[cfg(feature = "mlkem")]
 pub use generated::{MLKEM768_encap, MLKEM768_private_key_from_seed}; // your include path is incorrect or has a version of boringssl without mlkem support
-#[cfg(feature = "rpk")]
-pub use generated::{SSL_CREDENTIAL_new_raw_public_key, SSL_CREDENTIAL_set1_spki}; // your include path is incorrect or has a version of boringssl without rpk support
 
 pub use generated::*;
 
