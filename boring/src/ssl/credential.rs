@@ -29,12 +29,12 @@ foreign_type_and_impl_send_sync! {
 
 impl SslCredential {
     /// Create a credential suitable for a handshake using a raw public key.
-    #[corresponds(SSL_CREDENTIAL_new_raw_public_key)]
+    #[corresponds(SSL_CREDENTIAL_new_raw_public_key_empty)]
     #[cfg(feature = "rpk")]
     pub fn new_raw_public_key() -> Result<SslCredentialBuilder, ErrorStack> {
         unsafe {
             Ok(SslCredentialBuilder(Self::from_ptr(cvt_p(
-                ffi::SSL_CREDENTIAL_new_raw_public_key(),
+                ffi::SSL_CREDENTIAL_new_raw_public_key_empty(),
             )?)))
         }
     }
@@ -172,9 +172,9 @@ impl SslCredentialBuilder {
         }
     }
 
-    // Sets the SPKI of the raw public key credential.
-    //
-    // If `spki` is `None`, the SPKI is extracted from the credential's private key.
+    /// Sets the SPKI of the raw public key credential.
+    ///
+    /// If `spki` is `None`, the SPKI is extracted from the credential's private key.
     #[corresponds(SSL_CREDENTIAL_set1_spki)]
     #[cfg(feature = "rpk")]
     pub fn set_spki_bytes(&mut self, spki: Option<&[u8]>) -> Result<(), ErrorStack> {
@@ -208,4 +208,65 @@ impl SslCredentialBuilder {
 
 unsafe fn get_new_ssl_credential_idx(f: ffi::CRYPTO_EX_free) -> c_int {
     ffi::SSL_CREDENTIAL_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, f)
+}
+
+#[cfg(all(test, feature = "rpk"))]
+mod tests {
+    use super::*;
+    use crate::ec::{EcGroup, EcKey};
+    use crate::nid::Nid;
+    use crate::pkey::PKey;
+
+    fn generate_key() -> PKey<Private> {
+        let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).unwrap();
+        let ec_key = EcKey::generate(&group).unwrap();
+        PKey::from_ec_key(ec_key).unwrap()
+    }
+
+    fn spki_from_pkey(pkey: &PKey<Private>) -> Vec<u8> {
+        pkey.public_key_to_der().unwrap()
+    }
+
+    #[test]
+    fn set_spki_bytes_none_derives_from_private_key() {
+        let key = generate_key();
+
+        let mut cred = SslCredential::new_raw_public_key().unwrap();
+        cred.set_private_key(&key).unwrap();
+        // With a private key set, passing `None` should succeed and derive the
+        // SPKI from the private key.
+        cred.set_spki_bytes(None).unwrap();
+    }
+
+    #[test]
+    fn set_spki_bytes_none_without_private_key_fails() {
+        let mut cred = SslCredential::new_raw_public_key().unwrap();
+        // Without a private key, passing `None` should return an error.
+        let err = cred.set_spki_bytes(None).unwrap_err();
+        assert!(!err.errors().is_empty());
+    }
+
+    #[test]
+    fn set_spki_bytes_some_matching_private_key_succeeds() {
+        let key = generate_key();
+        let spki = spki_from_pkey(&key);
+
+        let mut cred = SslCredential::new_raw_public_key().unwrap();
+        cred.set_private_key(&key).unwrap();
+        cred.set_spki_bytes(Some(&spki)).unwrap();
+    }
+
+    #[test]
+    fn set_spki_bytes_some_mismatched_private_key_fails() {
+        let key = generate_key();
+        let other_key = generate_key();
+        let wrong_spki = spki_from_pkey(&other_key);
+
+        let mut cred = SslCredential::new_raw_public_key().unwrap();
+        cred.set_private_key(&key).unwrap();
+        // The public key derived from `wrong_spki` does not match the
+        // configured private key, so this must fail.
+        let err = cred.set_spki_bytes(Some(&wrong_spki)).unwrap_err();
+        assert!(!err.errors().is_empty());
+    }
 }
