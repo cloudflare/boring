@@ -1,8 +1,5 @@
 //! ML-DSA (FIPS 204) post-quantum digital signature.
 //!
-//! ML-DSA-65 is the recommended parameter set, offering NIST security level 3
-//! (roughly equivalent to AES-192).
-//!
 //! ```
 //! use boring::mldsa::{MlDsaPrivateKey, MlDsaPublicKey, Algorithm};
 //!
@@ -36,7 +33,7 @@ pub type MlDsaSeed = [u8; SEED_BYTES];
 pub enum Algorithm {
     /// NIST security level 2 (AES-128 equivalent).
     MlDsa44,
-    /// Recommended. NIST security level 3 (AES-192 equivalent).
+    /// NIST security level 3 (AES-192 equivalent).
     MlDsa65,
     /// NIST security level 5 (AES-256 equivalent).
     MlDsa87,
