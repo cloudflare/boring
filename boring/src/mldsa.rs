@@ -23,10 +23,10 @@ use crate::ffi;
 use crate::ffi::cbs_init;
 
 /// Seed size (32 bytes, shared across all ML-DSA parameter sets).
-pub const SEED_BYTES: usize = ffi::MLDSA_SEED_BYTES as usize;
+pub const PRIVATE_KEY_SEED_BYTES: usize = ffi::MLDSA_SEED_BYTES as usize;
 
 /// Raw bytes of a private key seed ([`SEED_BYTES`] long).
-pub type MlDsaSeed = [u8; SEED_BYTES];
+pub type MlDsaPrivateKeySeed = [u8; PRIVATE_KEY_SEED_BYTES];
 
 /// ML-DSA parameter set selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,11 +62,13 @@ impl Algorithm {
 }
 
 /// An ML-DSA public key (any parameter set).
+#[derive(Clone)]
 pub struct MlDsaPublicKey {
     algorithm: Algorithm,
     inner: PublicKeyInner,
 }
 
+#[derive(Clone)]
 enum PublicKeyInner {
     MlDsa44(Box<ffi::MLDSA44_public_key>),
     MlDsa65(Box<ffi::MLDSA65_public_key>),
@@ -76,7 +78,7 @@ enum PublicKeyInner {
 /// An ML-DSA private key (any parameter set).
 pub struct MlDsaPrivateKey {
     algorithm: Algorithm,
-    seed: MlDsaSeed,
+    seed: MlDsaPrivateKeySeed,
     inner: PrivateKeyInner,
 }
 
@@ -84,6 +86,12 @@ enum PrivateKeyInner {
     MlDsa44(Box<ffi::MLDSA44_private_key>),
     MlDsa65(Box<ffi::MLDSA65_private_key>),
     MlDsa87(Box<ffi::MLDSA87_private_key>),
+}
+
+impl Clone for MlDsaPrivateKey {
+    fn clone(&self) -> Self {
+        Self::from_seed(self.algorithm, &self.seed).unwrap()
+    }
 }
 
 impl MlDsaPrivateKey {
@@ -96,14 +104,14 @@ impl MlDsaPrivateKey {
             match algorithm {
                 Algorithm::MlDsa44 => {
                     let mut pub_bytes = [0u8; ffi::MLDSA44_PUBLIC_KEY_BYTES as usize];
-                    let mut seed = [0u8; SEED_BYTES];
+                    let mut seed = [0u8; PRIVATE_KEY_SEED_BYTES];
                     let mut priv_key: MaybeUninit<ffi::MLDSA44_private_key> = MaybeUninit::uninit();
                     cvt(ffi::MLDSA44_generate_key(
                         pub_bytes.as_mut_ptr(),
                         seed.as_mut_ptr(),
                         priv_key.as_mut_ptr(),
                     ))?;
-                    let public_key = MlDsaPublicKey::from_bytes(algorithm, &pub_bytes)?;
+                    let public_key = MlDsaPublicKey::from_slice(algorithm, &pub_bytes)?;
                     Ok((
                         public_key,
                         MlDsaPrivateKey {
@@ -115,14 +123,14 @@ impl MlDsaPrivateKey {
                 }
                 Algorithm::MlDsa65 => {
                     let mut pub_bytes = [0u8; ffi::MLDSA65_PUBLIC_KEY_BYTES as usize];
-                    let mut seed = [0u8; SEED_BYTES];
+                    let mut seed = [0u8; PRIVATE_KEY_SEED_BYTES];
                     let mut priv_key: MaybeUninit<ffi::MLDSA65_private_key> = MaybeUninit::uninit();
                     cvt(ffi::MLDSA65_generate_key(
                         pub_bytes.as_mut_ptr(),
                         seed.as_mut_ptr(),
                         priv_key.as_mut_ptr(),
                     ))?;
-                    let public_key = MlDsaPublicKey::from_bytes(algorithm, &pub_bytes)?;
+                    let public_key = MlDsaPublicKey::from_slice(algorithm, &pub_bytes)?;
                     Ok((
                         public_key,
                         MlDsaPrivateKey {
@@ -134,14 +142,14 @@ impl MlDsaPrivateKey {
                 }
                 Algorithm::MlDsa87 => {
                     let mut pub_bytes = [0u8; ffi::MLDSA87_PUBLIC_KEY_BYTES as usize];
-                    let mut seed = [0u8; SEED_BYTES];
+                    let mut seed = [0u8; PRIVATE_KEY_SEED_BYTES];
                     let mut priv_key: MaybeUninit<ffi::MLDSA87_private_key> = MaybeUninit::uninit();
                     cvt(ffi::MLDSA87_generate_key(
                         pub_bytes.as_mut_ptr(),
                         seed.as_mut_ptr(),
                         priv_key.as_mut_ptr(),
                     ))?;
-                    let public_key = MlDsaPublicKey::from_bytes(algorithm, &pub_bytes)?;
+                    let public_key = MlDsaPublicKey::from_slice(algorithm, &pub_bytes)?;
                     Ok((
                         public_key,
                         MlDsaPrivateKey {
@@ -156,7 +164,7 @@ impl MlDsaPrivateKey {
     }
 
     /// Regenerates a private key from a seed value.
-    pub fn from_seed(algorithm: Algorithm, seed: &MlDsaSeed) -> Result<Self, ErrorStack> {
+    pub fn from_seed(algorithm: Algorithm, seed: &MlDsaPrivateKeySeed) -> Result<Self, ErrorStack> {
         unsafe {
             ffi::init();
             match algorithm {
@@ -209,7 +217,7 @@ impl MlDsaPrivateKey {
     }
 
     /// Returns the seed bytes for this private key.
-    pub fn seed(&self) -> &MlDsaSeed {
+    pub fn seed_bytes(&self) -> &MlDsaPrivateKeySeed {
         &self.seed
     }
 
@@ -261,12 +269,20 @@ impl MlDsaPrivateKey {
 
 impl MlDsaPublicKey {
     /// Parses a public key from its serialized form.
-    pub fn from_bytes(algorithm: Algorithm, bytes: &[u8]) -> Result<Self, ErrorStack> {
+    pub fn from_slice(
+        algorithm: Algorithm,
+        serialized_public_key: &[u8],
+    ) -> Result<Self, ErrorStack> {
+        ffi::init();
+
+        if serialized_public_key.len() != algorithm.public_key_bytes() {
+            return Err(ErrorStack::internal_error_str("invalid public key length"));
+        }
+        let mut cbs = cbs_init(serialized_public_key);
+
         unsafe {
-            ffi::init();
             match algorithm {
                 Algorithm::MlDsa44 => {
-                    let mut cbs = cbs_init(bytes);
                     let mut key: MaybeUninit<ffi::MLDSA44_public_key> = MaybeUninit::uninit();
                     cvt(ffi::MLDSA44_parse_public_key(key.as_mut_ptr(), &mut cbs))?;
                     if cbs.len != 0 {
@@ -280,7 +296,6 @@ impl MlDsaPublicKey {
                     })
                 }
                 Algorithm::MlDsa65 => {
-                    let mut cbs = cbs_init(bytes);
                     let mut key: MaybeUninit<ffi::MLDSA65_public_key> = MaybeUninit::uninit();
                     cvt(ffi::MLDSA65_parse_public_key(key.as_mut_ptr(), &mut cbs))?;
                     if cbs.len != 0 {
@@ -294,7 +309,6 @@ impl MlDsaPublicKey {
                     })
                 }
                 Algorithm::MlDsa87 => {
-                    let mut cbs = cbs_init(bytes);
                     let mut key: MaybeUninit<ffi::MLDSA87_public_key> = MaybeUninit::uninit();
                     cvt(ffi::MLDSA87_parse_public_key(key.as_mut_ptr(), &mut cbs))?;
                     if cbs.len != 0 {
@@ -398,9 +412,12 @@ mod tests {
                 fn sign_and_verify() {
                     let (pk, sk) = MlDsaPrivateKey::generate($alg).unwrap();
                     let msg = b"test message";
-                    let sig = sk.sign(msg).unwrap();
-                    assert_eq!(sig.len(), $alg.signature_bytes());
-                    assert!(pk.verify(msg, &sig).is_ok());
+                    let sig1 = sk.sign(msg).unwrap();
+                    let sig2 = sk.clone().sign(msg).unwrap();
+                    assert_eq!(sig1.len(), $alg.signature_bytes());
+                    assert!(pk.verify(msg, &sig1).is_ok());
+                    assert!(pk.verify(msg, &sig2).is_ok());
+                    assert!(pk.clone().verify(msg, &sig1).is_ok());
                 }
 
                 #[test]
@@ -422,10 +439,12 @@ mod tests {
                 #[test]
                 fn seed_roundtrip() {
                     let (pk, sk) = MlDsaPrivateKey::generate($alg).unwrap();
-                    let sk2 = MlDsaPrivateKey::from_seed($alg, sk.seed()).unwrap();
+                    let sk2 = MlDsaPrivateKey::from_seed($alg, sk.seed_bytes()).unwrap();
                     let msg = b"seed roundtrip";
-                    let sig = sk2.sign(msg).unwrap();
-                    assert!(pk.verify(msg, &sig).is_ok());
+                    let sig1 = sk2.sign(msg).unwrap();
+                    let sig2 = sk2.clone().sign(msg).unwrap();
+                    assert!(pk.verify(msg, &sig1).is_ok());
+                    assert!(pk.verify(msg, &sig2).is_ok());
                 }
 
                 #[test]
@@ -433,7 +452,7 @@ mod tests {
                     let (_, sk) = MlDsaPrivateKey::generate($alg).unwrap();
                     let dbg = format!("{:?}", sk);
                     assert!(dbg.contains("redacted"));
-                    assert!(!dbg.contains(&format!("{:?}", sk.seed())));
+                    assert!(!dbg.contains(&format!("{:?}", sk.seed_bytes())));
                 }
             }
         };

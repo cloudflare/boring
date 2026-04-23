@@ -688,7 +688,11 @@ mod tests {
                         let (pk, sk) = MlKemPrivateKey::generate($algorithm).unwrap();
                         let (ct, ss1) = pk.encapsulate().unwrap();
                         let ss2 = sk.decapsulate(&ct).unwrap();
+                        let ss3 = sk.clone().decapsulate(&ct).unwrap();
+                        let ss4 = sk.decapsulate(&ct.clone()).unwrap();
                         assert_eq!(ss1, ss2);
+                        assert_eq!(ss1, ss3);
+                        assert_eq!(ss1, ss4);
                     }
 
                     #[test]
