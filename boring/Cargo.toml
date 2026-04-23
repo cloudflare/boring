@@ -13,7 +13,7 @@ edition = { workspace = true }
 rust-version = { workspace = true }
 
 [package.metadata.docs.rs]
-features = ["rpk", "underscore-wildcards"]
+features = ["rpk", "underscore-wildcards", "mlkem", "mldsa"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
