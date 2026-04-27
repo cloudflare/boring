@@ -61,7 +61,8 @@ rpk = []
 # Require mlkem.h
 mlkem = []
 
-# Violate RFC 5280 5.1.2.1 and allow certs with CRL extensions without a correct version
+# Violate RFC 5280 5.1.2.1 and allow certs with CRL extensions in X.509 version 1.
+# This feature is not guaranteed to be supported in future minor releases.
 allow-crl-extensions-bad-version = []
 
 # Applies a patch (`patches/underscore-wildcards.patch`) to enable
