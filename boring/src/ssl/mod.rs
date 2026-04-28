@@ -2056,14 +2056,14 @@ impl SslContextBuilder {
 
     /// Sets the list of server certificate types that clients attached to this context
     /// can process.
-    #[corresponds(SSL_CTX_set_server_certificate_types)]
+    #[corresponds(SSL_CTX_set1_accepted_peer_cert_types)]
     #[cfg(feature = "rpk")]
     pub fn set_server_certificate_types(
         &mut self,
         types: &[CertificateType],
     ) -> Result<(), ErrorStack> {
         unsafe {
-            cvt_0i(ffi::SSL_CTX_set_server_certificate_types(
+            cvt_0i(ffi::SSL_CTX_set1_accepted_peer_cert_types(
                 self.as_ptr(),
                 types.as_ptr() as *const u8,
                 types.len(),
@@ -2366,7 +2366,7 @@ impl SslContextRef {
         let mut types = ptr::null();
         let mut types_len = 0;
         unsafe {
-            ffi::SSL_CTX_get0_server_certificate_types(self.as_ptr(), &mut types, &mut types_len);
+            ffi::SSL_CTX_get0_accepted_peer_cert_types(self.as_ptr(), &mut types, &mut types_len);
 
             if types_len == 0 {
                 return None;
@@ -3862,16 +3862,24 @@ impl SslRef {
         }
     }
 
-    /// Sets the list of server certificate types that clients attached to this `Ssl`
-    /// can process.
-    #[corresponds(SSL_set_server_certificate_types)]
+    /// Sets the list of server certificate types that this client will accept
+    /// from the server.
+    ///
+    /// Only valid on a client-side `Ssl`; returns an error on server-side SSLs.
+    #[corresponds(SSL_set1_accepted_peer_cert_types)]
     #[cfg(feature = "rpk")]
     pub fn set_server_certificate_types(
         &mut self,
         types: &[CertificateType],
     ) -> Result<(), ErrorStack> {
+        if self.is_server() {
+            return Err(ErrorStack::internal_error_str(
+                "called set_server_certificate_types as server",
+            ));
+        }
+
         unsafe {
-            cvt_0i(ffi::SSL_set_server_certificate_types(
+            cvt_0i(ffi::SSL_set1_accepted_peer_cert_types(
                 self.as_ptr(),
                 types.as_ptr() as *const u8,
                 types.len(),
@@ -3880,15 +3888,22 @@ impl SslRef {
         }
     }
 
-    /// Returns the list of server certificate types.
-    #[corresponds(SSL_get0_server_certificate_types)]
+    /// Returns the list of server certificate types that this client will
+    /// accept from the server, or `None` if none are configured.
+    ///
+    /// Only valid on a client-side `Ssl`; returns `None` on server-side SSLs.
+    #[corresponds(SSL_get0_accepted_peer_cert_types)]
     #[must_use]
     #[cfg(feature = "rpk")]
     pub fn server_certificate_types(&self) -> Option<&[CertificateType]> {
+        if self.is_server() {
+            return None;
+        }
+
         let mut types = ptr::null();
         let mut types_len = 0;
         unsafe {
-            ffi::SSL_get0_server_certificate_types(self.as_ptr(), &mut types, &mut types_len);
+            ffi::SSL_get0_accepted_peer_cert_types(self.as_ptr(), &mut types, &mut types_len);
 
             if types_len == 0 {
                 return None;
@@ -3901,13 +3916,24 @@ impl SslRef {
         }
     }
 
-    /// Returns the server certificate type selected by the server, or `CertificateType::X509`
-    /// if there is no handshake.
-    #[corresponds(SSL_get_server_certificate_type_selected)]
+    /// Returns the server certificate type selected by the server during the
+    /// handshake.
+    ///
+    /// Only valid on a client-side `Ssl`; returns `None` on server-side SSLs
+    /// (a server knows its own selected credential type by other means).
+    #[corresponds(SSL_get_peer_cert_type)]
     #[must_use]
     #[cfg(feature = "rpk")]
-    pub fn selected_server_certificate_type(&self) -> CertificateType {
-        unsafe { CertificateType(ffi::SSL_get_server_certificate_type_selected(self.as_ptr())) }
+    pub fn selected_server_certificate_type(&self) -> Option<CertificateType> {
+        if self.is_server() {
+            return None;
+        }
+
+        unsafe {
+            Some(CertificateType(
+                ffi::SSL_get_peer_cert_type(self.as_ptr()) as u8
+            ))
+        }
     }
 }
 
@@ -4460,10 +4486,10 @@ pub struct CertificateType(u8);
 #[cfg(feature = "rpk")]
 impl CertificateType {
     /// A X.509 certificate.
-    pub const X509: Self = Self(ffi::TLS_CERTIFICATE_TYPE_X509 as u8);
+    pub const X509: Self = Self(ffi::TLSEXT_cert_type_x509 as u8);
 
     /// A raw public key.
-    pub const RAW_PUBLIC_KEY: Self = Self(ffi::TLS_CERTIFICATE_TYPE_RAW_PUBLIC_KEY as u8);
+    pub const RAW_PUBLIC_KEY: Self = Self(ffi::TLSEXT_cert_type_rpk as u8);
 }
 
 /// The result of a shutdown request.
