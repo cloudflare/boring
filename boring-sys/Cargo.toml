@@ -33,6 +33,8 @@ include = [
     "/deps/boringssl/crypto/err/*.errordata",
     "/deps/boringssl/**/*.bzl",
     "/deps/boringssl/**/*.cc",
+    "/deps/boringssl/**/*.cpp",
+    "/deps/boringssl/**/*.in",
     "/deps/boringssl/**/CMakeLists.txt",
     "/deps/boringssl/**/sources.cmake",
     "/deps/boringssl/**/util/go_tests.txt",
