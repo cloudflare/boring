@@ -21,6 +21,7 @@ pub(crate) struct Features {
     pub(crate) fips: bool,
     pub(crate) rpk: bool,
     pub(crate) underscore_wildcards: bool,
+    pub(crate) allow_crl_extensions_bad_version: bool,
 }
 
 pub(crate) struct Env {
@@ -126,14 +127,11 @@ impl Config {
 
 impl Features {
     fn from_env() -> Self {
-        let fips = env::var_os("CARGO_FEATURE_FIPS").is_some();
-        let rpk = env::var_os("CARGO_FEATURE_RPK").is_some();
-        let underscore_wildcards = env::var_os("CARGO_FEATURE_UNDERSCORE_WILDCARDS").is_some();
-
         Self {
-            fips,
-            rpk,
-            underscore_wildcards,
+            fips: cfg!(feature = "fips"),
+            rpk: cfg!(feature = "rpk"),
+            underscore_wildcards: cfg!(feature = "underscore-wildcards"),
+            allow_crl_extensions_bad_version: cfg!(feature = "allow-crl-extensions-bad-version"),
         }
     }
 
