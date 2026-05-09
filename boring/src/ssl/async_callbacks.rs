@@ -96,9 +96,16 @@ impl SslContextBuilder {
                 Poll::Pending => return Err(SelectCertError::RETRY),
             };
 
-            let finish = fut_result.or(Err(SelectCertError::ERROR))?;
+            let finish = fut_result.map_err(|e| match e {
+                AsyncSelectCertError::Error => SelectCertError::ERROR,
+                AsyncSelectCertError::DisableEch => SelectCertError::DISABLE_ECH,
+            })?;
 
-            finish(client_hello).or(Err(SelectCertError::ERROR))
+            match finish(client_hello) {
+                Ok(_) => Ok(()),
+                Err(AsyncSelectCertError::Error) => Err(SelectCertError::ERROR),
+                Err(AsyncSelectCertError::DisableEch) => Err(SelectCertError::DISABLE_ECH),
+            }
         });
     }
 
@@ -232,7 +239,12 @@ where
 
 /// A fatal error to be returned from async select certificate callbacks.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct AsyncSelectCertError;
+pub enum AsyncSelectCertError {
+    /// A fatal error occurred and the handshake should be terminated.
+    Error,
+    /// Discard ECH ClientHelloInner and re-handshake with ClientHelloOuter.
+    DisableEch,
+}
 
 /// Describes async private key hooks. This is used to off-load signing
 /// operations to a custom, potentially asynchronous, backend. Metadata about the
