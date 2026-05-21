@@ -1,3 +1,7 @@
+5.2.0
+- 2026-05-21 Export `DEP_BORINGSSL_VERSION_MAJOR` var
+- 2026-04-27 Expose DTLS version constants in SslVersion
+
 5.1.0
 - 2026-04-13 Add EVP_AEAD-based detached AEAD module
 - 2026-04-13 Add generic PKey private key generation API
