@@ -19,7 +19,7 @@ and [Raw Public Key](https://docs.rs/boring/latest/boring/ssl/struct.SslRef.html
 
 # Upgrading from `boring` v4
 
- * First update to boring 4.21 and ensure it builds without any deprecation warnings.
+ * First update to boring 4.22 and ensure it builds without any deprecation warnings.
  * `pq-experimental` Cargo feature is no longer needed. Post-quantum crypto is enabled by default.
  * `fips-precompiled` Cargo feature has been merged into `fips`. Set `BORING_BSSL_FIPS_PATH` env var to use a precompiled library.
  * `fips-compat` Cargo feature has been renamed to `legacy-compat-deprecated` (4cb7e260a85b7)
@@ -29,6 +29,8 @@ and [Raw Public Key](https://docs.rs/boring/latest/boring/ssl/struct.SslRef.html
  * `X509Store` is now cheaply cloneable, but immutable. `SslContextBuilder.cert_store_mut()` can't be used after `.set_cert_store()`. If you need `.cert_store_mut()`, either don't overwrite the default store, or use `.set_cert_store_builder()`.
  * `X509StoreBuilder::add_cert` takes a reference.
  * `hyper` 0.x support has been removed. Use `hyper` 1.x.
+
+To support both v4 and v5, add `boring = ">=4.22,<6"` to `Cargo.toml`. If you need to auto-detect the version selected, add `boring-sys = ">=4.22,<6"` as a direct dependency, and in your `build.rs` check if `DEP_BORINGSSL_VERSION_MAJOR` env var is set to `5`. Versions older than 5.2.0 don't set it.
 
 ## Contribution
 
