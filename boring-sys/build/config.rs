@@ -107,7 +107,7 @@ impl Config {
             );
         }
 
-        let features_with_patches_enabled = self.features.rpk || self.features.underscore_wildcards;
+        let features_with_patches_enabled = self.features.underscore_wildcards;
 
         let patches_required = features_with_patches_enabled && !self.env.assume_patched;
 

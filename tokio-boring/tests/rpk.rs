@@ -30,14 +30,10 @@ fn create_server() -> (
         let mut acceptor = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls()).unwrap();
         let private_key =
             PKey::private_key_from_pem(&std::fs::read("tests/key.pem").unwrap()).unwrap();
-        let spki = std::fs::read("tests/pubkey.der").unwrap();
 
         acceptor
             .add_credential({
-                let mut cred = SslCredential::new_raw_public_key().unwrap();
-
-                cred.set_private_key(&private_key).unwrap();
-                cred.set_spki_bytes(Some(&spki)).unwrap();
+                let cred = SslCredential::new_raw_public_key(&private_key).unwrap();
 
                 &cred.build()
             })

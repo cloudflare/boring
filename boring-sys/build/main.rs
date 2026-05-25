@@ -443,13 +443,10 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
             native BoringSSL is expected to have the patches included"
         );
         return Ok(());
-    } else if config.env.source_path.is_some()
-        && (config.features.rpk || config.features.underscore_wildcards)
-    {
+    } else if config.env.source_path.is_some() && config.features.underscore_wildcards {
         panic!(
             "BORING_BSSL_ASSUME_PATCHED must be set when setting
-               BORING_BSSL_SOURCE_PATH and using any of the following
-               features: rpk, underscore-wildcards"
+               BORING_BSSL_SOURCE_PATH and using the underscore-wildcards feature"
         );
     }
 
@@ -467,10 +464,7 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
     println!("cargo:warning=applying post quantum crypto patch to boringssl");
     apply_patch(config, "boring-pq.patch")?;
 
-    if config.features.rpk {
-        println!("cargo:warning=applying RPK patch to boringssl");
-        apply_patch(config, "rpk.patch")?;
-    }
+    // RPK support is now native to BoringSSL; no patch needed.
 
     if config.features.underscore_wildcards {
         println!("cargo:warning=applying underscore wildcards patch to boringssl");
