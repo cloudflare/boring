@@ -393,6 +393,39 @@ jobs:
       # submodules to a new revision, so it's important to test this on CI.
       run: cargo publish --dry-run -p boring-sys --features fips
 
+  test-boringssl:
+    name: Test BoringSSL upstream test suite
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+    - name: Install golang
+      uses: actions/setup-go@v5
+      with:
+        go-version: '>=1.22.0'
+    - name: Install build tools (ninja, cmake)
+      run: sudo apt-get update && sudo apt-get install -y ninja-build cmake libunwind-dev
+    - name: Apply boring-sys patches
+      working-directory: boring-sys/deps/boringssl
+      run: |
+        for p in boring-pq.patch rpk.patch underscore-wildcards.patch; do
+          echo "Applying $p"
+          patch -p1 < "../../patches/$p"
+        done
+    - name: Configure BoringSSL build
+      working-directory: boring-sys/deps/boringssl
+      run: cmake -GNinja -B build -DCMAKE_BUILD_TYPE=Release
+    - name: Build BoringSSL
+      working-directory: boring-sys/deps/boringssl
+      run: ninja -C build
+    - name: Run BoringSSL C/C++ test suite
+      working-directory: boring-sys/deps/boringssl
+      run: go run util/all_tests.go
+    - name: Run BoringSSL SSL runner tests
+      working-directory: boring-sys/deps/boringssl/ssl/test/runner
+      run: go test
+
   cross-build:
     name: Cross build from macOS to Linux
     runs-on: macos-latest
