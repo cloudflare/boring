@@ -1,6 +1,6 @@
-From 4bba53440a0054bc7a0c479bce668649206d30a2 Mon Sep 17 00:00:00 2001
+From a9b508d7fe453b616d7219eab276439f2a6323cb Mon Sep 17 00:00:00 2001
 From: Christopher Patton <cpatton@cloudflare.com>
-Date: Wed, 22 Apr 2026 16:51:27 -0700
+Date: Wed, 27 May 2026 12:03:19 -0700
 Subject: [PATCH] Add additional methods for RPK (RFC 7250)
 
 The new methods match the Rust bindings present in boring <= 5:
@@ -20,10 +20,10 @@ The new methods match the Rust bindings present in boring <= 5:
  3 files changed, 131 insertions(+)
 
 diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
-index 3a2e6dc50..01443b402 100644
+index 055b3e025..9bfb82215 100644
 --- a/include/openssl/ssl.h
 +++ b/include/openssl/ssl.h
-@@ -3992,6 +3992,61 @@ OPENSSL_EXPORT int SSL_get_peer_cert_type(const SSL *ssl);
+@@ -4027,6 +4027,61 @@ OPENSSL_EXPORT int SSL_get_peer_cert_type(const SSL *ssl);
  OPENSSL_EXPORT EVP_PKEY *SSL_get0_peer_rpk(const SSL *ssl);
  
  
@@ -86,10 +86,10 @@ index 3a2e6dc50..01443b402 100644
  //
  // Password Authenticated Key Exchange protocols allow client and server to
 diff --git a/ssl/ssl_credential.cc b/ssl/ssl_credential.cc
-index e04482d82..512a5e00a 100644
+index b1090a212..5e2b2e17a 100644
 --- a/ssl/ssl_credential.cc
 +++ b/ssl/ssl_credential.cc
-@@ -407,6 +407,54 @@ SSL_CREDENTIAL *SSL_CREDENTIAL_new_raw_public_key_custom(
+@@ -403,6 +403,54 @@ SSL_CREDENTIAL *SSL_CREDENTIAL_new_raw_public_key_custom(
    return cred.release();
  }
  
@@ -145,12 +145,12 @@ index e04482d82..512a5e00a 100644
    FromOpaque(cred)->UpRefInternal();
  }
 diff --git a/ssl/ssl_lib.cc b/ssl/ssl_lib.cc
-index de4e79efc..31796871d 100644
+index 89702eaaf..06c6eb1e6 100644
 --- a/ssl/ssl_lib.cc
 +++ b/ssl/ssl_lib.cc
-@@ -3743,3 +3743,31 @@ EVP_PKEY *SSL_get0_peer_rpk(const SSL *ssl) {
-   }
-   return nullptr;
+@@ -3804,3 +3804,31 @@ void SSL_set_server_padding_enabled(SSL *ssl, int enabled) {
+ int SSL_server_sent_requested_padding(const SSL *ssl) {
+   return ssl->s3->server_sent_requested_padding;
  }
 +
 +// The following functions are compatibility shims for the Rust bindings in
