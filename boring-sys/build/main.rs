@@ -790,6 +790,7 @@ fn generate_bindings(config: &Config) -> Result<PathBuf, Box<dyn std::error::Err
         "hrss.h",
         "md4.h",
         "md5.h",
+        "mldsa.h",
         "mlkem.h",
         "obj_mac.h",
         "objects.h",
