@@ -741,6 +741,44 @@ impl SslSignatureAlgorithm {
         SslSignatureAlgorithm(ffi::SSL_SIGN_RSA_PSS_RSAE_SHA512 as _);
 
     pub const ED25519: SslSignatureAlgorithm = SslSignatureAlgorithm(ffi::SSL_SIGN_ED25519 as _);
+
+    pub const ML_DSA_44: SslSignatureAlgorithm =
+        SslSignatureAlgorithm(ffi::SSL_SIGN_ML_DSA_44 as _);
+
+    pub const ML_DSA_65: SslSignatureAlgorithm =
+        SslSignatureAlgorithm(ffi::SSL_SIGN_ML_DSA_65 as _);
+
+    pub const ML_DSA_87: SslSignatureAlgorithm =
+        SslSignatureAlgorithm(ffi::SSL_SIGN_ML_DSA_87 as _);
+
+    /// Returns a human-readable name for this signature algorithm, or `None` if the
+    /// underlying BoringSSL build does not recognize the codepoint.
+    #[corresponds(SSL_get_signature_algorithm_name)]
+    #[must_use]
+    pub fn name(&self) -> Option<&'static str> {
+        unsafe {
+            // `include_curve = true` returns the TLS 1.3 form for ECDSA algorithms
+            // (e.g. `ecdsa_secp256r1_sha256` rather than the TLS 1.2 `ecdsa_sha256`),
+            // matching what BoringSSL keylogs and modern TLS tooling use.
+            let ptr = ffi::SSL_get_signature_algorithm_name(self.0, true as c_int);
+            if ptr.is_null() {
+                None
+            } else {
+                // SAFETY: BoringSSL returns a pointer to a static, NUL-terminated C string
+                // when non-null, and the documented contract guarantees valid UTF-8.
+                Some(str::from_utf8_unchecked(CStr::from_ptr(ptr).to_bytes()))
+            }
+        }
+    }
+}
+
+impl fmt::Display for SslSignatureAlgorithm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.name() {
+            Some(name) => f.write_str(name),
+            None => write!(f, "unknown ({:#06x})", self.0),
+        }
+    }
 }
 
 impl From<u16> for SslSignatureAlgorithm {
@@ -3143,6 +3181,19 @@ impl SslRef {
             } else {
                 Some(SslCipherRef::from_ptr(ptr.cast_mut()))
             }
+        }
+    }
+
+    /// Returns the signature algorithm used by the peer to authenticate the most recent TLS
+    /// handshake, or `None` if no signature was produced (e.g. session resumption).
+    #[corresponds(SSL_get_peer_signature_algorithm)]
+    #[must_use]
+    pub fn peer_signature_algorithm(&self) -> Option<SslSignatureAlgorithm> {
+        let sigalg = unsafe { ffi::SSL_get_peer_signature_algorithm(self.as_ptr()) };
+        if sigalg == 0 {
+            None
+        } else {
+            Some(SslSignatureAlgorithm(sigalg))
         }
     }
 
