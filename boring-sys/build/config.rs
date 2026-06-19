@@ -22,6 +22,7 @@ pub(crate) struct Features {
     pub(crate) rpk: bool,
     pub(crate) underscore_wildcards: bool,
     pub(crate) allow_crl_extensions_bad_version: bool,
+    pub(crate) relax_cert_validation: bool,
 }
 
 pub(crate) struct Env {
@@ -114,7 +115,9 @@ impl Config {
             );
         }
 
-        let features_with_patches_enabled = self.features.rpk || self.features.underscore_wildcards;
+        let features_with_patches_enabled = self.features.rpk
+            || self.features.underscore_wildcards
+            || self.features.relax_cert_validation;
 
         let patches_required = features_with_patches_enabled && !self.env.assume_patched;
 
@@ -138,6 +141,7 @@ impl Features {
             rpk: cfg!(feature = "rpk"),
             underscore_wildcards: cfg!(feature = "underscore-wildcards"),
             allow_crl_extensions_bad_version: cfg!(feature = "allow-crl-extensions-bad-version"),
+            relax_cert_validation: cfg!(feature = "relax-cert-validation"),
         }
     }
 

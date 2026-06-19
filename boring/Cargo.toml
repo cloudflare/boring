@@ -54,6 +54,10 @@ rpk = ["credential", "boring-sys/rpk"]
 # `BORING_BSSL{,_FIPS}_ASSUME_PATCHED`.
 underscore-wildcards = ["boring-sys/underscore-wildcards"]
 
+# Restores the historical BoringSSL default of not enforcing RSA keyUsage
+# during TLS handshakes.
+relax-cert-validation = ["boring-sys/relax-cert-validation"]
+
 # **DO NOT USE** This will be removed without warning in future releases.
 # Alias for 'fips', only for backwards compatibility.
 fips-precompiled = ["fips"]
