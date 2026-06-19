@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kevin Bartlett Guthrie <kbg@cloudflare.com>
+Date: Wed, 10 Jun 2026 14:00:00 -0400
+Subject: [PATCH] Default enforce_rsa_key_usage to off
+
+BoringSSL starting with BORINGSSL_API_VERSION 19 (see
+include/openssl/base.h) flipped the SSL_CONFIG default for
+enforce_rsa_key_usage to true. As a client, this makes an RSA leaf whose
+keyUsage does not assert the bit required by the cipher suite a fatal
+handshake error (KEY_USAGE_BIT_INCORRECT) instead of the historical
+non-fatal behaviour.
+Many real upstream origins serve such certs; OpenSSL and the prior
+BoringSSL pin accepted them. There is no Rust API to relax this per
+connection. Restore the historical default (off) so RSA keyUsage
+mismatches are non-fatal again; non-RSA keyUsage enforcement is
+unaffected.
+---
+diff --git a/ssl/ssl_lib.cc b/ssl/ssl_lib.cc
+index 89702eaaf..4be64f8a5 100644
+--- a/ssl/ssl_lib.cc
++++ b/ssl/ssl_lib.cc
+@@ -575,7 +575,7 @@ SSL_CONFIG::SSL_CONFIG(SSL *ssl_arg)
+       signed_cert_timestamps_enabled(false),
+       ocsp_stapling_enabled(false),
+       channel_id_enabled(false),
+-      enforce_rsa_key_usage(true),
++      enforce_rsa_key_usage(false),
+       retain_only_sha256_of_client_certs(false),
+       handoff(false),
+       shed_handshake_config(false),
+-- 
+2.39.5
