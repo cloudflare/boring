@@ -563,6 +563,9 @@ impl SelectCertError {
 
     /// The operation could not be completed and should be retried later.
     pub const RETRY: Self = Self(ffi::ssl_select_cert_result_t::ssl_select_cert_retry);
+
+    /// Discard ECH ClientHelloInner and re-handshake with ClientHelloOuter.
+    pub const DISABLE_ECH: Self = Self(ffi::ssl_select_cert_result_t::ssl_select_cert_disable_ech);
 }
 
 /// Extension types, to be used with `ClientHello::get_extension`.
