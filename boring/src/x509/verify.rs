@@ -74,28 +74,37 @@ impl X509VerifyParamRef {
     /// Set verification flags.
     #[corresponds(X509_VERIFY_PARAM_set_flags)]
     pub fn set_flags(&mut self, flags: X509VerifyFlags) {
+        self.try_set_flags(flags).expect("use try_set_flags");
+    }
+
+    /// Set verification flags.
+    #[corresponds(X509_VERIFY_PARAM_set_flags)]
+    pub fn try_set_flags(&mut self, flags: X509VerifyFlags) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::X509_VERIFY_PARAM_set_flags(
                 self.as_ptr(),
                 flags.bits(),
             ))
-            .unwrap();
         }
     }
 
     /// Clear verification flags.
     #[corresponds(X509_VERIFY_PARAM_clear_flags)]
     pub fn clear_flags(&mut self, flags: X509VerifyFlags) {
+        self.try_clear_flags(flags).expect("use try_clear_flags");
+    }
+
+    /// Clear verification flags.
+    #[corresponds(X509_VERIFY_PARAM_clear_flags)]
+    pub fn try_clear_flags(&mut self, flags: X509VerifyFlags) -> Result<(), ErrorStack> {
         unsafe {
             cvt(ffi::X509_VERIFY_PARAM_clear_flags(
                 self.as_ptr(),
                 flags.bits(),
             ))
-            .unwrap();
         }
     }
 
-    ///
     /// Set the host flags.
     #[corresponds(X509_VERIFY_PARAM_set_hostflags)]
     pub fn set_hostflags(&mut self, hostflags: X509CheckFlags) {
