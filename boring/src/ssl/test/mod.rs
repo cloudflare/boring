@@ -14,8 +14,8 @@ use crate::srtp::SrtpProfileId;
 use crate::ssl::test::server::Server;
 use crate::ssl::{
     self, ExtensionType, ShutdownResult, ShutdownState, Ssl, SslAcceptor, SslAcceptorBuilder,
-    SslConnector, SslContext, SslFiletype, SslInfoCallbackMode, SslMethod, SslOptions, SslStream,
-    SslVerifyMode,
+    SslConnector, SslContext, SslFiletype, SslInfoCallbackMode, SslMethod, SslOptions,
+    SslSignatureAlgorithm, SslStream, SslVerifyMode,
 };
 use crate::ssl::{HandshakeError, SslVersion};
 use crate::x509::store::X509StoreBuilder;
@@ -1467,4 +1467,41 @@ fn signature_algorithm_used_mtls_client() {
         captured.load(std::sync::atomic::Ordering::SeqCst),
         "client should observe signature_algorithm_used at HANDSHAKE_DONE in mTLS",
     );
+}
+
+// ===========================================================================
+// per-connection verify algorithm prefs
+// ===========================================================================
+
+#[test]
+fn set_verify_algorithm_prefs_ssl_accepts_matching() {
+    // Client restricts verify prefs to a scheme the server can satisfy.
+    let server = Server::builder().build();
+
+    let client_builder = server.client();
+    let mut ssl_builder = client_builder.build().builder();
+    ssl_builder
+        .ssl()
+        .set_verify_algorithm_prefs(&[SslSignatureAlgorithm::RSA_PSS_RSAE_SHA256])
+        .expect("verify prefs should be accepted");
+    let s = ssl_builder.connect();
+    let sa = s.ssl().peer_signature_algorithm().unwrap();
+    assert_eq!(sa, SslSignatureAlgorithm::RSA_PSS_RSAE_SHA256);
+}
+
+#[test]
+fn set_verify_algorithm_prefs_ssl_rejects_unsatisfiable() {
+    // Client restricts verify prefs to a scheme the server's RSA cert cannot
+    // satisfy. The handshake must fail.
+    let mut server_builder = Server::builder();
+    server_builder.should_error();
+    let server = server_builder.build();
+
+    let client_builder = server.client();
+    let mut ssl_builder = client_builder.build().builder();
+    ssl_builder
+        .ssl()
+        .set_verify_algorithm_prefs(&[SslSignatureAlgorithm::ED25519])
+        .expect("verify prefs should be accepted by setter");
+    let _err = ssl_builder.connect_err();
 }
