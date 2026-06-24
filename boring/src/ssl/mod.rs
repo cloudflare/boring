@@ -2003,6 +2003,12 @@ impl SslContextBuilder {
     }
 
     /// Sets the context's supported signature algorithms.
+    ///
+    /// Prefer [`set_verify_algorithm_prefs`](Self::set_verify_algorithm_prefs),
+    /// which takes raw IANA codepoints rather than an OpenSSL-style colon-separated
+    /// string. Note that unlike `set_sigalgs_list`, `set_verify_algorithm_prefs`
+    /// only configures the verify preference list and does not also set the
+    /// signing algorithm prefs.
     #[corresponds(SSL_CTX_set1_sigalgs_list)]
     pub fn set_sigalgs_list(&mut self, sigalgs: &str) -> Result<(), ErrorStack> {
         let sigalgs = CString::new(sigalgs).map_err(ErrorStack::internal_error)?;
@@ -2973,6 +2979,21 @@ impl SslRef {
     pub fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
         let curves = CString::new(curves).map_err(ErrorStack::internal_error)?;
         unsafe { cvt_0i(ffi::SSL_set1_curves_list(self.as_ptr(), curves.as_ptr())).map(|_| ()) }
+    }
+
+    #[corresponds(SSL_set_verify_algorithm_prefs)]
+    pub fn set_verify_algorithm_prefs(
+        &mut self,
+        prefs: &[SslSignatureAlgorithm],
+    ) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt_0i(ffi::SSL_set_verify_algorithm_prefs(
+                self.as_ptr(),
+                prefs.as_ptr().cast(),
+                prefs.len(),
+            ))
+            .map(|_| ())
+        }
     }
 
     /// Returns the curve ID (aka group ID) used for this `SslRef`.
