@@ -14,7 +14,8 @@ use crate::srtp::SrtpProfileId;
 use crate::ssl::test::server::Server;
 use crate::ssl::{
     self, ExtensionType, ShutdownResult, ShutdownState, Ssl, SslAcceptor, SslAcceptorBuilder,
-    SslConnector, SslContext, SslFiletype, SslMethod, SslOptions, SslStream, SslVerifyMode,
+    SslConnector, SslContext, SslFiletype, SslInfoCallbackMode, SslMethod, SslOptions, SslStream,
+    SslVerifyMode,
 };
 use crate::ssl::{HandshakeError, SslVersion};
 use crate::x509::store::X509StoreBuilder;
@@ -1314,4 +1315,156 @@ fn ex_data_drop() {
     drop(ctx2);
     assert_eq!(102, d1.load(Relaxed));
     assert_eq!(202, d2.load(Relaxed));
+}
+
+#[test]
+fn peer_signature_algorithm() {
+    // Default handshake: client should observe the server's CertificateVerify signature.
+    let server = Server::builder().build();
+    let s = server.client().connect();
+    let sigalg = s.ssl().peer_signature_algorithm();
+    assert!(
+        sigalg.is_some(),
+        "client should see peer (server) signature algorithm after handshake",
+    );
+    assert!(
+        sigalg.unwrap().name().is_some(),
+        "peer signature algorithm should have a resolvable name",
+    );
+}
+
+#[test]
+fn peer_signature_algorithm_mtls_server_sees_client() {
+    // Server requires a client certificate; verify that the server-side SslRef
+    // surfaces the client's CertificateVerify signature scheme as its peer sig alg.
+    // Observe from a server-side HANDSHAKE_DONE info callback so the capture
+    // happens synchronously during the server's accept, before the client's
+    // connect() returns.
+    let captured = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+    let mut server_builder = Server::builder();
+    {
+        let mut store = X509StoreBuilder::new().unwrap();
+        store.add_cert(X509::from_pem(ROOT_CERT).unwrap()).unwrap();
+        server_builder
+            .ctx()
+            .set_verify_cert_store(store.build())
+            .unwrap();
+        server_builder.ctx().set_verify(SslVerifyMode::PEER);
+        let captured_cb = std::sync::Arc::clone(&captured);
+        server_builder
+            .ctx()
+            .set_info_callback(move |ssl, mode, _value| {
+                if mode == SslInfoCallbackMode::HANDSHAKE_DONE {
+                    if let Some(sa) = ssl.peer_signature_algorithm() {
+                        assert!(sa.name().is_some(), "client sig scheme should have a name");
+                        captured_cb.store(true, std::sync::atomic::Ordering::SeqCst);
+                    }
+                }
+            });
+    }
+    let server = server_builder.build();
+
+    let mut client_builder = server.client_with_root_ca();
+    client_builder
+        .ctx()
+        .set_certificate_chain_file("test/cert.pem")
+        .unwrap();
+    client_builder
+        .ctx()
+        .set_private_key_file("test/key.pem", SslFiletype::PEM)
+        .unwrap();
+    let _ = client_builder.connect();
+
+    assert!(
+        captured.load(std::sync::atomic::Ordering::SeqCst),
+        "server should observe client signature scheme during mTLS",
+    );
+}
+
+#[test]
+fn signature_algorithm_used_server_default() {
+    // BoringSSL only retains signature_algorithm_used during the handshake, so we
+    // capture it from a HANDSHAKE_DONE info callback.
+    let captured = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+    let mut server_builder = Server::builder();
+    {
+        let captured_cb = std::sync::Arc::clone(&captured);
+        server_builder
+            .ctx()
+            .set_info_callback(move |ssl, mode, _value| {
+                if mode == SslInfoCallbackMode::HANDSHAKE_DONE {
+                    if let Some(sa) = ssl.signature_algorithm_used() {
+                        assert!(sa.name().is_some());
+                        captured_cb.store(true, std::sync::atomic::Ordering::SeqCst);
+                    }
+                }
+            });
+    }
+    let server = server_builder.build();
+    let _ = server.client_with_root_ca().connect();
+
+    assert!(
+        captured.load(std::sync::atomic::Ordering::SeqCst),
+        "server should observe signature_algorithm_used at HANDSHAKE_DONE",
+    );
+}
+
+#[test]
+fn signature_algorithm_used_post_handshake_returns_none() {
+    // BoringSSL drops the value after the handshake. Confirm the binding
+    // surfaces that contract: calling on the client SslStream post-handshake
+    // returns None.
+    let server = Server::builder().build();
+    let s = server.client_with_root_ca().connect();
+    assert!(
+        s.ssl().signature_algorithm_used().is_none(),
+        "BoringSSL discards signature_algorithm_used after handshake",
+    );
+}
+
+#[test]
+fn signature_algorithm_used_mtls_client() {
+    // Client side mTLS: capture the sig scheme the client used in CertificateVerify.
+    let mut server_builder = Server::builder();
+    {
+        let mut store = X509StoreBuilder::new().unwrap();
+        store.add_cert(X509::from_pem(ROOT_CERT).unwrap()).unwrap();
+        server_builder
+            .ctx()
+            .set_verify_cert_store(store.build())
+            .unwrap();
+        server_builder.ctx().set_verify(SslVerifyMode::PEER);
+    }
+    let server = server_builder.build();
+
+    let captured = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let captured_cb = std::sync::Arc::clone(&captured);
+
+    let mut client_builder = server.client_with_root_ca();
+    client_builder
+        .ctx()
+        .set_certificate_chain_file("test/cert.pem")
+        .unwrap();
+    client_builder
+        .ctx()
+        .set_private_key_file("test/key.pem", SslFiletype::PEM)
+        .unwrap();
+    client_builder
+        .ctx()
+        .set_info_callback(move |ssl, mode, _value| {
+            if mode == SslInfoCallbackMode::HANDSHAKE_DONE {
+                if let Some(sa) = ssl.signature_algorithm_used() {
+                    assert!(sa.name().is_some());
+                    captured_cb.store(true, std::sync::atomic::Ordering::SeqCst);
+                }
+            }
+        });
+    let _ = client_builder.connect();
+
+    assert!(
+        captured.load(std::sync::atomic::Ordering::SeqCst),
+        "client should observe signature_algorithm_used at HANDSHAKE_DONE in mTLS",
+    );
 }
