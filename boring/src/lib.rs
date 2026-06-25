@@ -138,6 +138,8 @@ pub mod hash;
 pub mod hmac;
 pub mod hpke;
 pub mod memcmp;
+#[cfg(feature = "mldsa")]
+pub mod mldsa;
 #[cfg(feature = "mlkem")]
 pub mod mlkem;
 pub mod nid;
