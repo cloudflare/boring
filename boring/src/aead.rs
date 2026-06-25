@@ -36,13 +36,24 @@
 //! following safe nonce practices for the selected algorithm.
 //! [`Algorithm::nonce_len`] returns the required nonce size in bytes.
 //!
+//! # Mutability
+//!
+//! All seal and open methods require `&mut self`. While the generic AEADs
+//! (AES-GCM, ChaCha20-Poly1305, etc.) are stateless after initialization,
+//! the TLS-specific AEADs are **stateful** and internally mutate the context
+//! during seal operations. Using `&mut self` universally prevents LLVM from
+//! incorrectly optimizing away state changes — an issue that has caused
+//! real-world cryptographic failures (see [quiche#2383]).
+//!
+//! [quiche#2383]: https://github.com/cloudflare/quiche/pull/2383
+//!
 //! # Example
 //!
 //! ```
 //! use boring::aead::{AeadCtx, Algorithm};
 //!
 //! let algorithm = Algorithm::aes_128_gcm();
-//! let ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 16]).unwrap();
+//! let mut ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 16]).unwrap();
 //! let nonce = [0u8; 12];
 //! let aad = b"record-header";
 //! let mut payload = b"hello world".to_vec();
@@ -108,6 +119,70 @@ impl Algorithm {
     #[must_use]
     pub fn xchacha20_poly1305() -> Self {
         unsafe { Self(ffi::EVP_aead_xchacha20_poly1305()) }
+    }
+
+    /// AES-128-GCM with TLS 1.2 nonce construction.
+    ///
+    /// Seal operations fail if nonces do not match the TLS 1.2 nonce format.
+    /// Produces the same ciphertext as [`aes_128_gcm`](Self::aes_128_gcm) but
+    /// adds an AEAD-level nonce check.
+    ///
+    /// # Warning
+    ///
+    /// Contexts created with this algorithm are **stateful**.
+    /// `seal` operations must not be called concurrently on the same context.
+    #[corresponds(EVP_aead_aes_128_gcm_tls12)]
+    #[must_use]
+    pub fn aes_128_gcm_tls12() -> Self {
+        unsafe { Self(ffi::EVP_aead_aes_128_gcm_tls12()) }
+    }
+
+    /// AES-256-GCM with TLS 1.2 nonce construction.
+    ///
+    /// Seal operations fail if nonces do not match the TLS 1.2 nonce format.
+    /// Produces the same ciphertext as [`aes_256_gcm`](Self::aes_256_gcm) but
+    /// adds an AEAD-level nonce check.
+    ///
+    /// # Warning
+    ///
+    /// Contexts created with this algorithm are **stateful**.
+    /// `seal` operations must not be called concurrently on the same context.
+    #[corresponds(EVP_aead_aes_256_gcm_tls12)]
+    #[must_use]
+    pub fn aes_256_gcm_tls12() -> Self {
+        unsafe { Self(ffi::EVP_aead_aes_256_gcm_tls12()) }
+    }
+
+    /// AES-128-GCM with TLS 1.3 nonce construction.
+    ///
+    /// Seal operations fail if nonces do not match the TLS 1.3 nonce format.
+    /// Produces the same ciphertext as [`aes_128_gcm`](Self::aes_128_gcm) but
+    /// adds an AEAD-level nonce check.
+    ///
+    /// # Warning
+    ///
+    /// Contexts created with this algorithm are **stateful**.
+    /// `seal` operations must not be called concurrently on the same context.
+    #[corresponds(EVP_aead_aes_128_gcm_tls13)]
+    #[must_use]
+    pub fn aes_128_gcm_tls13() -> Self {
+        unsafe { Self(ffi::EVP_aead_aes_128_gcm_tls13()) }
+    }
+
+    /// AES-256-GCM with TLS 1.3 nonce construction.
+    ///
+    /// Seal operations fail if nonces do not match the TLS 1.3 nonce format.
+    /// Produces the same ciphertext as [`aes_256_gcm`](Self::aes_256_gcm) but
+    /// adds an AEAD-level nonce check.
+    ///
+    /// # Warning
+    ///
+    /// Contexts created with this algorithm are **stateful**.
+    /// `seal` operations must not be called concurrently on the same context.
+    #[corresponds(EVP_aead_aes_256_gcm_tls13)]
+    #[must_use]
+    pub fn aes_256_gcm_tls13() -> Self {
+        unsafe { Self(ffi::EVP_aead_aes_256_gcm_tls13()) }
     }
 
     /// Returns the key length, in bytes, required by this algorithm.
@@ -255,7 +330,7 @@ impl AeadCtxRef {
     /// use boring::aead::{AeadCtx, Algorithm};
     ///
     /// let algorithm = Algorithm::chacha20_poly1305();
-    /// let ctx = AeadCtx::new(&algorithm, &[7u8; 32], algorithm.max_tag_len()).unwrap();
+    /// let mut ctx = AeadCtx::new(&algorithm, &[7u8; 32], algorithm.max_tag_len()).unwrap();
     ///
     /// let nonce = [1u8; 12];
     /// let aad = b"frame-header";
@@ -292,7 +367,7 @@ impl AeadCtxRef {
     /// ```
     #[corresponds(EVP_AEAD_CTX_seal_scatter)]
     pub fn seal_scatter<'a>(
-        &self,
+        &mut self,
         nonce: &[u8],
         in_out: &mut [u8],
         out_tag: &'a mut [u8],
@@ -342,7 +417,7 @@ impl AeadCtxRef {
     /// - `associated_data`: The same AAD that was passed during encryption.
     #[corresponds(EVP_AEAD_CTX_open_gather)]
     pub fn open_gather(
-        &self,
+        &mut self,
         nonce: &[u8],
         in_out: &mut [u8],
         in_tag: &[u8],
@@ -383,7 +458,7 @@ impl AeadCtxRef {
     ///
     /// Returns the sub-slice of `tag` that was written to.
     pub fn seal_in_place<'a>(
-        &self,
+        &mut self,
         nonce: &[u8],
         buffer: &mut [u8],
         tag: &'a mut [u8],
@@ -406,7 +481,7 @@ impl AeadCtxRef {
     ///   [`seal_in_place`](AeadCtxRef::seal_in_place).
     /// - `associated_data`: The same AAD that was passed during encryption.
     pub fn open_in_place(
-        &self,
+        &mut self,
         nonce: &[u8],
         buffer: &mut [u8],
         tag: &[u8],
@@ -423,7 +498,7 @@ mod tests {
     #[test]
     fn in_out() {
         let algorithm = Algorithm::aes_128_gcm();
-        let ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 16]).unwrap();
+        let mut ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 16]).unwrap();
         let nonce = [0u8; 12];
         let associated_data = b"this is authenticated";
         let mut buffer = b"ABCDE".to_vec();
@@ -441,7 +516,7 @@ mod tests {
     #[test]
     fn xchacha_in_out() {
         let algorithm = Algorithm::xchacha20_poly1305();
-        let ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 32]).unwrap();
+        let mut ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 32]).unwrap();
         let nonce = [0u8; 24];
         let associated_data = b"xchacha";
         let mut buffer = b"payload".to_vec();
@@ -466,7 +541,7 @@ mod tests {
     #[test]
     fn seal_scatter_with_extra_in() {
         let algorithm = Algorithm::chacha20_poly1305();
-        let ctx = AeadCtx::new(&algorithm, &[7u8; 32], algorithm.max_tag_len()).unwrap();
+        let mut ctx = AeadCtx::new(&algorithm, &[7u8; 32], algorithm.max_tag_len()).unwrap();
 
         let nonce = [1u8; 12];
         let aad = b"frame-header";
@@ -516,7 +591,7 @@ mod tests {
         // (AES-GCM accepts variable-length nonces per spec, so it is not
         // suitable for testing nonce-length rejection.)
         let algorithm = Algorithm::chacha20_poly1305();
-        let ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 32]).unwrap();
+        let mut ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 32]).unwrap();
         let mut payload = [0u8; 8];
         let mut tag = [0u8; 16];
 
@@ -527,7 +602,7 @@ mod tests {
     #[test]
     fn seal_rejects_insufficient_tag_buffer() {
         let algorithm = Algorithm::aes_128_gcm();
-        let ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 16]).unwrap();
+        let mut ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 16]).unwrap();
         let mut payload = [0u8; 8];
 
         // AES-128-GCM produces a 16-byte tag; an 8-byte buffer must be rejected.
@@ -539,11 +614,182 @@ mod tests {
     #[test]
     fn open_rejects_invalid_nonce_length() {
         let algorithm = Algorithm::chacha20_poly1305();
-        let ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 32]).unwrap();
+        let mut ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 32]).unwrap();
         let mut payload = [0u8; 8];
         let tag = [0u8; 16];
 
         let result = ctx.open_in_place(&[0u8; 11], &mut payload, &tag, b"");
         assert!(result.is_err());
+    }
+
+    /// Helper: seal with one context, open with another (TLS AEADs are
+    /// directional — the seal context tracks nonce state, so we use a
+    /// separate open context with the generic algorithm).
+    fn tls_seal_open_round_trip(algorithm: Algorithm, generic: Algorithm, key: &[u8]) {
+        let mut seal_ctx = AeadCtx::new_default_tag(&algorithm, key).unwrap();
+        let mut open_ctx = AeadCtx::new_default_tag(&generic, key).unwrap();
+
+        let nonce = [0u8; 12];
+        let aad = b"tls-record";
+        let mut payload = b"hello TLS".to_vec();
+        let original = payload.clone();
+
+        let mut tag = vec![0u8; algorithm.max_overhead()];
+        seal_ctx
+            .seal_in_place(&nonce, &mut payload, &mut tag, aad)
+            .unwrap();
+
+        // Ciphertext should differ from plaintext.
+        assert_ne!(payload.as_slice(), original.as_slice());
+
+        open_ctx
+            .open_in_place(&nonce, &mut payload, &tag, aad)
+            .unwrap();
+
+        assert_eq!(payload.as_slice(), original.as_slice());
+    }
+
+    #[test]
+    fn aes_128_gcm_tls12_round_trip() {
+        tls_seal_open_round_trip(
+            Algorithm::aes_128_gcm_tls12(),
+            Algorithm::aes_128_gcm(),
+            &[0u8; 16],
+        );
+    }
+
+    #[test]
+    fn aes_256_gcm_tls12_round_trip() {
+        tls_seal_open_round_trip(
+            Algorithm::aes_256_gcm_tls12(),
+            Algorithm::aes_256_gcm(),
+            &[0u8; 32],
+        );
+    }
+
+    #[test]
+    fn aes_128_gcm_tls13_round_trip() {
+        tls_seal_open_round_trip(
+            Algorithm::aes_128_gcm_tls13(),
+            Algorithm::aes_128_gcm(),
+            &[0u8; 16],
+        );
+    }
+
+    #[test]
+    fn aes_256_gcm_tls13_round_trip() {
+        tls_seal_open_round_trip(
+            Algorithm::aes_256_gcm_tls13(),
+            Algorithm::aes_256_gcm(),
+            &[0u8; 32],
+        );
+    }
+
+    /// Build a 12-byte nonce with the given big-endian u64 counter in the
+    /// last 8 bytes (TLS 1.2 nonce layout: 4-byte implicit IV + 8-byte
+    /// explicit counter).
+    fn nonce_with_counter(counter: u64) -> [u8; 12] {
+        let mut nonce = [0u8; 12];
+        nonce[4..].copy_from_slice(&counter.to_be_bytes());
+        nonce
+    }
+
+    #[test]
+    fn tls12_rejects_nonce_reuse() {
+        let algorithm = Algorithm::aes_128_gcm_tls12();
+        let mut ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 16]).unwrap();
+        let mut payload = b"hello".to_vec();
+        let mut tag = [0u8; 16];
+
+        // First seal with counter 0 succeeds.
+        ctx.seal_in_place(&nonce_with_counter(0), &mut payload, &mut tag, b"")
+            .unwrap();
+
+        // Sealing again with the same counter (0) must fail — nonces must be
+        // strictly monotonically increasing.
+        let mut payload2 = b"world".to_vec();
+        let result = ctx.seal_in_place(&nonce_with_counter(0), &mut payload2, &mut tag, b"");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn tls12_rejects_nonce_going_backwards() {
+        let algorithm = Algorithm::aes_128_gcm_tls12();
+        let mut ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 16]).unwrap();
+        let mut tag = [0u8; 16];
+
+        // Seal with counter 5, then try counter 3.
+        let mut p1 = b"hello".to_vec();
+        ctx.seal_in_place(&nonce_with_counter(5), &mut p1, &mut tag, b"")
+            .unwrap();
+
+        let mut p2 = b"world".to_vec();
+        let result = ctx.seal_in_place(&nonce_with_counter(3), &mut p2, &mut tag, b"");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn tls12_accepts_monotonic_nonces() {
+        let algorithm = Algorithm::aes_128_gcm_tls12();
+        let mut ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 16]).unwrap();
+        let mut tag = [0u8; 16];
+
+        for counter in 0..5u64 {
+            let mut payload = b"test".to_vec();
+            ctx.seal_in_place(&nonce_with_counter(counter), &mut payload, &mut tag, b"")
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn tls13_rejects_nonce_reuse() {
+        let algorithm = Algorithm::aes_128_gcm_tls13();
+        let mut ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 16]).unwrap();
+        let mut tag = [0u8; 16];
+
+        // TLS 1.3 nonce: sequence XOR mask. First call sets the mask.
+        let nonce0 = [0u8; 12];
+        let mut p1 = b"hello".to_vec();
+        ctx.seal_in_place(&nonce0, &mut p1, &mut tag, b"").unwrap();
+
+        // Second call with the same nonce implies counter went backwards
+        // (counter 0 again), which must fail.
+        let mut p2 = b"world".to_vec();
+        let result = ctx.seal_in_place(&nonce0, &mut p2, &mut tag, b"");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn generic_gcm_accepts_nonce_reuse() {
+        // Generic AES-GCM does NOT enforce nonce monotonicity — it is the
+        // caller's responsibility. Contrast with the tls12/tls13 variants.
+        let algorithm = Algorithm::aes_128_gcm();
+        let mut ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 16]).unwrap();
+        let mut tag = [0u8; 16];
+        let nonce = nonce_with_counter(0);
+
+        let mut p1 = b"hello".to_vec();
+        ctx.seal_in_place(&nonce, &mut p1, &mut tag, b"").unwrap();
+
+        // Same nonce again — generic GCM accepts it (even though this is
+        // cryptographically unsafe, the AEAD layer does not reject it).
+        let mut p2 = b"world".to_vec();
+        ctx.seal_in_place(&nonce, &mut p2, &mut tag, b"").unwrap();
+    }
+
+    #[test]
+    fn generic_gcm_accepts_nonce_going_backwards() {
+        let algorithm = Algorithm::aes_128_gcm();
+        let mut ctx = AeadCtx::new_default_tag(&algorithm, &[0u8; 16]).unwrap();
+        let mut tag = [0u8; 16];
+
+        let mut p1 = b"hello".to_vec();
+        ctx.seal_in_place(&nonce_with_counter(5), &mut p1, &mut tag, b"")
+            .unwrap();
+
+        // Counter 3 after 5 — generic GCM accepts it.
+        let mut p2 = b"world".to_vec();
+        ctx.seal_in_place(&nonce_with_counter(3), &mut p2, &mut tag, b"")
+            .unwrap();
     }
 }
