@@ -444,12 +444,14 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
         );
         return Ok(());
     } else if config.env.source_path.is_some()
-        && (config.features.rpk || config.features.underscore_wildcards)
+        && (config.features.rpk
+            || config.features.underscore_wildcards
+            || config.features.relax_rsa_key_usage)
     {
         panic!(
             "BORING_BSSL_ASSUME_PATCHED must be set when setting
                BORING_BSSL_SOURCE_PATH and using any of the following
-               features: rpk, underscore-wildcards"
+               features: rpk, underscore-wildcards, relax-rsa-key-usage"
         );
     }
 
@@ -483,6 +485,11 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
     if config.features.underscore_wildcards {
         println!("cargo:warning=applying underscore wildcards patch to boringssl");
         apply_patch(config, "underscore-wildcards.patch")?;
+    }
+
+    if config.features.relax_rsa_key_usage {
+        println!("cargo:warning=applying RSA key-usage enforcement relaxation patch");
+        apply_patch(config, "relax-rsa-key-usage-enforcement.patch")?;
     }
 
     Ok(())
