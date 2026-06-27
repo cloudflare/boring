@@ -44,13 +44,13 @@ fn cmake_params_android(config: &Config) -> &'static [(&'static str, &'static st
 }
 
 const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
-    // iOS
     (
         "aarch64-apple-ios",
         &[
             ("CMAKE_OSX_ARCHITECTURES", "arm64"),
             ("CMAKE_OSX_SYSROOT", "iphoneos"),
             ("CMAKE_MACOSX_BUNDLE", "OFF"),
+            ("CMAKE_ASM_FLAGS", "-fembed-bitcode"),
         ],
     ),
     (
@@ -59,6 +59,7 @@ const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
             ("CMAKE_OSX_ARCHITECTURES", "arm64"),
             ("CMAKE_OSX_SYSROOT", "iphonesimulator"),
             ("CMAKE_MACOSX_BUNDLE", "OFF"),
+            ("CMAKE_ASM_FLAGS", "-fembed-bitcode"),
         ],
     ),
     (
@@ -67,9 +68,12 @@ const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
             ("CMAKE_OSX_ARCHITECTURES", "x86_64"),
             ("CMAKE_OSX_SYSROOT", "iphonesimulator"),
             ("CMAKE_MACOSX_BUNDLE", "OFF"),
+            (
+                "CMAKE_ASM_FLAGS",
+                "-fembed-bitcode -target x86_64-apple-ios-simulator",
+            ),
         ],
     ),
-    // macOS
     (
         "aarch64-apple-darwin",
         &[
@@ -87,25 +91,16 @@ const CMAKE_PARAMS_APPLE: &[(&str, &[(&str, &str)])] = &[
 ];
 
 fn cmake_params_apple(config: &Config) -> &'static [(&'static str, &'static str)] {
-    for (next_target, params) in CMAKE_PARAMS_APPLE {
-        if *next_target == config.target {
-            return params;
-        }
-    }
-    &[]
+    CMAKE_PARAMS_APPLE
+        .iter()
+        .find_map(|&(target, params)| (target == config.target).then_some(params))
+        .unwrap_or_default()
 }
 
-fn get_apple_sdk_name(config: &Config) -> &'static str {
-    for (name, value) in cmake_params_apple(config) {
-        if *name == "CMAKE_OSX_SYSROOT" {
-            return value;
-        }
-    }
-
-    panic!(
-        "cannot find SDK for {} in CMAKE_PARAMS_APPLE",
-        config.target
-    );
+fn get_apple_sdk_name(config: &Config) -> Option<&'static str> {
+    cmake_params_apple(config)
+        .iter()
+        .find_map(|&(name, value)| (name == "CMAKE_OSX_SYSROOT").then_some(value))
 }
 
 /// Returns an absolute path to the BoringSSL source.
@@ -209,7 +204,8 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
     let src_path = get_boringssl_source_path(config);
     let mut boringssl_cmake = cmake::Config::new(src_path);
 
-    if config.env.cmake_toolchain_file.is_some() {
+    if config.env.cmake_toolchain_file_is_set {
+        println!("cargo::warning=CMAKE_TOOLCHAIN_FILE var set; won't customize cmake vars");
         return boringssl_cmake;
     }
 
@@ -218,14 +214,18 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
         // This is required now because newest BoringSSL requires CMake 3.22 which
         // uses the new logic with CMAKE_MSVC_RUNTIME_LIBRARY introduced in CMake 3.15.
         // https://github.com/rust-lang/cmake-rs/pull/30#issuecomment-2969758499
-        if config.target_features.iter().any(|f| f == "crt-static") {
-            boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreaded");
+        let rt = if config.target_features.iter().any(|f| f == "crt-static") {
+            "MultiThreaded"
         } else {
-            boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreadedDLL");
-        }
+            "MultiThreadedDLL"
+        };
+        boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", rt);
     }
 
     if config.host == config.target {
+        if config.env.compiler_external_toolchain.is_some() {
+            println!("cargo::warning=COMPILER_EXTERNAL_TOOLCHAIN won't be used");
+        }
         return boringssl_cmake;
     }
 
@@ -258,7 +258,7 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
     }
 
     // Add platform-specific parameters for cross-compilation.
-    match &*config.target_os {
+    let toolchain_file = match &*config.target_os {
         "android" => {
             // We need ANDROID_NDK_HOME to be set properly.
             let android_ndk_home = config
@@ -271,89 +271,44 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
                 boringssl_cmake.define(name, value);
             }
             let toolchain_file = android_ndk_home.join("build/cmake/android.toolchain.cmake");
-            let toolchain_file = toolchain_file.to_str().unwrap();
-            eprintln!("android toolchain={toolchain_file}");
-            boringssl_cmake.define("CMAKE_TOOLCHAIN_FILE", toolchain_file);
 
             // 21 is the minimum level tested. You can give higher value.
             boringssl_cmake.define("CMAKE_SYSTEM_VERSION", "21");
             boringssl_cmake.define("CMAKE_ANDROID_STL_TYPE", "c++_shared");
+            Some(toolchain_file)
         }
-
-        "macos" => {
+        os @ ("macos" | "ios") => {
             for (name, value) in cmake_params_apple(config) {
-                eprintln!("macos arch={} add {}={}", config.target_arch, name, value);
+                eprintln!("{os} arch={} add {}={}", config.target_arch, name, value);
                 boringssl_cmake.define(name, value);
             }
+            None
         }
-
-        "ios" => {
-            for (name, value) in cmake_params_apple(config) {
-                eprintln!("ios arch={} add {}={}", config.target_arch, name, value);
-                boringssl_cmake.define(name, value);
-            }
-
-            // Bitcode is always on.
-            let bitcode_cflag = "-fembed-bitcode";
-
-            // Hack for Xcode 10.1.
-            let target_cflag = if config.target_arch == "x86_64" {
-                "-target x86_64-apple-ios-simulator"
-            } else {
-                ""
-            };
-
-            let cflag = format!("{bitcode_cflag} {target_cflag}");
-            boringssl_cmake.define("CMAKE_ASM_FLAGS", &cflag);
-            boringssl_cmake.cflag(&cflag);
-        }
-
         "windows" if config.host.contains("windows") => {
             // BoringSSL's CMakeLists.txt isn't set up for cross-compiling using Visual Studio.
             // Disable assembly support so that it at least builds.
             boringssl_cmake.define("OPENSSL_NO_ASM", "YES");
+            None
         }
-
         "linux" => match &*config.target_arch {
-            "x86" => {
-                boringssl_cmake.define(
-                    "CMAKE_TOOLCHAIN_FILE",
-                    // `src_path` can be a path relative to the manifest dir, but
-                    // cmake hates that.
-                    config
-                        .manifest_dir
-                        .join(src_path)
-                        .join("util/32-bit-toolchain.cmake")
-                        .as_os_str(),
-                );
-            }
-            "aarch64" => {
-                boringssl_cmake.define(
-                    "CMAKE_TOOLCHAIN_FILE",
-                    config
-                        .manifest_dir
-                        .join("cmake/aarch64-linux.cmake")
-                        .as_os_str(),
-                );
-            }
-            "arm" => {
-                boringssl_cmake.define(
-                    "CMAKE_TOOLCHAIN_FILE",
-                    config
-                        .manifest_dir
-                        .join("cmake/armv7-linux.cmake")
-                        .as_os_str(),
-                );
-            }
-            _ => {
-                println!(
-                    "cargo:warning=no toolchain file configured by boring-sys for {}",
-                    config.target
-                );
-            }
+            "x86" => Some(
+                config
+                    .manifest_dir
+                    .join(src_path)
+                    .join("util/32-bit-toolchain.cmake"),
+            ),
+            "aarch64" => Some(config.manifest_dir.join("cmake/aarch64-linux.cmake")),
+            "arm" => Some(config.manifest_dir.join("cmake/armv7-linux.cmake")),
+            _ => None,
         },
+        _ => None,
+    };
 
-        _ => {}
+    if let Some(tf) = toolchain_file.filter(|tf| tf.exists()) {
+        eprintln!("{} toolchain={}", config.target_os, tf.display());
+        boringssl_cmake.define("CMAKE_TOOLCHAIN_FILE", tf);
+    } else {
+        println!("cargo::warning=no toolchain file set for {}", config.target);
     }
 
     boringssl_cmake
@@ -394,8 +349,11 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
         "ios" | "macos" => {
             // When cross-compiling for Apple targets, tell bindgen to use SDK sysroot,
             // and *don't* use system headers of the host macOS.
-            let sdk = get_apple_sdk_name(config);
-            match run_command(Command::new("xcrun").args(["--show-sdk-path", "--sdk", sdk])) {
+            match get_apple_sdk_name(config)
+                .ok_or_else(|| io::Error::other(format!("can't find SDK for {}", config.target)))
+                .and_then(|sdk| {
+                    run_command(Command::new("xcrun").args(["--show-sdk-path", "--sdk", sdk]))
+                }) {
                 Ok(output) => {
                     let sysroot = std::str::from_utf8(&output.stdout).expect("xcrun output");
                     params.push("-isysroot".to_string());
