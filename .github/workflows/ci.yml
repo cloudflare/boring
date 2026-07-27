@@ -445,7 +445,7 @@ jobs:
       with:
         go-version: '>=1.22.0'
     - name: Install ${{ matrix.target }} toolchain
-      run: brew tap messense/macos-cross-toolchains && brew install ${{ matrix.target }}
+      run: brew tap messense/macos-cross-toolchains && brew trust messense/macos-cross-toolchains && brew install ${{ matrix.target }}
     - name: Set BORING_BSSL_SYSROOT
       run: echo "BORING_BSSL_SYSROOT=$(brew --prefix ${{ matrix.target }})/toolchain/${{ matrix.target }}/sysroot" >> $GITHUB_ENV
       shell: bash
