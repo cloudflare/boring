@@ -330,6 +330,41 @@ impl MlDsaPublicKey {
         self.algorithm
     }
 
+    /// Returns the serialized form of this public key.
+    pub fn to_bytes(&self) -> Result<Vec<u8>, ErrorStack> {
+        unsafe {
+            ffi::init();
+            let mut bytes = vec![0u8; self.algorithm.public_key_bytes()];
+            let mut cbb: MaybeUninit<ffi::CBB> = MaybeUninit::uninit();
+            cvt(ffi::CBB_init_fixed(
+                cbb.as_mut_ptr(),
+                bytes.as_mut_ptr(),
+                bytes.len(),
+            ))?;
+            match &self.inner {
+                PublicKeyInner::MlDsa44(key) => {
+                    cvt(ffi::MLDSA44_marshal_public_key(
+                        cbb.as_mut_ptr(),
+                        key.as_ref(),
+                    ))?;
+                }
+                PublicKeyInner::MlDsa65(key) => {
+                    cvt(ffi::MLDSA65_marshal_public_key(
+                        cbb.as_mut_ptr(),
+                        key.as_ref(),
+                    ))?;
+                }
+                PublicKeyInner::MlDsa87(key) => {
+                    cvt(ffi::MLDSA87_marshal_public_key(
+                        cbb.as_mut_ptr(),
+                        key.as_ref(),
+                    ))?;
+                }
+            }
+            Ok(bytes)
+        }
+    }
+
     /// Verifies `signature` over `msg` using this public key.
     pub fn verify(&self, msg: &[u8], signature: &[u8]) -> Result<(), ErrorStack> {
         unsafe {
@@ -445,6 +480,18 @@ mod tests {
                     let sig2 = sk2.clone().sign(msg).unwrap();
                     assert!(pk.verify(msg, &sig1).is_ok());
                     assert!(pk.verify(msg, &sig2).is_ok());
+                }
+
+                #[test]
+                fn public_key_roundtrip() {
+                    let (pk, sk) = MlDsaPrivateKey::generate($alg).unwrap();
+                    let bytes = pk.to_bytes().unwrap();
+                    assert_eq!(bytes.len(), $alg.public_key_bytes());
+                    let pk2 = MlDsaPublicKey::from_slice($alg, &bytes).unwrap();
+                    assert_eq!(pk2.to_bytes().unwrap(), bytes);
+                    let msg = b"public key roundtrip";
+                    let sig = sk.sign(msg).unwrap();
+                    assert!(pk2.verify(msg, &sig).is_ok());
                 }
 
                 #[test]
