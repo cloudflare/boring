@@ -221,6 +221,48 @@ impl MlDsaPrivateKey {
         &self.seed
     }
 
+    /// Returns the public key corresponding to this private key.
+    pub fn public_key(&self) -> Result<MlDsaPublicKey, ErrorStack> {
+        unsafe {
+            ffi::init();
+            match &self.inner {
+                PrivateKeyInner::MlDsa44(key) => {
+                    let mut pub_key: MaybeUninit<ffi::MLDSA44_public_key> = MaybeUninit::uninit();
+                    cvt(ffi::MLDSA44_public_from_private(
+                        pub_key.as_mut_ptr(),
+                        key.as_ref(),
+                    ))?;
+                    Ok(MlDsaPublicKey {
+                        algorithm: self.algorithm,
+                        inner: PublicKeyInner::MlDsa44(Box::new(pub_key.assume_init())),
+                    })
+                }
+                PrivateKeyInner::MlDsa65(key) => {
+                    let mut pub_key: MaybeUninit<ffi::MLDSA65_public_key> = MaybeUninit::uninit();
+                    cvt(ffi::MLDSA65_public_from_private(
+                        pub_key.as_mut_ptr(),
+                        key.as_ref(),
+                    ))?;
+                    Ok(MlDsaPublicKey {
+                        algorithm: self.algorithm,
+                        inner: PublicKeyInner::MlDsa65(Box::new(pub_key.assume_init())),
+                    })
+                }
+                PrivateKeyInner::MlDsa87(key) => {
+                    let mut pub_key: MaybeUninit<ffi::MLDSA87_public_key> = MaybeUninit::uninit();
+                    cvt(ffi::MLDSA87_public_from_private(
+                        pub_key.as_mut_ptr(),
+                        key.as_ref(),
+                    ))?;
+                    Ok(MlDsaPublicKey {
+                        algorithm: self.algorithm,
+                        inner: PublicKeyInner::MlDsa87(Box::new(pub_key.assume_init())),
+                    })
+                }
+            }
+        }
+    }
+
     /// Signs `msg` and returns the signature bytes.
     pub fn sign(&self, msg: &[u8]) -> Result<Vec<u8>, ErrorStack> {
         unsafe {
@@ -492,6 +534,14 @@ mod tests {
                     let msg = b"public key roundtrip";
                     let sig = sk.sign(msg).unwrap();
                     assert!(pk2.verify(msg, &sig).is_ok());
+                }
+
+                #[test]
+                fn public_from_private() {
+                    let (pk, sk) = MlDsaPrivateKey::generate($alg).unwrap();
+                    let derived = sk.public_key().unwrap();
+                    assert_eq!(derived.algorithm(), $alg);
+                    assert_eq!(derived.to_bytes().unwrap(), pk.to_bytes().unwrap());
                 }
 
                 #[test]
