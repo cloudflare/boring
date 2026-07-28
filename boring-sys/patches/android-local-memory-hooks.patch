@@ -1,0 +1,13 @@
+diff --git a/src/crypto/mem.c b/src/crypto/mem.c
+index e4398d1a7..71e533524 100644
+--- a/src/crypto/mem.c
++++ b/src/crypto/mem.c
+@@ -94,7 +94,7 @@ static void __asan_unpoison_memory_region(const void *addr, size_t size) {}
+ // Windows doesn't really support weak symbols as of May 2019, and Clang on
+ // Windows will emit strong symbols instead. See
+ // https://bugs.llvm.org/show_bug.cgi?id=37598
+-#if defined(__ELF__) && defined(__GNUC__)
++#if defined(__ELF__) && defined(__GNUC__) && !defined(__ANDROID__)
+ #define WEAK_SYMBOL_FUNC(rettype, name, args) \
+   rettype name args __attribute__((weak));
+ #else

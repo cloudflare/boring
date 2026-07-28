@@ -519,6 +519,11 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
         apply_patch(config, "underscore-wildcards.patch")?;
     }
 
+    if config.target_os == "android" {
+        println!("cargo:warning=disabling weak allocator hooks on Android");
+        apply_patch(config, "android-local-memory-hooks.patch")?;
+    }
+
     Ok(())
 }
 
