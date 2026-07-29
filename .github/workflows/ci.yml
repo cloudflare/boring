@@ -100,6 +100,8 @@ jobs:
         - aarch64-ios
         - aarch64-ios-sim
         - x86_64-ios
+        - aarch64-tvos
+        - aarch64-tvos-sim
         - i686-linux
         - arm-linux
         - aarch64-linux
@@ -159,6 +161,18 @@ jobs:
           check_only: true
           custom_env:
             IPHONEOS_DEPLOYMENT_TARGET: 17.5
+        - thing: aarch64-tvos
+          target: aarch64-apple-tvos
+          os: macos-latest
+          check_only: true
+          custom_env:
+            TVOS_DEPLOYMENT_TARGET: 17.5
+        - thing: aarch64-tvos-sim
+          target: aarch64-apple-tvos-sim
+          os: macos-latest
+          check_only: true
+          custom_env:
+            TVOS_DEPLOYMENT_TARGET: 17.5
         - thing: i686-linux
           target: i686-unknown-linux-gnu
           rust: stable
