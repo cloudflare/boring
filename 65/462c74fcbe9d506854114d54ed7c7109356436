@@ -1,0 +1,21 @@
+boring/test/cert.pem
+  s_6222955b93e936::t_a32f398c8e8baa 2-21
+boring/test/root-ca.pem
+  s_6222955b93e936::t_a32f398c8e8baa 2-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "65462c74fcbe9d506854114d54ed7c7109356436",
+  "prompts": {},
+  "sessions": {
+    "s_6222955b93e936": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_008534964ffeF6MC64AWfipsDO",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Matthew Gumport <mgumport@cloudflare.com>"
+    }
+  }
+}
