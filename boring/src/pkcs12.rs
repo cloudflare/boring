@@ -118,6 +118,7 @@ pub struct ParsedPkcs12_2 {
 }
 
 impl ParsedPkcs12_2 {
+    #[must_use]
     pub fn chain(&self) -> Option<&StackRef<X509>> {
         self.ca.as_deref()
     }

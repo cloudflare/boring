@@ -331,7 +331,7 @@ impl Error {
     }
 
     fn is_internal(&self) -> bool {
-        std::ptr::eq(self.file, BORING_INTERNAL.as_ptr())
+        ptr::eq(self.file, BORING_INTERNAL.as_ptr())
     }
 }
 
