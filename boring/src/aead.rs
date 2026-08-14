@@ -59,10 +59,10 @@
 //! let mut payload = b"hello world".to_vec();
 //! let mut tag = vec![0u8; algorithm.max_overhead()];
 //!
-//! ctx.seal_in_place(&nonce, payload.as_mut_slice(), &mut tag, aad)
+//! ctx.seal_in_place_mut(&nonce, payload.as_mut_slice(), &mut tag, aad)
 //!     .unwrap();
 //!
-//! ctx.open_in_place(&nonce, payload.as_mut_slice(), &tag, aad)
+//! ctx.open_in_place_mut(&nonce, payload.as_mut_slice(), &tag, aad)
 //!     .unwrap();
 //!
 //! assert_eq!(payload.as_slice(), b"hello world");
@@ -342,7 +342,7 @@ impl AeadCtxRef {
     /// let mut detached = vec![0u8; extra.len() + algorithm.max_overhead()];
     ///
     /// let detached_written = ctx
-    ///     .seal_scatter(
+    ///     .seal_scatter_mut(
     ///         &nonce,
     ///         main.as_mut_slice(),
     ///         detached.as_mut_slice(),
@@ -360,14 +360,30 @@ impl AeadCtxRef {
     /// full_ciphertext.extend_from_slice(&detached_written[..extra_ct_len]);
     ///
     /// // `open_gather` takes ciphertext and detached tag separately.
-    /// ctx.open_gather(&nonce, full_ciphertext.as_mut_slice(), tag, aad)
+    /// ctx.open_gather_mut(&nonce, full_ciphertext.as_mut_slice(), tag, aad)
     ///     .unwrap();
     ///
     /// assert_eq!(full_ciphertext.as_slice(), b"hello world");
     /// ```
     #[corresponds(EVP_AEAD_CTX_seal_scatter)]
-    pub fn seal_scatter<'a>(
+    pub fn seal_scatter_mut<'a>(
         &mut self,
+        nonce: &[u8],
+        in_out: &mut [u8],
+        out_tag: &'a mut [u8],
+        extra_in: Option<&[u8]>,
+        associated_data: &[u8],
+    ) -> Result<&'a mut [u8], ErrorStack> {
+        #[allow(deprecated)]
+        self.seal_scatter(nonce, in_out, out_tag, extra_in, associated_data)
+    }
+
+    #[doc(hidden)]
+    #[deprecated(
+        note = "Non-thread-safe when used with TLS due to interior mutability in BoringSSL. Use `seal_scatter_mut` instead."
+    )]
+    pub fn seal_scatter<'a>(
+        &self,
         nonce: &[u8],
         in_out: &mut [u8],
         out_tag: &'a mut [u8],
@@ -416,8 +432,23 @@ impl AeadCtxRef {
     ///   [`seal_scatter`](AeadCtxRef::seal_scatter).
     /// - `associated_data`: The same AAD that was passed during encryption.
     #[corresponds(EVP_AEAD_CTX_open_gather)]
-    pub fn open_gather(
+    pub fn open_gather_mut(
         &mut self,
+        nonce: &[u8],
+        in_out: &mut [u8],
+        in_tag: &[u8],
+        associated_data: &[u8],
+    ) -> Result<(), ErrorStack> {
+        #[allow(deprecated)]
+        self.open_gather(nonce, in_out, in_tag, associated_data)
+    }
+
+    #[doc(hidden)]
+    #[deprecated(
+        note = "Non-thread-safe when used with TLS due to interior mutability in BoringSSL. Use `open_gather_mut` instead."
+    )]
+    pub fn open_gather(
+        &self,
         nonce: &[u8],
         in_out: &mut [u8],
         in_tag: &[u8],
@@ -457,13 +488,28 @@ impl AeadCtxRef {
     ///   authenticated but not encrypted.
     ///
     /// Returns the sub-slice of `tag` that was written to.
-    pub fn seal_in_place<'a>(
+    pub fn seal_in_place_mut<'a>(
         &mut self,
         nonce: &[u8],
         buffer: &mut [u8],
         tag: &'a mut [u8],
         associated_data: &[u8],
     ) -> Result<&'a mut [u8], ErrorStack> {
+        self.seal_scatter_mut(nonce, buffer, tag, None, associated_data)
+    }
+
+    #[doc(hidden)]
+    #[deprecated(
+        note = "Non-thread-safe when used with TLS due to interior mutability in BoringSSL. Use `seal_in_place_mut` instead."
+    )]
+    pub fn seal_in_place<'a>(
+        &self,
+        nonce: &[u8],
+        buffer: &mut [u8],
+        tag: &'a mut [u8],
+        associated_data: &[u8],
+    ) -> Result<&'a mut [u8], ErrorStack> {
+        #[allow(deprecated)]
         self.seal_scatter(nonce, buffer, tag, None, associated_data)
     }
 
@@ -480,13 +526,28 @@ impl AeadCtxRef {
     /// - `tag`: The authentication tag produced by
     ///   [`seal_in_place`](AeadCtxRef::seal_in_place).
     /// - `associated_data`: The same AAD that was passed during encryption.
-    pub fn open_in_place(
+    pub fn open_in_place_mut(
         &mut self,
         nonce: &[u8],
         buffer: &mut [u8],
         tag: &[u8],
         associated_data: &[u8],
     ) -> Result<(), ErrorStack> {
+        self.open_gather_mut(nonce, buffer, tag, associated_data)
+    }
+
+    #[doc(hidden)]
+    #[deprecated(
+        note = "Non-thread-safe when used with TLS due to interior mutability in BoringSSL. Use `open_in_place_mut` instead."
+    )]
+    pub fn open_in_place(
+        &self,
+        nonce: &[u8],
+        buffer: &mut [u8],
+        tag: &[u8],
+        associated_data: &[u8],
+    ) -> Result<(), ErrorStack> {
+        #[allow(deprecated)]
         self.open_gather(nonce, buffer, tag, associated_data)
     }
 }
@@ -504,10 +565,10 @@ mod tests {
         let mut buffer = b"ABCDE".to_vec();
 
         let mut tag = [0u8; 16];
-        ctx.seal_in_place(&nonce, buffer.as_mut_slice(), &mut tag, associated_data)
+        ctx.seal_in_place_mut(&nonce, buffer.as_mut_slice(), &mut tag, associated_data)
             .unwrap();
 
-        ctx.open_in_place(&nonce, buffer.as_mut_slice(), &tag, associated_data)
+        ctx.open_in_place_mut(&nonce, buffer.as_mut_slice(), &tag, associated_data)
             .unwrap();
 
         assert_eq!(b"ABCDE", buffer.as_slice());
@@ -523,11 +584,11 @@ mod tests {
 
         let mut tag = [0u8; 16];
         let tag_written = ctx
-            .seal_in_place(&nonce, buffer.as_mut_slice(), &mut tag, associated_data)
+            .seal_in_place_mut(&nonce, buffer.as_mut_slice(), &mut tag, associated_data)
             .unwrap();
         let tag_len = tag_written.len();
 
-        ctx.open_in_place(
+        ctx.open_in_place_mut(
             &nonce,
             buffer.as_mut_slice(),
             &tag[..tag_len],
@@ -550,7 +611,7 @@ mod tests {
         let mut detached = vec![0u8; extra.len() + algorithm.max_overhead()];
 
         let detached_written = ctx
-            .seal_scatter(
+            .seal_scatter_mut(
                 &nonce,
                 main.as_mut_slice(),
                 detached.as_mut_slice(),
@@ -564,7 +625,7 @@ mod tests {
         let mut full_ciphertext = main;
         full_ciphertext.extend_from_slice(&detached_written[..extra_ct_len]);
 
-        ctx.open_gather(&nonce, full_ciphertext.as_mut_slice(), tag, aad)
+        ctx.open_gather_mut(&nonce, full_ciphertext.as_mut_slice(), tag, aad)
             .unwrap();
 
         assert_eq!(full_ciphertext.as_slice(), b"hello world");
@@ -595,7 +656,7 @@ mod tests {
         let mut payload = [0u8; 8];
         let mut tag = [0u8; 16];
 
-        let result = ctx.seal_in_place(&[0u8; 11], &mut payload, &mut tag, b"");
+        let result = ctx.seal_in_place_mut(&[0u8; 11], &mut payload, &mut tag, b"");
         assert!(result.is_err());
     }
 
@@ -607,7 +668,7 @@ mod tests {
 
         // AES-128-GCM produces a 16-byte tag; an 8-byte buffer must be rejected.
         let mut short_tag = [0u8; 8];
-        let result = ctx.seal_in_place(&[0u8; 12], &mut payload, &mut short_tag, b"");
+        let result = ctx.seal_in_place_mut(&[0u8; 12], &mut payload, &mut short_tag, b"");
         assert!(result.is_err());
     }
 
@@ -618,7 +679,7 @@ mod tests {
         let mut payload = [0u8; 8];
         let tag = [0u8; 16];
 
-        let result = ctx.open_in_place(&[0u8; 11], &mut payload, &tag, b"");
+        let result = ctx.open_in_place_mut(&[0u8; 11], &mut payload, &tag, b"");
         assert!(result.is_err());
     }
 
@@ -636,14 +697,14 @@ mod tests {
 
         let mut tag = vec![0u8; algorithm.max_overhead()];
         seal_ctx
-            .seal_in_place(&nonce, &mut payload, &mut tag, aad)
+            .seal_in_place_mut(&nonce, &mut payload, &mut tag, aad)
             .unwrap();
 
         // Ciphertext should differ from plaintext.
         assert_ne!(payload.as_slice(), original.as_slice());
 
         open_ctx
-            .open_in_place(&nonce, &mut payload, &tag, aad)
+            .open_in_place_mut(&nonce, &mut payload, &tag, aad)
             .unwrap();
 
         assert_eq!(payload.as_slice(), original.as_slice());
@@ -702,13 +763,13 @@ mod tests {
         let mut tag = [0u8; 16];
 
         // First seal with counter 0 succeeds.
-        ctx.seal_in_place(&nonce_with_counter(0), &mut payload, &mut tag, b"")
+        ctx.seal_in_place_mut(&nonce_with_counter(0), &mut payload, &mut tag, b"")
             .unwrap();
 
         // Sealing again with the same counter (0) must fail — nonces must be
         // strictly monotonically increasing.
         let mut payload2 = b"world".to_vec();
-        let result = ctx.seal_in_place(&nonce_with_counter(0), &mut payload2, &mut tag, b"");
+        let result = ctx.seal_in_place_mut(&nonce_with_counter(0), &mut payload2, &mut tag, b"");
         assert!(result.is_err());
     }
 
@@ -720,11 +781,11 @@ mod tests {
 
         // Seal with counter 5, then try counter 3.
         let mut p1 = b"hello".to_vec();
-        ctx.seal_in_place(&nonce_with_counter(5), &mut p1, &mut tag, b"")
+        ctx.seal_in_place_mut(&nonce_with_counter(5), &mut p1, &mut tag, b"")
             .unwrap();
 
         let mut p2 = b"world".to_vec();
-        let result = ctx.seal_in_place(&nonce_with_counter(3), &mut p2, &mut tag, b"");
+        let result = ctx.seal_in_place_mut(&nonce_with_counter(3), &mut p2, &mut tag, b"");
         assert!(result.is_err());
     }
 
@@ -736,7 +797,7 @@ mod tests {
 
         for counter in 0..5u64 {
             let mut payload = b"test".to_vec();
-            ctx.seal_in_place(&nonce_with_counter(counter), &mut payload, &mut tag, b"")
+            ctx.seal_in_place_mut(&nonce_with_counter(counter), &mut payload, &mut tag, b"")
                 .unwrap();
         }
     }
@@ -750,12 +811,13 @@ mod tests {
         // TLS 1.3 nonce: sequence XOR mask. First call sets the mask.
         let nonce0 = [0u8; 12];
         let mut p1 = b"hello".to_vec();
-        ctx.seal_in_place(&nonce0, &mut p1, &mut tag, b"").unwrap();
+        ctx.seal_in_place_mut(&nonce0, &mut p1, &mut tag, b"")
+            .unwrap();
 
         // Second call with the same nonce implies counter went backwards
         // (counter 0 again), which must fail.
         let mut p2 = b"world".to_vec();
-        let result = ctx.seal_in_place(&nonce0, &mut p2, &mut tag, b"");
+        let result = ctx.seal_in_place_mut(&nonce0, &mut p2, &mut tag, b"");
         assert!(result.is_err());
     }
 
@@ -769,12 +831,14 @@ mod tests {
         let nonce = nonce_with_counter(0);
 
         let mut p1 = b"hello".to_vec();
-        ctx.seal_in_place(&nonce, &mut p1, &mut tag, b"").unwrap();
+        ctx.seal_in_place_mut(&nonce, &mut p1, &mut tag, b"")
+            .unwrap();
 
         // Same nonce again — generic GCM accepts it (even though this is
         // cryptographically unsafe, the AEAD layer does not reject it).
         let mut p2 = b"world".to_vec();
-        ctx.seal_in_place(&nonce, &mut p2, &mut tag, b"").unwrap();
+        ctx.seal_in_place_mut(&nonce, &mut p2, &mut tag, b"")
+            .unwrap();
     }
 
     #[test]
@@ -784,12 +848,12 @@ mod tests {
         let mut tag = [0u8; 16];
 
         let mut p1 = b"hello".to_vec();
-        ctx.seal_in_place(&nonce_with_counter(5), &mut p1, &mut tag, b"")
+        ctx.seal_in_place_mut(&nonce_with_counter(5), &mut p1, &mut tag, b"")
             .unwrap();
 
         // Counter 3 after 5 — generic GCM accepts it.
         let mut p2 = b"world".to_vec();
-        ctx.seal_in_place(&nonce_with_counter(3), &mut p2, &mut tag, b"")
+        ctx.seal_in_place_mut(&nonce_with_counter(3), &mut p2, &mut tag, b"")
             .unwrap();
     }
 }
