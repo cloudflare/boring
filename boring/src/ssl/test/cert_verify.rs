@@ -118,7 +118,7 @@ fn callback_receives_correct_chain() {
         assert!(x509.current_cert().is_some());
         assert!(x509.verify_result().is_ok());
         let chain = x509.chain().unwrap();
-        assert!(chain.len() == 2);
+        assert_eq!(chain.len(), 2);
         let leaf_cert = chain.get(0).unwrap();
         let leaf_digest = leaf_cert.digest(MessageDigest::sha1()).unwrap();
         assert_eq!(hex::encode(leaf_digest), leaf_sha1);

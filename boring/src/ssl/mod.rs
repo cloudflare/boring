@@ -3024,6 +3024,7 @@ impl SslRef {
     }
 
     /// Returns whether the TLS 1.3 HelloRetryRequest was used
+    #[must_use]
     pub fn used_hello_retry_request(&self) -> bool {
         unsafe { ffi::SSL_used_hello_retry_request(self.as_ptr()) == 1 }
     }
@@ -3956,6 +3957,7 @@ impl SslRef {
     /// Returns the public key sent by the other peer, `None` if there is no ongoing handshake.
     #[corresponds(SSL_get0_peer_pubkey)]
     #[cfg(feature = "rpk")]
+    #[must_use]
     pub fn peer_pubkey(&self) -> Option<&PKeyRef<Public>> {
         unsafe {
             let pubkey = ffi::SSL_get0_peer_pubkey(self.as_ptr());
