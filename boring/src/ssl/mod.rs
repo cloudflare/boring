@@ -2126,7 +2126,7 @@ impl SslContextBuilder {
         unsafe {
             cvt_0i(ffi::SSL_CTX_set1_accepted_peer_cert_types(
                 self.as_ptr(),
-                types.as_ptr() as *const u8,
+                types.as_ptr().cast::<u8>(),
                 types.len(),
             ))
             .map(|_| ())
@@ -2434,7 +2434,7 @@ impl SslContextRef {
             }
 
             Some(slice::from_raw_parts(
-                types as *const CertificateType,
+                types.cast::<CertificateType>(),
                 types_len,
             ))
         }
@@ -3966,7 +3966,7 @@ impl SslRef {
                 return None;
             }
 
-            Some(PKeyRef::from_ptr(pubkey as *mut _))
+            Some(PKeyRef::from_ptr(pubkey.cast_mut()))
         }
     }
 
@@ -3989,7 +3989,7 @@ impl SslRef {
         unsafe {
             cvt_0i(ffi::SSL_set1_accepted_peer_cert_types(
                 self.as_ptr(),
-                types.as_ptr() as *const u8,
+                types.as_ptr().cast::<u8>(),
                 types.len(),
             ))
             .map(|_| ())
@@ -4018,7 +4018,7 @@ impl SslRef {
             }
 
             Some(slice::from_raw_parts(
-                types as *const CertificateType,
+                types.cast::<CertificateType>(),
                 types_len,
             ))
         }
