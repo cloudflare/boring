@@ -13,7 +13,7 @@ edition = { workspace = true }
 rust-version = { workspace = true }
 
 [package.metadata.docs.rs]
-features = ["rpk", "underscore-wildcards", "mlkem", "mldsa"]
+features = ["rpk", "underscore-wildcards", "mlkem", "mldsa", "slhdsa"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -33,6 +33,8 @@ pq-experimental = []
 mlkem = []
 # ML-DSA (FIPS 204) post-quantum digital signature.
 mldsa = []
+# SLH-DSA (FIPS 205) post-quantum digital signature.
+slhdsa = []
 
 # Expose internal `tls1_prf`
 prf = []
