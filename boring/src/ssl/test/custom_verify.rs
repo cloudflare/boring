@@ -151,7 +151,7 @@ fn callback() {
     static CALLED_BACK: AtomicBool = AtomicBool::new(false);
     let server = Server::builder().build();
     let mut client = server.client();
-    let expected = "59172d9313e84459bcff27f967e79e6e9217e584";
+    let expected = super::TEST_CERT_DIGEST;
 
     client
         .ctx()
@@ -181,7 +181,7 @@ fn ssl_callback() {
     static CALLED_BACK: AtomicBool = AtomicBool::new(false);
     let server = Server::builder().build();
     let mut client = server.client().build().builder();
-    let expected = "59172d9313e84459bcff27f967e79e6e9217e584";
+    let expected = super::TEST_CERT_DIGEST;
 
     client
         .ssl()
@@ -219,7 +219,7 @@ fn both_callback() {
         });
 
     let mut client = client.build().builder();
-    let expected = "59172d9313e84459bcff27f967e79e6e9217e584";
+    let expected = super::TEST_CERT_DIGEST;
 
     client
         .ssl()
