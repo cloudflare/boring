@@ -723,7 +723,7 @@ impl X509Ref {
                 host.as_ptr().cast(),
                 host.len(),
                 0,
-                std::ptr::null_mut(),
+                ptr::null_mut(),
             ))
             .map(|n| n == 1)
         }
@@ -832,9 +832,9 @@ impl fmt::Debug for X509 {
         let serial = match &self.serial_number().to_bn() {
             Ok(bn) => match bn.to_hex_str() {
                 Ok(hex) => hex.to_string(),
-                Err(_) => "".to_string(),
+                Err(_) => String::new(),
             },
-            Err(_) => "".to_string(),
+            Err(_) => String::new(),
         };
         let mut debug_struct = formatter.debug_struct("X509");
         debug_struct.field("serial_number", &serial);

@@ -394,7 +394,7 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
 }
 
 fn pick_best_android_ndk_toolchain(toolchains_dir: &Path) -> io::Result<OsString> {
-    let toolchains = std::fs::read_dir(toolchains_dir)?.collect::<Result<Vec<_>, _>>()?;
+    let toolchains = fs::read_dir(toolchains_dir)?.collect::<Result<Vec<_>, _>>()?;
     // First look for one of the toolchains that Google has documented.
     // https://developer.android.com/ndk/guides/other_build_systems
     for known_toolchain in ["linux-x86_64", "darwin-x86_64", "windows-x86_64"] {
@@ -414,8 +414,8 @@ fn pick_best_android_ndk_toolchain(toolchains_dir: &Path) -> io::Result<OsString
         return Ok(toolchain.file_name());
     }
     // Finally give up.
-    Err(std::io::Error::new(
-        std::io::ErrorKind::NotFound,
+    Err(io::Error::new(
+        io::ErrorKind::NotFound,
         "no subdirectories at given path",
     ))
 }
@@ -569,8 +569,8 @@ fn run_command(command: &mut Command) -> io::Result<Output> {
         )
     })?;
 
-    std::io::stderr().write_all(&out.stderr)?;
-    std::io::stdout().write_all(&out.stdout)?;
+    io::stderr().write_all(&out.stderr)?;
+    io::stdout().write_all(&out.stdout)?;
 
     if !out.status.success() {
         let err = match out.status.code() {

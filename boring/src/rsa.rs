@@ -673,9 +673,9 @@ mod test {
 
     #[test]
     fn test_private_encrypt() {
-        let k0 = super::Rsa::generate(512).unwrap();
+        let k0 = Rsa::generate(512).unwrap();
         let k0pkey = k0.public_key_to_pem().unwrap();
-        let k1 = super::Rsa::public_key_from_pem(&k0pkey).unwrap();
+        let k1 = Rsa::public_key_from_pem(&k0pkey).unwrap();
 
         let msg = vec![0xdeu8, 0xadu8, 0xd0u8, 0x0du8];
 
@@ -691,9 +691,9 @@ mod test {
 
     #[test]
     fn test_public_encrypt() {
-        let k0 = super::Rsa::generate(512).unwrap();
+        let k0 = Rsa::generate(512).unwrap();
         let k0pkey = k0.private_key_to_pem().unwrap();
-        let k1 = super::Rsa::private_key_from_pem(&k0pkey).unwrap();
+        let k1 = Rsa::private_key_from_pem(&k0pkey).unwrap();
 
         let msg = vec![0xdeu8, 0xadu8, 0xd0u8, 0x0du8];
 
@@ -721,24 +721,24 @@ mod test {
 
     #[test]
     fn test_public_key_to_pem_pkcs1() {
-        let keypair = super::Rsa::generate(512).unwrap();
+        let keypair = Rsa::generate(512).unwrap();
         let pubkey_pem = keypair.public_key_to_pem_pkcs1().unwrap();
-        super::Rsa::public_key_from_pem_pkcs1(&pubkey_pem).unwrap();
+        Rsa::public_key_from_pem_pkcs1(&pubkey_pem).unwrap();
     }
 
     #[test]
     #[should_panic]
     fn test_public_key_from_pem_pkcs1_generate_panic() {
-        let keypair = super::Rsa::generate(512).unwrap();
+        let keypair = Rsa::generate(512).unwrap();
         let pubkey_pem = keypair.public_key_to_pem().unwrap();
-        super::Rsa::public_key_from_pem_pkcs1(&pubkey_pem).unwrap();
+        Rsa::public_key_from_pem_pkcs1(&pubkey_pem).unwrap();
     }
 
     #[test]
     fn test_pem_pkcs1_encrypt() {
-        let keypair = super::Rsa::generate(2048).unwrap();
+        let keypair = Rsa::generate(2048).unwrap();
         let pubkey_pem = keypair.public_key_to_pem_pkcs1().unwrap();
-        let pubkey = super::Rsa::public_key_from_pem_pkcs1(&pubkey_pem).unwrap();
+        let pubkey = Rsa::public_key_from_pem_pkcs1(&pubkey_pem).unwrap();
         let msg = b"Hello, world!";
 
         let mut encrypted = vec![0; pubkey.size() as usize];
@@ -756,9 +756,9 @@ mod test {
 
     #[test]
     fn test_pem_pkcs1_padding() {
-        let keypair = super::Rsa::generate(2048).unwrap();
+        let keypair = Rsa::generate(2048).unwrap();
         let pubkey_pem = keypair.public_key_to_pem_pkcs1().unwrap();
-        let pubkey = super::Rsa::public_key_from_pem_pkcs1(&pubkey_pem).unwrap();
+        let pubkey = Rsa::public_key_from_pem_pkcs1(&pubkey_pem).unwrap();
         let msg = b"foo";
 
         let mut encrypted1 = vec![0; pubkey.size() as usize];

@@ -76,10 +76,7 @@ fn peer_certificate() {
     let s = server.client().connect();
     let cert = s.ssl().peer_certificate().unwrap();
     let fingerprint = cert.digest(MessageDigest::sha1()).unwrap();
-    assert_eq!(
-        hex::encode(fingerprint),
-        TEST_CERT_DIGEST
-    );
+    assert_eq!(hex::encode(fingerprint), TEST_CERT_DIGEST);
 }
 
 #[test]
