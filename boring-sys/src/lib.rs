@@ -71,6 +71,7 @@ pub fn init() {
 
 // CBS_init is inline in BoringSSL, so bindgen can't generate bindings for it.
 #[inline]
+#[must_use]
 pub fn cbs_init(data: &[u8]) -> CBS {
     CBS {
         data: data.as_ptr(),

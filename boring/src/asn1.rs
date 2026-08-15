@@ -678,8 +678,8 @@ mod tests {
         assert!(a != c_ref);
         assert!(b_ref == a);
         assert!(c_ref != a);
-        assert!(a_ref == b_ref);
-        assert!(a_ref != c_ref);
+        assert_eq!(a_ref, b_ref);
+        assert_ne!(a_ref, c_ref);
     }
 
     #[test]

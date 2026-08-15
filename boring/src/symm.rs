@@ -304,6 +304,7 @@ impl Cipher {
 
     /// Returns the cipher's NID.
     #[corresponds(EVP_CIPHER_nid)]
+    #[must_use]
     pub fn nid(&self) -> Nid {
         ffi::init();
         let nid = unsafe { ffi::EVP_CIPHER_nid(self.as_ptr()) };
@@ -774,9 +775,9 @@ mod tests {
     fn test_stream_cipher_output() {
         let key = [0u8; 16];
         let iv = [0u8; 16];
-        let mut c = super::Crypter::new(
-            super::Cipher::aes_128_ctr(),
-            super::Mode::Encrypt,
+        let mut c = Crypter::new(
+            Cipher::aes_128_ctr(),
+            Mode::Encrypt,
             &key,
             Some(&iv),
         )
@@ -804,29 +805,29 @@ mod tests {
             0x8eu8, 0xa2u8, 0xb7u8, 0xcau8, 0x51u8, 0x67u8, 0x45u8, 0xbfu8, 0xeau8, 0xfcu8, 0x49u8,
             0x90u8, 0x4bu8, 0x49u8, 0x60u8, 0x89u8,
         ];
-        let mut c = super::Crypter::new(
-            super::Cipher::aes_256_ecb(),
-            super::Mode::Encrypt,
+        let mut c = Crypter::new(
+            Cipher::aes_256_ecb(),
+            Mode::Encrypt,
             &k0,
             None,
         )
         .unwrap();
         c.pad(false);
-        let mut r0 = vec![0; c0.len() + super::Cipher::aes_256_ecb().block_size()];
+        let mut r0 = vec![0; c0.len() + Cipher::aes_256_ecb().block_size()];
         let count = c.update(&p0, &mut r0).unwrap();
         let rest = c.finalize(&mut r0[count..]).unwrap();
         r0.truncate(count + rest);
         assert_eq!(hex::encode(&r0), hex::encode(c0));
 
-        let mut c = super::Crypter::new(
-            super::Cipher::aes_256_ecb(),
-            super::Mode::Decrypt,
+        let mut c = Crypter::new(
+            Cipher::aes_256_ecb(),
+            Mode::Decrypt,
             &k0,
             None,
         )
         .unwrap();
         c.pad(false);
-        let mut p1 = vec![0; r0.len() + super::Cipher::aes_256_ecb().block_size()];
+        let mut p1 = vec![0; r0.len() + Cipher::aes_256_ecb().block_size()];
         let count = c.update(&r0, &mut p1).unwrap();
         let rest = c.finalize(&mut p1[count..]).unwrap();
         p1.truncate(count + rest);
@@ -848,15 +849,15 @@ mod tests {
             0x4a_u8, 0x2e_u8, 0xe5_u8, 0x6_u8, 0xbf_u8, 0xcf_u8, 0xf2_u8, 0xd7_u8, 0xea_u8,
             0x2d_u8, 0xb1_u8, 0x85_u8, 0x6c_u8, 0x93_u8, 0x65_u8, 0x6f_u8,
         ];
-        let mut cr = super::Crypter::new(
-            super::Cipher::aes_256_cbc(),
-            super::Mode::Decrypt,
+        let mut cr = Crypter::new(
+            Cipher::aes_256_cbc(),
+            Mode::Decrypt,
             &data,
             Some(&iv),
         )
         .unwrap();
         cr.pad(false);
-        let mut unciphered_data = vec![0; data.len() + super::Cipher::aes_256_cbc().block_size()];
+        let mut unciphered_data = vec![0; data.len() + Cipher::aes_256_cbc().block_size()];
         let count = cr.update(&ciphered_data, &mut unciphered_data).unwrap();
         let rest = cr.finalize(&mut unciphered_data[count..]).unwrap();
         unciphered_data.truncate(count + rest);
@@ -866,13 +867,13 @@ mod tests {
         assert_eq!(&unciphered_data, expected_unciphered_data);
     }
 
-    fn cipher_test(ciphertype: super::Cipher, pt: &str, ct: &str, key: &str, iv: &str) {
+    fn cipher_test(ciphertype: Cipher, pt: &str, ct: &str, key: &str, iv: &str) {
         let pt = Vec::from_hex(pt).unwrap();
         let ct = Vec::from_hex(ct).unwrap();
         let key = Vec::from_hex(key).unwrap();
         let iv = Vec::from_hex(iv).unwrap();
 
-        let computed = super::decrypt(ciphertype, &key, Some(&iv), &ct).unwrap();
+        let computed = decrypt(ciphertype, &key, Some(&iv), &ct).unwrap();
         let expected = pt;
 
         if computed != expected {
@@ -896,7 +897,7 @@ mod tests {
         let key = "97CD440324DA5FD1F7955C1C13B6B466";
         let iv = "";
 
-        cipher_test(super::Cipher::rc4(), pt, ct, key, iv);
+        cipher_test(Cipher::rc4(), pt, ct, key, iv);
     }
 
     #[test]
@@ -908,7 +909,7 @@ mod tests {
         let key = "2B7E151628AED2A6ABF7158809CF4F3C";
         let iv = "F0F1F2F3F4F5F6F7F8F9FAFBFCFDFEFF";
 
-        cipher_test(super::Cipher::aes_128_ctr(), pt, ct, key, iv);
+        cipher_test(Cipher::aes_128_ctr(), pt, ct, key, iv);
     }
 
     #[test]
@@ -920,7 +921,7 @@ mod tests {
         let key = "2b7e151628aed2a6abf7158809cf4f3c";
         let iv = "000102030405060708090a0b0c0d0e0f";
 
-        cipher_test(super::Cipher::aes_128_ofb(), pt, ct, key, iv);
+        cipher_test(Cipher::aes_128_ofb(), pt, ct, key, iv);
     }
 
     #[test]
@@ -932,7 +933,7 @@ mod tests {
         let key = "8e73b0f7da0e6452c810f32b809079e562f8ead2522c6b7b";
         let iv = "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff";
 
-        cipher_test(super::Cipher::aes_192_ctr(), pt, ct, key, iv);
+        cipher_test(Cipher::aes_192_ctr(), pt, ct, key, iv);
     }
 
     #[test]
@@ -944,7 +945,7 @@ mod tests {
         let key = "8e73b0f7da0e6452c810f32b809079e562f8ead2522c6b7b";
         let iv = "000102030405060708090a0b0c0d0e0f";
 
-        cipher_test(super::Cipher::aes_192_ofb(), pt, ct, key, iv);
+        cipher_test(Cipher::aes_192_ofb(), pt, ct, key, iv);
     }
 
     #[test]
@@ -956,7 +957,7 @@ mod tests {
         let key = "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4";
         let iv = "000102030405060708090a0b0c0d0e0f";
 
-        cipher_test(super::Cipher::aes_256_ofb(), pt, ct, key, iv);
+        cipher_test(Cipher::aes_256_ofb(), pt, ct, key, iv);
     }
 
     #[test]
@@ -966,7 +967,7 @@ mod tests {
         let key = "7cb66337f3d3c0fe";
         let iv = "0001020304050607";
 
-        cipher_test(super::Cipher::des_cbc(), pt, ct, key, iv);
+        cipher_test(Cipher::des_cbc(), pt, ct, key, iv);
     }
 
     #[test]
@@ -976,7 +977,7 @@ mod tests {
         let key = "7cb66337f3d3c0fe";
         let iv = "0001020304050607";
 
-        cipher_test(super::Cipher::des_ecb(), pt, ct, key, iv);
+        cipher_test(Cipher::des_ecb(), pt, ct, key, iv);
     }
 
     #[test]
@@ -986,7 +987,7 @@ mod tests {
         let key = "010203040506070801020304050607080102030405060708";
         let iv = "5cc118306dc702e4";
 
-        cipher_test(super::Cipher::des_ede3(), pt, ct, key, iv);
+        cipher_test(Cipher::des_ede3(), pt, ct, key, iv);
     }
 
     #[test]
@@ -996,7 +997,7 @@ mod tests {
         let key = "7cb66337f3d3c0fe7cb66337f3d3c0fe7cb66337f3d3c0fe";
         let iv = "0001020304050607";
 
-        cipher_test(super::Cipher::des_ede3_cbc(), pt, ct, key, iv);
+        cipher_test(Cipher::des_ede3_cbc(), pt, ct, key, iv);
     }
 
     #[test]
@@ -1065,7 +1066,7 @@ mod tests {
             Cipher::rc4(),
         ] {
             let name = cipher.nid().short_name().unwrap_or("unknown");
-            assert_eq!(Cipher::from_nid(cipher.nid()), Some(cipher), "{}", name);
+            assert_eq!(Cipher::from_nid(cipher.nid()), Some(cipher), "{name}");
         }
 
         assert_eq!(Cipher::from_nid(Cipher::des_ede3().nid()), None);
@@ -1162,7 +1163,7 @@ mod tests {
             },
         ] {
             let name = t.cipher.nid().short_name().unwrap_or("unknown");
-            assert_eq!(t.cipher.nid().as_raw(), t.nid, "{}", name);
+            assert_eq!(t.cipher.nid().as_raw(), t.nid, "{name}");
         }
     }
 }

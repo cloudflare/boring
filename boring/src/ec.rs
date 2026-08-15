@@ -559,7 +559,7 @@ impl<T> ToOwned for EcKeyRef<T> {
     fn to_owned(&self) -> EcKey<T> {
         unsafe {
             let r = ffi::EC_KEY_up_ref(self.as_ptr());
-            assert!(r == 1);
+            assert_eq!(r, 1);
             EcKey::from_ptr(self.as_ptr())
         }
     }
@@ -878,7 +878,7 @@ mod test {
             EcKey::from_private_components(&group, key.private_key(), key.public_key()).unwrap();
         dup_key.check_key().unwrap();
 
-        assert!(key.private_key() == dup_key.private_key());
+        assert_eq!(key.private_key(), dup_key.private_key());
     }
 
     #[test]

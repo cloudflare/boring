@@ -97,7 +97,7 @@ impl SslCredentialRef {
         if data.is_null() {
             None
         } else {
-            Some(&mut *(data as *mut T))
+            Some(&mut *data.cast::<T>())
         }
     }
 
@@ -114,7 +114,7 @@ impl SslCredentialRef {
         }
 
         unsafe {
-            let data = Box::into_raw(Box::new(data)) as *mut c_void;
+            let data = Box::into_raw(Box::new(data)).cast::<c_void>();
             ffi::SSL_CREDENTIAL_set_ex_data(self.as_ptr(), index.as_raw(), data);
         }
 
