@@ -251,7 +251,7 @@ fn fmt_mid_handshake_error(
     prefix: &str,
 ) -> fmt::Result {
     if !s.ssl().ssl_context().has_x509_support() {
-        write!(f, "{}", prefix)?;
+        write!(f, "{prefix}")?;
         return write!(f, " {}", s.error());
     }
 

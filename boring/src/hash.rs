@@ -387,7 +387,6 @@ pub(crate) fn hmac<const N: usize>(
 #[cfg(test)]
 mod tests {
     use hex::{self, FromHex};
-    use std::io::prelude::*;
 
     use super::*;
 
