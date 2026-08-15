@@ -13,6 +13,7 @@ use crate::x509::extension::{
 };
 use crate::x509::store::X509StoreBuilder;
 use crate::x509::{X509Extension, X509Name, X509Req, X509StoreContext, X509};
+const TEST_CERT_DIGEST: &str = "585e3a58acfd3b4e5e2825659407244ddd93539c";
 
 mod trusted_first;
 
@@ -27,8 +28,7 @@ fn test_cert_loading() {
     let cert = X509::from_pem(cert).unwrap();
     let fingerprint = cert.digest(MessageDigest::sha1()).unwrap();
 
-    let hash_str = "585e3a58acfd3b4e5e2825659407244ddd93539c";
-    let hash_vec = Vec::from_hex(hash_str).unwrap();
+    let hash_vec = Vec::from_hex(TEST_CERT_DIGEST).unwrap();
 
     assert_eq!(hash_vec, &*fingerprint);
 }
