@@ -1,0 +1,19 @@
+.gitlab-ci.yml
+  s_5aa1e957983cae::t_fd68751e758cbc 22-25,80-127,159-190
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "636bcf649feb4ab0c37e0fea987ab119298f58fe",
+  "prompts": {},
+  "sessions": {
+    "s_5aa1e957983cae": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ffe107ed1ffeApu7BP5sPIviWF",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Matthew Gumport <mgumport@cloudflare.com>"
+    }
+  }
+}
