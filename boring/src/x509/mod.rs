@@ -1178,6 +1178,16 @@ impl X509NameRef {
         to_der,
         ffi::i2d_X509_NAME
     }
+
+    /// Compares `self` and `other`'s canonicalized forms.
+    #[corresponds(X509_NAME_cmp)]
+    pub fn try_cmp(&self, other: &X509NameRef) -> Result<std::cmp::Ordering, ErrorStack> {
+        let r = unsafe { ffi::X509_NAME_cmp(self.as_ptr(), other.as_ptr()) };
+        if r == -2 {
+            return Err(ErrorStack::get());
+        }
+        Ok(r.cmp(&0))
+    }
 }
 
 impl fmt::Debug for X509NameRef {
