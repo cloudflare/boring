@@ -1,36 +1,36 @@
 From fe0b517fa34063990a83268edf7a3cd9ba0b2362 Mon Sep 17 00:00:00 2001
 From: Yuchen Wu <yuchen@cloudflare.com>
 Date: Mon, 13 Mar 2023 14:28:10 -0700
-Subject: [PATCH] PINGORA-474: disable cert version check for openssl
+Subject: [PATCH] PINGORA-474: disable CRL version check for openssl
  compatibility
 
-Some free customers use badly crafted cert (with verification off).
-Openssl allows these cert but boring does't.
+Some free customers use badly crafted CRLs (with verification off).
+Openssl allows these CRLs but boring does't.
 ---
- crypto/x509/x509_test.cc | 4 ++--
+ crypto/x509/x509_test.cc | 4 +---
  crypto/x509/x_crl.cc     | 2 ++
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ 2 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/crypto/x509/x509_test.cc b/crypto/x509/x509_test.cc
-index aa5bfda5d..15c1c73ee 100644
+index f98aa26cc..c881a4199 100644
 --- a/crypto/x509/x509_test.cc
 +++ b/crypto/x509/x509_test.cc
-@@ -3859,8 +3859,8 @@ TEST(X509Test, InvalidVersion) {
-   EXPECT_FALSE(CertFromPEM(kNegativeVersionPEM));
-   EXPECT_FALSE(CertFromPEM(kFutureVersionPEM));
-   EXPECT_FALSE(CertFromPEM(kOverflowVersionPEM));
--  EXPECT_FALSE(CertFromPEM(kV1WithExtensionsPEM));
--  EXPECT_FALSE(CertFromPEM(kV2WithExtensionsPEM));
-+  ASSERT_TRUE(CertFromPEM(kV1WithExtensionsPEM));
-+  ASSERT_TRUE(CertFromPEM(kV2WithExtensionsPEM));
-   EXPECT_FALSE(CertFromPEM(kV1WithIssuerUniqueIDPEM));
+@@ -4473,9 +4473,7 @@ TEST(X509Test, InvalidVersion) {
+   EXPECT_TRUE(ErrorsAreAndClear({{ERR_LIB_ASN1, ASN1_R_DECODE_ERROR}}));
    EXPECT_FALSE(CertFromPEM(kV1WithSubjectUniqueIDPEM));
-   EXPECT_FALSE(CRLFromPEM(kV1CRLWithExtensionsPEM));
+   EXPECT_TRUE(ErrorsAreAndClear({{ERR_LIB_ASN1, ASN1_R_DECODE_ERROR}}));
+-  EXPECT_FALSE(CRLFromPEM(kV1CRLWithExtensionsPEM));
+-  EXPECT_TRUE(
+-      ErrorsAreAndClear({{ERR_LIB_X509, X509_R_INVALID_FIELD_FOR_VERSION}}));
++  EXPECT_TRUE(CRLFromPEM(kV1CRLWithExtensionsPEM));
+   EXPECT_FALSE(CRLFromPEM(kV1CRLWithEntryExtensionsPEM));
+   EXPECT_TRUE(ErrorsAreAndClear({{ERR_LIB_X509, X509_R_INVALID_VERSION}}));
+   EXPECT_FALSE(CRLFromPEM(kV3CRLPEM));
 diff --git a/crypto/x509/x_crl.cc b/crypto/x509/x_crl.cc
-index 1d22ed638..4f50bc03f 100644
+index d30c17253..5af682ca9 100644
 --- a/crypto/x509/x_crl.cc
 +++ b/crypto/x509/x_crl.cc
-@@ -148,10 +148,12 @@ static int crl_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+@@ -157,10 +157,12 @@ static int crl_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
        }
  
        // Per RFC 5280, section 5.1.2.1, extensions require v2.
@@ -43,6 +43,3 @@ index 1d22ed638..4f50bc03f 100644
  
        // Extensions is a SEQUENCE SIZE (1..MAX), so it cannot be empty. An empty
        // extensions list is encoded by omitting the OPTIONAL field.
--- 
-2.39.5
-

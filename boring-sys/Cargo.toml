@@ -63,7 +63,7 @@ rpk = []
 # Require mlkem.h
 mlkem = []
 
-# Violate RFC 5280 5.1.2.1 and allow certs with CRL extensions in X.509 version 1.
+# Violate RFC 5280 5.1.2.1 and allow extensions on X.509 version 1 CRLs.
 # This feature is not guaranteed to be supported in future minor releases.
 allow-crl-extensions-bad-version = []
 
@@ -80,9 +80,11 @@ underscore-wildcards = []
 # 19 (see `include/openssl/base.h`) changed `enforce_rsa_key_usage` to
 # `true`, making a client-side RSA leaf whose keyUsage does not include the
 # bit required by the negotiated cipher suite a fatal handshake error
-# (KEY_USAGE_BIT_INCORRECT). Enabling this feature applies a build-time
-# patch that sets the default back to `false`, so RSA keyUsage mismatches
-# are non-fatal. Non-RSA keyUsage enforcement is unaffected.
+# (KEY_USAGE_BIT_INCORRECT). Upstream later removed the
+# `enforce_rsa_key_usage` config field entirely, so enabling this feature
+# applies a build-time patch that restores the conditional the flag used to
+# guard, hardwired to the relaxed behaviour, making RSA keyUsage mismatches
+# non-fatal again. Non-RSA keyUsage enforcement is unaffected.
 relax-cert-validation = []
 
 [build-dependencies]
