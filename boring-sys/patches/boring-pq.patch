@@ -16,26 +16,32 @@ This patch adds:
    non post-quantum and a post-quantum keyshare if available.  These
    functions allow one to change the behaviour to only send a single
    keyshare.
+
+4. Restores X25519Kyber768Draft00 under 0x6399, removed upstream in
+   188ce3c13.
+
+Upstream deleted its Kyber implementation, so both Kyber hybrids are now
+built on ML-KEM-768, applying Kyber's key derivation
+SHAKE-256(K || SHA3-256(c)) to the ML-KEM shared secret. See
+https://words.filippo.io/mlkem768/#bonus-track-using-a-ml-kem-implementation-as-kyber-v3
 ---
  crypto/obj/obj_dat.h                |   6 +-
  crypto/obj/obj_mac.num              |   1 +
  crypto/obj/objects.txt              |   1 +
  include/openssl/nid.h               |   3 +
- include/openssl/ssl.h               |  15 ++++
- ssl/extensions.cc                   |  26 ++++---
- ssl/internal.h                      |  12 ++-
- ssl/ssl_key_share.cc                | 111 +++++++++++++++++++++++++++-
- ssl/ssl_lib.cc                      |  16 +++-
- ssl/ssl_test.cc                     |  24 +++++-
- ssl/test/runner/basic_tests.go      |   2 +
+ include/openssl/ssl.h               |  17 ++
+ ssl/extensions.cc                   |  35 ++--
+ ssl/internal.h                      |  12 +-
+ ssl/ssl_key_share.cc                | 257 ++++++++++++++++++++++++++++
+ ssl/ssl_lib.cc                      |  16 +-
+ ssl/ssl_test.cc                     |  31 +++-
+ ssl/test/fuzzer.h                   |   6 +-
  ssl/test/runner/cbc_tests.go        |   3 +
  ssl/test/runner/common.go           |   2 +-
- ssl/test/runner/curve_tests.go      |  28 +++----
- ssl/test/runner/ech_tests.go        |  24 +++++-
- ssl/test/runner/extension_tests.go  |   3 +-
- ssl/test/runner/key_update_tests.go |   6 +-
- tool/client.cc                      |   9 +++
- 18 files changed, 249 insertions(+), 43 deletions(-)
+ ssl/test/runner/curve_tests.go      |  16 ++
+ ssl/test/runner/key_update_tests.go |   2 +
+ tool/client.cc                      |   9 +
+ 16 files changed, 393 insertions(+), 24 deletions(-)
 
 diff --git a/crypto/obj/obj_dat.h b/crypto/obj/obj_dat.h
 index feb8f2d1e..7ca28d9f5 100644
@@ -97,7 +103,7 @@ index 67b9ade43..384b25753 100644
  
  # NIDs for PQ/T hybrid KEMs (no corresponding OIDs).
 diff --git a/include/openssl/nid.h b/include/openssl/nid.h
-index 6b3bb4506..068fc5977 100644
+index 6b3bb4506..113f7653b 100644
 --- a/include/openssl/nid.h
 +++ b/include/openssl/nid.h
 @@ -5511,6 +5511,9 @@ extern "C" {
@@ -111,19 +117,29 @@ index 6b3bb4506..068fc5977 100644
  #if defined(__cplusplus)
  } /* extern C */
 diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
-index 055b3e025..09d6508f4 100644
+index 3b48c2a08..0dab3b037 100644
 --- a/include/openssl/ssl.h
 +++ b/include/openssl/ssl.h
-@@ -2586,6 +2586,7 @@ OPENSSL_EXPORT size_t SSL_CTX_get_num_tickets(const SSL_CTX *ctx);
+@@ -2618,7 +2618,9 @@ OPENSSL_EXPORT size_t SSL_CTX_get_num_tickets(const SSL_CTX *ctx);
+ #define SSL_GROUP_SECP521R1 25
+ #define SSL_GROUP_X25519 29
  #define SSL_GROUP_X25519_MLKEM768 0x11ec
- #define SSL_GROUP_X25519_KYBER768_DRAFT00 0x6399
++#define SSL_GROUP_X25519_KYBER768_DRAFT00 0x6399
  #define SSL_GROUP_MLKEM1024 0x0202
 +#define SSL_GROUP_P256_KYBER768_DRAFT00 0xfe32
  
- // SSL_CTX_set1_group_ids sets the preferred groups for |ctx| to |group_ids|.
- // Each element of |group_ids| should be a unique one of the |SSL_GROUP_*|
-@@ -6241,6 +6242,20 @@ OPENSSL_EXPORT int SSL_CTX_set1_curves_list(SSL_CTX *ctx, const char *curves);
- // SSL_set1_curves_list calls |SSL_set1_groups_list|.
+ // SSL_CTX_set1_group_ids sets the preferred groups for `ctx` to `group_ids`.
+ // Each element of `group_ids` should be a unique one of the `SSL_GROUP_*`
+@@ -6274,6 +6276,7 @@ OPENSSL_EXPORT int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg);
+ #define SSL_CURVE_SECP384R1 SSL_GROUP_SECP384R1
+ #define SSL_CURVE_SECP521R1 SSL_GROUP_SECP521R1
+ #define SSL_CURVE_X25519 SSL_GROUP_X25519
++#define SSL_CURVE_X25519_KYBER768_DRAFT00 SSL_GROUP_X25519_KYBER768_DRAFT00
+ 
+ // SSL_get_curve_id calls `SSL_get_group_id`.
+ OPENSSL_EXPORT uint16_t SSL_get_curve_id(const SSL *ssl);
+@@ -6298,6 +6301,20 @@ OPENSSL_EXPORT int SSL_CTX_set1_curves_list(SSL_CTX *ctx, const char *curves);
+ // SSL_set1_curves_list calls `SSL_set1_groups_list`.
  OPENSSL_EXPORT int SSL_set1_curves_list(SSL *ssl, const char *curves);
  
 +// By default, a client will send both a non post-quantum and a post-quantum
@@ -141,21 +157,30 @@ index 055b3e025..09d6508f4 100644
 +OPENSSL_EXPORT void SSL_CTX_use_second_keyshare(SSL_CTX *ctx, int enabled);
 +
  // TLSEXT_nid_unknown is a constant used in OpenSSL for
- // |SSL_get_negotiated_group| to return an unrecognized group. BoringSSL never
+ // `SSL_get_negotiated_group` to return an unrecognized group. BoringSSL never
  // returns this value, but we define this constant for compatibility.
 diff --git a/ssl/extensions.cc b/ssl/extensions.cc
-index db1a29139..05c8c1e16 100644
+index 90238d912..56de76e37 100644
 --- a/ssl/extensions.cc
 +++ b/ssl/extensions.cc
-@@ -107,6 +107,7 @@ static bool tls1_check_duplicate_extensions(const CBS *cbs) {
+@@ -107,7 +107,15 @@ static bool tls1_check_duplicate_extensions(const CBS *cbs) {
+ }
+ 
  static bool is_post_quantum_group(uint16_t id) {
-   switch (id) {
-     case SSL_GROUP_X25519_KYBER768_DRAFT00:
+-  return id == SSL_GROUP_X25519_MLKEM768 || id == SSL_GROUP_MLKEM1024;
++  switch (id) {
++    case SSL_GROUP_X25519_KYBER768_DRAFT00:
 +    case SSL_GROUP_P256_KYBER768_DRAFT00:
-     case SSL_GROUP_X25519_MLKEM768:
-     case SSL_GROUP_MLKEM1024:
-       return true;
-@@ -2418,18 +2419,21 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
++    case SSL_GROUP_X25519_MLKEM768:
++    case SSL_GROUP_MLKEM1024:
++      return true;
++    default:
++      return false;
++  }
+ }
+ 
+ bool ssl_parse_client_hello_with_trailing_data(const SSLImpl *ssl, CBS *cbs,
+@@ -2464,18 +2472,21 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
      if (!default_key_shares.TryPushBack(supported_group_list[0])) {
        return false;
      }
@@ -189,19 +214,19 @@ index db1a29139..05c8c1e16 100644
      selected_key_shares.emplace(default_key_shares);
    }
 diff --git a/ssl/internal.h b/ssl/internal.h
-index 2bea8f62d..47b688bf4 100644
+index 96f6d3d3d..c7a63f4b8 100644
 --- a/ssl/internal.h
 +++ b/ssl/internal.h
-@@ -913,7 +913,7 @@ struct NamedGroup {
+@@ -918,7 +918,7 @@ struct NamedGroup {
  Span<const NamedGroup> NamedGroups();
  
  // kNumNamedGroups is the number of supported groups.
--constexpr size_t kNumNamedGroups = 7u;
+-constexpr size_t kNumNamedGroups = 6u;
 +constexpr size_t kNumNamedGroups = 8u;
  
  // DefaultSupportedGroupIds returns the list of IDs for the default groups that
  // are supported when the caller hasn't explicitly configured supported groups.
-@@ -3531,6 +3531,11 @@ struct SSL_CONFIG {
+@@ -3580,6 +3580,11 @@ struct SSL_CONFIG {
    // permute_extensions is whether to permute extensions when sending messages.
    bool permute_extensions : 1;
  
@@ -213,7 +238,7 @@ index 2bea8f62d..47b688bf4 100644
    // aes_hw_override if set indicates we should override checking for aes
    // hardware support, and use the value in aes_hw_override_value instead.
    bool aes_hw_override : 1;
-@@ -4172,6 +4177,11 @@ struct ssl_ctx_st : public bssl::RefCounted<ssl_ctx_st> {
+@@ -4232,6 +4237,11 @@ class SSLContext : public ssl_ctx_st, public RefCounted<SSLContext> {
    // permute_extensions is whether to permute extensions when sending messages.
    bool permute_extensions : 1;
  
@@ -226,72 +251,135 @@ index 2bea8f62d..47b688bf4 100644
    // protocols from the peer.
    bool allow_unknown_alpn_protos : 1;
 diff --git a/ssl/ssl_key_share.cc b/ssl/ssl_key_share.cc
-index d155b5527..4fb08906b 100644
+index 84394b247..2f006e982 100644
 --- a/ssl/ssl_key_share.cc
 +++ b/ssl/ssl_key_share.cc
-@@ -193,6 +193,109 @@ class X25519KeyShare : public SSLKeyShare {
+@@ -32,6 +32,7 @@
+ #include <openssl/rand.h>
+ #include <openssl/span.h>
+ 
++#include "../crypto/fipsmodule/keccak/internal.h"
+ #include "../crypto/internal.h"
+ #include "internal.h"
+ 
+@@ -192,6 +193,253 @@ class X25519KeyShare : public SSLKeyShare {
    uint8_t private_key_[32];
  };
  
++// Kyber768 (round-3, "draft00") is implemented on top of ML-KEM-768. See
++// https://words.filippo.io/mlkem768/#bonus-track-using-a-ml-kem-implementation-as-kyber-v3
++constexpr size_t kKyber768PublicKeyBytes = MLKEM768_PUBLIC_KEY_BYTES;
++constexpr size_t kKyber768CiphertextBytes = MLKEM768_CIPHERTEXT_BYTES;
++constexpr size_t kKyber768SharedSecretBytes = 32;
++
++// kyber768_kdf applies Kyber's KDF(K || H(c)) to `mlkem_secret`, the shared
++// secret that ML-KEM produced for `ciphertext`.
++void kyber768_kdf(uint8_t out[kKyber768SharedSecretBytes],
++                  const uint8_t mlkem_secret[MLKEM_SHARED_SECRET_BYTES],
++                  Span<const uint8_t> ciphertext) {
++  uint8_t buf[MLKEM_SHARED_SECRET_BYTES + 32];
++  OPENSSL_memcpy(buf, mlkem_secret, MLKEM_SHARED_SECRET_BYTES);
++  BORINGSSL_keccak(buf + MLKEM_SHARED_SECRET_BYTES, 32, ciphertext.data(),
++                   ciphertext.size(), boringssl_sha3_256);
++  BORINGSSL_keccak(out, kKyber768SharedSecretBytes, buf, sizeof(buf),
++                   boringssl_shake256);
++  OPENSSL_cleanse(buf, sizeof(buf));
++}
++
++// Kyber768KEM is a Kyber768 KEM built out of ML-KEM-768. On decapsulation
++// failure it derives from ML-KEM's implicit-rejection secret rather than
++// Kyber's. That output is unpredictable by design and is not an
++// interoperability target.
++class Kyber768KEM {
++ public:
++  void Generate(uint8_t out_public_key[kKyber768PublicKeyBytes]) {
++    MLKEM768_generate_key(out_public_key, /*optional_out_seed=*/nullptr,
++                          &private_key_);
++  }
++
++  bool Encap(uint8_t out_ciphertext[kKyber768CiphertextBytes],
++             uint8_t out_secret[kKyber768SharedSecretBytes],
++             Span<const uint8_t> peer_key) {
++    MLKEM768_public_key peer_public_key;
++    CBS cbs;
++    CBS_init(&cbs, peer_key.data(), peer_key.size());
++    if (!MLKEM768_parse_public_key(&peer_public_key, &cbs)) {
++      return false;
++    }
++
++    uint8_t mlkem_secret[MLKEM_SHARED_SECRET_BYTES];
++    MLKEM768_encap(out_ciphertext, mlkem_secret, &peer_public_key);
++    kyber768_kdf(out_secret, mlkem_secret,
++                 Span<const uint8_t>(out_ciphertext, kKyber768CiphertextBytes));
++    OPENSSL_cleanse(mlkem_secret, sizeof(mlkem_secret));
++    return true;
++  }
++
++  bool Decap(uint8_t out_secret[kKyber768SharedSecretBytes],
++             Span<const uint8_t> ciphertext) {
++    uint8_t mlkem_secret[MLKEM_SHARED_SECRET_BYTES];
++    if (!MLKEM768_decap(mlkem_secret, ciphertext.data(), ciphertext.size(),
++                        &private_key_)) {
++      return false;
++    }
++    kyber768_kdf(out_secret, mlkem_secret, ciphertext);
++    OPENSSL_cleanse(mlkem_secret, sizeof(mlkem_secret));
++    return true;
++  }
++
++ private:
++  MLKEM768_private_key private_key_;
++};
++
++// P256Kyber768Draft00 is a hybrid of P-256 and Kyber768 under a private
++// codepoint. It is not standardised and is retained for compliance reasons.
 +class P256Kyber768Draft00KeyShare : public SSLKeyShare {
 + public:
-+  P256Kyber768Draft00KeyShare()
-+    : ecks_(EC_group_p256(), SSL_GROUP_SECP256R1) {}
++  P256Kyber768Draft00KeyShare() : ecks_(EC_group_p256(), SSL_GROUP_SECP256R1) {}
 +
 +  uint16_t GroupID() const override {
 +    return SSL_GROUP_P256_KYBER768_DRAFT00;
 +  }
 +
 +  bool Generate(CBB *out) override {
-+    uint8_t kyber_public_key[KYBER_PUBLIC_KEY_BYTES];
-+    KYBER_generate_key(kyber_public_key, &kyber_private_key_);
-+
-+    if(!ecks_.Generate(out) ||
-+       !CBB_add_bytes(out, kyber_public_key, sizeof(kyber_public_key))) {
-+      return false;
-+    }
-+
-+    return true;
++    uint8_t kyber_public_key[kKyber768PublicKeyBytes];
++    kyber_.Generate(kyber_public_key);
++    return ecks_.Generate(out) &&
++           CBB_add_bytes(out, kyber_public_key, sizeof(kyber_public_key));
 +  }
 +
 +  bool Encap(CBB *out_ciphertext, Array<uint8_t> *out_secret,
 +             uint8_t *out_alert, Span<const uint8_t> peer_key) override {
-+    Array<uint8_t> ec_secret;
-+
 +    *out_alert = SSL_AD_INTERNAL_ERROR;
 +
-+    if(peer_key.size() != p256_share_size + KYBER_PUBLIC_KEY_BYTES) {
++    if (peer_key.size() != kP256ShareSize + kKyber768PublicKeyBytes) {
 +      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
 +      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
 +      return false;
 +    }
 +
++    Array<uint8_t> ec_secret;
 +    if (!ecks_.Encap(out_ciphertext, &ec_secret, out_alert,
-+                    peer_key.subspan(0, p256_share_size))) {
++                     peer_key.subspan(0, kP256ShareSize))) {
 +      return false;
 +    }
 +
-+    KYBER_public_key peer_kyber_pub;
-+    CBS peer_kyber_cbs;
-+    CBS_init(&peer_kyber_cbs, peer_key.data() + p256_share_size,
-+             KYBER_PUBLIC_KEY_BYTES);
-+
-+    if (!KYBER_parse_public_key(&peer_kyber_pub, &peer_kyber_cbs)) {
-+      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
-+      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
-+      return false;
-+    }
-+
-+    uint8_t kyber_ciphertext[KYBER_CIPHERTEXT_BYTES];
 +    Array<uint8_t> secret;
-+    if (!secret.InitForOverwrite(p256_secret_size + KYBER_SHARED_SECRET_BYTES)) {
++    if (!secret.InitForOverwrite(kP256SecretSize +
++                                 kKyber768SharedSecretBytes)) {
 +      return false;
 +    }
 +    OPENSSL_memcpy(secret.data(), ec_secret.data(), ec_secret.size());
-+    KYBER_encap(kyber_ciphertext, secret.data() + p256_secret_size,
-+                &peer_kyber_pub);
 +
-+    if(!CBB_add_bytes(out_ciphertext, kyber_ciphertext,
++    uint8_t kyber_ciphertext[kKyber768CiphertextBytes];
++    if (!kyber_.Encap(kyber_ciphertext, secret.data() + kP256SecretSize,
++                      peer_key.subspan(kP256ShareSize))) {
++      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
++      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
++      return false;
++    }
++
++    if (!CBB_add_bytes(out_ciphertext, kyber_ciphertext,
 +                       sizeof(kyber_ciphertext))) {
 +      return false;
 +    }
@@ -304,46 +392,135 @@ index d155b5527..4fb08906b 100644
 +             Span<const uint8_t> ciphertext) override {
 +    *out_alert = SSL_AD_INTERNAL_ERROR;
 +
-+    Array<uint8_t> ec_secret;
-+
-+    if (ciphertext.size() != p256_share_size + KYBER_CIPHERTEXT_BYTES) {
++    if (ciphertext.size() != kP256ShareSize + kKyber768CiphertextBytes) {
 +      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
 +      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
 +      return false;
 +    }
 +
++    Array<uint8_t> ec_secret;
 +    if (!ecks_.Decap(&ec_secret, out_alert,
-+                     ciphertext.subspan(0, p256_share_size))) {
++                     ciphertext.subspan(0, kP256ShareSize))) {
 +      return false;
 +    }
 +
 +    Array<uint8_t> secret;
-+    if (!secret.InitForOverwrite(p256_secret_size + KYBER_SHARED_SECRET_BYTES)) {
++    if (!secret.InitForOverwrite(kP256SecretSize +
++                                 kKyber768SharedSecretBytes)) {
 +      return false;
 +    }
 +    OPENSSL_memcpy(secret.data(), ec_secret.data(), ec_secret.size());
-+    KYBER_decap(secret.data() + p256_secret_size,
-+                ciphertext.data() + p256_share_size, &kyber_private_key_);
++
++    if (!kyber_.Decap(secret.data() + kP256SecretSize,
++                      ciphertext.subspan(kP256ShareSize))) {
++      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
++      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
++      return false;
++    }
++
 +    *out_secret = std::move(secret);
 +    return true;
 +  }
 +
 + private:
-+  ECKeyShare ecks_;
-+  KYBER_private_key kyber_private_key_;
++  static constexpr size_t kP256ShareSize = 65;
++  static constexpr size_t kP256SecretSize = 32;
 +
-+  static constexpr size_t p256_share_size = 65;
-+  static constexpr size_t p256_secret_size = 32;
++  ECKeyShare ecks_;
++  Kyber768KEM kyber_;
 +};
 +
- // draft-tls-westerbaan-xyber768d00-03
- class X25519Kyber768KeyShare : public SSLKeyShare {
++// draft-tls-westerbaan-xyber768d00-03
++class X25519Kyber768KeyShare : public SSLKeyShare {
++ public:
++  X25519Kyber768KeyShare() {}
++
++  uint16_t GroupID() const override {
++    return SSL_GROUP_X25519_KYBER768_DRAFT00;
++  }
++
++  bool Generate(CBB *out) override {
++    uint8_t x25519_public_key[X25519_PUBLIC_VALUE_LEN];
++    X25519_keypair(x25519_public_key, x25519_private_key_);
++
++    uint8_t kyber_public_key[kKyber768PublicKeyBytes];
++    kyber_.Generate(kyber_public_key);
++
++    return CBB_add_bytes(out, x25519_public_key, sizeof(x25519_public_key)) &&
++           CBB_add_bytes(out, kyber_public_key, sizeof(kyber_public_key));
++  }
++
++  bool Encap(CBB *out_ciphertext, Array<uint8_t> *out_secret,
++             uint8_t *out_alert, Span<const uint8_t> peer_key) override {
++    *out_alert = SSL_AD_INTERNAL_ERROR;
++
++    Array<uint8_t> secret;
++    if (!secret.InitForOverwrite(X25519_SHARED_KEY_LEN +
++                                 kKyber768SharedSecretBytes)) {
++      return false;
++    }
++
++    uint8_t x25519_public_key[X25519_PUBLIC_VALUE_LEN];
++    X25519_keypair(x25519_public_key, x25519_private_key_);
++
++    uint8_t kyber_ciphertext[kKyber768CiphertextBytes];
++    if (peer_key.size() != X25519_PUBLIC_VALUE_LEN + kKyber768PublicKeyBytes ||
++        !X25519(secret.data(), x25519_private_key_, peer_key.data()) ||
++        !kyber_.Encap(kyber_ciphertext, secret.data() + X25519_SHARED_KEY_LEN,
++                      peer_key.subspan(X25519_PUBLIC_VALUE_LEN))) {
++      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
++      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
++      return false;
++    }
++
++    if (!CBB_add_bytes(out_ciphertext, x25519_public_key,
++                       sizeof(x25519_public_key)) ||
++        !CBB_add_bytes(out_ciphertext, kyber_ciphertext,
++                       sizeof(kyber_ciphertext))) {
++      return false;
++    }
++
++    *out_secret = std::move(secret);
++    return true;
++  }
++
++  bool Decap(Array<uint8_t> *out_secret, uint8_t *out_alert,
++             Span<const uint8_t> ciphertext) override {
++    *out_alert = SSL_AD_INTERNAL_ERROR;
++
++    Array<uint8_t> secret;
++    if (!secret.InitForOverwrite(X25519_SHARED_KEY_LEN +
++                                 kKyber768SharedSecretBytes)) {
++      return false;
++    }
++
++    if (ciphertext.size() !=
++            X25519_PUBLIC_VALUE_LEN + kKyber768CiphertextBytes ||
++        !X25519(secret.data(), x25519_private_key_, ciphertext.data()) ||
++        !kyber_.Decap(secret.data() + X25519_SHARED_KEY_LEN,
++                      ciphertext.subspan(X25519_PUBLIC_VALUE_LEN))) {
++      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
++      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
++      return false;
++    }
++
++    *out_secret = std::move(secret);
++    return true;
++  }
++
++ private:
++  uint8_t x25519_private_key_[X25519_PRIVATE_KEY_LEN];
++  Kyber768KEM kyber_;
++};
++
+ // RFC 10024
+ class X25519MLKEM768KeyShare : public SSLKeyShare {
   public:
-@@ -441,9 +544,11 @@ constexpr NamedGroup kNamedGroups[] = {
+@@ -350,8 +598,12 @@ constexpr NamedGroup kNamedGroups[] = {
+     {NID_secp384r1, SSL_GROUP_SECP384R1, "P-384", "secp384r1"},
      {NID_secp521r1, SSL_GROUP_SECP521R1, "P-521", "secp521r1"},
      {NID_X25519, SSL_GROUP_X25519, "X25519", "x25519"},
-     {NID_X25519Kyber768Draft00, SSL_GROUP_X25519_KYBER768_DRAFT00,
--     "X25519Kyber768Draft00", ""},
++    {NID_X25519Kyber768Draft00, SSL_GROUP_X25519_KYBER768_DRAFT00,
 +     "X25519Kyber768Draft00", "Xyber768D00"},
      {NID_X25519MLKEM768, SSL_GROUP_X25519_MLKEM768, "X25519MLKEM768", ""},
      {NID_ML_KEM_1024, SSL_GROUP_MLKEM1024, "MLKEM1024", ""},
@@ -352,17 +529,20 @@ index d155b5527..4fb08906b 100644
  };
  
  static_assert(std::size(kNamedGroups) == kNumNamedGroups,
-@@ -455,6 +560,8 @@ Span<const NamedGroup> NamedGroups() { return kNamedGroups; }
- 
+@@ -364,6 +616,7 @@ Span<const NamedGroup> NamedGroups() { return kNamedGroups; }
  Span<const uint16_t> DefaultSupportedGroupIds() {
    static const uint16_t kDefaultSupportedGroupIds[] = {
-+      SSL_GROUP_X25519_MLKEM768,
+       SSL_GROUP_X25519_MLKEM768,
 +      SSL_GROUP_P256_KYBER768_DRAFT00,
        SSL_GROUP_X25519,
        SSL_GROUP_SECP256R1,
        SSL_GROUP_SECP384R1,
-@@ -478,6 +585,8 @@ UniquePtr<SSLKeyShare> SSLKeyShare::Create(uint16_t group_id) {
+@@ -383,8 +636,12 @@ UniquePtr<SSLKeyShare> SSLKeyShare::Create(uint16_t group_id) {
+       return MakeUnique<X25519KeyShare>();
+     case SSL_GROUP_X25519_MLKEM768:
        return MakeUnique<X25519MLKEM768KeyShare>();
++    case SSL_GROUP_X25519_KYBER768_DRAFT00:
++      return MakeUnique<X25519Kyber768KeyShare>();
      case SSL_GROUP_MLKEM1024:
        return MakeUnique<MLKEM1024KeyShare>();
 +    case SSL_GROUP_P256_KYBER768_DRAFT00:
@@ -371,26 +551,26 @@ index d155b5527..4fb08906b 100644
        return nullptr;
    }
 diff --git a/ssl/ssl_lib.cc b/ssl/ssl_lib.cc
-index 89702eaaf..a7505841c 100644
+index a0c746b38..8c8b2bad4 100644
 --- a/ssl/ssl_lib.cc
 +++ b/ssl/ssl_lib.cc
-@@ -385,6 +385,7 @@ ssl_ctx_st::ssl_ctx_st(const SSL_METHOD *ssl_method)
-       channel_id_enabled(false),
+@@ -394,6 +394,7 @@ bssl::SSLContext::SSLContext(const SSL_METHOD *ssl_method)
        grease_enabled(false),
+       grease_sigalgs_enabled(false),
        permute_extensions(false),
 +      disable_second_keyshare(false),
        allow_unknown_alpn_protos(false),
        false_start_allowed_without_alpn(false),
        handoff(false),
-@@ -517,6 +518,7 @@ SSL *SSL_new(SSL_CTX *ctx) {
+@@ -527,6 +528,7 @@ SSL *SSL_new(SSL_CTX *ctx) {
    ssl->config->retain_only_sha256_of_client_certs =
-       ctx->retain_only_sha256_of_client_certs;
-   ssl->config->permute_extensions = ctx->permute_extensions;
-+  ssl->config->disable_second_keyshare = ctx->disable_second_keyshare;
-   ssl->config->aes_hw_override = ctx->aes_hw_override;
-   ssl->config->aes_hw_override_value = ctx->aes_hw_override_value;
-   ssl->config->compliance_policy = ctx->compliance_policy;
-@@ -582,6 +584,7 @@ SSL_CONFIG::SSL_CONFIG(SSL *ssl_arg)
+       ctx_impl->retain_only_sha256_of_client_certs;
+   ssl->config->permute_extensions = ctx_impl->permute_extensions;
++  ssl->config->disable_second_keyshare = ctx_impl->disable_second_keyshare;
+   ssl->config->aes_hw_override = ctx_impl->aes_hw_override;
+   ssl->config->aes_hw_override_value = ctx_impl->aes_hw_override_value;
+   ssl->config->compliance_policy = ctx_impl->compliance_policy;
+@@ -593,6 +595,7 @@ SSL_CONFIG::SSL_CONFIG(SSLImpl *ssl_arg)
        jdk11_workaround(false),
        quic_use_legacy_codepoint(false),
        permute_extensions(false),
@@ -398,23 +578,23 @@ index 89702eaaf..a7505841c 100644
        alps_use_new_codepoint(true),
        server_padding_enabled(false) {
    assert(ssl);
-@@ -3390,6 +3393,15 @@ int SSL_set1_curves_list(SSL *ssl, const char *curves) {
+@@ -3529,6 +3532,15 @@ int SSL_set1_curves_list(SSL *ssl, const char *curves) {
    return SSL_set1_groups_list(ssl, curves);
  }
  
 +void SSL_use_second_keyshare(SSL *ssl, int enabled) {
-+  ssl->config->disable_second_keyshare = !enabled;
++  FromOpaque(ssl)->config->disable_second_keyshare = !enabled;
 +}
 +
 +void SSL_CTX_use_second_keyshare(SSL_CTX *ctx, int enabled) {
-+  ctx->disable_second_keyshare = !enabled;
++  FromOpaque(ctx)->disable_second_keyshare = !enabled;
 +}
 +
 +
  namespace fips202205 {
  
  // (References are to SP 800-52r2):
-@@ -3401,7 +3413,9 @@ namespace fips202205 {
+@@ -3540,7 +3552,9 @@ namespace fips202205 {
  // Section 3.3.1
  // "The server shall be configured to only use cipher suites that are
  // composed entirely of NIST approved algorithms"
@@ -426,10 +606,21 @@ index 89702eaaf..a7505841c 100644
  static const uint16_t kSigAlgs[] = {
      SSL_SIGN_RSA_PKCS1_SHA256,
 diff --git a/ssl/ssl_test.cc b/ssl/ssl_test.cc
-index a91a6268c..3999ad61b 100644
+index fc185ec33..5e0af17cf 100644
 --- a/ssl/ssl_test.cc
 +++ b/ssl/ssl_test.cc
-@@ -522,6 +522,14 @@ static const CurveTest kCurveTests[] = {
+@@ -495,6 +495,10 @@ static const CurveTest kCurveTests[] = {
+         "P-256",
+         {SSL_GROUP_SECP256R1},
+     },
++    {
++        "P-256:X25519Kyber768Draft00",
++        {SSL_GROUP_SECP256R1, SSL_GROUP_X25519_KYBER768_DRAFT00},
++    },
+     {
+         "P-256:X25519MLKEM768",
+         {SSL_GROUP_SECP256R1, SSL_GROUP_X25519_MLKEM768},
+@@ -507,6 +511,14 @@ static const CurveTest kCurveTests[] = {
          "MLKEM1024:X25519MLKEM768",
          {SSL_GROUP_MLKEM1024, SSL_GROUP_X25519_MLKEM768},
      },
@@ -444,72 +635,72 @@ index a91a6268c..3999ad61b 100644
  
      {
          "P-256:P-384:P-521:X25519",
-@@ -683,7 +691,9 @@ TEST(SSLTest, CurveRules) {
+@@ -686,8 +698,10 @@ TEST(SSLTest, CurveRules) {
  }
  
  TEST(SSLTest, DefaultCurves) {
--  const uint16_t kDefaults[] = {SSL_GROUP_X25519, SSL_GROUP_SECP256R1,
+-  const uint16_t kDefaults[] = {SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519,
+-                                SSL_GROUP_SECP256R1, SSL_GROUP_SECP384R1};
 +  const uint16_t kDefaults[] = {SSL_GROUP_X25519_MLKEM768,
 +                                SSL_GROUP_P256_KYBER768_DRAFT00,
 +                                SSL_GROUP_X25519, SSL_GROUP_SECP256R1,
-                                 SSL_GROUP_SECP384R1};
++                                SSL_GROUP_SECP384R1};
  
    // Test the group ID APIs.
-@@ -1643,6 +1653,9 @@ static bool GetClientHello(SSL *ssl, std::vector<uint8_t> *out) {
- static size_t GetClientHelloLen(uint16_t max_version, uint16_t session_version,
-                                 size_t ticket_len) {
+   {
+@@ -1670,7 +1684,8 @@ static size_t GetClientHelloLen(uint16_t max_version, uint16_t session_version,
    bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
-+  // RTG-3417 bas: we need to disable PQ here so that the small ClientHello
-+  // padding tests properly tests things.
-+  SSL_CTX_set1_curves_list(ctx.get(), "X25519");
-   bssl::UniquePtr<SSL_SESSION> session =
-       CreateSessionWithTicket(session_version, ticket_len);
-   if (!ctx || !session) {
-@@ -2317,7 +2330,10 @@ TEST(SSLTest, SetGroupIdsWithEqualPreference) {
- // Test that the SSL group flags are defaulted to zero when zero groups are set
+ 
+   // Reduce the number of supported groups, as we need ClientHellos smaller
+-  // than 254 bytes for SSLTest.Padding.
++  // than 254 bytes for SSLTest.Padding. This also keeps the post-quantum
++  // groups out of the ClientHello, which the padding tests require.
+   uint16_t groups[] = {SSL_GROUP_X25519, SSL_GROUP_SECP256R1,
+                        SSL_GROUP_SECP384R1};
+   SSL_CTX_set1_group_ids(ctx.get(), groups, sizeof(groups) / sizeof(*groups));
+@@ -2350,7 +2365,9 @@ TEST(SSLTest, SetGroupIdsWithEqualPreference) {
  // (i.e. using the default groups).
  TEST(SSLTest, SetGroupIdsWithFlags_DefaultGroups) {
--  const uint16_t kDefaultGroups[] = {SSL_GROUP_X25519, SSL_GROUP_SECP256R1,
-+  const uint16_t kDefaultGroups[] = {SSL_GROUP_X25519_MLKEM768,
+   const uint16_t kDefaultGroups[] = {SSL_GROUP_X25519_MLKEM768,
+-                                     SSL_GROUP_X25519, SSL_GROUP_SECP256R1,
 +                                     SSL_GROUP_P256_KYBER768_DRAFT00,
 +                                     SSL_GROUP_X25519,
 +                                     SSL_GROUP_SECP256R1,
                                       SSL_GROUP_SECP384R1};
    const uint32_t kBogusFlags[] = {SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT,
                                    SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT, 0};
-@@ -7112,7 +7128,9 @@ TEST(SSLTest, ApplyHandoffRemovesUnsupportedCurves) {
+@@ -7209,8 +7226,10 @@ TEST(SSLTest, ApplyHandoffRemovesUnsupportedCurves) {
  
    // The default list of groups is used before applying the handoff.
-   EXPECT_THAT(server->config->supported_group_list,
--              ElementsAreArray({SSL_GROUP_X25519, SSL_GROUP_SECP256R1,
+   EXPECT_THAT(FromOpaque(server.get())->config->supported_group_list,
+-              ElementsAreArray({SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519,
+-                                SSL_GROUP_SECP256R1, SSL_GROUP_SECP384R1}));
 +              ElementsAreArray({SSL_GROUP_X25519_MLKEM768,
 +                                SSL_GROUP_P256_KYBER768_DRAFT00,
 +                                SSL_GROUP_X25519, SSL_GROUP_SECP256R1,
-                                 SSL_GROUP_SECP384R1}));
++                                SSL_GROUP_SECP384R1}));
    ASSERT_TRUE(SSL_apply_handoff(server.get(), handoff));
-   EXPECT_EQ(1u, server->config->supported_group_list.size());
-diff --git a/ssl/test/runner/basic_tests.go b/ssl/test/runner/basic_tests.go
-index 54d49637b..5887c715a 100644
---- a/ssl/test/runner/basic_tests.go
-+++ b/ssl/test/runner/basic_tests.go
-@@ -132,6 +132,7 @@ read alert 1 0
- 				`write hs 1
- read hs 3
- write hs 1
-+write hs 1
- read hs 2
- read hs 11
- read hs 12
-@@ -2003,6 +2004,7 @@ read alert 1 0
- write hs 2
- write hs 8
- write hs 11
-+write hs 11
- write hs 15
- write hs 20
- read hs 20
+   EXPECT_EQ(1u, FromOpaque(server.get())->config->supported_group_list.size());
+   EXPECT_EQ(SSL_GROUP_SECP256R1,
+diff --git a/ssl/test/fuzzer.h b/ssl/test/fuzzer.h
+index c3a37bf8e..dbc6d896f 100644
+--- a/ssl/test/fuzzer.h
++++ b/ssl/test/fuzzer.h
+@@ -407,8 +407,10 @@ class TLSFuzzer {
+     }
+ 
+     static const uint16_t kGroups[] = {
+-        SSL_GROUP_X25519_MLKEM768, SSL_GROUP_MLKEM1024, SSL_GROUP_X25519,
+-        SSL_GROUP_SECP256R1,       SSL_GROUP_SECP384R1, SSL_GROUP_SECP521R1};
++        SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519_KYBER768_DRAFT00,
++        SSL_GROUP_MLKEM1024,       SSL_GROUP_X25519,
++        SSL_GROUP_SECP256R1,       SSL_GROUP_SECP384R1,
++        SSL_GROUP_SECP521R1};
+     if (!SSL_CTX_set1_group_ids(ctx_.get(), kGroups, std::size(kGroups))) {
+       return false;
+     }
 diff --git a/ssl/test/runner/cbc_tests.go b/ssl/test/runner/cbc_tests.go
-index 6f49d12af..5e970b2b5 100644
+index 6f49d12af..c17e3f277 100644
 --- a/ssl/test/runner/cbc_tests.go
 +++ b/ssl/test/runner/cbc_tests.go
 @@ -14,6 +14,8 @@
@@ -525,12 +716,12 @@ index 6f49d12af..5e970b2b5 100644
  				"-partial-write",
  				// BoringSSL disables 3DES by default.
  				"-cipher", "ALL:3DES",
-+				 "-curves", strconv.Itoa(int(CurveX25519)),
++				"-curves", strconv.Itoa(int(CurveX25519)),
  			},
  		})
  	}
 diff --git a/ssl/test/runner/common.go b/ssl/test/runner/common.go
-index c241c418e..9ffafa248 100644
+index 53fd5ea99..e21047412 100644
 --- a/ssl/test/runner/common.go
 +++ b/ssl/test/runner/common.go
 @@ -2186,7 +2186,7 @@ type ProtocolBugs struct {
@@ -543,151 +734,54 @@ index c241c418e..9ffafa248 100644
  
  	// ExpectKeyShares, if not nil, lists (in order) the curves that a ClientHello
 diff --git a/ssl/test/runner/curve_tests.go b/ssl/test/runner/curve_tests.go
-index 956a73203..d04a1531d 100644
+index 54d02105e..6aa8fb181 100644
 --- a/ssl/test/runner/curve_tests.go
 +++ b/ssl/test/runner/curve_tests.go
-@@ -582,17 +582,6 @@ func addCurveTests() {
- 		})
- 	}
+@@ -698,6 +698,22 @@ func addCurveTests() {
+ 		},
+ 	})
  
--	// ML-KEM and Kyber should not be offered by default as a client.
--	testCases = append(testCases, testCase{
--		name: "PostQuantumNotEnabledByDefaultInClients",
--		config: Config{
--			MinVersion: VersionTLS13,
--			Bugs: ProtocolBugs{
--				FailIfPostQuantumOffered: true,
--			},
--		},
--	})
--
- 	for _, curve := range testCurves {
- 		if !isMLKEMGroup(curve.id) {
- 			continue
-@@ -682,18 +671,19 @@ func addCurveTests() {
- 		})
- 	}
- 
--	// As a server, ML-KEMs and Kyber are not yet supported by default.
 +	// If ML-KEM is offered, both X25519 and ML-KEM should have a key-share.
- 	testCases = append(testCases, testCase{
--		testType: serverTest,
--		name:     "PostQuantumNotEnabledByDefaultForAServer",
++	testCases = append(testCases, testCase{
 +		name: "NotJustMLKEMKeyShare",
- 		config: Config{
--			MinVersion:       VersionTLS13,
--			CurvePreferences: []CurveID{CurveX25519MLKEM768, CurveMLKEM1024, CurveX25519Kyber768, CurveX25519},
--			DefaultCurves:    []CurveID{CurveX25519MLKEM768, CurveMLKEM1024, CurveX25519Kyber768},
++		config: Config{
 +			MinVersion: VersionTLS13,
 +			Bugs: ProtocolBugs{
 +				ExpectedKeyShares: []CurveID{CurveX25519MLKEM768, CurveX25519},
 +			},
- 		},
- 		flags: []string{
--			"-server-preference",
--			"-expect-curve-id", strconv.Itoa(int(CurveX25519)),
++		},
++		flags: []string{
 +			"-curves", strconv.Itoa(int(CurveX25519MLKEM768)),
 +			"-curves", strconv.Itoa(int(CurveX25519)),
 +			"-expect-curve-id", strconv.Itoa(int(CurveX25519MLKEM768)),
- 		},
- 	})
- 
-diff --git a/ssl/test/runner/ech_tests.go b/ssl/test/runner/ech_tests.go
-index 2cd3c10d3..f19d8d20a 100644
---- a/ssl/test/runner/ech_tests.go
-+++ b/ssl/test/runner/ech_tests.go
-@@ -451,7 +451,8 @@ func addEncryptedClientHelloTests() {
- 				expectMsgCallback += clientAndServerHello
- 			}
- 			// EncryptedExtensions onwards.
--			expectMsgCallback += `write hs 8
-+			if protocol != dtls {
-+				expectMsgCallback += `write hs 8
- write hs 11
- write hs 15
- write hs 20
-@@ -462,6 +463,20 @@ write hs 4
- read ack
- read ack
- `
-+			} else {
-+				expectMsgCallback += `write hs 8
-+write hs 11
-+write hs 11
-+write hs 15
-+write hs 20
-+read hs 20
-+write ack
-+write hs 4
-+write hs 4
-+read ack
-+read ack
-+`
-+			}
- 			if protocol != dtls {
- 				expectMsgCallback = strings.ReplaceAll(expectMsgCallback, "write ack\n", "")
- 				expectMsgCallback = strings.ReplaceAll(expectMsgCallback, "read ack\n", "")
-@@ -2349,8 +2364,11 @@ read ack
- 
- 		// Test the message callback is correctly reported, with and without
- 		// HelloRetryRequest.
--		clientAndServerHello := "write clienthelloinner\nwrite hs 1\nread hs 2\n"
--		clientAndServerHelloInitial := clientAndServerHello
-+		clientAndServerHelloInitial := "write clienthelloinner\nwrite hs 1\nwrite hs 1\nread hs 2\n"
-+		clientAndServerHello  := "write clienthelloinner\nwrite hs 1\nread hs 2\n"
-+		if protocol != dtls {
-+			clientAndServerHelloInitial = clientAndServerHello
-+		}
- 		if protocol == tls {
- 			clientAndServerHelloInitial += "write ccs\n"
- 		}
-diff --git a/ssl/test/runner/extension_tests.go b/ssl/test/runner/extension_tests.go
-index ab9b0b02d..834da257f 100644
---- a/ssl/test/runner/extension_tests.go
-+++ b/ssl/test/runner/extension_tests.go
++		},
++	})
++
+ 	// If two ML-KEMs are configured, only the preferred one's
+ 	// key share should be sent.
+ 	testCases = append(testCases, testCase{
+diff --git a/ssl/test/runner/key_update_tests.go b/ssl/test/runner/key_update_tests.go
+index 39ad24baf..f7335bb9a 100644
+--- a/ssl/test/runner/key_update_tests.go
++++ b/ssl/test/runner/key_update_tests.go
 @@ -16,6 +16,7 @@ package runner
  
  import (
- 	"fmt"
+ 	"slices"
 +	"strconv"
  )
  
- func addExtensionTests() {
-@@ -2001,7 +2002,7 @@ func addExtensionTests() {
- 		// This hostname just needs to be long enough to push the
- 		// ClientHello into F5's danger zone between 256 and 511 bytes
- 		// long.
--		flags: []string{"-host-name", "01234567890123456789012345678901234567890123456789012345678901234567890123456789.com"},
-+		flags: []string{"-host-name", "01234567890123456789012345678901234567890123456789012345678901234567890123456789.com", "-curves", strconv.Itoa(int(CurveX25519))},
- 	})
- 
- 	// Test that illegal extensions in TLS 1.3 are rejected by the client if
-diff --git a/ssl/test/runner/key_update_tests.go b/ssl/test/runner/key_update_tests.go
-index f98528265..2068b1102 100644
---- a/ssl/test/runner/key_update_tests.go
-+++ b/ssl/test/runner/key_update_tests.go
-@@ -14,7 +14,10 @@
- 
- package runner
- 
--import "slices"
-+import (
-+	"slices"
-+	"strconv"
-+)
- 
  func addKeyUpdateTests() {
- 	// TLS tests.
-@@ -295,6 +298,7 @@ func addKeyUpdateTests() {
+@@ -296,6 +297,7 @@ func addKeyUpdateTests() {
  			},
  		},
  		shimSendsKeyUpdateBeforeRead: true,
-+		flags:            []string{"-curves", strconv.Itoa(int(CurveX25519))},
++		flags:                        []string{"-curves", strconv.Itoa(int(CurveX25519))},
  	})
  
  	// Test that shim responds to KeyUpdate requests.
 diff --git a/tool/client.cc b/tool/client.cc
-index 1653af8da..cab725d40 100644
+index 1f2b19965..6cf555433 100644
 --- a/tool/client.cc
 +++ b/tool/client.cc
 @@ -156,6 +156,11 @@ static const struct argument kArguments[] = {
@@ -713,6 +807,3 @@ index 1653af8da..cab725d40 100644
    // Configure accepted roots.
    if (args_map.count("-root-certs") != 0) {
      if (!SSL_CTX_load_verify_locations(
--- 
-2.50.1 (Apple Git-155)
-

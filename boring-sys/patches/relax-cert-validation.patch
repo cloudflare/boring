@@ -14,19 +14,80 @@ BoringSSL pin accepted them. There is no Rust API to relax this per
 connection. Restore the historical default (off) so RSA keyUsage
 mismatches are non-fatal again; non-RSA keyUsage enforcement is
 unaffected.
+
+Upstream removed the enforce_rsa_key_usage field in 39dc2564e, so this
+now restores the conditional it used to guard instead of flipping a
+default.
 ---
-diff --git a/ssl/ssl_lib.cc b/ssl/ssl_lib.cc
-index 89702eaaf..4be64f8a5 100644
---- a/ssl/ssl_lib.cc
-+++ b/ssl/ssl_lib.cc
-@@ -575,7 +575,7 @@ SSL_CONFIG::SSL_CONFIG(SSL *ssl_arg)
-       signed_cert_timestamps_enabled(false),
-       ocsp_stapling_enabled(false),
-       channel_id_enabled(false),
--      enforce_rsa_key_usage(true),
-+      enforce_rsa_key_usage(false),
-       retain_only_sha256_of_client_certs(false),
-       handoff(false),
-       shed_handshake_config(false),
--- 
-2.39.5
+ ssl/handshake_client.cc            | 13 ++++++++++++-
+ ssl/test/runner/key_usage_tests.go | 15 +++++++++++----
+ 2 files changed, 23 insertions(+), 5 deletions(-)
+
+diff --git a/ssl/handshake_client.cc b/ssl/handshake_client.cc
+index a4a53cda6..950ac611d 100644
+--- a/ssl/handshake_client.cc
++++ b/ssl/handshake_client.cc
+@@ -1402,11 +1402,22 @@ static enum ssl_hs_wait_t do_send_client_key_exchange(SSL_HANDSHAKE *hs) {
+ 
+     // Check the key usage matches the cipher suite. Key usage is only checked
+     // for X.509 certs. (RPKs have no keyUsage to enforce.)
++    //
++    // BoringSSL enforces this for RSA leaves too, but many real-world origins
++    // serve RSA certificates whose keyUsage does not assert the bit that the
++    // negotiated cipher suite requires, and OpenSSL accepts them. Restore the
++    // historical, non-fatal behaviour for RSA only. Enforcement for non-RSA
++    // keys is unaffected; in particular it is still needed to distinguish ECDH
++    // certificates, which we do not support, from ECDSA certificates.
++    // See https://crbug.com/795089.
+     ssl_key_usage_t intended_use = (alg_k & SSL_kRSA)
+                                        ? key_usage_encipherment
+                                        : key_usage_digital_signature;
+     if (!ssl_cert_check_key_usage(&leaf_cbs, intended_use)) {
+-      return ssl_hs_error;
++      if (EVP_PKEY_id(hs->peer_pubkey.get()) != EVP_PKEY_RSA) {
++        return ssl_hs_error;
++      }
++      ERR_clear_error();
+     }
+   }
+ 
+diff --git a/ssl/test/runner/key_usage_tests.go b/ssl/test/runner/key_usage_tests.go
+index c9555066f..8b7d0bffc 100644
+--- a/ssl/test/runner/key_usage_tests.go
++++ b/ssl/test/runner/key_usage_tests.go
+@@ -82,6 +82,15 @@ func addRSAKeyUsageTests() {
+ 	}
+ 
+ 	for _, ver := range tlsVersions {
++		// The relax-cert-validation patch restores the historical behaviour of
++		// not enforcing RSA keyUsage on the client. That check only ever lived
++		// on the TLS 1.2-and-below code path, so TLS 1.3 still rejects these.
++		rsaClientEnforced := ver.version >= VersionTLS13
++		rsaClientError := ""
++		if rsaClientEnforced {
++			rsaClientError = ":KEY_USAGE_BIT_INCORRECT:"
++		}
++
+ 		testCases = append(testCases, testCase{
+ 			testType: clientTest,
+ 			name:     "RSAKeyUsage-Client-WantSignature-GotEncipherment-" + ver.name,
+@@ -91,8 +100,8 @@ func addRSAKeyUsageTests() {
+ 				Credential:   &encCert,
+ 				CipherSuites: dsSuites,
+ 			},
+-			shouldFail:    true,
+-			expectedError: ":KEY_USAGE_BIT_INCORRECT:",
++			shouldFail:    rsaClientEnforced,
++			expectedError: rsaClientError,
+ 		})
+ 
+ 		testCases = append(testCases, testCase{
+@@ -128,8 +137,6 @@ func addRSAKeyUsageTests() {
+ 					Credential:   &dsCert,
+ 					CipherSuites: encSuites,
+ 				},
+-				shouldFail:    true,
+-				expectedError: ":KEY_USAGE_BIT_INCORRECT:",
+ 			})
+ 		}
+ 
