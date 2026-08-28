@@ -1,47 +1,43 @@
-From fc01a66ac146778c4e6651d6fc6d62c7e12bfb32 Mon Sep 17 00:00:00 2001
-From: Christopher Patton <cpatton@cloudflare.com>
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Bas Westerbaan <bas@cloudflare.com>
 Date: Wed, 27 May 2026 09:55:52 -0700
 Subject: [PATCH] Add additional post-quantum key agreement
 
 This patch adds:
 
-1. Enable X25519MLKEM768 by default.
+1. Enable X25519MLKEM768 in the fips202205 compliance profile. Upstream
+   previously enabled it by default in commit e748facbaa5e.
 
-2. Supports for P256Kyber768Draft00 under 0xfe32, which we temporarily
+2. Supports for P256Kyber768Draft00 (0xfe32), which we temporarily
    need for compliance reasons.  (Note that this is not the codepoint
    allocated for that exchange in the IANA table.)
-   Enables by default and in FIPS mode.
+   Enabled by default and in the fips202205 compliance profile.
 
-3. Add SSL(_CTX)_use_second_keyshare.  By default BoringSSL will send a
-   non post-quantum and a post-quantum keyshare if available.  These
-   functions allow one to change the behaviour to only send a single
-   keyshare.
+3. Add SSL(_CTX)_use_second_keyshare. By default BoringSSL clients send
+   both a PQ and non-PQ keyshare if permitted. These functions allow one
+   to change the behaviour to only send a single keyshare. For testing
+   purposes, add option `bssl client -disable-second-keyshare`.
 
-4. Restores X25519Kyber768Draft00 under 0x6399, removed upstream in
-   188ce3c13.
-
-Upstream deleted its Kyber implementation, so both Kyber hybrids are now
-built on ML-KEM-768, applying Kyber's key derivation
-SHAKE-256(K || SHA3-256(c)) to the ML-KEM shared secret. See
-https://words.filippo.io/mlkem768/#bonus-track-using-a-ml-kem-implementation-as-kyber-v3
+4. Restore X25519Kyber768Draft00 (0x6399), removed upstream in 188ce3c1.
+   Upstream deleted its Kyber implementation, so both Kyber hybrids are
+   now built on ML-KEM-768, applying Kyber's key derivation
+   `SHAKE-256(K || SHA3-256(c))` to the ML-KEM shared secret. See
+   https://words.filippo.io/mlkem768/#bonus-track-using-a-ml-kem-implementation-as-kyber-v3
 ---
- crypto/obj/obj_dat.h                |   6 +-
- crypto/obj/obj_mac.num              |   1 +
- crypto/obj/objects.txt              |   1 +
- include/openssl/nid.h               |   3 +
- include/openssl/ssl.h               |  17 ++
- ssl/extensions.cc                   |  35 ++--
- ssl/internal.h                      |  12 +-
- ssl/ssl_key_share.cc                | 257 ++++++++++++++++++++++++++++
- ssl/ssl_lib.cc                      |  16 +-
- ssl/ssl_test.cc                     |  31 +++-
- ssl/test/fuzzer.h                   |   6 +-
- ssl/test/runner/cbc_tests.go        |   3 +
- ssl/test/runner/common.go           |   2 +-
- ssl/test/runner/curve_tests.go      |  16 ++
- ssl/test/runner/key_update_tests.go |   2 +
- tool/client.cc                      |   9 +
- 16 files changed, 393 insertions(+), 24 deletions(-)
+ crypto/obj/obj_dat.h                       |   6 +-
+ crypto/obj/obj_mac.num                     |   1 +
+ crypto/obj/objects.txt                     |   1 +
+ include/openssl/nid.h                      |   3 +
+ include/openssl/prefix_symbols.h           |   4 +
+ include/openssl/ssl.h                      |  17 ++
+ ssl/extensions.cc                          |  35 ++-
+ ssl/internal.h                             |  12 +-
+ ssl/ssl_key_share.cc                       | 257 +++++++++++++++++++++
+ ssl/ssl_lib.cc                             |  16 +-
+ ssl/ssl_test.cc                            |  28 ++-
+ ssl/test/runner/compliance_policy_tests.go |   2 +
+ tool/client.cc                             |   9 +
+ 13 files changed, 371 insertions(+), 20 deletions(-)
 
 diff --git a/crypto/obj/obj_dat.h b/crypto/obj/obj_dat.h
 index feb8f2d1e..7ca28d9f5 100644
@@ -116,6 +112,42 @@ index 6b3bb4506..113f7653b 100644
  
  #if defined(__cplusplus)
  } /* extern C */
+diff --git a/include/openssl/prefix_symbols.h b/include/openssl/prefix_symbols.h
+index 6e68c58d1..c9b51aafa 100644
+--- a/include/openssl/prefix_symbols.h
++++ b/include/openssl/prefix_symbols.h
+@@ -2100,6 +2100,7 @@
+ #pragma redefine_extname SSL_CTX_use_certificate_chain_file BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_use_certificate_chain_file)
+ #pragma redefine_extname SSL_CTX_use_certificate_file BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_use_certificate_file)
+ #pragma redefine_extname SSL_CTX_use_psk_identity_hint BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_use_psk_identity_hint)
++#pragma redefine_extname SSL_CTX_use_second_keyshare BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_use_second_keyshare)
+ #pragma redefine_extname SSL_ECH_KEYS_add BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_ECH_KEYS_add)
+ #pragma redefine_extname SSL_ECH_KEYS_free BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_ECH_KEYS_free)
+ #pragma redefine_extname SSL_ECH_KEYS_has_duplicate_config_id BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_ECH_KEYS_has_duplicate_config_id)
+@@ -2449,6 +2450,7 @@
+ #pragma redefine_extname SSL_use_certificate_ASN1 BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_use_certificate_ASN1)
+ #pragma redefine_extname SSL_use_certificate_file BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_use_certificate_file)
+ #pragma redefine_extname SSL_use_psk_identity_hint BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_use_psk_identity_hint)
++#pragma redefine_extname SSL_use_second_keyshare BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_use_second_keyshare)
+ #pragma redefine_extname SSL_used_hello_retry_request BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_used_hello_retry_request)
+ #pragma redefine_extname SSL_version BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_version)
+ #pragma redefine_extname SSL_want BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_want)
+@@ -5237,6 +5239,7 @@
+ #define SSL_CTX_use_certificate_chain_file BORINGSSL_ADD_PREFIX(SSL_CTX_use_certificate_chain_file)
+ #define SSL_CTX_use_certificate_file BORINGSSL_ADD_PREFIX(SSL_CTX_use_certificate_file)
+ #define SSL_CTX_use_psk_identity_hint BORINGSSL_ADD_PREFIX(SSL_CTX_use_psk_identity_hint)
++#define SSL_CTX_use_second_keyshare BORINGSSL_ADD_PREFIX(SSL_CTX_use_second_keyshare)
+ #define SSL_ECH_KEYS_add BORINGSSL_ADD_PREFIX(SSL_ECH_KEYS_add)
+ #define SSL_ECH_KEYS_free BORINGSSL_ADD_PREFIX(SSL_ECH_KEYS_free)
+ #define SSL_ECH_KEYS_has_duplicate_config_id BORINGSSL_ADD_PREFIX(SSL_ECH_KEYS_has_duplicate_config_id)
+@@ -5586,6 +5589,7 @@
+ #define SSL_use_certificate_ASN1 BORINGSSL_ADD_PREFIX(SSL_use_certificate_ASN1)
+ #define SSL_use_certificate_file BORINGSSL_ADD_PREFIX(SSL_use_certificate_file)
+ #define SSL_use_psk_identity_hint BORINGSSL_ADD_PREFIX(SSL_use_psk_identity_hint)
++#define SSL_use_second_keyshare BORINGSSL_ADD_PREFIX(SSL_use_second_keyshare)
+ #define SSL_used_hello_retry_request BORINGSSL_ADD_PREFIX(SSL_used_hello_retry_request)
+ #define SSL_version BORINGSSL_ADD_PREFIX(SSL_version)
+ #define SSL_want BORINGSSL_ADD_PREFIX(SSL_want)
 diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
 index 3b48c2a08..0dab3b037 100644
 --- a/include/openssl/ssl.h
@@ -551,7 +583,7 @@ index 84394b247..2f006e982 100644
        return nullptr;
    }
 diff --git a/ssl/ssl_lib.cc b/ssl/ssl_lib.cc
-index a0c746b38..8c8b2bad4 100644
+index a0c746b38..f4df3a0c6 100644
 --- a/ssl/ssl_lib.cc
 +++ b/ssl/ssl_lib.cc
 @@ -394,6 +394,7 @@ bssl::SSLContext::SSLContext(const SSL_METHOD *ssl_method)
@@ -600,13 +632,13 @@ index a0c746b38..8c8b2bad4 100644
  // composed entirely of NIST approved algorithms"
 -static const uint16_t kGroups[] = {SSL_GROUP_SECP256R1, SSL_GROUP_SECP384R1};
 +static const uint16_t kGroups[] = {
-+    SSL_GROUP_P256_KYBER768_DRAFT00,
++    SSL_GROUP_X25519_MLKEM768, SSL_GROUP_P256_KYBER768_DRAFT00,
 +    SSL_GROUP_SECP256R1, SSL_GROUP_SECP384R1};
  
  static const uint16_t kSigAlgs[] = {
      SSL_SIGN_RSA_PKCS1_SHA256,
 diff --git a/ssl/ssl_test.cc b/ssl/ssl_test.cc
-index fc185ec33..5e0af17cf 100644
+index fc185ec33..a406724cb 100644
 --- a/ssl/ssl_test.cc
 +++ b/ssl/ssl_test.cc
 @@ -495,6 +495,10 @@ static const CurveTest kCurveTests[] = {
@@ -648,17 +680,7 @@ index fc185ec33..5e0af17cf 100644
  
    // Test the group ID APIs.
    {
-@@ -1670,7 +1684,8 @@ static size_t GetClientHelloLen(uint16_t max_version, uint16_t session_version,
-   bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
- 
-   // Reduce the number of supported groups, as we need ClientHellos smaller
--  // than 254 bytes for SSLTest.Padding.
-+  // than 254 bytes for SSLTest.Padding. This also keeps the post-quantum
-+  // groups out of the ClientHello, which the padding tests require.
-   uint16_t groups[] = {SSL_GROUP_X25519, SSL_GROUP_SECP256R1,
-                        SSL_GROUP_SECP384R1};
-   SSL_CTX_set1_group_ids(ctx.get(), groups, sizeof(groups) / sizeof(*groups));
-@@ -2350,7 +2365,9 @@ TEST(SSLTest, SetGroupIdsWithEqualPreference) {
+@@ -2350,7 +2364,9 @@ TEST(SSLTest, SetGroupIdsWithEqualPreference) {
  // (i.e. using the default groups).
  TEST(SSLTest, SetGroupIdsWithFlags_DefaultGroups) {
    const uint16_t kDefaultGroups[] = {SSL_GROUP_X25519_MLKEM768,
@@ -669,7 +691,7 @@ index fc185ec33..5e0af17cf 100644
                                       SSL_GROUP_SECP384R1};
    const uint32_t kBogusFlags[] = {SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT,
                                    SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT, 0};
-@@ -7209,8 +7226,10 @@ TEST(SSLTest, ApplyHandoffRemovesUnsupportedCurves) {
+@@ -7209,8 +7225,10 @@ TEST(SSLTest, ApplyHandoffRemovesUnsupportedCurves) {
  
    // The default list of groups is used before applying the handoff.
    EXPECT_THAT(FromOpaque(server.get())->config->supported_group_list,
@@ -682,104 +704,19 @@ index fc185ec33..5e0af17cf 100644
    ASSERT_TRUE(SSL_apply_handoff(server.get(), handoff));
    EXPECT_EQ(1u, FromOpaque(server.get())->config->supported_group_list.size());
    EXPECT_EQ(SSL_GROUP_SECP256R1,
-diff --git a/ssl/test/fuzzer.h b/ssl/test/fuzzer.h
-index c3a37bf8e..dbc6d896f 100644
---- a/ssl/test/fuzzer.h
-+++ b/ssl/test/fuzzer.h
-@@ -407,8 +407,10 @@ class TLSFuzzer {
-     }
+diff --git a/ssl/test/runner/compliance_policy_tests.go b/ssl/test/runner/compliance_policy_tests.go
+index 7ccf636aa..837845f93 100644
+--- a/ssl/test/runner/compliance_policy_tests.go
++++ b/ssl/test/runner/compliance_policy_tests.go
+@@ -148,6 +148,8 @@ func addCompliancePolicyTests() {
+ 			switch curve.id {
+ 			case CurveP256, CurveP384:
+ 				isFIPSCurve = true
++			case CurveX25519MLKEM768:
++				isFIPSCurve = true
+ 			}
  
-     static const uint16_t kGroups[] = {
--        SSL_GROUP_X25519_MLKEM768, SSL_GROUP_MLKEM1024, SSL_GROUP_X25519,
--        SSL_GROUP_SECP256R1,       SSL_GROUP_SECP384R1, SSL_GROUP_SECP521R1};
-+        SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519_KYBER768_DRAFT00,
-+        SSL_GROUP_MLKEM1024,       SSL_GROUP_X25519,
-+        SSL_GROUP_SECP256R1,       SSL_GROUP_SECP384R1,
-+        SSL_GROUP_SECP521R1};
-     if (!SSL_CTX_set1_group_ids(ctx_.get(), kGroups, std::size(kGroups))) {
-       return false;
-     }
-diff --git a/ssl/test/runner/cbc_tests.go b/ssl/test/runner/cbc_tests.go
-index 6f49d12af..c17e3f277 100644
---- a/ssl/test/runner/cbc_tests.go
-+++ b/ssl/test/runner/cbc_tests.go
-@@ -14,6 +14,8 @@
- 
- package runner
- 
-+import "strconv"
-+
- func addCBCPaddingTests() {
- 	testCases = append(testCases, testCase{
- 		name: "MaxCBCPadding",
-@@ -104,6 +106,7 @@ func addCBCSplittingTests() {
- 				"-partial-write",
- 				// BoringSSL disables 3DES by default.
- 				"-cipher", "ALL:3DES",
-+				"-curves", strconv.Itoa(int(CurveX25519)),
- 			},
- 		})
- 	}
-diff --git a/ssl/test/runner/common.go b/ssl/test/runner/common.go
-index 53fd5ea99..e21047412 100644
---- a/ssl/test/runner/common.go
-+++ b/ssl/test/runner/common.go
-@@ -2186,7 +2186,7 @@ type ProtocolBugs struct {
- 	FailIfHelloRetryRequested bool
- 
- 	// FailIfPostQuantumOffered will cause a server to reject a ClientHello if
--	// post-quantum curves are supported.
-+	// post-quantum curves are not supported.
- 	FailIfPostQuantumOffered bool
- 
- 	// ExpectKeyShares, if not nil, lists (in order) the curves that a ClientHello
-diff --git a/ssl/test/runner/curve_tests.go b/ssl/test/runner/curve_tests.go
-index 54d02105e..6aa8fb181 100644
---- a/ssl/test/runner/curve_tests.go
-+++ b/ssl/test/runner/curve_tests.go
-@@ -698,6 +698,22 @@ func addCurveTests() {
- 		},
- 	})
- 
-+	// If ML-KEM is offered, both X25519 and ML-KEM should have a key-share.
-+	testCases = append(testCases, testCase{
-+		name: "NotJustMLKEMKeyShare",
-+		config: Config{
-+			MinVersion: VersionTLS13,
-+			Bugs: ProtocolBugs{
-+				ExpectedKeyShares: []CurveID{CurveX25519MLKEM768, CurveX25519},
-+			},
-+		},
-+		flags: []string{
-+			"-curves", strconv.Itoa(int(CurveX25519MLKEM768)),
-+			"-curves", strconv.Itoa(int(CurveX25519)),
-+			"-expect-curve-id", strconv.Itoa(int(CurveX25519MLKEM768)),
-+		},
-+	})
-+
- 	// If two ML-KEMs are configured, only the preferred one's
- 	// key share should be sent.
- 	testCases = append(testCases, testCase{
-diff --git a/ssl/test/runner/key_update_tests.go b/ssl/test/runner/key_update_tests.go
-index 39ad24baf..f7335bb9a 100644
---- a/ssl/test/runner/key_update_tests.go
-+++ b/ssl/test/runner/key_update_tests.go
-@@ -16,6 +16,7 @@ package runner
- 
- import (
- 	"slices"
-+	"strconv"
- )
- 
- func addKeyUpdateTests() {
-@@ -296,6 +297,7 @@ func addKeyUpdateTests() {
- 			},
- 		},
- 		shimSendsKeyUpdateBeforeRead: true,
-+		flags:                        []string{"-curves", strconv.Itoa(int(CurveX25519))},
- 	})
- 
- 	// Test that shim responds to KeyUpdate requests.
+ 			var isWPACurve bool
 diff --git a/tool/client.cc b/tool/client.cc
 index 1f2b19965..6cf555433 100644
 --- a/tool/client.cc
