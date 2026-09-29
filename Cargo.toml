@@ -45,6 +45,6 @@ hyper = "1"
 hyper-util = "0.1.6"
 linked_hash_set = "0.1"
 openssl-macros = "0.1.1"
-tower = "0.4"
+tower = { version = "0.4", default-features = false, features = ["util"] }
 tower-layer = "0.3"
 tower-service = "0.3"

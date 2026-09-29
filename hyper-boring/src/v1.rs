@@ -19,6 +19,9 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::{io, net};
 use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::net::TcpStream;
+use tower::util::MapResponse;
+use tower::ServiceExt;
 use tower_layer::Layer;
 use tower_service::Service;
 
@@ -29,22 +32,27 @@ pub struct HttpsConnector<T> {
     inner: Inner,
 }
 
-impl HttpsConnector<HttpConnector> {
+/// Specialized version of [`HttpConnector`] with responses wrapped with
+/// [`TokioIo::new`] in order to bring back compatibility with Tokio traits.
+pub type TokioHttpConnector =
+    MapResponse<HttpConnector, fn(TokioIo<TcpStream>) -> TokioIo<TokioIo<TcpStream>>>;
+
+impl HttpsConnector<TokioHttpConnector> {
     /// Creates a a new `HttpsConnector` using default settings.
     ///
     /// The Hyper `HttpConnector` is used to perform the TCP socket connection. ALPN is configured to support both
     /// HTTP/2 and HTTP/1.1.
-    pub fn new() -> Result<HttpsConnector<HttpConnector>, ErrorStack> {
+    pub fn new() -> Result<Self, ErrorStack> {
         let mut http = HttpConnector::new();
         http.enforce_http(false);
 
-        HttpsLayer::new().map(|l| l.layer(http))
+        HttpsLayer::new().map(|l| l.layer(http.map_response(TokioIo::new as _)))
     }
 }
 
 impl<S, T> HttpsConnector<S>
 where
-    S: Service<Uri, Response = TokioIo<T>> + Send,
+    S: Service<Uri, Response = T> + Send,
     S::Error: Into<Box<dyn Error + Send + Sync>>,
     S::Future: Unpin + Send + 'static,
     T: AsyncRead + AsyncWrite + Connection + Unpin + fmt::Debug + Sync + Send + 'static,
@@ -52,6 +60,10 @@ where
     /// Creates a new `HttpsConnector`.
     ///
     /// The session cache configuration of `ssl` will be overwritten.
+    ///
+    /// If the provided service's response type does not fit the trait
+    /// requirements because it is closer to the Hyper ecosystem than the Tokio
+    /// one, wrapping your responses with [`TokioIo`] should work.
     pub fn with_connector(
         http: S,
         ssl: SslConnectorBuilder,
@@ -212,7 +224,7 @@ impl Inner {
 
 impl<T, S> Service<Uri> for HttpsConnector<S>
 where
-    S: Service<Uri, Response = TokioIo<T>> + Send,
+    S: Service<Uri, Response = T> + Send,
     S::Error: Into<Box<dyn Error + Send + Sync>>,
     S::Future: Unpin + Send + 'static,
     T: AsyncRead + AsyncWrite + Connection + Unpin + fmt::Debug + Sync + Send + 'static,
@@ -241,7 +253,7 @@ where
         let connect = self.http.call(uri);
 
         let f = async {
-            let conn = connect.await.map_err(Into::into)?.into_inner();
+            let conn = connect.await.map_err(Into::into)?;
 
             let Some((inner, uri)) = tls_setup else {
                 return Ok(MaybeHttpsStream::Http(conn));
