@@ -2,68 +2,34 @@
 
 use crate::stack::Stack;
 use crate::x509::store::X509StoreBuilder;
-use crate::x509::verify::{X509VerifyFlags, X509VerifyParamRef};
-use crate::x509::{X509Ref, X509StoreContext, X509VerifyError, X509VerifyResult, X509};
+use crate::x509::verify::X509VerifyParamRef;
+use crate::x509::{X509Ref, X509StoreContext, X509VerifyResult, X509};
 
 #[test]
 fn test_verify_cert() {
-    let root2 = X509::from_pem(include_bytes!("../../../test/root-ca-2.pem")).unwrap();
+    let root2_expired = X509::from_pem(include_bytes!("../../../test/root-ca-2.pem")).unwrap();
     let root1 = X509::from_pem(include_bytes!("../../../test/root-ca.pem")).unwrap();
     let root1_cross = X509::from_pem(include_bytes!("../../../test/root-ca-cross.pem")).unwrap();
     let intermediate = X509::from_pem(include_bytes!("../../../test/intermediate-ca.pem")).unwrap();
     let leaf = X509::from_pem(include_bytes!("../../../test/cert-with-intermediate.pem")).unwrap();
 
+    // Two paths:
+    // Leaf -- Intermediate -- Root1
+    //                       \
+    //                         Root1_cross -- Root2 (expired)
+    //
+    // In the past, X509_V_FLAG_TRUSTED_FIRST had to be set to avoid the second invalid path. This
+    // is now the default, and that flag no longer has any effect.
     assert_eq!(Ok(()), verify(&leaf, &[&root1], &[&intermediate], |_| {}));
 
-    #[cfg(not(feature = "legacy-compat-deprecated"))]
     assert_eq!(
         Ok(()),
         verify(
             &leaf,
-            &[&root1, &root2],
+            &[&root1, &root2_expired],
             &[&intermediate, &root1_cross],
             |_| {}
         )
-    );
-
-    #[cfg(feature = "legacy-compat-deprecated")]
-    assert_eq!(
-        Err(X509VerifyError::CERT_HAS_EXPIRED),
-        verify(
-            &leaf,
-            &[&root1, &root2],
-            &[&intermediate, &root1_cross],
-            |_| {}
-        )
-    );
-
-    assert_eq!(
-        Ok(()),
-        verify(
-            &leaf,
-            &[&root1, &root2],
-            &[&intermediate, &root1_cross],
-            |param| param.try_set_flags(X509VerifyFlags::TRUSTED_FIRST).unwrap(),
-        )
-    );
-
-    assert_eq!(
-        Err(X509VerifyError::CERT_HAS_EXPIRED),
-        verify(
-            &leaf,
-            &[&root1, &root2],
-            &[&intermediate, &root1_cross],
-            |param| param.clear_flags(X509VerifyFlags::TRUSTED_FIRST),
-        )
-    );
-
-    assert_eq!(
-        Ok(()),
-        verify(&leaf, &[&root1], &[&intermediate, &root1_cross], |param| {
-            param
-                .try_clear_flags(X509VerifyFlags::TRUSTED_FIRST)
-                .unwrap();
-        })
     );
 }
 
