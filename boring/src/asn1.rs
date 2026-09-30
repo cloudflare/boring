@@ -61,6 +61,40 @@ foreign_type_and_impl_send_sync! {
     pub struct Asn1GeneralizedTime;
 }
 
+impl Asn1GeneralizedTime {
+    #[corresponds(ASN1_GENERALIZEDTIME_new)]
+    fn new() -> Result<Self, ErrorStack> {
+        ffi::init();
+
+        unsafe {
+            let handle = cvt_p(ffi::ASN1_GENERALIZEDTIME_new())?;
+            Ok(Self::from_ptr(handle))
+        }
+    }
+}
+
+impl std::str::FromStr for Asn1GeneralizedTime {
+    type Err = ErrorStack;
+
+    /// Creates a new `Asn1GeneralizedTime` corresponding to the specified ASN1
+    /// time string.
+    ///
+    /// The string must be a valid GeneralizedTime. Returns an error if the
+    /// string is not valid.
+    #[corresponds(ASN1_GENERALIZEDTIME_set_string)]
+    fn from_str(s: &str) -> Result<Asn1GeneralizedTime, ErrorStack> {
+        let time = Asn1GeneralizedTime::new()?;
+        let s = CString::new(s).map_err(ErrorStack::internal_error)?;
+        unsafe {
+            cvt(ffi::ASN1_GENERALIZEDTIME_set_string(
+                time.as_ptr(),
+                s.as_ptr(),
+            ))?;
+            Ok(time)
+        }
+    }
+}
+
 impl fmt::Display for Asn1GeneralizedTimeRef {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let bio = MemBio::new().ok();
@@ -323,18 +357,41 @@ impl Asn1Time {
         }
     }
 
+    /// Creates a new time corresponding to the specified X509 time string.
+    ///
+    /// Behaves like [`Asn1Time::from_str`] except it additionally converts
+    /// GeneralizedTime to UTCTime if it is in the range where UTCTime is used.
+    /// See RFC 5280, section 4.1.2.5.
+    #[corresponds(ASN1_TIME_set_string_X509)]
+    pub fn from_str_x509(s: &str) -> Result<Asn1Time, ErrorStack> {
+        let time = Asn1Time::new()?;
+        let s = CString::new(s).map_err(ErrorStack::internal_error)?;
+        unsafe {
+            cvt(ffi::ASN1_TIME_set_string_X509(time.as_ptr(), s.as_ptr()))?;
+        }
+        Ok(time)
+    }
+
     /// Creates a new time corresponding to the specified ASN1 time string.
     #[corresponds(ASN1_TIME_set_string)]
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Asn1Time, ErrorStack> {
+        s.parse()
+    }
+}
+
+impl std::str::FromStr for Asn1Time {
+    type Err = ErrorStack;
+
+    /// Creates a new time corresponding to the specified ASN1 time string.
+    #[corresponds(ASN1_TIME_set_string)]
+    fn from_str(s: &str) -> Result<Asn1Time, ErrorStack> {
+        let time = Asn1Time::new()?;
+        let s = CString::new(s).map_err(ErrorStack::internal_error)?;
         unsafe {
-            let s = CString::new(s).map_err(ErrorStack::internal_error)?;
-
-            let time = Asn1Time::new()?;
             cvt(ffi::ASN1_TIME_set_string(time.as_ptr(), s.as_ptr()))?;
-
-            Ok(time)
         }
+        Ok(time)
     }
 }
 
@@ -421,7 +478,13 @@ impl Asn1StringRef {
     #[corresponds(ASN1_STRING_get0_data)]
     #[must_use]
     pub fn as_slice(&self) -> &[u8] {
-        unsafe { slice::from_raw_parts(ASN1_STRING_get0_data(self.as_ptr()), self.len()) }
+        unsafe {
+            let ptr = ffi::ASN1_STRING_get0_data(self.as_ptr().cast());
+            if ptr.is_null() {
+                return &[];
+            }
+            slice::from_raw_parts(ptr, self.len())
+        }
     }
 
     /// Returns the number of bytes in the string.
@@ -450,6 +513,7 @@ impl fmt::Debug for Asn1StringRef {
 foreign_type_and_impl_send_sync! {
     type CType = ffi::ASN1_INTEGER;
     fn drop = ffi::ASN1_INTEGER_free;
+    fn clone = ffi::ASN1_INTEGER_dup;
 
     /// Numeric representation
     ///
@@ -473,6 +537,73 @@ impl Asn1Integer {
     /// [`BigNumRef::to_asn1_integer`]: ../bn/struct.BigNumRef.html#method.to_asn1_integer
     pub fn from_bn(bn: &BigNumRef) -> Result<Self, ErrorStack> {
         bn.to_asn1_integer()
+    }
+}
+
+impl Ord for Asn1IntegerRef {
+    #[corresponds(ASN1_INTEGER_cmp)]
+    fn cmp(&self, other: &Self) -> Ordering {
+        let res = unsafe { crate::ffi::ASN1_INTEGER_cmp(self.as_ptr(), other.as_ptr()) };
+        res.cmp(&0)
+    }
+}
+
+impl PartialOrd for Asn1IntegerRef {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialOrd<Asn1Integer> for Asn1IntegerRef {
+    fn partial_cmp(&self, other: &Asn1Integer) -> Option<Ordering> {
+        Some(self.cmp(&**other))
+    }
+}
+
+impl Eq for Asn1IntegerRef {}
+
+impl PartialEq for Asn1IntegerRef {
+    #[corresponds(ASN1_INTEGER_cmp)]
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == Ordering::Equal
+    }
+}
+
+impl PartialEq<Asn1Integer> for Asn1IntegerRef {
+    fn eq(&self, other: &Asn1Integer) -> bool {
+        self.eq(&**other)
+    }
+}
+
+impl Ord for Asn1Integer {
+    fn cmp(&self, other: &Self) -> Ordering {
+        Asn1IntegerRef::cmp(self, other)
+    }
+}
+
+impl PartialOrd for Asn1Integer {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialOrd<Asn1IntegerRef> for Asn1Integer {
+    fn partial_cmp(&self, other: &Asn1IntegerRef) -> Option<Ordering> {
+        (**self).partial_cmp(other)
+    }
+}
+
+impl Eq for Asn1Integer {}
+
+impl PartialEq for Asn1Integer {
+    fn eq(&self, other: &Self) -> bool {
+        Asn1IntegerRef::eq(self, other)
+    }
+}
+
+impl PartialEq<Asn1IntegerRef> for Asn1Integer {
+    fn eq(&self, other: &Asn1IntegerRef) -> bool {
+        Asn1IntegerRef::eq(self, other)
     }
 }
 
@@ -530,7 +661,7 @@ impl Asn1BitStringRef {
     #[must_use]
     pub fn as_slice(&self) -> &[u8] {
         unsafe {
-            let ptr = ASN1_STRING_get0_data(self.as_ptr().cast());
+            let ptr = ffi::ASN1_STRING_get0_data(self.as_ptr().cast());
             if ptr.is_null() {
                 return &[];
             }
@@ -588,10 +719,21 @@ impl Asn1Object {
     #[corresponds(OBJ_txt2obj)]
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(txt: &str) -> Result<Asn1Object, ErrorStack> {
+        txt.parse()
+    }
+}
+
+impl std::str::FromStr for Asn1Object {
+    type Err = ErrorStack;
+
+    /// Constructs an ASN.1 Object Identifier from a string representation of the OID.
+    #[corresponds(OBJ_txt2obj)]
+    fn from_str(txt: &str) -> Result<Asn1Object, ErrorStack> {
+        ffi::init();
+
+        let txt = CString::new(txt).map_err(ErrorStack::internal_error)?;
         unsafe {
-            ffi::init();
-            let txt = CString::new(txt).map_err(ErrorStack::internal_error)?;
-            let obj: *mut ffi::ASN1_OBJECT = cvt_p(ffi::OBJ_txt2obj(txt.as_ptr(), 0))?;
+            let obj = cvt_p(ffi::OBJ_txt2obj(txt.as_ptr(), 0))?;
             Ok(Asn1Object::from_ptr(obj))
         }
     }
@@ -630,8 +772,6 @@ impl fmt::Debug for Asn1ObjectRef {
     }
 }
 
-use crate::ffi::ASN1_STRING_get0_data;
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -656,6 +796,31 @@ mod tests {
     #[test]
     fn time_from_str() {
         Asn1Time::from_str("99991231235959Z").unwrap();
+
+        let time: Asn1GeneralizedTime = "20250101120000Z".parse().unwrap();
+        let display = time.to_string();
+        assert!(
+            display.contains("2025"),
+            "expected year in display: {display}"
+        );
+
+        assert!(
+            <Asn1GeneralizedTime as std::str::FromStr>::from_str("not a time").is_err(),
+            "should fail for invalid input",
+        );
+
+        // GeneralizedTime that falls in UTCTime range should be accepted
+        let time = Asn1Time::from_str_x509("20250101120000Z").unwrap();
+        let display = time.to_string();
+        assert!(
+            display.contains("2025"),
+            "expected year in display: {display}"
+        );
+
+        assert!(
+            Asn1Time::from_str_x509("not a time").is_err(),
+            "should fail for invalid input",
+        );
     }
 
     #[test]
@@ -668,7 +833,7 @@ mod tests {
     fn time_eq() {
         let a = Asn1Time::from_str("99991231235959Z").unwrap();
         let b = Asn1Time::from_str("99991231235959Z").unwrap();
-        let c = Asn1Time::from_str("99991231235958Z").unwrap();
+        let c = "99991231235958Z".parse::<Asn1Time>().unwrap();
         let a_ref = a.as_ref();
         let b_ref = b.as_ref();
         let c_ref = c.as_ref();
@@ -685,7 +850,7 @@ mod tests {
     #[test]
     fn time_ord() {
         let a = Asn1Time::from_str("99991231235959Z").unwrap();
-        let b = Asn1Time::from_str("99991231235959Z").unwrap();
+        let b = <Asn1Time as std::str::FromStr>::from_str("99991231235959Z").unwrap();
         let c = Asn1Time::from_str("99991231235958Z").unwrap();
         let a_ref = a.as_ref();
         let b_ref = b.as_ref();
@@ -722,5 +887,43 @@ mod tests {
         Asn1Object::from_str("NOT AN OID")
             .map(|object| object.to_string())
             .expect_err("parsing invalid OID should fail");
+    }
+
+    #[test]
+    fn integer_eq_ord() {
+        let make = |n: u32| Asn1Integer::from_bn(&BigNum::from_u32(n).unwrap()).unwrap();
+
+        let a = make(1);
+        let b = make(1);
+        let c = make(2);
+
+        assert!(a == b);
+        assert!(a.as_ref() == b.as_ref());
+        assert!(a != c);
+        assert!(*a == *b);
+        assert!(*a != *c);
+        assert!(a == *b);
+        assert!(*a == b);
+        assert!(a <= b);
+        assert!(a >= b);
+        assert!(a < c);
+        assert!(c > a);
+        assert!(*a <= *b);
+        assert!(*a >= *b);
+        assert!(*a < *c);
+        assert!(*c > *a);
+        assert!(*a <= b);
+        assert!(*c > a);
+    }
+
+    #[test]
+    fn integer_to_owned() {
+        let bn = BigNum::from_dec_str("1234567890").unwrap();
+        let orig = Asn1Integer::from_bn(&bn).unwrap();
+        let copy = orig.to_owned();
+        assert!(
+            orig == copy,
+            "duplicated Asn1Integer should be equal to the original"
+        );
     }
 }
