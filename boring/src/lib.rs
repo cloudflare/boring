@@ -14,7 +14,7 @@
 //! ## BoringSSL version
 //!
 //! By default, the crate statically links against a pinned BoringSSL revision, vendored as a
-//! submodule at `boring-sys/deps/boringssl`. The current pin is upstream tag `0.20260813.0`.
+//! submodule at `boring-sys/deps/boringssl`. The current pin is upstream tag `0.20260929.0`.
 //! *Note*: any BoringSSL revision bumps will be released as a major version update of all crates.
 //!
 //! # Compilation and linking options
