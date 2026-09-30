@@ -6,12 +6,14 @@ Subject: [PATCH] Add additional post-quantum key agreement
 This patch adds:
 
 1. Enable X25519MLKEM768 in the fips202205 compliance profile. Upstream
-   previously enabled it by default in commit e748facbaa5e.
+   previously enabled it by default in commit e748facbaa5e, and created
+   a new fips202609 profile including X25519MLKEM768 and MLKEM1024.
 
 2. Supports for P256Kyber768Draft00 (0xfe32), which we temporarily
    need for compliance reasons.  (Note that this is not the codepoint
    allocated for that exchange in the IANA table.)
-   Enabled by default and in the fips202205 compliance profile.
+   Enabled by default and in the fips202205 compliance profile, omitted
+   from fips202609 since P256Kyber is deprecated.
 
 3. Add SSL(_CTX)_use_second_keyshare. By default BoringSSL clients send
    both a PQ and non-PQ keyshare if permitted. These functions allow one
@@ -24,7 +26,7 @@ This patch adds:
    `SHAKE-256(K || SHA3-256(c))` to the ML-KEM shared secret. See
    https://words.filippo.io/mlkem768/#bonus-track-using-a-ml-kem-implementation-as-kyber-v3
 ---
- crypto/obj/obj_dat.h                       |   6 +-
+ crypto/obj/obj_dat.h                       |   5 +-
  crypto/obj/obj_mac.num                     |   1 +
  crypto/obj/objects.txt                     |   1 +
  include/openssl/nid.h                      |   3 +
@@ -37,31 +39,23 @@ This patch adds:
  ssl/ssl_test.cc                            |  28 ++-
  ssl/test/runner/compliance_policy_tests.go |   2 +
  tool/client.cc                             |   9 +
- 13 files changed, 371 insertions(+), 20 deletions(-)
+ 13 files changed, 370 insertions(+), 20 deletions(-)
 
 diff --git a/crypto/obj/obj_dat.h b/crypto/obj/obj_dat.h
-index feb8f2d1e..7ca28d9f5 100644
+index ced3582f9..f35a79e0b 100644
 --- a/crypto/obj/obj_dat.h
 +++ b/crypto/obj/obj_dat.h
-@@ -16,7 +16,7 @@
- 
- 
- BSSL_NAMESPACE_BEGIN
--#define NUM_NID 973
-+#define NUM_NID 974
- 
- static const uint8_t kObjectData[] = {
-     /* NID_rsadsi */
-@@ -8802,6 +8802,8 @@ static const ASN1_OBJECT kObjects[NUM_NID] = {
+@@ -8865,7 +8865,8 @@ static const ASN1_OBJECT kObjects[NUM_NID] = {
       0},
      {NULL, NULL, NID_undef, 0, NULL, 0},
      {"X-Wing", "X-Wing", NID_X_Wing, 0, NULL, 0},
+-    {NULL, NULL, NID_undef, 0, NULL, 0},
 +    {"P256Kyber768Draft00", "P256Kyber768Draft00", NID_P256Kyber768Draft00, 0,
 +     NULL, 0},
- };
- 
- static const uint16_t kNIDsInShortNameOrder[] = {
-@@ -8934,6 +8936,7 @@ static const uint16_t kNIDsInShortNameOrder[] = {
+     {NULL, NULL, NID_undef, 0, NULL, 0},
+     {NULL, NULL, NID_undef, 0, NULL, 0},
+     {"alg-mtcProof-draft", "alg-mtcProof-draft", NID_alg_mtcProof_draft, 10,
+@@ -9012,6 +9013,7 @@ static const uint16_t kNIDsInShortNameOrder[] = {
      18 /* OU */,
      749 /* Oakley-EC2N-3 */,
      750 /* Oakley-EC2N-4 */,
@@ -69,7 +63,7 @@ index feb8f2d1e..7ca28d9f5 100644
      9 /* PBE-MD2-DES */,
      168 /* PBE-MD2-RC2-64 */,
      10 /* PBE-MD5-DES */,
-@@ -9858,6 +9861,7 @@ static const uint16_t kNIDsInLongNameOrder[] = {
+@@ -9942,6 +9944,7 @@ static const uint16_t kNIDsInLongNameOrder[] = {
      366 /* OCSP Nonce */,
      371 /* OCSP Service Locator */,
      180 /* OCSP Signing */,
@@ -78,19 +72,22 @@ index feb8f2d1e..7ca28d9f5 100644
      69 /* PBKDF2 */,
      162 /* PBMAC1 */,
 diff --git a/crypto/obj/obj_mac.num b/crypto/obj/obj_mac.num
-index 7b8bd2ead..dc7b2878f 100644
+index 582412081..4a0e651dc 100644
 --- a/crypto/obj/obj_mac.num
 +++ b/crypto/obj/obj_mac.num
-@@ -959,3 +959,4 @@ ML_DSA_65		968
+@@ -959,6 +959,7 @@ ML_DSA_65		968
  ML_DSA_87		969
  ML_KEM_768		970
  X_Wing		972
 +P256Kyber768Draft00		973
+ alg_mtcProof_draft		976
+ rdna_trustAnchorID_draft		977
+ pe_mtcCertificationAuthority_draft		978
 diff --git a/crypto/obj/objects.txt b/crypto/obj/objects.txt
-index 67b9ade43..384b25753 100644
+index fa4bd648c..32ae303c7 100644
 --- a/crypto/obj/objects.txt
 +++ b/crypto/obj/objects.txt
-@@ -1340,6 +1340,7 @@ secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
+@@ -1343,6 +1343,7 @@ secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
  
  # NIDs for post quantum hybrid KEMs in TLS (no corresponding OIDs).
   : X25519Kyber768Draft00
@@ -99,7 +96,7 @@ index 67b9ade43..384b25753 100644
  
  # NIDs for PQ/T hybrid KEMs (no corresponding OIDs).
 diff --git a/include/openssl/nid.h b/include/openssl/nid.h
-index 6b3bb4506..113f7653b 100644
+index 9ca8e6707..584d139f9 100644
 --- a/include/openssl/nid.h
 +++ b/include/openssl/nid.h
 @@ -5511,6 +5511,9 @@ extern "C" {
@@ -109,14 +106,14 @@ index 6b3bb4506..113f7653b 100644
 +#define SN_P256Kyber768Draft00 "P256Kyber768Draft00"
 +#define NID_P256Kyber768Draft00 973
 +
- 
- #if defined(__cplusplus)
- } /* extern C */
+ #define SN_alg_mtcProof_draft "alg-mtcProof-draft"
+ #define NID_alg_mtcProof_draft 976
+ #define OBJ_alg_mtcProof_draft 1L, 3L, 6L, 1L, 4L, 1L, 44363L, 47L, 0L
 diff --git a/include/openssl/prefix_symbols.h b/include/openssl/prefix_symbols.h
-index 6e68c58d1..c9b51aafa 100644
+index f59abe8b9..e41c0eb55 100644
 --- a/include/openssl/prefix_symbols.h
 +++ b/include/openssl/prefix_symbols.h
-@@ -2100,6 +2100,7 @@
+@@ -2112,6 +2112,7 @@
  #pragma redefine_extname SSL_CTX_use_certificate_chain_file BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_use_certificate_chain_file)
  #pragma redefine_extname SSL_CTX_use_certificate_file BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_use_certificate_file)
  #pragma redefine_extname SSL_CTX_use_psk_identity_hint BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_use_psk_identity_hint)
@@ -124,7 +121,7 @@ index 6e68c58d1..c9b51aafa 100644
  #pragma redefine_extname SSL_ECH_KEYS_add BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_ECH_KEYS_add)
  #pragma redefine_extname SSL_ECH_KEYS_free BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_ECH_KEYS_free)
  #pragma redefine_extname SSL_ECH_KEYS_has_duplicate_config_id BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_ECH_KEYS_has_duplicate_config_id)
-@@ -2449,6 +2450,7 @@
+@@ -2463,6 +2464,7 @@
  #pragma redefine_extname SSL_use_certificate_ASN1 BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_use_certificate_ASN1)
  #pragma redefine_extname SSL_use_certificate_file BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_use_certificate_file)
  #pragma redefine_extname SSL_use_psk_identity_hint BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_use_psk_identity_hint)
@@ -132,7 +129,7 @@ index 6e68c58d1..c9b51aafa 100644
  #pragma redefine_extname SSL_used_hello_retry_request BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_used_hello_retry_request)
  #pragma redefine_extname SSL_version BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_version)
  #pragma redefine_extname SSL_want BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_want)
-@@ -5237,6 +5239,7 @@
+@@ -5264,6 +5266,7 @@
  #define SSL_CTX_use_certificate_chain_file BORINGSSL_ADD_PREFIX(SSL_CTX_use_certificate_chain_file)
  #define SSL_CTX_use_certificate_file BORINGSSL_ADD_PREFIX(SSL_CTX_use_certificate_file)
  #define SSL_CTX_use_psk_identity_hint BORINGSSL_ADD_PREFIX(SSL_CTX_use_psk_identity_hint)
@@ -140,7 +137,7 @@ index 6e68c58d1..c9b51aafa 100644
  #define SSL_ECH_KEYS_add BORINGSSL_ADD_PREFIX(SSL_ECH_KEYS_add)
  #define SSL_ECH_KEYS_free BORINGSSL_ADD_PREFIX(SSL_ECH_KEYS_free)
  #define SSL_ECH_KEYS_has_duplicate_config_id BORINGSSL_ADD_PREFIX(SSL_ECH_KEYS_has_duplicate_config_id)
-@@ -5586,6 +5589,7 @@
+@@ -5615,6 +5618,7 @@
  #define SSL_use_certificate_ASN1 BORINGSSL_ADD_PREFIX(SSL_use_certificate_ASN1)
  #define SSL_use_certificate_file BORINGSSL_ADD_PREFIX(SSL_use_certificate_file)
  #define SSL_use_psk_identity_hint BORINGSSL_ADD_PREFIX(SSL_use_psk_identity_hint)
@@ -149,10 +146,10 @@ index 6e68c58d1..c9b51aafa 100644
  #define SSL_version BORINGSSL_ADD_PREFIX(SSL_version)
  #define SSL_want BORINGSSL_ADD_PREFIX(SSL_want)
 diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
-index 3b48c2a08..0dab3b037 100644
+index ca1c2d50b..a13db1400 100644
 --- a/include/openssl/ssl.h
 +++ b/include/openssl/ssl.h
-@@ -2618,7 +2618,9 @@ OPENSSL_EXPORT size_t SSL_CTX_get_num_tickets(const SSL_CTX *ctx);
+@@ -2725,7 +2725,9 @@ OPENSSL_EXPORT size_t SSL_CTX_get_num_tickets(const SSL_CTX *ctx);
  #define SSL_GROUP_SECP521R1 25
  #define SSL_GROUP_X25519 29
  #define SSL_GROUP_X25519_MLKEM768 0x11ec
@@ -162,7 +159,7 @@ index 3b48c2a08..0dab3b037 100644
  
  // SSL_CTX_set1_group_ids sets the preferred groups for `ctx` to `group_ids`.
  // Each element of `group_ids` should be a unique one of the `SSL_GROUP_*`
-@@ -6274,6 +6276,7 @@ OPENSSL_EXPORT int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg);
+@@ -6388,6 +6390,7 @@ OPENSSL_EXPORT int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg);
  #define SSL_CURVE_SECP384R1 SSL_GROUP_SECP384R1
  #define SSL_CURVE_SECP521R1 SSL_GROUP_SECP521R1
  #define SSL_CURVE_X25519 SSL_GROUP_X25519
@@ -170,7 +167,7 @@ index 3b48c2a08..0dab3b037 100644
  
  // SSL_get_curve_id calls `SSL_get_group_id`.
  OPENSSL_EXPORT uint16_t SSL_get_curve_id(const SSL *ssl);
-@@ -6298,6 +6301,20 @@ OPENSSL_EXPORT int SSL_CTX_set1_curves_list(SSL_CTX *ctx, const char *curves);
+@@ -6412,6 +6415,20 @@ OPENSSL_EXPORT int SSL_CTX_set1_curves_list(SSL_CTX *ctx, const char *curves);
  // SSL_set1_curves_list calls `SSL_set1_groups_list`.
  OPENSSL_EXPORT int SSL_set1_curves_list(SSL *ssl, const char *curves);
  
@@ -192,7 +189,7 @@ index 3b48c2a08..0dab3b037 100644
  // `SSL_get_negotiated_group` to return an unrecognized group. BoringSSL never
  // returns this value, but we define this constant for compatibility.
 diff --git a/ssl/extensions.cc b/ssl/extensions.cc
-index 90238d912..56de76e37 100644
+index ab32bb93f..2677314d0 100644
 --- a/ssl/extensions.cc
 +++ b/ssl/extensions.cc
 @@ -107,7 +107,15 @@ static bool tls1_check_duplicate_extensions(const CBS *cbs) {
@@ -212,7 +209,7 @@ index 90238d912..56de76e37 100644
  }
  
  bool ssl_parse_client_hello_with_trailing_data(const SSLImpl *ssl, CBS *cbs,
-@@ -2464,18 +2472,21 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
+@@ -2445,18 +2453,21 @@ bool ssl_setup_key_shares(SSL_HANDSHAKE *hs, uint16_t override_group_id) {
      if (!default_key_shares.TryPushBack(supported_group_list[0])) {
        return false;
      }
@@ -246,10 +243,10 @@ index 90238d912..56de76e37 100644
      selected_key_shares.emplace(default_key_shares);
    }
 diff --git a/ssl/internal.h b/ssl/internal.h
-index 96f6d3d3d..c7a63f4b8 100644
+index 8efc21e06..57fffadde 100644
 --- a/ssl/internal.h
 +++ b/ssl/internal.h
-@@ -918,7 +918,7 @@ struct NamedGroup {
+@@ -952,7 +952,7 @@ struct NamedGroup {
  Span<const NamedGroup> NamedGroups();
  
  // kNumNamedGroups is the number of supported groups.
@@ -258,7 +255,7 @@ index 96f6d3d3d..c7a63f4b8 100644
  
  // DefaultSupportedGroupIds returns the list of IDs for the default groups that
  // are supported when the caller hasn't explicitly configured supported groups.
-@@ -3580,6 +3580,11 @@ struct SSL_CONFIG {
+@@ -3642,6 +3642,11 @@ struct SSL_CONFIG {
    // permute_extensions is whether to permute extensions when sending messages.
    bool permute_extensions : 1;
  
@@ -267,10 +264,10 @@ index 96f6d3d3d..c7a63f4b8 100644
 +  // we will only send the most preferred keyshare.
 +  bool disable_second_keyshare : 1;
 +
-   // aes_hw_override if set indicates we should override checking for aes
-   // hardware support, and use the value in aes_hw_override_value instead.
-   bool aes_hw_override : 1;
-@@ -4232,6 +4237,11 @@ class SSLContext : public ssl_ctx_st, public RefCounted<SSLContext> {
+   // alps_use_new_codepoint if set indicates we use new ALPS extension codepoint
+   // to negotiate and convey application settings.
+   bool alps_use_new_codepoint : 1;
+@@ -4263,6 +4268,11 @@ class SSLContext : public ssl_ctx_st, public RefCounted<SSLContext> {
    // permute_extensions is whether to permute extensions when sending messages.
    bool permute_extensions : 1;
  
@@ -583,10 +580,10 @@ index 84394b247..2f006e982 100644
        return nullptr;
    }
 diff --git a/ssl/ssl_lib.cc b/ssl/ssl_lib.cc
-index a0c746b38..f4df3a0c6 100644
+index b59029f54..33cc42dde 100644
 --- a/ssl/ssl_lib.cc
 +++ b/ssl/ssl_lib.cc
-@@ -394,6 +394,7 @@ bssl::SSLContext::SSLContext(const SSL_METHOD *ssl_method)
+@@ -383,6 +383,7 @@ bssl::SSLContext::SSLContext(const SSL_METHOD *ssl_method)
        grease_enabled(false),
        grease_sigalgs_enabled(false),
        permute_extensions(false),
@@ -594,15 +591,15 @@ index a0c746b38..f4df3a0c6 100644
        allow_unknown_alpn_protos(false),
        false_start_allowed_without_alpn(false),
        handoff(false),
-@@ -527,6 +528,7 @@ SSL *SSL_new(SSL_CTX *ctx) {
+@@ -515,6 +516,7 @@ SSL *SSL_new(SSL_CTX *ctx) {
    ssl->config->retain_only_sha256_of_client_certs =
        ctx_impl->retain_only_sha256_of_client_certs;
    ssl->config->permute_extensions = ctx_impl->permute_extensions;
 +  ssl->config->disable_second_keyshare = ctx_impl->disable_second_keyshare;
-   ssl->config->aes_hw_override = ctx_impl->aes_hw_override;
-   ssl->config->aes_hw_override_value = ctx_impl->aes_hw_override_value;
    ssl->config->compliance_policy = ctx_impl->compliance_policy;
-@@ -593,6 +595,7 @@ SSL_CONFIG::SSL_CONFIG(SSLImpl *ssl_arg)
+ 
+   if (!ssl->config->tls13_cipher_list.CopyFrom(ctx_impl->tls13_cipher_list)) {
+@@ -583,6 +585,7 @@ SSL_CONFIG::SSL_CONFIG(SSLImpl *ssl_arg)
        jdk11_workaround(false),
        quic_use_legacy_codepoint(false),
        permute_extensions(false),
@@ -610,7 +607,7 @@ index a0c746b38..f4df3a0c6 100644
        alps_use_new_codepoint(true),
        server_padding_enabled(false) {
    assert(ssl);
-@@ -3529,6 +3532,15 @@ int SSL_set1_curves_list(SSL *ssl, const char *curves) {
+@@ -3577,6 +3580,15 @@ int SSL_set1_curves_list(SSL *ssl, const char *curves) {
    return SSL_set1_groups_list(ssl, curves);
  }
  
@@ -626,7 +623,7 @@ index a0c746b38..f4df3a0c6 100644
  namespace fips202205 {
  
  // (References are to SP 800-52r2):
-@@ -3540,7 +3552,9 @@ namespace fips202205 {
+@@ -3588,7 +3600,9 @@ namespace fips202205 {
  // Section 3.3.1
  // "The server shall be configured to only use cipher suites that are
  // composed entirely of NIST approved algorithms"
@@ -638,7 +635,7 @@ index a0c746b38..f4df3a0c6 100644
  static const uint16_t kSigAlgs[] = {
      SSL_SIGN_RSA_PKCS1_SHA256,
 diff --git a/ssl/ssl_test.cc b/ssl/ssl_test.cc
-index fc185ec33..a406724cb 100644
+index 25d0ca38b..36b1d6ba7 100644
 --- a/ssl/ssl_test.cc
 +++ b/ssl/ssl_test.cc
 @@ -495,6 +495,10 @@ static const CurveTest kCurveTests[] = {
@@ -680,7 +677,7 @@ index fc185ec33..a406724cb 100644
  
    // Test the group ID APIs.
    {
-@@ -2350,7 +2364,9 @@ TEST(SSLTest, SetGroupIdsWithEqualPreference) {
+@@ -2224,7 +2238,9 @@ TEST(SSLTest, SetGroupIdsWithEqualPreference) {
  // (i.e. using the default groups).
  TEST(SSLTest, SetGroupIdsWithFlags_DefaultGroups) {
    const uint16_t kDefaultGroups[] = {SSL_GROUP_X25519_MLKEM768,
@@ -691,7 +688,7 @@ index fc185ec33..a406724cb 100644
                                       SSL_GROUP_SECP384R1};
    const uint32_t kBogusFlags[] = {SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT,
                                    SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT, 0};
-@@ -7209,8 +7225,10 @@ TEST(SSLTest, ApplyHandoffRemovesUnsupportedCurves) {
+@@ -7411,8 +7427,10 @@ TEST(SSLTest, ApplyHandoffRemovesUnsupportedCurves) {
  
    // The default list of groups is used before applying the handoff.
    EXPECT_THAT(FromOpaque(server.get())->config->supported_group_list,
@@ -705,10 +702,10 @@ index fc185ec33..a406724cb 100644
    EXPECT_EQ(1u, FromOpaque(server.get())->config->supported_group_list.size());
    EXPECT_EQ(SSL_GROUP_SECP256R1,
 diff --git a/ssl/test/runner/compliance_policy_tests.go b/ssl/test/runner/compliance_policy_tests.go
-index 7ccf636aa..837845f93 100644
+index 3e97718b8..269fbcca6 100644
 --- a/ssl/test/runner/compliance_policy_tests.go
 +++ b/ssl/test/runner/compliance_policy_tests.go
-@@ -148,6 +148,8 @@ func addCompliancePolicyTests() {
+@@ -151,6 +151,8 @@ func addCompliancePolicyTests() {
  			switch curve.id {
  			case CurveP256, CurveP384:
  				isFIPSCurve = true
@@ -716,7 +713,7 @@ index 7ccf636aa..837845f93 100644
 +				isFIPSCurve = true
  			}
  
- 			var isWPACurve bool
+ 			var isFIPSPQCurve bool
 diff --git a/tool/client.cc b/tool/client.cc
 index 1f2b19965..6cf555433 100644
 --- a/tool/client.cc
