@@ -791,7 +791,10 @@ fn generate_bindings(config: &Config) -> Result<PathBuf, Box<dyn std::error::Err
         .layout_tests(config.env.debug.is_some())
         .merge_extern_blocks(true)
         .prepend_enum_name(true)
+        .allowlist_item("[A-Z].*|.*_.*|tm.*|time.*") // Exclude unprefixed stdlib and POSIX functions
+        .blocklist_item("rusage.*|RLIMIT.*|USE_CLANG.*|__?v?snprintf.*|.*DEPRECATED.*|sig[a-z0-9]*_t|__sig.*|_?sigaction.*|__darwin_(arm_|[um]context).*|[um]context_t|__arm_.*|__AVAIL.*|MAC_OS_(X_)?VER.*")
         .blocklist_type("max_align_t") // Not supported by bindgen on all targets, not used by BoringSSL
+        .opaque_type("__?opaque_.*")
         .clang_args(get_extra_clang_args_for_bindgen(config))
         .clang_arg("-I")
         .clang_arg(include_path.display().to_string());

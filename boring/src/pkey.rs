@@ -237,7 +237,7 @@ where
             let mut size = 0;
             _ = cvt_0i(ffi::EVP_PKEY_get_raw_public_key(
                 self.as_ptr(),
-                std::ptr::null_mut(),
+                ptr::null_mut(),
                 &mut size,
             ))?;
             Ok(size)
@@ -305,7 +305,7 @@ where
             let mut size = 0;
             _ = cvt_0i(ffi::EVP_PKEY_get_raw_private_key(
                 self.as_ptr(),
-                std::ptr::null_mut(),
+                ptr::null_mut(),
                 &mut size,
             ))?;
             Ok(size)

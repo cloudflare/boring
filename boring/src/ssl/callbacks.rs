@@ -41,7 +41,7 @@ where
 
     // SAFETY: The callback won't outlive the context it's associated with
     // because there is no `X509StoreContextRef::ssl_mut(&mut self)` method.
-    let verify = unsafe { &*std::ptr::from_ref::<F>(verify) };
+    let verify = unsafe { &*ptr::from_ref::<F>(verify) };
 
     c_int::from(verify(preverify_ok != 0, ctx))
 }
@@ -90,7 +90,7 @@ where
     // SAFETY: The callback won't outlive the context it's associated with
     // because there is no way to get a mutable reference to the `SslContext`,
     // so the callback can't replace itself.
-    let verify = unsafe { &*std::ptr::from_ref::<F>(verify) };
+    let verify = unsafe { &*ptr::from_ref::<F>(verify) };
 
     c_int::from(verify(ctx))
 }
@@ -442,7 +442,7 @@ where
     // SAFETY: We can make `callback` outlive `ssl` because it is a callback
     // stored in the session context set in `Ssl::new` so it is always
     // guaranteed to outlive the lifetime of this function's scope.
-    let callback = unsafe { &*std::ptr::from_ref::<F>(callback) };
+    let callback = unsafe { &*ptr::from_ref::<F>(callback) };
 
     callback(ssl, session);
 
@@ -495,7 +495,7 @@ where
     // SAFETY: We can make `callback` outlive `ssl` because it is a callback
     // stored in the session context set in `Ssl::new` so it is always
     // guaranteed to outlive the lifetime of this function's scope.
-    let callback = unsafe { &*std::ptr::from_ref::<F>(callback) };
+    let callback = unsafe { &*ptr::from_ref::<F>(callback) };
 
     match callback(ssl, data) {
         Ok(Some(session)) => {
@@ -666,7 +666,7 @@ where
         .ex_data(SslContext::cached_ex_index::<C>())
         .expect("BUG: certificate compression missed");
 
-    let input_slice = unsafe { std::slice::from_raw_parts(input, input_len) };
+    let input_slice = unsafe { slice::from_raw_parts(input, input_len) };
     let mut writer = CryptoByteBuilder::from_ptr(out);
     if compressor.compress(input_slice, &mut writer).is_err() {
         return 0;
@@ -701,7 +701,7 @@ where
         return 0;
     };
 
-    let input_slice = unsafe { std::slice::from_raw_parts(input, input_len) };
+    let input_slice = unsafe { slice::from_raw_parts(input, input_len) };
 
     if compressor
         .decompress(input_slice, decompression_buffer.as_writer())
@@ -751,11 +751,11 @@ struct CryptoBufferBuilder<'a> {
 
 impl<'a> CryptoBufferBuilder<'a> {
     fn with_capacity(capacity: usize) -> Result<CryptoBufferBuilder<'a>, ErrorStack> {
-        let mut data: *mut u8 = std::ptr::null_mut();
+        let mut data: *mut u8 = ptr::null_mut();
         let buffer = unsafe { crate::cvt_p(ffi::CRYPTO_BUFFER_alloc(&mut data, capacity))? };
         Ok(CryptoBufferBuilder {
             buffer,
-            cursor: std::io::Cursor::new(unsafe { std::slice::from_raw_parts_mut(data, capacity) }),
+            cursor: std::io::Cursor::new(unsafe { slice::from_raw_parts_mut(data, capacity) }),
         })
     }
 

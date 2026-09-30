@@ -2126,7 +2126,7 @@ impl SslContextBuilder {
         unsafe {
             cvt_0i(ffi::SSL_CTX_set1_accepted_peer_cert_types(
                 self.as_ptr(),
-                types.as_ptr() as *const u8,
+                types.as_ptr().cast::<u8>(),
                 types.len(),
             ))
             .map(|_| ())
@@ -2434,7 +2434,7 @@ impl SslContextRef {
             }
 
             Some(slice::from_raw_parts(
-                types as *const CertificateType,
+                types.cast::<CertificateType>(),
                 types_len,
             ))
         }
@@ -3024,6 +3024,7 @@ impl SslRef {
     }
 
     /// Returns whether the TLS 1.3 HelloRetryRequest was used
+    #[must_use]
     pub fn used_hello_retry_request(&self) -> bool {
         unsafe { ffi::SSL_used_hello_retry_request(self.as_ptr()) == 1 }
     }
@@ -3956,6 +3957,7 @@ impl SslRef {
     /// Returns the public key sent by the other peer, `None` if there is no ongoing handshake.
     #[corresponds(SSL_get0_peer_pubkey)]
     #[cfg(feature = "rpk")]
+    #[must_use]
     pub fn peer_pubkey(&self) -> Option<&PKeyRef<Public>> {
         unsafe {
             let pubkey = ffi::SSL_get0_peer_pubkey(self.as_ptr());
@@ -3964,7 +3966,7 @@ impl SslRef {
                 return None;
             }
 
-            Some(PKeyRef::from_ptr(pubkey as *mut _))
+            Some(PKeyRef::from_ptr(pubkey.cast_mut()))
         }
     }
 
@@ -3987,7 +3989,7 @@ impl SslRef {
         unsafe {
             cvt_0i(ffi::SSL_set1_accepted_peer_cert_types(
                 self.as_ptr(),
-                types.as_ptr() as *const u8,
+                types.as_ptr().cast::<u8>(),
                 types.len(),
             ))
             .map(|_| ())
@@ -4016,7 +4018,7 @@ impl SslRef {
             }
 
             Some(slice::from_raw_parts(
-                types as *const CertificateType,
+                types.cast::<CertificateType>(),
                 types_len,
             ))
         }
