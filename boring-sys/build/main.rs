@@ -848,6 +848,7 @@ fn generate_bindings(config: &Config) -> Result<PathBuf, Box<dyn std::error::Err
         "rc4.h",
         "ripemd.h",
         "siphash.h",
+        "slhdsa.h",
         "srtp.h",
         "trust_token.h",
     ];
