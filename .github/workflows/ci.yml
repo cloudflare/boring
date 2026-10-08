@@ -23,7 +23,7 @@ jobs:
     name: rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Rustfmt
         run: rustup default stable && rustup component add rustfmt
       - name: Check formatting
@@ -35,7 +35,7 @@ jobs:
     env:
       CARGO_HOME: ${{ github.workspace }}/.cache/cargo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: 'recursive'
       - name: Install Rust
@@ -46,7 +46,7 @@ jobs:
         run: |
           echo "version=$(rustc --version)" >> $GITHUB_OUTPUT
       - name: Cache cargo index
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             .cache/cargo/registry/index
@@ -56,12 +56,12 @@ jobs:
       - name: Fetch dependencies
         run: cargo fetch
       - name: Cache target directory
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: target
           key: clippy-${{ steps.rust-version.outputs.version }}-${{ hashFiles('Cargo.lock') }}
       - name: Cache cargo index (save)
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: |
             .cache/cargo/registry/index
@@ -264,7 +264,7 @@ jobs:
       CARGO_HOME: ${{ github.workspace }}/.cache/cargo
       CARGO_BUILD_BUILD_DIR: ${{ github.workspace }}/.cache/build-dir
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)
@@ -326,7 +326,7 @@ jobs:
       if: endsWith(matrix.thing, '-android')
       run: echo "CARGO_TARGET_$(echo ${{ matrix.target }} | tr \\-a-z _A-Z)_LINKER=$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/$(echo ${{ matrix.target }} | sed s/armv7/armv7a/)21-clang++" >> "$GITHUB_ENV"
     - name: Prepopulate cargo index
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v6
       with:
         path: |
           .cache/cargo/registry/index
@@ -340,7 +340,7 @@ jobs:
       # Windows builds are the slowest
     - name: Cache deps in Windows tests
       if: startsWith(matrix.os, 'windows')
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v6
       id: test-cache-restore
       with:
         path: .cache/build-dir
@@ -353,7 +353,7 @@ jobs:
       # By default it'd be saved after later cargo calls, which already invalidated the cache
     - name: Cache deps in Windows tests
       if: startsWith(matrix.os, 'windows')
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v6
       with:
         path: .cache/build-dir
         key: ${{ steps.test-cache-restore.outputs.cache-primary-key }}
@@ -382,7 +382,7 @@ jobs:
     name: Test FIPS integration
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)
@@ -411,7 +411,7 @@ jobs:
     name: Test BoringSSL upstream test suite
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         submodules: 'recursive'
     - name: Install golang
@@ -448,7 +448,7 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)
@@ -477,7 +477,7 @@ jobs:
     env:
       CARGO_INCREMENTAL: 1
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
         submodules: 'recursive'
     - name: Install Rust (rustup)
