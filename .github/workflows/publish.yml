@@ -1,0 +1,63 @@
+name: Publish to crates.io
+
+permissions:
+  contents: read
+  id-token: write
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+concurrency:
+  group: crates-io-publish
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    environment: crates-io
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          submodules: "recursive"
+
+      - name: Verify tag is on master
+        run: |
+          git fetch --no-tags origin +refs/heads/master:refs/remotes/origin/master
+          if ! git merge-base --is-ancestor "${GITHUB_REF_NAME}" origin/master; then
+            echo "Tag ${GITHUB_REF_NAME} is not reachable from origin/master. Refusing to publish." >&2
+            exit 1
+          fi
+
+          workspace_version="$(
+            sed -n '/^\[workspace\.package\]$/,/^\[/ {
+              s/^version = "\([^"]*\)"$/\1/p
+            }' Cargo.toml
+          )"
+          tag_version="${GITHUB_REF_NAME#v}"
+          if [[ -z "${workspace_version}" || "${tag_version}" != "${workspace_version}" ]]; then
+            echo "Tag version ${tag_version} does not match workspace version ${workspace_version}." >&2
+            exit 1
+          fi
+
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+
+      - name: Publish crates
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          cargo publish -p boring-sys
+          sleep 20
+          cargo publish -p boring
+          sleep 20
+          cargo publish -p tokio-boring
+          sleep 20
+          cargo publish -p hyper-boring
