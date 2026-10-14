@@ -12,6 +12,7 @@ use crate::x509::extension::{
     SubjectKeyIdentifier,
 };
 use crate::x509::store::X509StoreBuilder;
+use crate::x509::verify::X509CheckFlags;
 use crate::x509::{X509Extension, X509Name, X509Req, X509StoreContext, X509};
 const TEST_CERT_DIGEST: &str = "585e3a58acfd3b4e5e2825659407244ddd93539c";
 
@@ -20,6 +21,16 @@ mod trusted_first;
 fn pkey() -> PKey<Private> {
     let rsa = Rsa::generate(2048).unwrap();
     PKey::from_rsa(rsa).unwrap()
+}
+
+fn cert_with_dns_name(dns_name: &str) -> X509 {
+    let mut builder = X509::builder().unwrap();
+    let subject_alternative_name = SubjectAlternativeName::new()
+        .dns(dns_name)
+        .build(&builder.x509v3_context(None, None))
+        .unwrap();
+    builder.append_extension(&subject_alternative_name).unwrap();
+    builder.build()
 }
 
 #[test]
@@ -177,6 +188,41 @@ fn test_subject_alt_name_iter() {
         Some("http://www.example.com")
     );
     assert!(subject_alt_names_iter.next().is_none());
+}
+
+#[test]
+fn check_host_uses_default_flags() {
+    let cert = cert_with_dns_name("*.example.com");
+
+    assert!(cert.check_host("www.example.com").unwrap());
+    assert_eq!(
+        cert.check_host("www.example.com").unwrap(),
+        cert.check_host_with_flags("www.example.com", X509CheckFlags::empty())
+            .unwrap()
+    );
+}
+
+#[test]
+fn check_host_with_standard_flags() {
+    let cert = cert_with_dns_name("*.example.com");
+
+    assert!(cert
+        .check_host_with_flags("www.example.com", X509CheckFlags::empty())
+        .unwrap());
+    assert!(!cert
+        .check_host_with_flags("www.example.com", X509CheckFlags::NO_WILDCARDS)
+        .unwrap());
+}
+
+#[cfg(feature = "underscore-wildcards")]
+#[test]
+fn check_host_with_underscore_wildcards() {
+    let cert = cert_with_dns_name("*.example.com");
+
+    assert!(!cert.check_host("_service.example.com").unwrap());
+    assert!(cert
+        .check_host_with_flags("_service.example.com", X509CheckFlags::UNDERSCORE_WILDCARDS)
+        .unwrap());
 }
 
 #[test]
