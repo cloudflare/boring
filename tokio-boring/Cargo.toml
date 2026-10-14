@@ -6,7 +6,6 @@ license = "MIT OR Apache-2.0"
 edition = { workspace = true }
 rust-version = { workspace = true }
 repository = { workspace = true }
-homepage = "https://github.com/cloudflare/boring"
 documentation = "https://docs.rs/tokio-boring"
 description = """
 An implementation of SSL streams for Tokio backed by BoringSSL
