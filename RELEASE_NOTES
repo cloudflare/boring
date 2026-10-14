@@ -1,3 +1,16 @@
+5.3.0
+- 2026-10-14 Add action-aware certificate selection callbacks
+- 2026-10-14 Back-compat shims for v4
+- 2026-10-14 Add X509Ref::check_host_with_flags (fixes #530)
+- 2026-10-09 boring-sys: exclude non-BoringSSL symbols from bindings
+- 2026-09-30 Fix tests failures related to upstream X509_V_FLAG_TRUSTED_FIRST change
+- 2026-09-30 Update to boringssl 0.20260929.0
+- 2026-08-28 RTG-5132 Enable X25519MLKEM768 in FIPS compliance profile
+- 2026-08-20 RTG-5132 Bump BoringSSL
+- 2026-09-22 Add native HKDF bindings
+- 2026-08-14 Semver compat for nonce mutability issue
+- 2026-06-25 aead: require &mut self for seal/open and add TLS AEAD variants
+
 5.2.0
 - 2026-10-14 Add action-aware certificate selection callbacks, including ECH fallback
 - 2026-05-21 Export `DEP_BORINGSSL_VERSION_MAJOR` var
