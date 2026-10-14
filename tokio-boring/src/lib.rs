@@ -33,8 +33,9 @@ use self::bridge::AsyncStreamBridge;
 pub use crate::async_callbacks::SslContextBuilderExt;
 pub use boring::ssl::{
     AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError, BoxGetSessionFinish,
-    BoxGetSessionFuture, BoxPrivateKeyMethodFinish, BoxPrivateKeyMethodFuture, BoxSelectCertFinish,
-    BoxSelectCertFuture, ExDataFuture,
+    BoxGetSessionFuture, BoxPrivateKeyMethodFinish, BoxPrivateKeyMethodFuture,
+    BoxSelectCertActionFinish, BoxSelectCertActionFuture, BoxSelectCertFinish, BoxSelectCertFuture,
+    ExDataFuture, SelectCertAction,
 };
 
 /// Asynchronously performs a client-side TLS handshake over the provided stream.

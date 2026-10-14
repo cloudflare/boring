@@ -2,9 +2,9 @@
 
 use super::{
     AlpnError, CertificateCompressor, ClientHello, GetSessionPendingError, PrivateKeyMethod,
-    PrivateKeyMethodError, SelectCertError, SniError, Ssl, SslAlert, SslContext, SslContextRef,
-    SslInfoCallbackAlert, SslInfoCallbackMode, SslInfoCallbackValue, SslRef, SslSession,
-    SslSessionRef, SslSignatureAlgorithm, SslVerifyError, SESSION_CTX_INDEX,
+    PrivateKeyMethodError, SelectCertAction, SelectCertError, SniError, Ssl, SslAlert, SslContext,
+    SslContextRef, SslInfoCallbackAlert, SslInfoCallbackMode, SslInfoCallbackValue, SslRef,
+    SslSession, SslSessionRef, SslSignatureAlgorithm, SslVerifyError, SESSION_CTX_INDEX,
 };
 use crate::error::ErrorStack;
 use crate::ffi;
@@ -371,10 +371,11 @@ pub(super) unsafe extern "C" fn raw_select_cert<F>(
     client_hello: *const ffi::SSL_CLIENT_HELLO,
 ) -> ffi::ssl_select_cert_result_t
 where
-    F: Fn(ClientHello<'_>) -> Result<(), SelectCertError> + Sync + Send + 'static,
+    F: Fn(ClientHello<'_>) -> Result<SelectCertAction, SelectCertError> + Sync + Send + 'static,
 {
     // SAFETY: boring provides valid inputs.
     let client_hello = ClientHello(unsafe { &*client_hello });
+    let ech_accepted = client_hello.ssl().ech_accepted();
 
     let ssl_context = client_hello.ssl().ssl_context().to_owned();
     let callback = ssl_context
@@ -382,7 +383,11 @@ where
         .expect("BUG: select cert callback missing");
 
     match callback(client_hello) {
-        Ok(()) => ffi::ssl_select_cert_result_t::ssl_select_cert_success,
+        Ok(SelectCertAction::Success) => ffi::ssl_select_cert_result_t::ssl_select_cert_success,
+        Ok(SelectCertAction::DisableEch) if ech_accepted => {
+            ffi::ssl_select_cert_result_t::ssl_select_cert_disable_ech
+        }
+        Ok(SelectCertAction::DisableEch) => ffi::ssl_select_cert_result_t::ssl_select_cert_error,
         Err(e) => e.0,
     }
 }

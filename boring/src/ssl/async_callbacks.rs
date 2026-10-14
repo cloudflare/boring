@@ -1,8 +1,8 @@
 use super::mut_only::MutOnly;
 use super::{
-    ClientHello, GetSessionPendingError, PrivateKeyMethod, PrivateKeyMethodError, SelectCertError,
-    Ssl, SslAlert, SslContextBuilder, SslRef, SslSession, SslSignatureAlgorithm, SslVerifyError,
-    SslVerifyMode,
+    ClientHello, GetSessionPendingError, PrivateKeyMethod, PrivateKeyMethodError, SelectCertAction,
+    SelectCertError, Ssl, SslAlert, SslContextBuilder, SslRef, SslSession, SslSignatureAlgorithm,
+    SslVerifyError, SslVerifyMode,
 };
 #[cfg(feature = "credential")]
 use crate::error::ErrorStack;
@@ -20,6 +20,14 @@ pub type BoxSelectCertFuture = ExDataFuture<Result<BoxSelectCertFinish, AsyncSel
 
 /// The type of callbacks returned by [`BoxSelectCertFuture`] methods.
 pub type BoxSelectCertFinish = Box<dyn FnOnce(ClientHello<'_>) -> Result<(), AsyncSelectCertError>>;
+
+/// The type of futures to pass to [`SslContextBuilder::set_async_select_certificate_callback_with_action`].
+pub type BoxSelectCertActionFuture =
+    ExDataFuture<Result<BoxSelectCertActionFinish, AsyncSelectCertError>>;
+
+/// The type of callbacks returned by [`BoxSelectCertActionFuture`] methods.
+pub type BoxSelectCertActionFinish =
+    Box<dyn FnOnce(ClientHello<'_>) -> Result<SelectCertAction, AsyncSelectCertError>>;
 
 /// The type of futures returned by [`AsyncPrivateKeyMethod`] methods.
 pub type BoxPrivateKeyMethodFuture =
@@ -46,10 +54,19 @@ pub type BoxCustomVerifyFinish = Box<dyn FnOnce(&mut SslRef) -> Result<(), SslAl
 /// Public for documentation purposes.
 pub type ExDataFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 
+type BoxSelectCertFinishFor<T> =
+    Box<dyn FnOnce(ClientHello<'_>) -> Result<T, AsyncSelectCertError>>;
+type SelectCertFutureIndex<T> = Index<
+    Ssl,
+    MutOnly<Option<ExDataFuture<Result<BoxSelectCertFinishFor<T>, AsyncSelectCertError>>>>,
+>;
+
 pub(crate) static TASK_WAKER_INDEX: LazyLock<Index<Ssl, Option<Waker>>> =
     LazyLock::new(|| Ssl::new_ex_index().unwrap());
-pub(crate) static SELECT_CERT_FUTURE_INDEX: LazyLock<
-    Index<Ssl, MutOnly<Option<BoxSelectCertFuture>>>,
+pub(crate) static SELECT_CERT_FUTURE_INDEX: LazyLock<SelectCertFutureIndex<()>> =
+    LazyLock::new(|| Ssl::new_ex_index().unwrap());
+pub(crate) static SELECT_CERT_ACTION_FUTURE_INDEX: LazyLock<
+    SelectCertFutureIndex<SelectCertAction>,
 > = LazyLock::new(|| Ssl::new_ex_index().unwrap());
 pub(crate) static SELECT_PRIVATE_KEY_METHOD_FUTURE_INDEX: LazyLock<
     Index<Ssl, MutOnly<Option<BoxPrivateKeyMethodFuture>>>,
@@ -75,6 +92,12 @@ impl SslContextBuilder {
     ///
     /// See [`SslContextBuilder::set_select_certificate_callback`] for the sync
     /// setter of this callback.
+    ///
+    /// A context has a single certificate selection callback. Calling this method replaces the
+    /// callback set by any of [`SslContextBuilder::set_select_certificate_callback`],
+    /// [`SslContextBuilder::set_select_certificate_callback_with_action`],
+    /// [`SslContextBuilder::set_async_select_certificate_callback`], or
+    /// [`SslContextBuilder::set_async_select_certificate_callback_with_action`].
     pub fn set_async_select_certificate_callback<F>(&mut self, callback: F)
     where
         F: Fn(&mut ClientHello<'_>) -> Result<BoxSelectCertFuture, AsyncSelectCertError>
@@ -82,24 +105,42 @@ impl SslContextBuilder {
             + Sync
             + 'static,
     {
-        self.set_select_certificate_callback(move |mut client_hello| {
-            let fut_poll_result = with_ex_data_future(
-                &mut client_hello,
-                *SELECT_CERT_FUTURE_INDEX,
-                ClientHello::ssl_mut,
-                &callback,
-                identity,
-            );
+        let callback =
+            async_select_certificate_callback(callback, *SELECT_CERT_FUTURE_INDEX, |()| {
+                SelectCertAction::Success
+            });
+        self.set_select_certificate_callback_with_action(callback);
+    }
 
-            let fut_result = match fut_poll_result {
-                Poll::Ready(fut_result) => fut_result,
-                Poll::Pending => return Err(SelectCertError::RETRY),
-            };
-
-            let finish = fut_result.or(Err(SelectCertError::ERROR))?;
-
-            finish(client_hello).or(Err(SelectCertError::ERROR))
-        });
+    /// Sets an action-aware asynchronous certificate selection callback.
+    ///
+    /// This method uses a function that returns a future whose output is itself a closure that
+    /// will be passed [`ClientHello`] to configure the connection based on the computations done
+    /// in the future.
+    ///
+    /// A task waker must be set on `Ssl` values associated with the resulting `SslContext` with
+    /// [`SslRef::set_task_waker`]. Returning [`SelectCertAction::DisableEch`] discards an inner
+    /// ClientHello, invokes the callback again with the outer ClientHello, and continues without
+    /// retry configs. It is only valid when ECH has been accepted; returning it otherwise fails
+    /// the handshake.
+    /// The future-producing callback runs again for the outer ClientHello, so per-connection
+    /// state must handle both calls.
+    ///
+    /// A context has a single certificate selection callback. Calling this method replaces the
+    /// callback set by any of [`SslContextBuilder::set_select_certificate_callback`],
+    /// [`SslContextBuilder::set_select_certificate_callback_with_action`],
+    /// [`SslContextBuilder::set_async_select_certificate_callback`], or
+    /// [`SslContextBuilder::set_async_select_certificate_callback_with_action`].
+    pub fn set_async_select_certificate_callback_with_action<F>(&mut self, callback: F)
+    where
+        F: Fn(&mut ClientHello<'_>) -> Result<BoxSelectCertActionFuture, AsyncSelectCertError>
+            + Send
+            + Sync
+            + 'static,
+    {
+        let callback =
+            async_select_certificate_callback(callback, *SELECT_CERT_ACTION_FUTURE_INDEX, identity);
+        self.set_select_certificate_callback_with_action(callback);
     }
 
     /// Configures a custom private key method on the context.
@@ -318,6 +359,44 @@ impl PrivateKeyMethod for AsyncPrivateKeyMethodBridge {
 
             Err(AsyncPrivateKeyMethodError)
         })
+    }
+}
+
+fn async_select_certificate_callback<T, F>(
+    callback: F,
+    index: SelectCertFutureIndex<T>,
+    into_action: fn(T) -> SelectCertAction,
+) -> impl Fn(ClientHello<'_>) -> Result<SelectCertAction, SelectCertError> + Send + Sync + 'static
+where
+    T: 'static,
+    F: Fn(
+            &mut ClientHello<'_>,
+        ) -> Result<
+            ExDataFuture<Result<BoxSelectCertFinishFor<T>, AsyncSelectCertError>>,
+            AsyncSelectCertError,
+        > + Send
+        + Sync
+        + 'static,
+{
+    move |mut client_hello| {
+        let fut_poll_result = with_ex_data_future(
+            &mut client_hello,
+            index,
+            ClientHello::ssl_mut,
+            &callback,
+            identity,
+        );
+
+        let fut_result = match fut_poll_result {
+            Poll::Ready(fut_result) => fut_result,
+            Poll::Pending => return Err(SelectCertError::RETRY),
+        };
+
+        let finish = fut_result.or(Err(SelectCertError::ERROR))?;
+
+        finish(client_hello)
+            .map(into_action)
+            .or(Err(SelectCertError::ERROR))
     }
 }
 

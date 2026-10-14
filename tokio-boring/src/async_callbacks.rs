@@ -1,6 +1,6 @@
 use boring::ssl::{
-    AsyncPrivateKeyMethod, AsyncSelectCertError, BoxGetSessionFuture, BoxSelectCertFuture,
-    ClientHello, SslContextBuilder, SslRef,
+    AsyncPrivateKeyMethod, AsyncSelectCertError, BoxGetSessionFuture, BoxSelectCertActionFuture,
+    BoxSelectCertFuture, ClientHello, SslContextBuilder, SslRef,
 };
 
 /// Extensions to [`SslContextBuilder`].
@@ -17,9 +17,36 @@ pub trait SslContextBuilderExt: private::Sealed {
     ///
     /// See [`SslContextBuilder::set_select_certificate_callback`] for the sync
     /// setter of this callback.
+    ///
+    /// A context has a single certificate selection callback. Calling this method replaces the
+    /// callback set by any of [`SslContextBuilder::set_select_certificate_callback`],
+    /// [`SslContextBuilder::set_select_certificate_callback_with_action`],
+    /// [`SslContextBuilder::set_async_select_certificate_callback`], or
+    /// [`SslContextBuilder::set_async_select_certificate_callback_with_action`].
     fn set_async_select_certificate_callback<F>(&mut self, callback: F)
     where
         F: Fn(&mut ClientHello<'_>) -> Result<BoxSelectCertFuture, AsyncSelectCertError>
+            + Send
+            + Sync
+            + 'static;
+
+    /// Sets an action-aware asynchronous certificate selection callback.
+    ///
+    /// A task waker must be set on `Ssl` values associated with the resulting `SslContext` with
+    /// [`SslRef::set_task_waker`]. Returning [`boring::ssl::SelectCertAction::DisableEch`]
+    /// discards an inner ClientHello and invokes the callback again with the outer ClientHello.
+    /// It is only valid when ECH has been accepted; returning it otherwise fails the handshake.
+    /// The future-producing callback runs again for the outer ClientHello, so per-connection
+    /// state must handle both calls.
+    ///
+    /// A context has a single certificate selection callback. Calling this method replaces the
+    /// callback set by any of [`SslContextBuilder::set_select_certificate_callback`],
+    /// [`SslContextBuilder::set_select_certificate_callback_with_action`],
+    /// [`SslContextBuilder::set_async_select_certificate_callback`], or
+    /// [`SslContextBuilder::set_async_select_certificate_callback_with_action`].
+    fn set_async_select_certificate_callback_with_action<F>(&mut self, callback: F)
+    where
+        F: Fn(&mut ClientHello<'_>) -> Result<BoxSelectCertActionFuture, AsyncSelectCertError>
             + Send
             + Sync
             + 'static;
@@ -56,6 +83,16 @@ impl SslContextBuilderExt for SslContextBuilder {
             + 'static,
     {
         self.set_async_select_certificate_callback(callback);
+    }
+
+    fn set_async_select_certificate_callback_with_action<F>(&mut self, callback: F)
+    where
+        F: Fn(&mut ClientHello<'_>) -> Result<BoxSelectCertActionFuture, AsyncSelectCertError>
+            + Send
+            + Sync
+            + 'static,
+    {
+        self.set_async_select_certificate_callback_with_action(callback);
     }
 
     fn set_async_private_key_method(&mut self, method: impl AsyncPrivateKeyMethod) {
