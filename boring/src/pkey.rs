@@ -235,7 +235,7 @@ where
     pub fn raw_public_key_len(&self) -> Result<usize, ErrorStack> {
         unsafe {
             let mut size = 0;
-            _ = cvt_0i(ffi::EVP_PKEY_get_raw_public_key(
+            cvt_0i(ffi::EVP_PKEY_get_raw_public_key(
                 self.as_ptr(),
                 std::ptr::null_mut(),
                 &mut size,
@@ -251,7 +251,7 @@ where
     pub fn raw_public_key<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], ErrorStack> {
         unsafe {
             let mut size = out.len();
-            _ = cvt_0i(ffi::EVP_PKEY_get_raw_public_key(
+            cvt_0i(ffi::EVP_PKEY_get_raw_public_key(
                 self.as_ptr(),
                 out.as_mut_ptr(),
                 &mut size,
@@ -303,7 +303,7 @@ where
     pub fn raw_private_key_len(&self) -> Result<usize, ErrorStack> {
         unsafe {
             let mut size = 0;
-            _ = cvt_0i(ffi::EVP_PKEY_get_raw_private_key(
+            cvt_0i(ffi::EVP_PKEY_get_raw_private_key(
                 self.as_ptr(),
                 std::ptr::null_mut(),
                 &mut size,
@@ -319,7 +319,7 @@ where
     pub fn raw_private_key<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], ErrorStack> {
         unsafe {
             let mut size = out.len();
-            _ = cvt_0i(ffi::EVP_PKEY_get_raw_private_key(
+            cvt_0i(ffi::EVP_PKEY_get_raw_private_key(
                 self.as_ptr(),
                 out.as_mut_ptr(),
                 &mut size,
