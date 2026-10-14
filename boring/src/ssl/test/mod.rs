@@ -467,7 +467,7 @@ fn test_select_cert_disable_ech_without_ech_fails() {
 #[test]
 fn test_select_cert_unknown_extension() {
     let mut server = Server::builder();
-    let unknown_extension = std::sync::Arc::new(std::sync::Mutex::new(Some(vec![])));
+    let unknown_extension = Arc::new(std::sync::Mutex::new(Some(vec![])));
 
     server.ctx().set_select_certificate_callback({
         let unknown = unknown_extension.clone();
@@ -491,7 +491,7 @@ fn test_select_cert_unknown_extension() {
 #[test]
 fn test_select_cert_alpn_extension() {
     let mut server = Server::builder();
-    let alpn_extension = std::sync::Arc::new(std::sync::Mutex::new(None));
+    let alpn_extension = Arc::new(std::sync::Mutex::new(None));
     server.ctx().set_select_certificate_callback({
         let alpn = alpn_extension.clone();
         move |client_hello| {
@@ -1390,7 +1390,7 @@ fn peer_signature_algorithm_mtls_server_sees_client() {
     // Observe from a server-side HANDSHAKE_DONE info callback so the capture
     // happens synchronously during the server's accept, before the client's
     // connect() returns.
-    let captured = std::sync::Arc::new(AtomicBool::new(false));
+    let captured = Arc::new(AtomicBool::new(false));
 
     let mut server_builder = Server::builder();
     {
@@ -1401,7 +1401,7 @@ fn peer_signature_algorithm_mtls_server_sees_client() {
             .set_verify_cert_store(store.build())
             .unwrap();
         server_builder.ctx().set_verify(SslVerifyMode::PEER);
-        let captured_cb = std::sync::Arc::clone(&captured);
+        let captured_cb = Arc::clone(&captured);
         server_builder
             .ctx()
             .set_info_callback(move |ssl, mode, _value| {
@@ -1436,11 +1436,11 @@ fn peer_signature_algorithm_mtls_server_sees_client() {
 fn signature_algorithm_used_server_default() {
     // BoringSSL only retains signature_algorithm_used during the handshake, so we
     // capture it from a HANDSHAKE_DONE info callback.
-    let captured = std::sync::Arc::new(AtomicBool::new(false));
+    let captured = Arc::new(AtomicBool::new(false));
 
     let mut server_builder = Server::builder();
     {
-        let captured_cb = std::sync::Arc::clone(&captured);
+        let captured_cb = Arc::clone(&captured);
         server_builder
             .ctx()
             .set_info_callback(move |ssl, mode, _value| {
@@ -1489,8 +1489,8 @@ fn signature_algorithm_used_mtls_client() {
     }
     let server = server_builder.build();
 
-    let captured = std::sync::Arc::new(AtomicBool::new(false));
-    let captured_cb = std::sync::Arc::clone(&captured);
+    let captured = Arc::new(AtomicBool::new(false));
+    let captured_cb = Arc::clone(&captured);
 
     let mut client_builder = server.client_with_root_ca();
     client_builder

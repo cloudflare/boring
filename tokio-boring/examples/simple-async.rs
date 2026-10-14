@@ -7,7 +7,7 @@ async fn main() -> anyhow::Result<()> {
     let (tcp_stream, _addr) = listener.accept().await?;
 
     let server = ssl::SslMethod::tls();
-    let mut ssl_builder = boring::ssl::SslAcceptor::mozilla_modern(server)?;
+    let mut ssl_builder = ssl::SslAcceptor::mozilla_modern(server)?;
     ssl_builder.set_default_verify_paths()?;
     ssl_builder.set_verify(ssl::SslVerifyMode::PEER);
     let acceptor = ssl_builder.build();

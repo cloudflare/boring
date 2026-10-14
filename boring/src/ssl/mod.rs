@@ -1199,7 +1199,7 @@ impl SslContextBuilder {
             self.ctx.replace_ex_data(callback_index, callback);
             let callback = self.ctx.ex_data(callback_index).unwrap();
 
-            let arg = std::ptr::from_ref(callback).cast_mut().cast();
+            let arg = ptr::from_ref(callback).cast_mut().cast();
             ffi::SSL_CTX_set_tlsext_servername_arg(self.as_ptr(), arg);
             ffi::SSL_CTX_set_tlsext_servername_callback(self.as_ptr(), Some(raw_sni::<F>));
         }
@@ -4763,20 +4763,20 @@ pub trait CertificateCompressor: Send + Sync + 'static {
 
     /// Perform compression of `input` buffer and write compressed data to `output`.
     #[allow(unused_variables)]
-    fn compress<W>(&self, input: &[u8], output: &mut W) -> std::io::Result<()>
+    fn compress<W>(&self, input: &[u8], output: &mut W) -> io::Result<()>
     where
-        W: std::io::Write,
+        W: Write,
     {
-        Err(std::io::Error::other("not implemented"))
+        Err(io::Error::other("not implemented"))
     }
 
     /// Perform decompression of `input` buffer and write compressed data to `output`.
     #[allow(unused_variables)]
-    fn decompress<W>(&self, input: &[u8], output: &mut W) -> std::io::Result<()>
+    fn decompress<W>(&self, input: &[u8], output: &mut W) -> io::Result<()>
     where
-        W: std::io::Write,
+        W: Write,
     {
-        Err(std::io::Error::other("not implemented"))
+        Err(io::Error::other("not implemented"))
     }
 }
 
