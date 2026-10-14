@@ -4,7 +4,8 @@ use std::io::prelude::*;
 use std::mem;
 use std::net::{TcpListener, TcpStream};
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::thread;
 
 use crate::error::ErrorStack;
@@ -354,6 +355,35 @@ fn test_select_cert_ok() {
 }
 
 #[test]
+fn test_select_cert_last_setter_wins() {
+    let old_calls = Arc::new(AtomicUsize::new(0));
+    let action_calls = Arc::new(AtomicUsize::new(0));
+    let mut server = Server::builder();
+
+    let old_calls_clone = old_calls.clone();
+    server
+        .ctx()
+        .set_select_certificate_callback(move |_client_hello| {
+            old_calls_clone.fetch_add(1, Ordering::Relaxed);
+            Ok(())
+        });
+
+    let action_calls_clone = action_calls.clone();
+    server
+        .ctx()
+        .set_select_certificate_callback_with_action(move |_client_hello| {
+            action_calls_clone.fetch_add(1, Ordering::Relaxed);
+            Ok(ssl::SelectCertAction::Success)
+        });
+
+    let server = server.build();
+    server.client().connect();
+
+    assert_eq!(old_calls.load(Ordering::Relaxed), 0);
+    assert_eq!(action_calls.load(Ordering::Relaxed), 1);
+}
+
+#[test]
 fn test_mutable_store() {
     #![allow(deprecated)]
 
@@ -410,6 +440,28 @@ fn test_select_cert_error() {
 
     let client = server.client();
     client.connect_err();
+}
+
+#[test]
+fn test_select_cert_disable_ech_without_ech_fails() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let mut server = Server::builder();
+    server.should_error();
+    let callback_calls = calls.clone();
+    server
+        .ctx()
+        .set_select_certificate_callback_with_action(move |_client_hello| {
+            if callback_calls.fetch_add(1, Ordering::Relaxed) == 0 {
+                Ok(ssl::SelectCertAction::DisableEch)
+            } else {
+                Err(ssl::SelectCertError::ERROR)
+            }
+        });
+    let server = server.build();
+
+    let client = server.client();
+    client.connect_err();
+    assert_eq!(calls.load(Ordering::Relaxed), 1);
 }
 
 #[test]

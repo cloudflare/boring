@@ -1,4 +1,5 @@
 5.2.0
+- 2026-10-14 Add action-aware certificate selection callbacks, including ECH fallback
 - 2026-05-21 Export `DEP_BORINGSSL_VERSION_MAJOR` var
 - 2026-04-27 Expose DTLS version constants in SslVersion
 
@@ -2494,5 +2495,4 @@
 - 2011-12-15 Refactored code to use core::*
 - 2011-12-15 Add manifest for rust-pkg.
 - 2011-12-15 Initial commit.
-
 
