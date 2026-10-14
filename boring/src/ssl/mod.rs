@@ -332,6 +332,18 @@ impl SslMethod {
     pub fn as_ptr(&self) -> *const ffi::SSL_METHOD {
         self.ptr
     }
+
+    #[doc(hidden)]
+    #[deprecated(note = "renamed to `tls()`")]
+    pub fn tls_server() -> Self {
+        Self::tls()
+    }
+
+    #[doc(hidden)]
+    #[deprecated(note = "renamed to `tls()`")]
+    pub fn tls_client() -> Self {
+        Self::tls()
+    }
 }
 
 unsafe impl Sync for SslMethod {}
