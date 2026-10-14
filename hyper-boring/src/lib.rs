@@ -15,8 +15,9 @@ mod v1;
 pub use self::v1::*;
 
 fn key_index() -> Result<Index<Ssl, SessionKey>, ErrorStack> {
-    static IDX: LazyLock<Index<Ssl, SessionKey>> = LazyLock::new(|| Ssl::new_ex_index().unwrap());
-    Ok(*IDX)
+    static IDX: LazyLock<Result<Index<Ssl, SessionKey>, ErrorStack>> =
+        LazyLock::new(Ssl::new_ex_index);
+    IDX.clone()
 }
 
 /// Settings for [`HttpsLayer`]
