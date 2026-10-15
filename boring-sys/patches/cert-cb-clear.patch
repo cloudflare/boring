@@ -1,0 +1,41 @@
+From 9c52ee4d8cd1314c68853ec6e77fb01cae7770a1 Mon Sep 17 00:00:00 2001
+From: Dorian Verlaine <198568685+dorianverlaine@users.noreply.github.com>
+Date: Thu, 15 Oct 2026 19:19:13 +0800
+Subject: [PATCH] ssl: reset cert_cb to the empty variant when the callback is
+ cleared
+
+---
+ ssl/ssl_cert.cc | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/ssl/ssl_cert.cc b/ssl/ssl_cert.cc
+index d7abd68..7be0afa 100644
+--- a/ssl/ssl_cert.cc
++++ b/ssl/ssl_cert.cc
+@@ -77,13 +77,21 @@ UniquePtr<CERT> ssl_cert_dup(CERT *cert) {
+ 
+ static void ssl_cert_set_cert_cb(CERT *cert, int (*cb)(SSL *ssl, void *arg),
+                                  void *arg) {
+-  cert->cert_cb.cb = cb;
++  if (cb == nullptr) {
++    cert->cert_cb.cb = std::monostate();
++  } else {
++    cert->cert_cb.cb = cb;
++  }
+   cert->cert_cb_arg = arg;
+ }
+ 
+ static void ssl_cert_set_cert_cb(
+     CERT *cert, int (*cb)(SSL *ssl, void *arg, uint8_t *out_alert), void *arg) {
+-  cert->cert_cb.cb = cb;
++  if (cb == nullptr) {
++    cert->cert_cb.cb = std::monostate();
++  } else {
++    cert->cert_cb.cb = cb;
++  }
+   cert->cert_cb_arg = arg;
+ }
+ 
+-- 
+2.56.0
+

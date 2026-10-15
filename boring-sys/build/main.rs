@@ -511,6 +511,9 @@ fn ensure_patches_applied(config: &Config) -> io::Result<()> {
     println!("cargo:warning=applying post quantum crypto patch to boringssl");
     apply_patch(config, "boring-pq.patch")?;
 
+    println!("cargo:warning=applying certificate callback clearing patch to boringssl");
+    apply_patch(config, "cert-cb-clear.patch")?;
+
     if config.features.rpk {
         println!("cargo:warning=applying RPK patch to boringssl");
         apply_patch(config, "rpk.patch")?;
