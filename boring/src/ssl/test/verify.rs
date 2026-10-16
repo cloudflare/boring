@@ -204,10 +204,14 @@ fn rsa_key_usage_mismatch() {
         client
     };
 
-    if cfg!(feature = "relax-cert-validation") {
+    #[cfg(feature = "relax-cert-validation")]
+    {
         let server = server.build();
-        configure_client(&server).connect();
-    } else {
+        let stream = configure_client(&server).connect();
+        assert!(stream.ssl().ignored_rsa_key_usage_mismatch());
+    }
+    #[cfg(not(feature = "relax-cert-validation"))]
+    {
         server.should_error();
         let server = server.build();
         configure_client(&server).connect_err();
