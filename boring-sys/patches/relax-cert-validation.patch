@@ -18,16 +18,63 @@ unaffected.
 Upstream removed the enforce_rsa_key_usage field in 39dc2564e, so this
 now restores the conditional it used to guard instead of flipping a
 default.
----
- ssl/handshake_client.cc            | 13 ++++++++++++-
- ssl/test/runner/key_usage_tests.go | 15 +++++++++++----
- 2 files changed, 23 insertions(+), 5 deletions(-)
 
+Also add SSL_ignored_rsa_key_usage_mismatch, so callers can count how
+often the relaxed check is hit.
+---
+ include/openssl/prefix_symbols.h   |  2 ++
+ include/openssl/ssl.h              |  5 +++++
+ ssl/handshake_client.cc            | 14 +++++++++++++-
+ ssl/internal.h                     |  4 ++++
+ ssl/s3_lib.cc                      |  1 +
+ ssl/ssl_lib.cc                     |  4 ++++
+ ssl/test/bssl_shim.cc              |  8 ++++++++
+ ssl/test/runner/key_usage_tests.go | 19 +++++++++++++++----
+ ssl/test/test_config.cc            |  2 ++
+ ssl/test/test_config.h             |  1 +
+ 10 files changed, 55 insertions(+), 5 deletions(-)
+
+diff --git a/include/openssl/prefix_symbols.h b/include/openssl/prefix_symbols.h
+index f59abe8b9..2186ebdc9 100644
+--- a/include/openssl/prefix_symbols.h
++++ b/include/openssl/prefix_symbols.h
+@@ -2307,6 +2307,7 @@
+ #pragma redefine_extname SSL_get_write_sequence BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_get_write_sequence)
+ #pragma redefine_extname SSL_has_application_settings BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_has_application_settings)
+ #pragma redefine_extname SSL_has_pending BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_has_pending)
++#pragma redefine_extname SSL_ignored_rsa_key_usage_mismatch BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_ignored_rsa_key_usage_mismatch)
+ #pragma redefine_extname SSL_in_early_data BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_in_early_data)
+ #pragma redefine_extname SSL_in_false_start BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_in_false_start)
+ #pragma redefine_extname SSL_in_init BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_in_init)
+@@ -5459,6 +5460,7 @@
+ #define SSL_get_write_sequence BORINGSSL_ADD_PREFIX(SSL_get_write_sequence)
+ #define SSL_has_application_settings BORINGSSL_ADD_PREFIX(SSL_has_application_settings)
+ #define SSL_has_pending BORINGSSL_ADD_PREFIX(SSL_has_pending)
++#define SSL_ignored_rsa_key_usage_mismatch BORINGSSL_ADD_PREFIX(SSL_ignored_rsa_key_usage_mismatch)
+ #define SSL_in_early_data BORINGSSL_ADD_PREFIX(SSL_in_early_data)
+ #define SSL_in_false_start BORINGSSL_ADD_PREFIX(SSL_in_false_start)
+ #define SSL_in_init BORINGSSL_ADD_PREFIX(SSL_in_init)
+diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
+index ca1c2d50b..6e1e9d42c 100644
+--- a/include/openssl/ssl.h
++++ b/include/openssl/ssl.h
+@@ -5516,6 +5516,11 @@ OPENSSL_EXPORT void SSL_CTX_set_dos_protection_cb(
+ // respected on clients.
+ OPENSSL_EXPORT void SSL_CTX_set_reverify_on_resume(SSL_CTX *ctx, int enabled);
+ 
++// SSL_ignored_rsa_key_usage_mismatch returns one if `ssl` is a client that
++// accepted an RSA server certificate whose keyUsage does not match the
++// negotiated TLS 1.2 or below cipher suite, and zero otherwise.
++OPENSSL_EXPORT int SSL_ignored_rsa_key_usage_mismatch(const SSL *ssl);
++
+ // SSL_ST_* are possible values for `SSL_state`, the bitmasks that make them up,
+ // and some historical values for compatibility. Only `SSL_ST_INIT` and
+ // `SSL_ST_OK` are ever returned.
 diff --git a/ssl/handshake_client.cc b/ssl/handshake_client.cc
-index a4a53cda6..950ac611d 100644
+index 3d57f34da..a9f4af17f 100644
 --- a/ssl/handshake_client.cc
 +++ b/ssl/handshake_client.cc
-@@ -1402,11 +1402,22 @@ static enum ssl_hs_wait_t do_send_client_key_exchange(SSL_HANDSHAKE *hs) {
+@@ -1369,11 +1369,23 @@ static enum ssl_hs_wait_t do_send_client_key_exchange(SSL_HANDSHAKE *hs) {
  
      // Check the key usage matches the cipher suite. Key usage is only checked
      // for X.509 certs. (RPKs have no keyUsage to enforce.)
@@ -48,14 +95,76 @@ index a4a53cda6..950ac611d 100644
 +        return ssl_hs_error;
 +      }
 +      ERR_clear_error();
++      ssl->s3->ignored_rsa_key_usage_mismatch = true;
      }
    }
  
+diff --git a/ssl/internal.h b/ssl/internal.h
+index 8efc21e06..7405bd675 100644
+--- a/ssl/internal.h
++++ b/ssl/internal.h
+@@ -3005,6 +3005,10 @@ struct SSL3_STATE {
+   // HelloRetryRequest message.
+   bool used_hello_retry_request : 1;
+ 
++  // ignored_rsa_key_usage_mismatch is whether the client accepted an RSA server
++  // certificate whose keyUsage does not match the cipher suite.
++  bool ignored_rsa_key_usage_mismatch : 1;
++
+   // server_sent_requested_padding is true iff a client requested padding
+   // through the server padding extension, and the server sent back the
+   // requested amount of padding.
+diff --git a/ssl/s3_lib.cc b/ssl/s3_lib.cc
+index f1f88b9f4..8fa47a009 100644
+--- a/ssl/s3_lib.cc
++++ b/ssl/s3_lib.cc
+@@ -45,6 +45,7 @@ SSL3_STATE::SSL3_STATE()
+       alert_dispatch(false),
+       renegotiate_pending(false),
+       used_hello_retry_request(false),
++      ignored_rsa_key_usage_mismatch(false),
+       server_sent_requested_padding(false) {}
+ 
+ SSL3_STATE::~SSL3_STATE() {}
+diff --git a/ssl/ssl_lib.cc b/ssl/ssl_lib.cc
+index b59029f54..9a802f62a 100644
+--- a/ssl/ssl_lib.cc
++++ b/ssl/ssl_lib.cc
+@@ -3093,6 +3093,10 @@ void SSL_CTX_set_reverify_on_resume(SSL_CTX *ctx, int enabled) {
+   FromOpaque(ctx)->reverify_on_resume = !!enabled;
+ }
+ 
++int SSL_ignored_rsa_key_usage_mismatch(const SSL *ssl) {
++  return FromOpaque(ssl)->s3->ignored_rsa_key_usage_mismatch;
++}
++
+ void SSL_set_renegotiate_mode(SSL *ssl, enum ssl_renegotiate_mode_t mode) {
+   auto *ssl_impl = FromOpaque(ssl);
+   ssl_impl->renegotiate_mode = mode;
+diff --git a/ssl/test/bssl_shim.cc b/ssl/test/bssl_shim.cc
+index 36bec7595..35e4e25b5 100644
+--- a/ssl/test/bssl_shim.cc
++++ b/ssl/test/bssl_shim.cc
+@@ -708,6 +708,14 @@ static bool CheckHandshakeProperties(SSL *ssl, bool is_resume,
+     return false;
+   }
+ 
++  if (config->expect_ignored_rsa_key_usage_mismatch !=
++      !!SSL_ignored_rsa_key_usage_mismatch(ssl)) {
++    fprintf(stderr,
++            "RSA key usage mismatch was %signored, but wanted opposite.\n",
++            SSL_ignored_rsa_key_usage_mismatch(ssl) ? "" : "not ");
++    return false;
++  }
++
+   if (config->expect_ech_accept != !!SSL_ech_accepted(ssl)) {
+     fprintf(stderr, "ECH was %saccepted, but wanted opposite.\n",
+             SSL_ech_accepted(ssl) ? "" : "not ");
 diff --git a/ssl/test/runner/key_usage_tests.go b/ssl/test/runner/key_usage_tests.go
-index c9555066f..8b7d0bffc 100644
+index c9555066f..eea9d23cd 100644
 --- a/ssl/test/runner/key_usage_tests.go
 +++ b/ssl/test/runner/key_usage_tests.go
-@@ -82,6 +82,15 @@ func addRSAKeyUsageTests() {
+@@ -82,6 +82,17 @@ func addRSAKeyUsageTests() {
  	}
  
  	for _, ver := range tlsVersions {
@@ -64,30 +173,59 @@ index c9555066f..8b7d0bffc 100644
 +		// on the TLS 1.2-and-below code path, so TLS 1.3 still rejects these.
 +		rsaClientEnforced := ver.version >= VersionTLS13
 +		rsaClientError := ""
++		rsaClientFlags := []string{"-expect-ignored-rsa-key-usage-mismatch"}
 +		if rsaClientEnforced {
 +			rsaClientError = ":KEY_USAGE_BIT_INCORRECT:"
++			rsaClientFlags = nil
 +		}
 +
  		testCases = append(testCases, testCase{
  			testType: clientTest,
  			name:     "RSAKeyUsage-Client-WantSignature-GotEncipherment-" + ver.name,
-@@ -91,8 +100,8 @@ func addRSAKeyUsageTests() {
+@@ -91,8 +102,9 @@ func addRSAKeyUsageTests() {
  				Credential:   &encCert,
  				CipherSuites: dsSuites,
  			},
 -			shouldFail:    true,
 -			expectedError: ":KEY_USAGE_BIT_INCORRECT:",
++			flags:         rsaClientFlags,
 +			shouldFail:    rsaClientEnforced,
 +			expectedError: rsaClientError,
  		})
  
  		testCases = append(testCases, testCase{
-@@ -128,8 +137,6 @@ func addRSAKeyUsageTests() {
+@@ -128,8 +140,7 @@ func addRSAKeyUsageTests() {
  					Credential:   &dsCert,
  					CipherSuites: encSuites,
  				},
 -				shouldFail:    true,
 -				expectedError: ":KEY_USAGE_BIT_INCORRECT:",
++				flags: rsaClientFlags,
  			})
  		}
  
+diff --git a/ssl/test/test_config.cc b/ssl/test/test_config.cc
+index 354501a10..58d69c28b 100644
+--- a/ssl/test/test_config.cc
++++ b/ssl/test/test_config.cc
+@@ -544,6 +544,8 @@ const Flag<TestConfig> *FindFlag(const char *name) {
+         IntFlag("-install-one-cert-compression-alg",
+                 &TestConfig::install_one_cert_compression_alg),
+         BoolFlag("-reverify-on-resume", &TestConfig::reverify_on_resume),
++        BoolFlag("-expect-ignored-rsa-key-usage-mismatch",
++                 &TestConfig::expect_ignored_rsa_key_usage_mismatch),
+         BoolFlag("-is-handshaker-supported",
+                  &TestConfig::is_handshaker_supported),
+         BoolFlag("-handshaker-resume", &TestConfig::handshaker_resume),
+diff --git a/ssl/test/test_config.h b/ssl/test/test_config.h
+index 795249b87..bdc8b7fd3 100644
+--- a/ssl/test/test_config.h
++++ b/ssl/test/test_config.h
+@@ -231,6 +231,7 @@ struct TestConfig {
+   bool install_cert_compression_algs = false;
+   int install_one_cert_compression_alg = 0;
+   bool reverify_on_resume = false;
++  bool expect_ignored_rsa_key_usage_mismatch = false;
+   bool is_handshaker_supported = false;
+   bool handshaker_resume = false;
+   std::string handshaker_path;

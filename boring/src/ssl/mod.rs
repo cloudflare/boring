@@ -3087,6 +3087,15 @@ impl SslRef {
         unsafe { ffi::SSL_used_hello_retry_request(self.as_ptr()) == 1 }
     }
 
+    /// Returns whether the client accepted an RSA server certificate whose
+    /// keyUsage does not match the negotiated TLS 1.2 or below cipher suite.
+    #[corresponds(SSL_ignored_rsa_key_usage_mismatch)]
+    #[must_use]
+    #[cfg(feature = "relax-cert-validation")]
+    pub fn ignored_rsa_key_usage_mismatch(&self) -> bool {
+        unsafe { ffi::SSL_ignored_rsa_key_usage_mismatch(self.as_ptr()) == 1 }
+    }
+
     /// Returns an `ErrorCode` value for the most recent operation on this `SslRef`.
     #[corresponds(SSL_get_error)]
     #[must_use]
