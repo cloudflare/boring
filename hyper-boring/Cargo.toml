@@ -30,6 +30,7 @@ linked_hash_set = { workspace = true }
 boring = { workspace = true, default-features = false }
 tokio = { workspace = true }
 tokio-boring = { workspace = true, default-features = false  }
+tower = { workspace = true }
 tower-layer = { workspace = true }
 tower-service = { workspace = true }
 
