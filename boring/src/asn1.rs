@@ -625,6 +625,15 @@ impl Asn1IntegerRef {
         }
     }
 
+    to_der! {
+        /// Serializes the integer as DER contents, excluding the tag and length.
+        ///
+        /// The result is a minimal, big-endian two's complement encoding.
+        #[corresponds(i2c_ASN1_INTEGER)]
+        to_der_contents,
+        ffi::i2c_ASN1_INTEGER
+    }
+
     /// Sets the ASN.1 value to the value of a signed 32-bit integer, for larger numbers
     /// see [`bn`].
     ///
@@ -917,5 +926,28 @@ mod tests {
             orig == copy,
             "duplicated Asn1Integer should be equal to the original"
         );
+    }
+
+    #[test]
+    fn integer_to_der_contents() {
+        let cases: &[(&str, &[u8])] = &[
+            ("0", &[0x00]),
+            ("127", &[0x7f]),
+            ("128", &[0x00, 0x80]),
+            ("255", &[0x00, 0xff]),
+            ("256", &[0x01, 0x00]),
+            ("-1", &[0xff]),
+            ("-128", &[0x80]),
+            ("-129", &[0xff, 0x7f]),
+            ("-255", &[0xff, 0x01]),
+            ("-256", &[0xff, 0x00]),
+            ("18446744073709551616", &[0x01, 0, 0, 0, 0, 0, 0, 0, 0]),
+            ("-18446744073709551616", &[0xff, 0, 0, 0, 0, 0, 0, 0, 0]),
+        ];
+        for &(value, expected) in cases {
+            let bn = BigNum::from_dec_str(value).unwrap();
+            let integer = Asn1Integer::from_bn(&bn).unwrap();
+            assert_eq!(integer.to_der_contents().unwrap(), expected, "{value}");
+        }
     }
 }
