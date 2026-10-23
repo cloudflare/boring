@@ -16,6 +16,7 @@ use crate::x509::verify::X509CheckFlags;
 use crate::x509::{X509Extension, X509Name, X509Req, X509StoreContext, X509};
 const TEST_CERT_DIGEST: &str = "585e3a58acfd3b4e5e2825659407244ddd93539c";
 
+mod path_len;
 mod trusted_first;
 
 fn pkey() -> PKey<Private> {
