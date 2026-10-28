@@ -36,55 +36,55 @@ This patch adds:
  ssl/internal.h                             |  12 +-
  ssl/ssl_key_share.cc                       | 257 +++++++++++++++++++++
  ssl/ssl_lib.cc                             |  16 +-
- ssl/ssl_test.cc                            |  28 ++-
+ ssl/ssl_test.cc                            |  22 +-
  ssl/test/runner/compliance_policy_tests.go |   2 +
  tool/client.cc                             |   9 +
- 13 files changed, 370 insertions(+), 20 deletions(-)
+ 13 files changed, 366 insertions(+), 18 deletions(-)
 
 diff --git a/crypto/obj/obj_dat.h b/crypto/obj/obj_dat.h
-index ced3582f9..f35a79e0b 100644
+index 0e7d4c2d0..dbbb9df08 100644
 --- a/crypto/obj/obj_dat.h
 +++ b/crypto/obj/obj_dat.h
-@@ -8865,7 +8865,8 @@ static const ASN1_OBJECT kObjects[NUM_NID] = {
-      0},
-     {NULL, NULL, NID_undef, 0, NULL, 0},
-     {"X-Wing", "X-Wing", NID_X_Wing, 0, NULL, 0},
+@@ -8842,7 +8842,8 @@ static const ASN1_OBJECT kObjects[NUM_NID] = {
+     {"AuthPSK", "auth-psk", NID_auth_psk, 0, NULL, 0},
+     {"KxANY", "kx-any", NID_kx_any, 0, NULL, 0},
+     {"AuthANY", "auth-any", NID_auth_any, 0, NULL, 0},
 -    {NULL, NULL, NID_undef, 0, NULL, 0},
 +    {"P256Kyber768Draft00", "P256Kyber768Draft00", NID_P256Kyber768Draft00, 0,
 +     NULL, 0},
-     {NULL, NULL, NID_undef, 0, NULL, 0},
-     {NULL, NULL, NID_undef, 0, NULL, 0},
-     {"alg-mtcProof-draft", "alg-mtcProof-draft", NID_alg_mtcProof_draft, 10,
-@@ -9012,6 +9013,7 @@ static const uint16_t kNIDsInShortNameOrder[] = {
+     {"ED448", "ED448", NID_ED448, 3, &kObjectData[6181], 0},
+     {"X448", "X448", NID_X448, 3, &kObjectData[6184], 0},
+     {"SHA512-256", "sha512-256", NID_sha512_256, 9, &kObjectData[6187], 0},
+@@ -9004,6 +9005,7 @@ static const uint16_t kNIDsInShortNameOrder[] = {
      18 /* OU */,
      749 /* Oakley-EC2N-3 */,
      750 /* Oakley-EC2N-4 */,
-+    973 /* P256Kyber768Draft00 */,
++    959 /* P256Kyber768Draft00 */,
      9 /* PBE-MD2-DES */,
      168 /* PBE-MD2-RC2-64 */,
      10 /* PBE-MD5-DES */,
-@@ -9942,6 +9944,7 @@ static const uint16_t kNIDsInLongNameOrder[] = {
+@@ -9934,6 +9936,7 @@ static const uint16_t kNIDsInLongNameOrder[] = {
      366 /* OCSP Nonce */,
      371 /* OCSP Service Locator */,
      180 /* OCSP Signing */,
-+    973 /* P256Kyber768Draft00 */,
++    959 /* P256Kyber768Draft00 */,
      161 /* PBES2 */,
      69 /* PBKDF2 */,
      162 /* PBMAC1 */,
 diff --git a/crypto/obj/obj_mac.num b/crypto/obj/obj_mac.num
-index 582412081..4a0e651dc 100644
+index fa39c2933..cee6214dd 100644
 --- a/crypto/obj/obj_mac.num
 +++ b/crypto/obj/obj_mac.num
-@@ -959,6 +959,7 @@ ML_DSA_65		968
- ML_DSA_87		969
- ML_KEM_768		970
- X_Wing		972
-+P256Kyber768Draft00		973
- alg_mtcProof_draft		976
- rdna_trustAnchorID_draft		977
- pe_mtcCertificationAuthority_draft		978
+@@ -947,6 +947,7 @@ auth_ecdsa		955
+ auth_psk		956
+ kx_any		957
+ auth_any		958
++P256Kyber768Draft00		959
+ ED448		960
+ X448		961
+ sha512_256		962
 diff --git a/crypto/obj/objects.txt b/crypto/obj/objects.txt
-index fa4bd648c..32ae303c7 100644
+index 3fdc316e4..a646f0acc 100644
 --- a/crypto/obj/objects.txt
 +++ b/crypto/obj/objects.txt
 @@ -1343,6 +1343,7 @@ secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
@@ -96,32 +96,32 @@ index fa4bd648c..32ae303c7 100644
  
  # NIDs for PQ/T hybrid KEMs (no corresponding OIDs).
 diff --git a/include/openssl/nid.h b/include/openssl/nid.h
-index 9ca8e6707..584d139f9 100644
+index 38e5dc86d..39b406ecd 100644
 --- a/include/openssl/nid.h
 +++ b/include/openssl/nid.h
-@@ -5511,6 +5511,9 @@ extern "C" {
- #define SN_X_Wing "X-Wing"
- #define NID_X_Wing 972
+@@ -5452,6 +5452,9 @@ extern "C" {
+ #define LN_auth_any "auth-any"
+ #define NID_auth_any 958
  
 +#define SN_P256Kyber768Draft00 "P256Kyber768Draft00"
-+#define NID_P256Kyber768Draft00 973
++#define NID_P256Kyber768Draft00 959
 +
- #define SN_alg_mtcProof_draft "alg-mtcProof-draft"
- #define NID_alg_mtcProof_draft 976
- #define OBJ_alg_mtcProof_draft 1L, 3L, 6L, 1L, 4L, 1L, 44363L, 47L, 0L
+ #define SN_ED448 "ED448"
+ #define NID_ED448 960
+ #define OBJ_ED448 1L, 3L, 101L, 113L
 diff --git a/include/openssl/prefix_symbols.h b/include/openssl/prefix_symbols.h
-index f59abe8b9..e41c0eb55 100644
+index 42f766ade..4e33e5051 100644
 --- a/include/openssl/prefix_symbols.h
 +++ b/include/openssl/prefix_symbols.h
-@@ -2112,6 +2112,7 @@
+@@ -2128,6 +2128,7 @@
  #pragma redefine_extname SSL_CTX_use_certificate_chain_file BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_use_certificate_chain_file)
  #pragma redefine_extname SSL_CTX_use_certificate_file BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_use_certificate_file)
  #pragma redefine_extname SSL_CTX_use_psk_identity_hint BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_use_psk_identity_hint)
 +#pragma redefine_extname SSL_CTX_use_second_keyshare BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_use_second_keyshare)
  #pragma redefine_extname SSL_ECH_KEYS_add BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_ECH_KEYS_add)
+ #pragma redefine_extname SSL_ECH_KEYS_dup_ref BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_ECH_KEYS_dup_ref)
  #pragma redefine_extname SSL_ECH_KEYS_free BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_ECH_KEYS_free)
- #pragma redefine_extname SSL_ECH_KEYS_has_duplicate_config_id BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_ECH_KEYS_has_duplicate_config_id)
-@@ -2463,6 +2464,7 @@
+@@ -2481,6 +2482,7 @@
  #pragma redefine_extname SSL_use_certificate_ASN1 BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_use_certificate_ASN1)
  #pragma redefine_extname SSL_use_certificate_file BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_use_certificate_file)
  #pragma redefine_extname SSL_use_psk_identity_hint BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_use_psk_identity_hint)
@@ -129,15 +129,15 @@ index f59abe8b9..e41c0eb55 100644
  #pragma redefine_extname SSL_used_hello_retry_request BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_used_hello_retry_request)
  #pragma redefine_extname SSL_version BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_version)
  #pragma redefine_extname SSL_want BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_want)
-@@ -5264,6 +5266,7 @@
+@@ -5299,6 +5301,7 @@
  #define SSL_CTX_use_certificate_chain_file BORINGSSL_ADD_PREFIX(SSL_CTX_use_certificate_chain_file)
  #define SSL_CTX_use_certificate_file BORINGSSL_ADD_PREFIX(SSL_CTX_use_certificate_file)
  #define SSL_CTX_use_psk_identity_hint BORINGSSL_ADD_PREFIX(SSL_CTX_use_psk_identity_hint)
 +#define SSL_CTX_use_second_keyshare BORINGSSL_ADD_PREFIX(SSL_CTX_use_second_keyshare)
  #define SSL_ECH_KEYS_add BORINGSSL_ADD_PREFIX(SSL_ECH_KEYS_add)
+ #define SSL_ECH_KEYS_dup_ref BORINGSSL_ADD_PREFIX(SSL_ECH_KEYS_dup_ref)
  #define SSL_ECH_KEYS_free BORINGSSL_ADD_PREFIX(SSL_ECH_KEYS_free)
- #define SSL_ECH_KEYS_has_duplicate_config_id BORINGSSL_ADD_PREFIX(SSL_ECH_KEYS_has_duplicate_config_id)
-@@ -5615,6 +5618,7 @@
+@@ -5652,6 +5655,7 @@
  #define SSL_use_certificate_ASN1 BORINGSSL_ADD_PREFIX(SSL_use_certificate_ASN1)
  #define SSL_use_certificate_file BORINGSSL_ADD_PREFIX(SSL_use_certificate_file)
  #define SSL_use_psk_identity_hint BORINGSSL_ADD_PREFIX(SSL_use_psk_identity_hint)
@@ -146,10 +146,10 @@ index f59abe8b9..e41c0eb55 100644
  #define SSL_version BORINGSSL_ADD_PREFIX(SSL_version)
  #define SSL_want BORINGSSL_ADD_PREFIX(SSL_want)
 diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
-index ca1c2d50b..a13db1400 100644
+index e42a0ac08..67b653784 100644
 --- a/include/openssl/ssl.h
 +++ b/include/openssl/ssl.h
-@@ -2725,7 +2725,9 @@ OPENSSL_EXPORT size_t SSL_CTX_get_num_tickets(const SSL_CTX *ctx);
+@@ -2731,7 +2731,9 @@ OPENSSL_EXPORT size_t SSL_CTX_get_num_tickets(const SSL_CTX *ctx);
  #define SSL_GROUP_SECP521R1 25
  #define SSL_GROUP_X25519 29
  #define SSL_GROUP_X25519_MLKEM768 0x11ec
@@ -159,17 +159,9 @@ index ca1c2d50b..a13db1400 100644
  
  // SSL_CTX_set1_group_ids sets the preferred groups for `ctx` to `group_ids`.
  // Each element of `group_ids` should be a unique one of the `SSL_GROUP_*`
-@@ -6388,6 +6390,7 @@ OPENSSL_EXPORT int SSL_CTX_set_tlsext_status_arg(SSL_CTX *ctx, void *arg);
- #define SSL_CURVE_SECP384R1 SSL_GROUP_SECP384R1
- #define SSL_CURVE_SECP521R1 SSL_GROUP_SECP521R1
- #define SSL_CURVE_X25519 SSL_GROUP_X25519
-+#define SSL_CURVE_X25519_KYBER768_DRAFT00 SSL_GROUP_X25519_KYBER768_DRAFT00
- 
- // SSL_get_curve_id calls `SSL_get_group_id`.
- OPENSSL_EXPORT uint16_t SSL_get_curve_id(const SSL *ssl);
-@@ -6412,6 +6415,20 @@ OPENSSL_EXPORT int SSL_CTX_set1_curves_list(SSL_CTX *ctx, const char *curves);
- // SSL_set1_curves_list calls `SSL_set1_groups_list`.
- OPENSSL_EXPORT int SSL_set1_curves_list(SSL *ssl, const char *curves);
+@@ -5723,6 +5725,21 @@ OPENSSL_EXPORT void SSL_set_jdk11_workaround(SSL *ssl, int enable);
+ OPENSSL_EXPORT int SSL_parse_client_hello(const SSL *ssl, SSL_CLIENT_HELLO *out,
+                                           const uint8_t *in, size_t len);
  
 +// By default, a client will send both a non post-quantum and a post-quantum
 +// keyshare if available.
@@ -185,11 +177,12 @@ index ca1c2d50b..a13db1400 100644
 +// a client using |ctx| will only send one keyshare.
 +OPENSSL_EXPORT void SSL_CTX_use_second_keyshare(SSL_CTX *ctx, int enabled);
 +
- // TLSEXT_nid_unknown is a constant used in OpenSSL for
- // `SSL_get_negotiated_group` to return an unrecognized group. BoringSSL never
- // returns this value, but we define this constant for compatibility.
++
+ // Compliance policy configurations
+ //
+ // A TLS connection has a large number of different parameters. Some are well
 diff --git a/ssl/extensions.cc b/ssl/extensions.cc
-index ab32bb93f..2677314d0 100644
+index db650c8bf..87b2ea23f 100644
 --- a/ssl/extensions.cc
 +++ b/ssl/extensions.cc
 @@ -107,7 +107,15 @@ static bool tls1_check_duplicate_extensions(const CBS *cbs) {
@@ -243,7 +236,7 @@ index ab32bb93f..2677314d0 100644
      selected_key_shares.emplace(default_key_shares);
    }
 diff --git a/ssl/internal.h b/ssl/internal.h
-index 8efc21e06..57fffadde 100644
+index bff133b11..0872532eb 100644
 --- a/ssl/internal.h
 +++ b/ssl/internal.h
 @@ -952,7 +952,7 @@ struct NamedGroup {
@@ -255,7 +248,7 @@ index 8efc21e06..57fffadde 100644
  
  // DefaultSupportedGroupIds returns the list of IDs for the default groups that
  // are supported when the caller hasn't explicitly configured supported groups.
-@@ -3642,6 +3642,11 @@ struct SSL_CONFIG {
+@@ -3576,6 +3576,11 @@ struct SSL_CONFIG {
    // permute_extensions is whether to permute extensions when sending messages.
    bool permute_extensions : 1;
  
@@ -267,7 +260,7 @@ index 8efc21e06..57fffadde 100644
    // alps_use_new_codepoint if set indicates we use new ALPS extension codepoint
    // to negotiate and convey application settings.
    bool alps_use_new_codepoint : 1;
-@@ -4263,6 +4268,11 @@ class SSLContext : public ssl_ctx_st, public RefCounted<SSLContext> {
+@@ -4192,6 +4197,11 @@ class SSLContext : public ssl_ctx_st, public RefCounted<SSLContext> {
    // permute_extensions is whether to permute extensions when sending messages.
    bool permute_extensions : 1;
  
@@ -580,18 +573,18 @@ index 84394b247..2f006e982 100644
        return nullptr;
    }
 diff --git a/ssl/ssl_lib.cc b/ssl/ssl_lib.cc
-index b59029f54..33cc42dde 100644
+index 4a53066c1..b09363e37 100644
 --- a/ssl/ssl_lib.cc
 +++ b/ssl/ssl_lib.cc
-@@ -383,6 +383,7 @@ bssl::SSLContext::SSLContext(const SSL_METHOD *ssl_method)
+@@ -370,6 +370,7 @@ bssl::SSLContext::SSLContext(const SSL_METHOD *ssl_method)
+       channel_id_enabled(false),
        grease_enabled(false),
-       grease_sigalgs_enabled(false),
        permute_extensions(false),
 +      disable_second_keyshare(false),
        allow_unknown_alpn_protos(false),
        false_start_allowed_without_alpn(false),
-       handoff(false),
-@@ -515,6 +516,7 @@ SSL *SSL_new(SSL_CTX *ctx) {
+       enable_early_data(false),
+@@ -508,6 +509,7 @@ SSL *SSL_new(SSL_CTX *ctx) {
    ssl->config->retain_only_sha256_of_client_certs =
        ctx_impl->retain_only_sha256_of_client_certs;
    ssl->config->permute_extensions = ctx_impl->permute_extensions;
@@ -599,7 +592,7 @@ index b59029f54..33cc42dde 100644
    ssl->config->compliance_policy = ctx_impl->compliance_policy;
  
    if (!ssl->config->tls13_cipher_list.CopyFrom(ctx_impl->tls13_cipher_list)) {
-@@ -583,6 +585,7 @@ SSL_CONFIG::SSL_CONFIG(SSLImpl *ssl_arg)
+@@ -574,6 +576,7 @@ SSL_CONFIG::SSL_CONFIG(SSLImpl *ssl_arg)
        jdk11_workaround(false),
        quic_use_legacy_codepoint(false),
        permute_extensions(false),
@@ -607,7 +600,7 @@ index b59029f54..33cc42dde 100644
        alps_use_new_codepoint(true),
        server_padding_enabled(false) {
    assert(ssl);
-@@ -3577,6 +3580,15 @@ int SSL_set1_curves_list(SSL *ssl, const char *curves) {
+@@ -3558,6 +3561,15 @@ int SSL_set1_curves_list(SSL *ssl, const char *curves) {
    return SSL_set1_groups_list(ssl, curves);
  }
  
@@ -623,7 +616,7 @@ index b59029f54..33cc42dde 100644
  namespace fips202205 {
  
  // (References are to SP 800-52r2):
-@@ -3588,7 +3600,9 @@ namespace fips202205 {
+@@ -3569,7 +3581,9 @@ namespace fips202205 {
  // Section 3.3.1
  // "The server shall be configured to only use cipher suites that are
  // composed entirely of NIST approved algorithms"
@@ -635,10 +628,10 @@ index b59029f54..33cc42dde 100644
  static const uint16_t kSigAlgs[] = {
      SSL_SIGN_RSA_PKCS1_SHA256,
 diff --git a/ssl/ssl_test.cc b/ssl/ssl_test.cc
-index 25d0ca38b..36b1d6ba7 100644
+index c24997daf..3a0bc99c3 100644
 --- a/ssl/ssl_test.cc
 +++ b/ssl/ssl_test.cc
-@@ -495,6 +495,10 @@ static const CurveTest kCurveTests[] = {
+@@ -520,6 +520,10 @@ static const CurveTest kCurveTests[] = {
          "P-256",
          {SSL_GROUP_SECP256R1},
      },
@@ -649,7 +642,7 @@ index 25d0ca38b..36b1d6ba7 100644
      {
          "P-256:X25519MLKEM768",
          {SSL_GROUP_SECP256R1, SSL_GROUP_X25519_MLKEM768},
-@@ -507,6 +511,14 @@ static const CurveTest kCurveTests[] = {
+@@ -532,6 +536,14 @@ static const CurveTest kCurveTests[] = {
          "MLKEM1024:X25519MLKEM768",
          {SSL_GROUP_MLKEM1024, SSL_GROUP_X25519_MLKEM768},
      },
@@ -664,7 +657,7 @@ index 25d0ca38b..36b1d6ba7 100644
  
      {
          "P-256:P-384:P-521:X25519",
-@@ -686,8 +698,10 @@ TEST(SSLTest, CurveRules) {
+@@ -711,8 +723,10 @@ TEST(SSLTest, CurveRules) {
  }
  
  TEST(SSLTest, DefaultCurves) {
@@ -677,7 +670,7 @@ index 25d0ca38b..36b1d6ba7 100644
  
    // Test the group ID APIs.
    {
-@@ -2224,7 +2238,9 @@ TEST(SSLTest, SetGroupIdsWithEqualPreference) {
+@@ -2249,7 +2263,9 @@ TEST(SSLTest, SetGroupIdsWithEqualPreference) {
  // (i.e. using the default groups).
  TEST(SSLTest, SetGroupIdsWithFlags_DefaultGroups) {
    const uint16_t kDefaultGroups[] = {SSL_GROUP_X25519_MLKEM768,
@@ -688,19 +681,6 @@ index 25d0ca38b..36b1d6ba7 100644
                                       SSL_GROUP_SECP384R1};
    const uint32_t kBogusFlags[] = {SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT,
                                    SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT, 0};
-@@ -7411,8 +7427,10 @@ TEST(SSLTest, ApplyHandoffRemovesUnsupportedCurves) {
- 
-   // The default list of groups is used before applying the handoff.
-   EXPECT_THAT(FromOpaque(server.get())->config->supported_group_list,
--              ElementsAreArray({SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519,
--                                SSL_GROUP_SECP256R1, SSL_GROUP_SECP384R1}));
-+              ElementsAreArray({SSL_GROUP_X25519_MLKEM768,
-+                                SSL_GROUP_P256_KYBER768_DRAFT00,
-+                                SSL_GROUP_X25519, SSL_GROUP_SECP256R1,
-+                                SSL_GROUP_SECP384R1}));
-   ASSERT_TRUE(SSL_apply_handoff(server.get(), handoff));
-   EXPECT_EQ(1u, FromOpaque(server.get())->config->supported_group_list.size());
-   EXPECT_EQ(SSL_GROUP_SECP256R1,
 diff --git a/ssl/test/runner/compliance_policy_tests.go b/ssl/test/runner/compliance_policy_tests.go
 index 3e97718b8..269fbcca6 100644
 --- a/ssl/test/runner/compliance_policy_tests.go
@@ -741,3 +721,286 @@ index 1f2b19965..6cf555433 100644
    // Configure accepted roots.
    if (args_map.count("-root-certs") != 0) {
      if (!SSL_CTX_load_verify_locations(
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Wu <pwu@cloudflare.com>
+Date: Tue, 27 Oct 2026 20:01:41 +0100
+Subject: [PATCH] Limit advertising ML-DSA support to TLS 1.3
+
+ML-DSA is only supported with TLS 1.3, do not advertise it when TLS 1.2
+is the maximum version (for clients) or the negotiated version (for
+servers requesting client auth). This also prevents SSLTest.ClientHello
+test failures when ML-DSA is enabled by default.
+
+Thanks David for the ExpectPeerSignatureAlgorithmPreferences change.
+
+Change-Id: Idb8fe38ff189d037ff32673c499b95050cb1e7ce
+---
+ ssl/extensions.cc                            | 10 +++++
+ ssl/test/runner/common.go                    |  4 ++
+ ssl/test/runner/handshake_client.go          | 23 +++++++---
+ ssl/test/runner/handshake_server.go          |  6 +++
+ ssl/test/runner/signature_algorithm_tests.go | 44 ++++++++++++++++++++
+ 5 files changed, 81 insertions(+), 6 deletions(-)
+
+diff --git a/ssl/extensions.cc b/ssl/extensions.cc
+index 69e02fd7e..8426f22ac 100644
+--- a/ssl/extensions.cc
++++ b/ssl/extensions.cc
+@@ -118,6 +118,11 @@ static bool is_post_quantum_group(uint16_t id) {
+   }
+ }
+ 
++static bool is_post_quantum_sigalg(uint16_t sigalg) {
++  return sigalg == SSL_SIGN_ML_DSA_44 || sigalg == SSL_SIGN_ML_DSA_65 ||
++         sigalg == SSL_SIGN_ML_DSA_87;
++}
++
+ bool ssl_parse_client_hello_with_trailing_data(const SSLImpl *ssl, CBS *cbs,
+                                                SSL_CLIENT_HELLO *out) {
+   OPENSSL_memset(out, 0, sizeof(*out));
+@@ -347,7 +352,12 @@ static Span<const uint16_t> tls12_get_verify_sigalgs(const SSL_HANDSHAKE *hs) {
+ }
+ 
+ bool tls12_add_verify_sigalgs(const SSL_HANDSHAKE *hs, CBB *out) {
++  uint16_t max_version =
++      hs->ssl->server ? ssl_protocol_version(hs->ssl) : hs->max_version;
+   for (uint16_t sigalg : tls12_get_verify_sigalgs(hs)) {
++    if (is_post_quantum_sigalg(sigalg) && max_version < TLS1_3_VERSION) {
++      continue;
++    }
+     if (!CBB_add_u16(out, sigalg)) {
+       return false;
+     }
+diff --git a/ssl/test/runner/common.go b/ssl/test/runner/common.go
+index 514dd7c57..e8c3e6467 100644
+--- a/ssl/test/runner/common.go
++++ b/ssl/test/runner/common.go
+@@ -1507,6 +1507,10 @@ type ProtocolBugs struct {
+ 	// signature algorithm preferences to be ignored.
+ 	IgnorePeerSignatureAlgorithmPreferences bool
+ 
++	// ExpectPeerSignatureAlgorithmPreferences, if not nil, asserts that the
++	// peer's signature algorithm preferences were the specified list.
++	ExpectPeerSignatureAlgorithmPreferences []signatureAlgorithm
++
+ 	// IgnorePeerCurvePreferences, if true, causes the peer's curve
+ 	// preferences to be ignored.
+ 	IgnorePeerCurvePreferences bool
+diff --git a/ssl/test/runner/handshake_client.go b/ssl/test/runner/handshake_client.go
+index df9816a2f..23f32a413 100644
+--- a/ssl/test/runner/handshake_client.go
++++ b/ssl/test/runner/handshake_client.go
+@@ -1294,10 +1294,9 @@ func (hs *clientHandshakeState) doTLS13Handshake(msg any) error {
+ 			}
+ 
+ 			hs.writeServerHash(certReq.marshal())
+-
+ 			credential = c.config.Credential
+-			if credential != nil && c.config.Bugs.IgnorePeerSignatureAlgorithmPreferences {
+-				certReq.signatureAlgorithms = credential.signatureAlgorithms()
++			if err := hs.handleCertificateRequest(certReq, credential); err != nil {
++				return err
+ 			}
+ 
+ 			msg, err = c.readHandshake()
+@@ -1776,10 +1775,9 @@ func (hs *clientHandshakeState) doFullHandshake() error {
+ 	if ok {
+ 		certRequested = true
+ 		hs.writeServerHash(certReq.marshal())
+-
+ 		credential = c.config.Credential
+-		if credential != nil && c.config.Bugs.IgnorePeerSignatureAlgorithmPreferences {
+-			certReq.signatureAlgorithms = credential.signatureAlgorithms()
++		if err := hs.handleCertificateRequest(certReq, credential); err != nil {
++			return err
+ 		}
+ 
+ 		msg, err = c.readHandshake()
+@@ -2662,3 +2660,16 @@ func (hs *clientHandshakeState) generatePSKBinders(hello *clientHelloMsg, firstC
+ 	// Clear the cached encoding.
+ 	hello.raw = nil
+ }
++
++func (hs *clientHandshakeState) handleCertificateRequest(certReq *certificateRequestMsg, credential *Credential) error {
++	c := hs.c
++	if expected := c.config.Bugs.ExpectPeerSignatureAlgorithmPreferences; expected != nil {
++		if !slices.Equal(expected, certReq.signatureAlgorithms) {
++			return fmt.Errorf("tls: server offered signature algorithms %v, but expected %v", certReq.signatureAlgorithms, expected)
++		}
++	}
++	if credential != nil && c.config.Bugs.IgnorePeerSignatureAlgorithmPreferences {
++		certReq.signatureAlgorithms = credential.signatureAlgorithms()
++	}
++	return nil
++}
+diff --git a/ssl/test/runner/handshake_server.go b/ssl/test/runner/handshake_server.go
+index c4ef197a7..66209af18 100644
+--- a/ssl/test/runner/handshake_server.go
++++ b/ssl/test/runner/handshake_server.go
+@@ -453,6 +453,12 @@ func (hs *serverHandshakeState) readClientHello() error {
+ 		}
+ 	}
+ 
++	if expected := c.config.Bugs.ExpectPeerSignatureAlgorithmPreferences; expected != nil {
++		if !slices.Equal(expected, hs.clientHello.signatureAlgorithms) {
++			return fmt.Errorf("tls: client offered signature algorithms %v, but expected %v", hs.clientHello.signatureAlgorithms, expected)
++		}
++	}
++
+ 	applyBugsToClientHello(hs.clientHello, config)
+ 
+ 	return nil
+diff --git a/ssl/test/runner/signature_algorithm_tests.go b/ssl/test/runner/signature_algorithm_tests.go
+index bb93eb47d..08e27a345 100644
+--- a/ssl/test/runner/signature_algorithm_tests.go
++++ b/ssl/test/runner/signature_algorithm_tests.go
+@@ -998,6 +998,50 @@ func addSignatureAlgorithmTests() {
+ 		expectedError:      ":WRONG_SIGNATURE_TYPE:",
+ 	})
+ 
++	// Test that ML-DSA is not advertised by clients below TLS 1.3, even
++	// when explicitly configured.
++	testCases = append(testCases, testCase{
++		testType: clientTest,
++		name:     "VerifyPreferences-MLDSANotAdvertised-TLS12",
++		config: Config{
++			Credential: &rsaCertificate,
++			Bugs: ProtocolBugs{
++				ExpectPeerSignatureAlgorithmPreferences: []signatureAlgorithm{signatureRSAPSSWithSHA256},
++			},
++		},
++		flags: []string{
++			// The client sends ClientHello before it learns the negotiated
++			// version, so filtering out ML-DSA depends on the shim's max
++			// version.
++			"-max-version", strconv.Itoa(VersionTLS12),
++			"-verify-prefs", strconv.Itoa(int(signatureMLDSA44)),
++			"-verify-prefs", strconv.Itoa(int(signatureRSAPSSWithSHA256)),
++		},
++	})
++
++	// Test that ML-DSA is not offered by a server in a CertificateVerify
++	// when explicitly configured with TLS 1.2.
++	testCases = append(testCases, testCase{
++		testType: serverTest,
++		name:     "VerifyPreferences-MLDSANotAdvertised-ClientAuth-TLS12",
++		config: Config{
++			// The server sends CertificateVerify after it negotiates a
++			// version, so filtering out ML-DSA should happen even if the
++			// shim supported TLS 1.3.
++			MaxVersion: VersionTLS12,
++			Credential: &rsaCertificate,
++			Bugs: ProtocolBugs{
++				ExpectPeerSignatureAlgorithmPreferences: []signatureAlgorithm{signatureRSAPSSWithSHA256},
++			},
++		},
++		shimCertificate: &rsaCertificate,
++		flags: []string{
++			"-verify-prefs", strconv.Itoa(int(signatureMLDSA44)),
++			"-verify-prefs", strconv.Itoa(int(signatureRSAPSSWithSHA256)),
++			"-require-any-client-certificate",
++		},
++	})
++
+ 	// Test that configuring verify preferences changes what the client
+ 	// advertises.
+ 	testCases = append(testCases, testCase{
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Wu <pwu@cloudflare.com>
+Date: Tue, 27 Oct 2026 16:14:58 +0100
+Subject: [PATCH] Enable ML-DSA for TLS clients by default
+
+Servers already support ML-DSA by default, enable it in clients as well.
+This also enables verification of ML-DSA mTLS certs for servers.
+
+Change-Id: I7ea112e7a80e886bdb1a0e8f6871dbb67eea536b
+---
+ ssl/extensions.cc                            | 5 +++++
+ ssl/test/runner/signature_algorithm_tests.go | 2 +-
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/ssl/extensions.cc b/ssl/extensions.cc
+index 8426f22ac..0f1a84017 100644
+--- a/ssl/extensions.cc
++++ b/ssl/extensions.cc
+@@ -297,6 +297,11 @@ bool tls1_check_group_id(const SSL_HANDSHAKE *hs, uint16_t group_id) {
+ // kVerifySignatureAlgorithms is the default list of accepted signature
+ // algorithms for verifying.
+ static const uint16_t kVerifySignatureAlgorithms[] = {
++    // CF: prefer PQ ML-DSA over others by default.
++    SSL_SIGN_ML_DSA_44,
++    SSL_SIGN_ML_DSA_65,
++    SSL_SIGN_ML_DSA_87,
++
+     // List our preferred algorithms first.
+     SSL_SIGN_ECDSA_SECP256R1_SHA256,
+     SSL_SIGN_RSA_PSS_RSAE_SHA256,
+diff --git a/ssl/test/runner/signature_algorithm_tests.go b/ssl/test/runner/signature_algorithm_tests.go
+index 08e27a345..56d13f1d0 100644
+--- a/ssl/test/runner/signature_algorithm_tests.go
++++ b/ssl/test/runner/signature_algorithm_tests.go
+@@ -124,7 +124,7 @@ func addSignatureAlgorithmTests() {
+ 
+ 				// By default, BoringSSL does not accept these algorithms.
+ 				verifyDefault := !shouldFail
+-				if alg.id == signatureECDSAWithSHA1 || alg.id == signatureECDSAWithP521AndSHA512 || alg.id == signatureEd25519 || isTLS13PKCS1 || isMLDSA {
++				if alg.id == signatureECDSAWithSHA1 || alg.id == signatureECDSAWithP521AndSHA512 || alg.id == signatureEd25519 || isTLS13PKCS1 {
+ 					verifyDefault = false
+ 				}
+ 
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Wu <pwu@cloudflare.com>
+Date: Tue, 27 Oct 2026 22:01:23 +0100
+Subject: [PATCH] Enable ML-DSA for FIPS compliance policies
+
+Keep ML-DSA enabled with fips202205 and fips202609 compliance policies.
+We already extended the fips202205 profile with X25519MLKEM768 support
+("Add additional post-quantum key agreement"), and now add ML-DSA.
+---
+ ssl/ssl_lib.cc                             | 10 ++++++++++
+ ssl/test/runner/compliance_policy_tests.go |  4 ++++
+ 2 files changed, 14 insertions(+)
+
+diff --git a/ssl/ssl_lib.cc b/ssl/ssl_lib.cc
+index b09363e37..78b8778e1 100644
+--- a/ssl/ssl_lib.cc
++++ b/ssl/ssl_lib.cc
+@@ -3586,6 +3586,11 @@ static const uint16_t kGroups[] = {
+     SSL_GROUP_SECP256R1, SSL_GROUP_SECP384R1};
+ 
+ static const uint16_t kSigAlgs[] = {
++    // CF: prefer PQ ML-DSA over others.
++    SSL_SIGN_ML_DSA_44,
++    SSL_SIGN_ML_DSA_65,
++    SSL_SIGN_ML_DSA_87,
++
+     SSL_SIGN_RSA_PKCS1_SHA256,
+     SSL_SIGN_RSA_PKCS1_SHA384,
+     SSL_SIGN_RSA_PKCS1_SHA512,
+@@ -3673,6 +3678,11 @@ static const uint32_t kGroupsFlags[] = {
+ static const uint32_t kOptions = SSL_OP_CIPHER_SERVER_PREFERENCE;
+ 
+ static const uint16_t kSigAlgs[] = {
++    // CF: prefer PQ ML-DSA over others.
++    SSL_SIGN_ML_DSA_44,
++    SSL_SIGN_ML_DSA_65,
++    SSL_SIGN_ML_DSA_87,
++
+     SSL_SIGN_RSA_PKCS1_SHA256,
+     SSL_SIGN_RSA_PKCS1_SHA384,
+     SSL_SIGN_RSA_PKCS1_SHA512,
+diff --git a/ssl/test/runner/compliance_policy_tests.go b/ssl/test/runner/compliance_policy_tests.go
+index 269fbcca6..64b3c50b9 100644
+--- a/ssl/test/runner/compliance_policy_tests.go
++++ b/ssl/test/runner/compliance_policy_tests.go
+@@ -304,6 +304,10 @@ func addCompliancePolicyTests() {
+ 				signatureRSAPSSWithSHA384,
+ 				signatureRSAPSSWithSHA512:
+ 				isFIPSSigAlg = true
++			case signatureMLDSA44,
++				signatureMLDSA65,
++				signatureMLDSA87:
++				isFIPSSigAlg = true
+ 			}
+ 
+ 			var isWPASigAlg bool
