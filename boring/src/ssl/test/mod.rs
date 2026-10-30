@@ -8,6 +8,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
 
+use crate::asn1::Asn1StringRef;
 use crate::error::ErrorStack;
 use crate::hash::MessageDigest;
 use crate::pkey::PKey;
@@ -39,6 +40,41 @@ static ROOT_CERT: &[u8] = include_bytes!("../../../test/root-ca.pem");
 static CERT: &[u8] = include_bytes!("../../../test/cert.pem");
 static KEY: &[u8] = include_bytes!("../../../test/key.pem");
 const TEST_CERT_DIGEST: &str = "585e3a58acfd3b4e5e2825659407244ddd93539c";
+
+fn malformed_certificate_der() -> Vec<u8> {
+    const MALFORMED_TIME: &[u8] = b"250231000000Z";
+
+    let cert = X509::from_pem(CERT).unwrap();
+    let time: &Asn1StringRef = cert.not_before().as_ref();
+    let original = time.as_slice();
+    assert_eq!(original.len(), MALFORMED_TIME.len());
+
+    let mut der = cert.to_der().unwrap();
+    let offset = der
+        .windows(original.len())
+        .position(|window| window == original)
+        .unwrap();
+    der[offset..offset + MALFORMED_TIME.len()].copy_from_slice(MALFORMED_TIME);
+    assert!(X509::from_der(&der).is_err());
+
+    der
+}
+
+#[test]
+fn set_context_certificate_der_unchecked() {
+    let mut context = SslContext::builder(SslMethod::tls()).unwrap();
+    context
+        .set_certificate_der_unchecked(&malformed_certificate_der())
+        .unwrap();
+}
+
+#[test]
+fn set_certificate_der_unchecked() {
+    let context = SslContext::builder(SslMethod::tls()).unwrap().build();
+    let mut ssl = Ssl::new(&context).unwrap();
+    ssl.set_certificate_der_unchecked(&malformed_certificate_der())
+        .unwrap();
+}
 
 #[test]
 fn get_ctx_options() {
