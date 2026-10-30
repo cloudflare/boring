@@ -5,10 +5,6 @@ permissions: {}
 on:
   workflow_dispatch:
     inputs:
-      pr_number:
-        description: "Merged release PR number (write access required to run)"
-        required: true
-        type: number
       expected_version:
         description: "Version to release, without the v prefix"
         required: true
@@ -23,461 +19,64 @@ defaults:
     shell: bash
 
 jobs:
-  validate:
-    name: Validate release
+  publish:
+    name: Publish
     runs-on: ubuntu-latest
+    # Each crate's trusted publisher must name this workflow and environment.
+    environment: crates-io
     permissions:
       contents: read
-      pull-requests: read
-    outputs:
-      merge_commit_sha: ${{ steps.release-pr.outputs.merge_commit_sha }}
-      is_prerelease: ${{ steps.release-pr.outputs.is_prerelease }}
-    env:
-      EXPECTED_VERSION: ${{ inputs.expected_version }}
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: refs/heads/master
-          fetch-depth: 0
           submodules: "recursive"
           persist-credentials: false
 
-      - name: Verify release PR
-        id: release-pr
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+
+      - name: Verify release version
         env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ inputs.pr_number }}
           EXPECTED_VERSION: ${{ inputs.expected_version }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [[ "${GITHUB_REF}" != "refs/heads/master" ]]; then
             echo "Release workflow must be run from the master branch, not ${GITHUB_REF}." >&2
             exit 1
           fi
-
-          if [[ ! "${PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]; then
-            echo "PR number must be a positive integer." >&2
-            exit 1
-          fi
-
-          if [[ ! "${EXPECTED_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
-            echo "Expected version must be a valid semver version." >&2
-            exit 1
-          fi
-          version_without_build="${EXPECTED_VERSION%%+*}"
-          is_prerelease=false
-          if [[ "${version_without_build}" == *-* ]]; then
-            is_prerelease=true
-          fi
-
-          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
-          state="$(jq -r '.state' <<<"${pr}")"
-          merged_at="$(jq -r '.merged_at // empty' <<<"${pr}")"
-          base_ref="$(jq -r '.base.ref' <<<"${pr}")"
-          merge_commit_sha="$(jq -r '.merge_commit_sha // empty' <<<"${pr}")"
-
-          if [[ "${state}" != "closed" || -z "${merged_at}" ]]; then
-            echo "PR #${PR_NUMBER} is not merged." >&2
-            exit 1
-          fi
-          if [[ "${base_ref}" != "master" ]]; then
-            echo "PR #${PR_NUMBER} targets ${base_ref}, not master." >&2
-            exit 1
-          fi
-          if [[ -z "${merge_commit_sha}" ]]; then
-            echo "PR #${PR_NUMBER} has no recorded merge commit." >&2
-            exit 1
-          fi
-
-          pr_commits="$(gh api \
-            "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits?per_page=2")"
-          commit_count="$(jq 'length' <<<"${pr_commits}")"
-          if [[ "${commit_count}" != "1" ]]; then
-            echo "PR #${PR_NUMBER} must contain exactly one commit; found ${commit_count}." >&2
-            exit 1
-          fi
-
-          git fetch --no-tags origin +refs/heads/master:refs/remotes/origin/master "${merge_commit_sha}"
-          master_sha="$(git rev-parse refs/remotes/origin/master)"
-          if ! git merge-base --is-ancestor "${merge_commit_sha}" "${master_sha}"; then
-            echo "PR #${PR_NUMBER}'s merge commit is not reachable from master." >&2
-            exit 1
-          fi
-
-          merged_parent_sha="$(git rev-parse "${merge_commit_sha}^1")"
-          if [[ -z "${merged_parent_sha}" ]]; then
-            echo "Could not determine the parent of the merged release commit." >&2
-            exit 1
-          fi
-
-          version_from_cargo() {
-            sed -n '/^\[workspace\.package\]$/,/^\[/ {
-              s/^version = "\([^"]*\)"$/\1/p
-            }' <<<"${1}"
-          }
-
-          base_cargo="$(git show "${merged_parent_sha}:Cargo.toml")"
-          pr_cargo="$(git show "${merge_commit_sha}:Cargo.toml")"
-          base_version="$(version_from_cargo "${base_cargo}")"
-          pr_version="$(version_from_cargo "${pr_cargo}")"
-
-          if [[ -z "${base_version}" || -z "${pr_version}" || "${base_version}" == "${pr_version}" ]]; then
-            echo "PR #${PR_NUMBER} does not change the workspace version." >&2
-            exit 1
-          fi
-          if [[ "${pr_version}" != "${EXPECTED_VERSION}" ]]; then
-            echo "PR #${PR_NUMBER} changes the version to ${pr_version}, not ${EXPECTED_VERSION}." >&2
-            exit 1
-          fi
-          if ! git diff --unified=0 "${merged_parent_sha}" "${merge_commit_sha}" -- Cargo.toml \
-            | grep -Eq '^[+-]version = "'; then
-            echo "PR #${PR_NUMBER} does not contain a Cargo.toml version change." >&2
-            exit 1
-          fi
-          echo "MERGE_COMMIT_SHA=${merge_commit_sha}" >>"${GITHUB_ENV}"
-          echo "merge_commit_sha=${merge_commit_sha}" >>"${GITHUB_OUTPUT}"
-          echo "is_prerelease=${is_prerelease}" >>"${GITHUB_OUTPUT}"
-
-      - name: Verify master and crate versions
-        env:
-          EXPECTED_VERSION: ${{ inputs.expected_version }}
-        run: |
-          git fetch --no-tags origin +refs/heads/master:refs/remotes/origin/master "${MERGE_COMMIT_SHA}"
-          master_sha="$(git rev-parse refs/remotes/origin/master)"
-          if ! git merge-base --is-ancestor "${MERGE_COMMIT_SHA}" "${master_sha}"; then
-            echo "The merged release commit is no longer reachable from master." >&2
-            exit 1
-          fi
-          git checkout --detach "${MERGE_COMMIT_SHA}"
-          git submodule update --init --recursive
-
-          workspace_version="$(sed -n '/^\[workspace\.package\]$/,/^\[/ {
-            s/^version = "\([^"]*\)"$/\1/p
-          }' Cargo.toml)"
-          if [[ "${workspace_version}" != "${EXPECTED_VERSION}" ]]; then
-            echo "Workspace version ${workspace_version} does not match ${EXPECTED_VERSION}." >&2
-            exit 1
-          fi
-
-          metadata="$(mktemp)"
-          trap 'rm -f "${metadata}"' EXIT
-          cargo metadata --no-deps --format-version 1 >"${metadata}"
-
+          metadata="$(cargo metadata --no-deps --format-version 1)"
           for package in boring-sys boring tokio-boring hyper-boring; do
-            package_version="$(jq -r --arg package "${package}" \
-              '[.packages[] | select(.name == $package) | .version] | if length == 1 then .[0] else empty end' \
-              "${metadata}")"
-            if [[ "${package_version}" != "${EXPECTED_VERSION}" ]]; then
-              echo "${package} has version ${package_version}, expected ${EXPECTED_VERSION}." >&2
+            version="$(jq -r --arg package "${package}" \
+              '.packages[] | select(.name == $package) | .version' <<<"${metadata}")"
+            if [[ "${version}" != "${EXPECTED_VERSION}" ]]; then
+              echo "${package} has version ${version}, expected ${EXPECTED_VERSION}." >&2
               exit 1
             fi
           done
-
-          release_tag="v${EXPECTED_VERSION}"
-          existing_tag_sha="$(git ls-remote origin "refs/tags/${release_tag}^{}" | awk 'NR == 1 { print $1 }')"
-          if [[ -z "${existing_tag_sha}" ]]; then
-            existing_tag_sha="$(git ls-remote origin "refs/tags/${release_tag}" | awk 'NR == 1 { print $1 }')"
-          fi
-          if [[ -n "${existing_tag_sha}" && "${existing_tag_sha}" != "${MERGE_COMMIT_SHA}" ]]; then
-            echo "Tag ${release_tag} already exists at ${existing_tag_sha}, not ${MERGE_COMMIT_SHA}." >&2
+          head_sha="$(git rev-parse HEAD)"
+          if ! tag_sha="$(gh api "repos/${GITHUB_REPOSITORY}/commits/v${EXPECTED_VERSION}" --jq .sha)"; then
+            echo "Could not resolve release tag v${EXPECTED_VERSION}." >&2
             exit 1
           fi
-
-  publish:
-    name: Publish
-    needs: validate
-    runs-on: ubuntu-latest
-    # The crates-io environment policy permits master; this workflow creates the v* tag before publishing.
-    environment: crates-io
-    permissions:
-      contents: write
-      id-token: write
-    env:
-      MERGE_COMMIT_SHA: ${{ needs.validate.outputs.merge_commit_sha }}
-      EXPECTED_VERSION: ${{ inputs.expected_version }}
-      IS_PRERELEASE: ${{ needs.validate.outputs.is_prerelease }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          ref: ${{ needs.validate.outputs.merge_commit_sha }}
-          fetch-depth: 0
-          submodules: "recursive"
-          persist-credentials: false
-
-      - name: Verify release commit is still on master
-        run: |
-          git fetch --no-tags origin +refs/heads/master:refs/remotes/origin/master "${MERGE_COMMIT_SHA}"
-          master_sha="$(git rev-parse refs/remotes/origin/master)"
-          if ! git merge-base --is-ancestor "${MERGE_COMMIT_SHA}" "${master_sha}"; then
-            echo "The merged release commit is no longer reachable from master." >&2
+          if [[ "${tag_sha}" != "${head_sha}" ]]; then
+            echo "Tag v${EXPECTED_VERSION} points at ${tag_sha}, not the checked-out commit ${head_sha}." >&2
             exit 1
           fi
-
-      - name: Prepare release tag and GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ inputs.pr_number }}
-        run: |
-          release_tag="v${EXPECTED_VERSION}"
-          git fetch --no-tags origin +refs/heads/master:refs/remotes/origin/master "${MERGE_COMMIT_SHA}"
-          master_sha="$(git rev-parse refs/remotes/origin/master)"
-          if ! git merge-base --is-ancestor "${MERGE_COMMIT_SHA}" "${master_sha}"; then
-            echo "The merged release commit is no longer reachable from master." >&2
-            exit 1
-          fi
-
-          existing_tag_sha="$(git ls-remote origin "refs/tags/${release_tag}^{}" | awk 'NR == 1 { print $1 }')"
-          if [[ -z "${existing_tag_sha}" ]]; then
-            existing_tag_sha="$(git ls-remote origin "refs/tags/${release_tag}" | awk 'NR == 1 { print $1 }')"
-          fi
-          if [[ -n "${existing_tag_sha}" && "${existing_tag_sha}" != "${MERGE_COMMIT_SHA}" ]]; then
-            echo "Tag ${release_tag} already exists at ${existing_tag_sha}, not ${MERGE_COMMIT_SHA}." >&2
-            exit 1
-          fi
-
-          if [[ -z "${existing_tag_sha}" ]]; then
-            tag_object_sha="$(gh api --method POST \
-              "repos/${GITHUB_REPOSITORY}/git/tags" \
-              -f "tag=${release_tag}" \
-              -f "message=Release ${EXPECTED_VERSION}" \
-              -f "object=${MERGE_COMMIT_SHA}" \
-              -f "type=commit" \
-              --jq '.sha')"
-            gh api --method POST \
-              "repos/${GITHUB_REPOSITORY}/git/refs" \
-              -f "ref=refs/tags/${release_tag}" \
-              -f "sha=${tag_object_sha}" >/dev/null
-          fi
-
-
-      - name: Prepare publishing helpers
-        run: |
-          cat >"${RUNNER_TEMP}/publish-crate.sh" <<'SCRIPT'
-          #!/usr/bin/env bash
-          set -euo pipefail
-
-          package="${1}"
-
-          crate_status() {
-            curl --silent --show-error --retry 3 --retry-all-errors \
-              --output /dev/null --write-out '%{http_code}' \
-              "https://crates.io/api/v1/crates/${1}/${EXPECTED_VERSION}"
-          }
-
-          crate_info() {
-            curl --silent --show-error --retry 3 --retry-all-errors \
-              "https://crates.io/api/v1/crates/${1}/${EXPECTED_VERSION}"
-          }
-
-          package_checksum() {
-            local package="${1}" archive
-            # --no-verify packages without running build scripts while the registry token is present.
-            cargo package --no-verify -p "${package}" >/dev/null
-            archive="target/package/${package}-${EXPECTED_VERSION}.crate"
-            if [[ ! -f "${archive}" ]]; then
-              echo "Cargo did not create ${archive}." >&2
-              return 1
-            fi
-            sha256sum "${archive}" | awk '{print $1}'
-          }
-
-          wait_for_crate() {
-            local delay status
-            for delay in 0 5 10 20 40; do
-              status="$(crate_status "${1}")"
-              if [[ "${status}" == "200" ]]; then
-                return 0
-              fi
-              sleep "${delay}"
-            done
-            echo "${1} ${EXPECTED_VERSION} did not appear in the crates.io API." >&2
-            return 1
-          }
-
-          verify_checksum() {
-            local package="${1}" expected_checksum="${2}" info actual_checksum
-            info="$(crate_info "${package}")"
-            if ! jq -e '.version.yanked == false' <<<"${info}" >/dev/null; then
-              echo "${package} ${EXPECTED_VERSION} is yanked or has no yanked status." >&2
-              return 1
-            fi
-            actual_checksum="$(jq -r '.version.checksum // empty' <<<"${info}")"
-            if [[ -z "${actual_checksum}" || "${actual_checksum}" != "${expected_checksum}" ]]; then
-              echo "Checksum mismatch for ${package} ${EXPECTED_VERSION}." >&2
-              return 1
-            fi
-          }
-
-          crate_index_path() {
-            local name="${1}"
-            case "${#name}" in
-              1) printf '1/%s' "${name}" ;;
-              2) printf '2/%s' "${name}" ;;
-              3) printf '3/%s/%s' "${name:0:1}" "${name}" ;;
-              *) printf '%s/%s/%s' "${name:0:2}" "${name:2:2}" "${name}" ;;
-            esac
-          }
-
-          wait_for_index() {
-            local delay index_path
-            index_path="$(crate_index_path "${1}")"
-            for delay in 0 5 10 20 40; do
-              if curl --silent --show-error --retry 3 --retry-all-errors \
-                "https://index.crates.io/${index_path}" \
-                | jq -s -e --arg version "${EXPECTED_VERSION}" "any(.[]; .vers == \$version)" >/dev/null; then
-                return 0
-              fi
-              sleep "${delay}"
-            done
-            echo "${1} ${EXPECTED_VERSION} did not appear in the crates.io index." >&2
-            return 1
-          }
-
-          case "$(crate_status "${package}")" in
-            200)
-              expected_checksum="$(package_checksum "${package}")"
-              verify_checksum "${package}" "${expected_checksum}"
-              wait_for_index "${package}"
-              ;;
-            404)
-              expected_checksum="$(package_checksum "${package}")"
-              cargo publish --no-verify -p "${package}"
-              wait_for_crate "${package}"
-              verify_checksum "${package}" "${expected_checksum}"
-              ;;
-            *)
-              echo "Unexpected crates.io response for ${package} ${EXPECTED_VERSION}." >&2
-              exit 1
-              ;;
-          esac
-          SCRIPT
-          chmod +x "${RUNNER_TEMP}/publish-crate.sh"
-
-          cat >"${RUNNER_TEMP}/update-release.sh" <<'SCRIPT'
-          #!/usr/bin/env bash
-          set -euo pipefail
-
-          package="${1}"
-          body="$(gh api "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" --jq .body)"
-          link="https://crates.io/crates/${package}/${EXPECTED_VERSION}"
-          line="- ${package}: [published](${link})"
-          if grep -Eq "^- ${package}:" <<<"${body}"; then
-            body="$(printf '%s\n' "${body}" | sed "s|^- ${package}:.*$|${line}|")"
-          else
-            body="${body}"$'\n'"${line}"
-          fi
-          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
-            -f "body=${body}" >/dev/null
-          SCRIPT
-          chmod +x "${RUNNER_TEMP}/update-release.sh"
 
       - uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
         id: auth
 
-      - name: Publish boring-sys
+      # Dependency order: cargo waits for each version to reach the index.
+      - name: Publish crates
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
-        run: '"${RUNNER_TEMP}/publish-crate.sh" boring-sys'
-
-      - name: Create or publish GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ inputs.pr_number }}
         run: |
-          release_tag="v${EXPECTED_VERSION}"
-          releases="$(gh api --paginate \
-            "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
-            --jq '.[]')"
-          release_json="$(jq -s --arg tag "${release_tag}" \
-            'map(select(.tag_name == $tag)) | if length == 0 then null elif length == 1 then .[0] else error("multiple releases for tag") end' \
-            <<<"${releases}")"
-
-          if [[ "${release_json}" != "null" ]]; then
-            release_id="$(jq -r '.id' <<<"${release_json}")"
-            body="$(jq -r '.body // ""' <<<"${release_json}")"
-            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
-              -F draft=false \
-              -F "prerelease=${IS_PRERELEASE}" \
-              -f "make_latest=false" \
-              -f "body=${body}" >/dev/null
-          else
-            release_body="$(printf 'Release %s\n\nPR: #%s\nCommit: \x60%s\x60\n\n- boring-sys: [published](https://crates.io/crates/boring-sys/%s)\n- boring: publishing\n- tokio-boring: publishing\n- hyper-boring: publishing\n\nStatus: Incomplete\n' \
-              "${release_tag}" "${PR_NUMBER}" "${MERGE_COMMIT_SHA}" "${EXPECTED_VERSION}")"
-            release_id="$(gh api --method POST \
-              "repos/${GITHUB_REPOSITORY}/releases" \
-              -f "tag_name=${release_tag}" \
-              -f "target_commitish=${MERGE_COMMIT_SHA}" \
-              -f "name=Release ${release_tag}" \
-              -f "body=${release_body}" \
-              -F draft=false \
-              -F "prerelease=${IS_PRERELEASE}" \
-              -f "make_latest=false" \
-              --jq '.id')"
-          fi
-          echo "RELEASE_ID=${release_id}" >>"${GITHUB_ENV}"
-
-      - name: Mark boring-sys published
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: '"${RUNNER_TEMP}/update-release.sh" boring-sys'
-
-      - name: Publish boring
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
-        run: '"${RUNNER_TEMP}/publish-crate.sh" boring'
-
-      - name: Mark boring published
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: '"${RUNNER_TEMP}/update-release.sh" boring'
-
-      - name: Publish tokio-boring
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
-        run: '"${RUNNER_TEMP}/publish-crate.sh" tokio-boring'
-
-      - name: Mark tokio-boring published
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: '"${RUNNER_TEMP}/update-release.sh" tokio-boring'
-
-      - name: Publish hyper-boring
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
-        run: '"${RUNNER_TEMP}/publish-crate.sh" hyper-boring'
-
-      - name: Mark hyper-boring published
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: '"${RUNNER_TEMP}/update-release.sh" hyper-boring'
-
-      - name: Finalize GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          body="$(gh api "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" --jq .body)"
-          body="$(printf '%s\n' "${body}" | sed -E 's/^Status: (Incomplete|Publishing)$/Status: Published/')"
-          make_latest=false
-          if [[ "${IS_PRERELEASE}" == "false" ]]; then
-            make_latest=true
-            latest_error="${RUNNER_TEMP}/latest-release-error"
-            if ! latest_release="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" 2>"${latest_error}")"; then
-              if ! grep -q 'HTTP 404' "${latest_error}"; then
-                cat "${latest_error}" >&2
+          for package in boring-sys boring tokio-boring hyper-boring; do
+            if ! output="$(cargo publish --no-verify -p "${package}" 2>&1)"; then
+              # A published version is immutable: cargo's duplicate-upload error means done.
+              if ! grep -qE "\`${package}@[^\`]+\` (is already uploaded|already exists on crates.io index)" <<<"${output}"; then
+                printf '%s\n' "${output}" >&2
                 exit 1
               fi
-              latest_release=""
             fi
-            if [[ -n "${latest_release}" ]]; then
-              latest_version="$(jq -r '.tag_name' <<<"${latest_release}")"
-              latest_version="${latest_version#v}"
-              highest_version="$(printf '%s\n%s\n' "${EXPECTED_VERSION}" "${latest_version}" | sort -V | tail -n 1)"
-              if [[ "${latest_version}" == "${highest_version}" && "${latest_version}" != "${EXPECTED_VERSION}" ]]; then
-                make_latest=legacy
-              fi
-            fi
-          fi
-          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
-            -F draft=false \
-            -F "prerelease=${IS_PRERELEASE}" \
-            -f "make_latest=${make_latest}" \
-            -f "body=${body}" >/dev/null
+          done
