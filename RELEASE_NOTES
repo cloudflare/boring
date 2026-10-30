@@ -1,3 +1,12 @@
+5.4.0
+- 2026-10-30 Add unchecked DER certificate setters
+- 2026-10-28 Update to boringssl 0.20261020.0 with ML-DSA by default
+- 2026-10-23 Add Asn1IntegerRef::to_der_contents
+- 2026-10-19 Make crates.io publishing a guarded manual release (#541)
+- 2026-03-27 Constants for rust-openssl compat
+- 2026-03-27 `ASN1_INTEGER_*`, `BN_*` functions
+- 2026-10-14 Add crates.io trusted publishing (#535)
+
 5.3.0
 - 2026-10-14 Add action-aware certificate selection callbacks
 - 2026-10-14 Back-compat shims for v4
