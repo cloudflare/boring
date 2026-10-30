@@ -1475,6 +1475,27 @@ impl SslContextBuilder {
         unsafe { cvt(ffi::SSL_CTX_use_certificate(self.as_ptr(), cert.as_ptr())) }
     }
 
+    /// Sets the leaf certificate from its DER encoding without fully parsing it.
+    ///
+    /// BoringSSL copies `der` and performs only the checks needed to extract a
+    /// supported public key. Other malformed certificate fields may be accepted.
+    ///
+    /// # Warning
+    ///
+    /// Callers should normally parse the DER with [`X509::from_der`] and use
+    /// [`Self::set_certificate`]. This method is intended for cases that must
+    /// preserve certificate DER which cannot be represented by an [`X509Ref`].
+    #[corresponds(SSL_CTX_use_certificate_ASN1)]
+    pub fn set_certificate_der_unchecked(&mut self, der: &[u8]) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt(ffi::SSL_CTX_use_certificate_ASN1(
+                self.as_ptr(),
+                der.len(),
+                der.as_ptr(),
+            ))
+        }
+    }
+
     /// Appends a certificate to the certificate chain.
     ///
     /// This chain should contain all certificates necessary to go from the certificate specified by
@@ -3874,6 +3895,27 @@ impl SslRef {
         }
 
         Ok(())
+    }
+
+    /// Sets the leaf certificate from its DER encoding without fully parsing it.
+    ///
+    /// BoringSSL copies `der` and performs only the checks needed to extract a
+    /// supported public key. Other malformed certificate fields may be accepted.
+    ///
+    /// # Warning
+    ///
+    /// Callers should normally parse the DER with [`X509::from_der`] and use
+    /// [`Self::set_certificate`]. This method is intended for cases that must
+    /// preserve certificate DER which cannot be represented by an [`X509Ref`].
+    #[corresponds(SSL_use_certificate_ASN1)]
+    pub fn set_certificate_der_unchecked(&mut self, der: &[u8]) -> Result<(), ErrorStack> {
+        unsafe {
+            cvt(ffi::SSL_use_certificate_ASN1(
+                self.as_ptr(),
+                der.as_ptr(),
+                der.len(),
+            ))
+        }
     }
 
     /// Sets the list of CA names sent to the client.

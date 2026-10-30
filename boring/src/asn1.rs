@@ -252,6 +252,14 @@ impl Asn1TimeRef {
     }
 }
 
+impl AsRef<Asn1StringRef> for Asn1TimeRef {
+    fn as_ref(&self) -> &Asn1StringRef {
+        // SAFETY: `ASN1_TIME` is a typedef of `ASN1_STRING`, and the returned
+        // reference is bounded by the lifetime of `self`.
+        unsafe { Asn1StringRef::from_ptr(self.as_ptr().cast()) }
+    }
+}
+
 impl PartialEq for Asn1TimeRef {
     fn eq(&self, other: &Asn1TimeRef) -> bool {
         self.diff(other)
@@ -828,6 +836,15 @@ mod tests {
     fn time_from_unix() {
         let t = Asn1Time::from_unix(0).unwrap();
         assert_eq!("Jan  1 00:00:00 1970 GMT", t.to_string());
+    }
+
+    #[test]
+    fn time_as_asn1_string() {
+        let time = Asn1Time::from_str("99991231235959Z").unwrap();
+        let time_ref: &Asn1TimeRef = time.as_ref();
+        let string_ref: &Asn1StringRef = time_ref.as_ref();
+
+        assert_eq!(string_ref.as_slice(), b"99991231235959Z");
     }
 
     #[test]
