@@ -57,3 +57,31 @@ async fn handshake_error() {
 
     future::join(server, client).await;
 }
+
+#[tokio::test]
+async fn first_read_at_excludes_wait_before_client_hello() {
+    const DELAY: std::time::Duration = std::time::Duration::from_millis(200);
+
+    let (stream, addr) = create_server(|_| ());
+
+    let server = async {
+        let started_at = tokio::time::Instant::now();
+        let stream = stream.await.unwrap();
+        let first_read = stream.first_read_at().expect("ClientHello was read");
+
+        assert!(first_read.duration_since(started_at) >= DELAY);
+    };
+
+    let client = async {
+        let config = common::create_connector(|b| b.set_ca_file("tests/cert.pem"))
+            .configure()
+            .unwrap();
+        let tcp = TcpStream::connect(&addr).await.unwrap();
+        tokio::time::sleep(DELAY).await;
+        tokio_boring::connect(config, "localhost", tcp)
+            .await
+            .unwrap();
+    };
+
+    future::join(server, client).await;
+}

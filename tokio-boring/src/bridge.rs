@@ -4,10 +4,12 @@ use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio::time::Instant;
 
 pub(crate) struct AsyncStreamBridge<S> {
     pub(crate) stream: S,
     waker: Option<Waker>,
+    pub(crate) first_read: Option<Instant>,
 }
 
 impl<S> AsyncStreamBridge<S> {
@@ -18,6 +20,7 @@ impl<S> AsyncStreamBridge<S> {
         Self {
             stream,
             waker: None,
+            first_read: None,
         }
     }
 
@@ -45,14 +48,20 @@ where
     S: AsyncRead + Unpin,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.with_context(|ctx, stream| {
+        let n = self.with_context(|ctx, stream| {
             let mut buf = ReadBuf::new(buf);
 
             match stream.poll_read(ctx, &mut buf)? {
                 Poll::Ready(()) => Ok(buf.filled().len()),
                 Poll::Pending => Err(io::Error::from(io::ErrorKind::WouldBlock)),
             }
-        })
+        })?;
+
+        if n > 0 && self.first_read.is_none() {
+            self.first_read = Some(Instant::now());
+        }
+
+        Ok(n)
     }
 }
 

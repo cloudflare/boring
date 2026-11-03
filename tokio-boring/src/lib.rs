@@ -24,6 +24,7 @@ use std::io::{self, Write};
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio::time::Instant;
 
 mod async_callbacks;
 mod bridge;
@@ -155,6 +156,19 @@ impl<S> SslStream<S> {
     /// Returns a mutable reference to the underlying stream.
     pub fn get_mut(&mut self) -> &mut S {
         &mut self.0.get_mut().stream
+    }
+
+    /// Returns when a read from the underlying stream first returned data, or
+    /// `None` if nothing has been read yet.
+    ///
+    /// For a server this is the first read of the peer's ClientHello, and for
+    /// a client the first read of the ServerHello. This is useful for measuring
+    /// handshake latency without counting time spent waiting for the peer. The
+    /// timestamp is taken when the read completes, so socket buffering and task
+    /// scheduling can put it some time after the bytes actually arrived.
+    #[must_use]
+    pub fn first_read_at(&self) -> Option<Instant> {
+        self.0.get_ref().first_read
     }
 
     fn run_in_context<F, R>(&mut self, ctx: &mut Context<'_>, f: F) -> R
