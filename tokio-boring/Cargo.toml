@@ -32,7 +32,7 @@ fips-precompiled = ["fips"]
 [dependencies]
 boring = { workspace = true, default-features = false }
 boring-sys = { workspace = true, default-features = false }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["time"] }
 
 [dev-dependencies]
 futures = { workspace = true }
