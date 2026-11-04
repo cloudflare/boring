@@ -30,8 +30,10 @@ rpk = ["boring/rpk"]
 fips-precompiled = ["fips"]
 
 [dependencies]
+antidote = { workspace = true }
 boring = { workspace = true, default-features = false }
 boring-sys = { workspace = true, default-features = false }
+linked_hash_set = { workspace = true }
 tokio = { workspace = true, features = ["time"] }
 
 [dev-dependencies]
