@@ -22,11 +22,9 @@ default = ["boring/default", "tokio-boring/default"]
 fips = ["boring/fips", "tokio-boring/fips"]
 
 [dependencies]
-antidote = { workspace = true }
 http = { workspace = true }
 hyper = { workspace = true }
 hyper-util = { workspace = true, features = ["client", "client-legacy"] }
-linked_hash_set = { workspace = true }
 boring = { workspace = true, default-features = false }
 tokio = { workspace = true }
 tokio-boring = { workspace = true, default-features = false  }
