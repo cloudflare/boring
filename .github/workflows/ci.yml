@@ -418,7 +418,9 @@ jobs:
         done
     - name: Configure BoringSSL build
       working-directory: boring-sys/deps/boringssl
-      run: cmake -GNinja -B build -DCMAKE_BUILD_TYPE=Release
+      # GCC on Ubuntu 26.04 reports a false-positive `stringop-overflow` in Keccak's
+      # left_encode. Keep the warning visible without failing BoringSSL's -Werror build.
+      run: cmake -GNinja -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=-Wno-error=stringop-overflow
     - name: Build BoringSSL
       working-directory: boring-sys/deps/boringssl
       run: ninja -C build
