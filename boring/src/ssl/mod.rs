@@ -2900,8 +2900,13 @@ impl Ssl {
         }
     }
 
+    /// Returns the process-wide extra data index associated with `T`.
+    ///
+    /// The index is allocated lazily on first use and reused by subsequent calls for the same
+    /// type. Callers must coordinate all uses of a given `T`, since they share one slot on every
+    /// [`Ssl`].
     // FIXME should return a result?
-    fn cached_ex_index<T>() -> Index<Ssl, T>
+    pub fn cached_ex_index<T>() -> Index<Ssl, T>
     where
         T: 'static + Sync + Send,
     {

@@ -1,24 +1,12 @@
 //! Hyper SSL support via BoringSSL.
 #![warn(missing_docs)]
 
-use crate::cache::SessionKey;
-use boring::error::ErrorStack;
-use boring::ex_data::Index;
-use boring::ssl::Ssl;
 use std::fmt;
-use std::sync::LazyLock;
 use tokio_boring::SslStream;
 
-mod cache;
 mod v1;
 
 pub use self::v1::*;
-
-fn key_index() -> Result<Index<Ssl, SessionKey>, ErrorStack> {
-    static IDX: LazyLock<Result<Index<Ssl, SessionKey>, ErrorStack>> =
-        LazyLock::new(Ssl::new_ex_index);
-    IDX.clone()
-}
 
 /// Settings for [`HttpsLayer`]
 pub struct HttpsLayerSettings {
