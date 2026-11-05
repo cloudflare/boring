@@ -17,18 +17,6 @@ and [Raw Public Key](https://docs.rs/boring/latest/boring/ssl/struct.SslRef.html
  - hyper HTTPS connector: <https://docs.rs/hyper-boring>
  - FFI bindings: <https://docs.rs/boring-sys>
 
-## crates.io releases
-
-A release PR contains exactly one commit that changes the workspace version, with all four published crates resolving to that version. The PR is merged into `master` using the repository's rebase-and-merge strategy, and its post-rebase merge commit must remain reachable from `master` when the release is started.
-
-The release workflow is run from `master` through **Actions → Publish to crates.io** with the merged PR number and expected version, without the `v` prefix. It verifies the PR, merge commit, and crate versions before creating the immutable tag and publishing `boring-sys`. Once the first crate succeeds, it creates or reuses a non-latest GitHub Release and publishes `boring`, `tokio-boring`, and `hyper-boring` in dependency order. The GitHub Release is updated after each crate succeeds with a link to its crates.io version.
-
-The annotated `v<version>` tag is created before publication as the release's immutable anchor. A partially completed release remains a non-latest GitHub Release and can be rerun with the same inputs; already-published crates remain linked in the Release body. After all crates publish successfully, the GitHub Release becomes the latest release. Pushing a tag alone does not publish a release. The `crates-io` environment policy permits `master` and retains its required reviewers.
-
-On a rerun, an existing non-yanked crate version is accepted only when its crates.io checksum matches the archive generated from the release commit. A checksum mismatch stops the release rather than associating an artifact from another source with this release.
-
-Versions with a prerelease component, such as `5.4.0-rc.1`, are marked as GitHub prereleases and never become the repository's Latest release.
-
 # Upgrading from `boring` v4
 
  * First update to boring 4.22 and ensure it builds without any deprecation warnings.
