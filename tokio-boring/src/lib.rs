@@ -27,6 +27,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 mod async_callbacks;
 mod bridge;
+pub mod client;
 
 use self::bridge::AsyncStreamBridge;
 

@@ -8,6 +8,8 @@ use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use std::convert::Infallible;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::{io, iter};
 use tokio::net::TcpListener;
 
@@ -81,7 +83,17 @@ async fn localhost() {
         let _ = writeln!(&file, "{line}");
     });
 
-    let ssl = HttpsConnector::with_connector(connector, ssl).unwrap();
+    let callback_count = Arc::new(AtomicUsize::new(0));
+    let mut ssl = HttpsConnector::with_connector(connector, ssl).unwrap();
+    ssl.set_callback({
+        let callback_count = Arc::clone(&callback_count);
+        move |_, uri| {
+            assert_eq!(uri.host(), Some("foobar.com"));
+            assert_eq!(uri.port_u16(), Some(port));
+            callback_count.fetch_add(1, Ordering::Relaxed);
+            Ok(())
+        }
+    });
     let client = Client::builder(TokioExecutor::new()).build::<_, Empty<Bytes>>(ssl);
 
     for _ in 0..3 {
@@ -93,6 +105,8 @@ async fn localhost() {
         let mut body = BodyStream::new(resp.into_body());
         while body.next().await.transpose().unwrap().is_some() {}
     }
+
+    assert_eq!(callback_count.load(Ordering::Relaxed), 3);
 }
 
 #[tokio::test]

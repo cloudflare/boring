@@ -1,11 +1,6 @@
-use crate::cache::{SessionCache, SessionKey};
-use crate::{key_index, HttpsLayerSettings, MaybeHttpsStream};
-use antidote::Mutex;
+use crate::{HttpsLayerSettings, MaybeHttpsStream};
 use boring::error::ErrorStack;
-use boring::ssl::{
-    ConnectConfiguration, Ssl, SslConnector, SslConnectorBuilder, SslMethod, SslRef,
-    SslSessionCacheMode,
-};
+use boring::ssl::{ConnectConfiguration, SslConnector, SslConnectorBuilder, SslMethod, SslRef};
 use http::uri::Scheme;
 use http::Uri;
 use hyper::rt::{Read, ReadBufCursor, Write};
@@ -14,11 +9,11 @@ use hyper_util::rt::TokioIo;
 use std::error::Error;
 use std::fmt;
 use std::future::Future;
+use std::io;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::task::{Context, Poll};
-use std::{io, net};
 use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_boring::client::{AsTarget, Connector, Target};
 use tower_layer::Layer;
 use tower_service::Service;
 
@@ -68,7 +63,9 @@ where
     where
         F: Fn(&mut ConnectConfiguration, &Uri) -> Result<(), ErrorStack> + 'static + Sync + Send,
     {
-        self.inner.callback = Some(Arc::new(callback));
+        self.inner
+            .ssl
+            .on_config(move |config, target| callback(config, &target.uri));
     }
 
     /// Registers a callback which can customize the `Ssl` of each connection.
@@ -76,7 +73,9 @@ where
     where
         F: Fn(&mut SslRef, &Uri) -> Result<(), ErrorStack> + 'static + Sync + Send,
     {
-        self.inner.ssl_callback = Some(Arc::new(callback));
+        self.inner
+            .ssl
+            .on_ssl(move |ssl, target| callback(ssl, &target.uri));
     }
 }
 
@@ -87,15 +86,32 @@ pub struct HttpsLayer {
 
 #[derive(Clone)]
 struct Inner {
-    ssl: SslConnector,
-    cache: Arc<Mutex<SessionCache>>,
-    callback: Option<Callback>,
-    ssl_callback: Option<SslCallback>,
+    ssl: Connector<HttpTarget>,
 }
 
-type Callback =
-    Arc<dyn Fn(&mut ConnectConfiguration, &Uri) -> Result<(), ErrorStack> + Sync + Send>;
-type SslCallback = Arc<dyn Fn(&mut SslRef, &Uri) -> Result<(), ErrorStack> + Sync + Send>;
+struct HttpTarget {
+    uri: Uri,
+    peer_name: String,
+}
+
+impl HttpTarget {
+    fn try_new(uri: Uri) -> Result<Self, &'static str> {
+        let peer_name = uri.host().ok_or("URI missing host")?.to_owned();
+        Ok(Self { uri, peer_name })
+    }
+}
+
+impl AsTarget for HttpTarget {
+    fn as_target(&self) -> Target<'_> {
+        Target::new(&self.peer_name, self.uri.port_u16().unwrap_or(443))
+    }
+}
+
+fn effective_session_cache_capacity(settings: &HttpsLayerSettings) -> usize {
+    // Preserve the historical behavior where a configured capacity of zero retained one session
+    // per target.
+    settings.session_cache_capacity.max(1)
+}
 
 impl HttpsLayer {
     /// Creates a new `HttpsLayer` with default settings.
@@ -118,31 +134,15 @@ impl HttpsLayer {
 
     /// Creates a new `HttpsLayer` with settings
     pub fn with_connector_and_settings(
-        mut ssl: SslConnectorBuilder,
+        ssl: SslConnectorBuilder,
         settings: HttpsLayerSettings,
     ) -> Result<HttpsLayer, ErrorStack> {
-        let cache = Arc::new(Mutex::new(SessionCache::with_capacity(
-            settings.session_cache_capacity,
-        )));
-
-        ssl.set_session_cache_mode(SslSessionCacheMode::CLIENT);
-
-        ssl.set_new_session_callback({
-            let cache = cache.clone();
-            move |ssl, session| {
-                if let Some(key) = key_index().ok().and_then(|idx| ssl.ex_data(idx)) {
-                    cache.lock().insert(key.clone(), session);
-                }
-            }
-        });
+        let session_cache_capacity = effective_session_cache_capacity(&settings);
+        let ssl =
+            Connector::<HttpTarget>::with_session_cache_capacity(ssl, session_cache_capacity)?;
 
         Ok(HttpsLayer {
-            inner: Inner {
-                ssl: ssl.build(),
-                cache,
-                callback: None,
-                ssl_callback: None,
-            },
+            inner: Inner { ssl },
         })
     }
 
@@ -155,7 +155,9 @@ impl HttpsLayer {
     where
         F: Fn(&mut ConnectConfiguration, &Uri) -> Result<(), ErrorStack> + 'static + Sync + Send,
     {
-        self.inner.callback = Some(Arc::new(callback));
+        self.inner
+            .ssl
+            .on_config(move |config, target| callback(config, &target.uri));
     }
 
     /// Registers a callback which can customize the `Ssl` of each connection.
@@ -163,7 +165,9 @@ impl HttpsLayer {
     where
         F: Fn(&mut SslRef, &Uri) -> Result<(), ErrorStack> + 'static + Sync + Send,
     {
-        self.inner.ssl_callback = Some(Arc::new(callback));
+        self.inner
+            .ssl
+            .on_ssl(move |ssl, target| callback(ssl, &target.uri));
     }
 }
 
@@ -175,38 +179,6 @@ impl<S> Layer<S> for HttpsLayer {
             http: inner,
             inner: self.inner.clone(),
         }
-    }
-}
-
-impl Inner {
-    fn setup_ssl(&self, uri: &Uri, host: &str) -> Result<Ssl, ErrorStack> {
-        let mut conf = self.ssl.configure()?;
-
-        if let Some(ref callback) = self.callback {
-            callback(&mut conf, uri)?;
-        }
-
-        let key = SessionKey {
-            host: host.to_string(),
-            port: uri.port_u16().unwrap_or(443),
-        };
-
-        if let Some(session) = self.cache.lock().get(&key) {
-            unsafe {
-                conf.set_session(&session)?;
-            }
-        }
-
-        let idx = key_index()?;
-        conf.set_ex_data(idx, key);
-
-        let mut ssl = conf.into_ssl(host)?;
-
-        if let Some(ref ssl_callback) = self.ssl_callback {
-            ssl_callback(&mut ssl, uri)?;
-        }
-
-        Ok(ssl)
     }
 }
 
@@ -233,7 +205,7 @@ where
             .unwrap_or(false);
 
         let tls_setup = if is_tls_scheme {
-            Some((self.inner.clone(), uri.clone()))
+            Some((self.inner.ssl.clone(), uri.clone()))
         } else {
             None
         };
@@ -243,27 +215,12 @@ where
         let f = async {
             let conn = connect.await.map_err(Into::into)?.into_inner();
 
-            let Some((inner, uri)) = tls_setup else {
+            let Some((ssl, uri)) = tls_setup else {
                 return Ok(MaybeHttpsStream::Http(conn));
             };
 
-            let mut host = uri.host().ok_or("URI missing host")?;
-
-            // If `host` is an IPv6 address, we must strip away the square brackets that surround
-            // it (otherwise, boring will fail to parse the host as an IP address, eventually
-            // causing the handshake to fail due a hostname verification error).
-            if let Some(ipv6) = host
-                .strip_prefix('[')
-                .and_then(|h| h.strip_suffix(']'))
-                .filter(|h| h.parse::<net::Ipv6Addr>().is_ok())
-            {
-                host = ipv6;
-            }
-
-            let ssl = inner.setup_ssl(&uri, host)?;
-            let stream = tokio_boring::SslStreamBuilder::new(ssl, conn)
-                .connect()
-                .await?;
+            let target = HttpTarget::try_new(uri)?;
+            let stream = ssl.connect(&target, conn).await?;
 
             Ok(MaybeHttpsStream::Https(stream))
         };
@@ -339,5 +296,28 @@ where
             MaybeHttpsStream::Http(inner) => Pin::new(&mut TokioIo::new(inner)).poll_shutdown(ctx),
             MaybeHttpsStream::Https(inner) => Pin::new(&mut TokioIo::new(inner)).poll_shutdown(ctx),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{effective_session_cache_capacity, HttpTarget};
+    use crate::HttpsLayerSettings;
+
+    #[test]
+    fn zero_session_cache_capacity_preserves_legacy_behavior() {
+        let mut settings = HttpsLayerSettings::builder();
+        settings.set_session_cache_capacity(0);
+
+        assert_eq!(effective_session_cache_capacity(&settings.build()), 1);
+    }
+
+    #[test]
+    fn missing_host_error_is_preserved() {
+        let error = HttpTarget::try_new("/missing-host".parse().unwrap())
+            .err()
+            .expect("missing host should fail");
+
+        assert_eq!(error, "URI missing host");
     }
 }
