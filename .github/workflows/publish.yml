@@ -10,7 +10,7 @@ on:
         required: true
         type: number
       expected_version:
-        description: "Version to release, without the v prefix"
+        description: "Version to release, with or without the v prefix"
         required: true
         type: string
 
@@ -32,6 +32,7 @@ jobs:
     outputs:
       merge_commit_sha: ${{ steps.release-pr.outputs.merge_commit_sha }}
       is_prerelease: ${{ steps.release-pr.outputs.is_prerelease }}
+      expected_version: ${{ steps.release-pr.outputs.expected_version }}
     env:
       EXPECTED_VERSION: ${{ inputs.expected_version }}
     steps:
@@ -59,6 +60,7 @@ jobs:
             exit 1
           fi
 
+          EXPECTED_VERSION="${EXPECTED_VERSION#v}"
           if [[ ! "${EXPECTED_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
             echo "Expected version must be a valid semver version." >&2
             exit 1
@@ -136,10 +138,12 @@ jobs:
           echo "MERGE_COMMIT_SHA=${merge_commit_sha}" >>"${GITHUB_ENV}"
           echo "merge_commit_sha=${merge_commit_sha}" >>"${GITHUB_OUTPUT}"
           echo "is_prerelease=${is_prerelease}" >>"${GITHUB_OUTPUT}"
+          echo "EXPECTED_VERSION=${EXPECTED_VERSION}" >>"${GITHUB_ENV}"
+          echo "expected_version=${EXPECTED_VERSION}" >>"${GITHUB_OUTPUT}"
 
       - name: Verify master and crate versions
         env:
-          EXPECTED_VERSION: ${{ inputs.expected_version }}
+          EXPECTED_VERSION: ${{ steps.release-pr.outputs.expected_version }}
         run: |
           git fetch --no-tags origin +refs/heads/master:refs/remotes/origin/master "${MERGE_COMMIT_SHA}"
           master_sha="$(git rev-parse refs/remotes/origin/master)"
@@ -193,8 +197,9 @@ jobs:
       id-token: write
     env:
       MERGE_COMMIT_SHA: ${{ needs.validate.outputs.merge_commit_sha }}
-      EXPECTED_VERSION: ${{ inputs.expected_version }}
+      EXPECTED_VERSION: ${{ needs.validate.outputs.expected_version }}
       IS_PRERELEASE: ${{ needs.validate.outputs.is_prerelease }}
+      CRATES_IO_USER_AGENT: cloudflare-boring-release/1.0 (https://github.com/cloudflare/boring)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -259,12 +264,14 @@ jobs:
 
           crate_status() {
             curl --silent --show-error --retry 3 --retry-all-errors \
+              --user-agent "${CRATES_IO_USER_AGENT}" \
               --output /dev/null --write-out '%{http_code}' \
               "https://crates.io/api/v1/crates/${1}/${EXPECTED_VERSION}"
           }
 
           crate_info() {
             curl --silent --show-error --retry 3 --retry-all-errors \
+              --user-agent "${CRATES_IO_USER_AGENT}" \
               "https://crates.io/api/v1/crates/${1}/${EXPECTED_VERSION}"
           }
 
@@ -322,6 +329,7 @@ jobs:
             index_path="$(crate_index_path "${1}")"
             for delay in 0 5 10 20 40; do
               if curl --silent --show-error --retry 3 --retry-all-errors \
+                --user-agent "${CRATES_IO_USER_AGENT}" \
                 "https://index.crates.io/${index_path}" \
                 | jq -s -e --arg version "${EXPECTED_VERSION}" "any(.[]; .vers == \$version)" >/dev/null; then
                 return 0
