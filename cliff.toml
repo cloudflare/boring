@@ -1,10 +1,7 @@
 [changelog]
-header = ""
 body = """
 {% if version %}\
     {{ version | trim_start_matches(pat="v") }}\
-{% else %}\
-    Unreleased\
 {% endif %}\
 {% for commit in commits %}
   - {{ commit.author.timestamp | date }} {{ commit.message | split(pat="\n") | first }}\

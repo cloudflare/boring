@@ -18,6 +18,8 @@ pre-release-commit-message = "Release {{version}}"
 shared-version = true
 tag-prefix = ""
 publish = false
+tag = false
+push = false
 
 [workspace.dependencies]
 boring-sys = { version = "5.4.0", path = "./boring-sys", default-features = false }

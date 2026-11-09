@@ -16,6 +16,11 @@ An implementation of SSL streams for Tokio backed by BoringSSL
 features = ["rpk"]
 rustdoc-args = ["--cfg", "docsrs"]
 
+[package.metadata.release]
+pre-release-replacements = [
+    { file = "README.md", search = 'tokio-boring = "[^"]+"', replace = 'tokio-boring = "{{version}}"', exactly = 1, prerelease = true },
+]
+
 [features]
 default = ["boring/default"]
 
