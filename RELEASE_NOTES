@@ -1,3 +1,13 @@
+5.5.0
+- 2026-11-09 Add release preparation tooling
+- 2026-11-09 Remove obsolete publishing script
+- 2026-11-09 Fix Cargo.lock for the full 5.4.0 workspace
+- 2026-11-04 Add reusable Tokio TLS client connector
+- 2026-11-03 tokio-boring: record when the stream was first read
+- 2026-11-06 Pin the 5.4.0 Cargo dependency resolution
+- 2026-11-06 Fix crates.io release dispatch requests (#551)
+- 2026-11-04 fix(ci): Do not fail build on false-positive `stringop-overflow` warning
+
 5.4.0
 - 2026-10-30 Add unchecked DER certificate setters
 - 2026-10-28 Update to boringssl 0.20261020.0 with ML-DSA by default
