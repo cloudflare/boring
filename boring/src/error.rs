@@ -152,7 +152,19 @@ impl Error {
     /// Pops the first error off the OpenSSL error stack.
     #[must_use = "Use ErrorStack::clear() to drop the error stack"]
     #[corresponds(ERR_get_error_line_data)]
+    #[inline]
     pub fn get() -> Option<Error> {
+        Self::get_(false)
+    }
+
+    /// Use [`ErrorStack::clear()`] or [`ErrorStack::get()`] afterwards
+    #[corresponds(ERR_peek_last_error_line_data)]
+    #[inline]
+    pub fn peek() -> Option<Error> {
+        Self::get_(true)
+    }
+
+    fn get_(peek: bool) -> Option<Error> {
         unsafe {
             ffi::init();
 
@@ -160,7 +172,12 @@ impl Error {
             let mut line = 0;
             let mut data = ptr::null();
             let mut flags = 0;
-            match ffi::ERR_get_error_line_data(&mut file, &mut line, &mut data, &mut flags) {
+            let code = if !peek {
+                ffi::ERR_get_error_line_data(&mut file, &mut line, &mut data, &mut flags)
+            } else {
+                ffi::ERR_peek_last_error_line_data(&mut file, &mut line, &mut data, &mut flags)
+            };
+            match code {
                 0 => None,
                 code => {
                     // The memory referenced by data is only valid until that slot is overwritten
