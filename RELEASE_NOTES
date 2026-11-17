@@ -1,3 +1,7 @@
+5.5.1
+- 2026-11-17 Fix X509VerifyParamRef::set_time on 32-bit musl targets
+- 2026-11-10 docs: clarify BoringSSL cipher list configuration
+
 5.5.0
 - 2026-11-09 Add release preparation tooling
 - 2026-11-09 Remove obsolete publishing script
