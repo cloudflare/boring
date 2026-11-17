@@ -175,7 +175,12 @@ impl X509VerifyParamRef {
     /// Set the verification time, where time is of type time_t, traditionaly defined as seconds since the epoch
     #[corresponds(X509_VERIFY_PARAM_set_time)]
     pub fn set_time(&mut self, time: time_t) {
-        unsafe { ffi::X509_VERIFY_PARAM_set_time(self.as_ptr(), time) }
+        // for higher musl version, need to convert i32 to i64
+        // https://github.com/rust-lang/libc/issues/1848
+        #[allow(clippy::useless_conversion)]
+        unsafe {
+            ffi::X509_VERIFY_PARAM_set_time(self.as_ptr(), time.into())
+        }
     }
 
     /// Set the verification depth
