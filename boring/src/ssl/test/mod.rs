@@ -1233,13 +1233,6 @@ fn test_get_ciphers() {
 
 #[test]
 fn test_set_compliance() {
-    let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
-    ctx.set_compliance_policy(CompliancePolicy::FIPS_202205)
-        .unwrap();
-
-    assert_eq!(ctx.max_proto_version().unwrap(), SslVersion::TLS1_3);
-    assert_eq!(ctx.min_proto_version().unwrap(), SslVersion::TLS1_2);
-
     const FIPS_CIPHERS: [&str; 4] = [
         "ECDHE-ECDSA-AES128-GCM-SHA256",
         "ECDHE-RSA-AES128-GCM-SHA256",
@@ -1247,11 +1240,19 @@ fn test_set_compliance() {
         "ECDHE-RSA-AES256-GCM-SHA384",
     ];
 
-    let ciphers = ctx.ciphers().unwrap();
-    assert_eq!(ciphers.len(), FIPS_CIPHERS.len());
+    for policy in [CompliancePolicy::FIPS_202205, CompliancePolicy::FIPS_202609] {
+        let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
+        ctx.set_compliance_policy(policy).unwrap();
 
-    for cipher in ciphers.into_iter().zip(FIPS_CIPHERS) {
-        assert_eq!(cipher.0.name(), cipher.1);
+        assert_eq!(ctx.max_proto_version().unwrap(), SslVersion::TLS1_3);
+        assert_eq!(ctx.min_proto_version().unwrap(), SslVersion::TLS1_2);
+
+        let ciphers = ctx.ciphers().unwrap();
+        assert_eq!(ciphers.len(), FIPS_CIPHERS.len());
+
+        for cipher in ciphers.into_iter().zip(FIPS_CIPHERS) {
+            assert_eq!(cipher.0.name(), cipher.1);
+        }
     }
 
     let mut ctx = SslContext::builder(SslMethod::tls()).unwrap();
@@ -1314,14 +1315,6 @@ fn test_info_callback() {
 
 #[test]
 fn test_ssl_set_compliance() {
-    let ctx = SslContext::builder(SslMethod::tls()).unwrap().build();
-    let mut ssl = Ssl::new(&ctx).unwrap();
-    ssl.set_compliance_policy(CompliancePolicy::FIPS_202205)
-        .unwrap();
-
-    assert_eq!(ssl.max_proto_version().unwrap(), SslVersion::TLS1_3);
-    assert_eq!(ssl.min_proto_version().unwrap(), SslVersion::TLS1_2);
-
     const FIPS_CIPHERS: [&str; 4] = [
         "ECDHE-ECDSA-AES128-GCM-SHA256",
         "ECDHE-RSA-AES128-GCM-SHA256",
@@ -1329,11 +1322,20 @@ fn test_ssl_set_compliance() {
         "ECDHE-RSA-AES256-GCM-SHA384",
     ];
 
-    let ciphers = ssl.ciphers();
-    assert_eq!(ciphers.len(), FIPS_CIPHERS.len());
+    for policy in [CompliancePolicy::FIPS_202205, CompliancePolicy::FIPS_202609] {
+        let ctx = SslContext::builder(SslMethod::tls()).unwrap().build();
+        let mut ssl = Ssl::new(&ctx).unwrap();
+        ssl.set_compliance_policy(policy).unwrap();
 
-    for cipher in ciphers.into_iter().zip(FIPS_CIPHERS) {
-        assert_eq!(cipher.0.name(), cipher.1);
+        assert_eq!(ssl.max_proto_version().unwrap(), SslVersion::TLS1_3);
+        assert_eq!(ssl.min_proto_version().unwrap(), SslVersion::TLS1_2);
+
+        let ciphers = ssl.ciphers();
+        assert_eq!(ciphers.len(), FIPS_CIPHERS.len());
+
+        for cipher in ciphers.into_iter().zip(FIPS_CIPHERS) {
+            assert_eq!(cipher.0.name(), cipher.1);
+        }
     }
 
     let ctx = SslContext::builder(SslMethod::tls()).unwrap().build();
