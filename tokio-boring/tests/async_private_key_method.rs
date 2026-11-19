@@ -2,6 +2,8 @@ use boring::hash::MessageDigest;
 use boring::pkey::PKey;
 use boring::rsa::Padding;
 use boring::sign::{RsaPssSaltlen, Signer};
+#[cfg(feature = "rpk")]
+use boring::ssl::{CertificateType, SslCredential, SslVerifyMode};
 use boring::ssl::{SslRef, SslSignatureAlgorithm};
 use futures::future;
 use tokio::task::yield_now;
@@ -149,6 +151,48 @@ async fn test_sign_ok() {
         ));
     })
     .await;
+}
+
+#[cfg(feature = "rpk")]
+#[tokio::test]
+async fn test_credential_sign_future_yield_ok() {
+    let (stream, addr) = create_server(|builder| {
+        let key = PKey::private_key_from_pem(include_bytes!("key.pem")).unwrap();
+        let mut credential = SslCredential::new_raw_public_key().unwrap();
+
+        credential
+            .set_spki_bytes(Some(&key.public_key_to_der().unwrap()))
+            .unwrap();
+        credential
+            .set_async_private_key_method(Method::new().sign(|_, input, _, _| {
+                let input = input.to_owned();
+
+                Ok(Box::pin(async move {
+                    yield_now().await;
+
+                    Ok(Box::new(move |_: &mut SslRef, output: &mut [u8]| {
+                        Ok(sign_with_default_config(&input, output))
+                    }) as Box<_>)
+                }))
+            }))
+            .unwrap();
+        builder.add_credential(&credential.build()).unwrap();
+    });
+
+    let server = async {
+        stream.await.unwrap();
+    };
+    let client = async {
+        connect(addr, |builder| {
+            builder.set_server_certificate_types(&[CertificateType::RAW_PUBLIC_KEY])?;
+            builder.set_custom_verify_callback(SslVerifyMode::PEER, |_| Ok(()));
+            Ok(())
+        })
+        .await
+        .unwrap();
+    };
+
+    future::join(server, client).await;
 }
 
 fn sign_with_default_config(input: &[u8], output: &mut [u8]) -> usize {

@@ -4,7 +4,7 @@ use crate::error::ErrorStack;
 use crate::ex_data::Index;
 use crate::pkey::{PKeyRef, Private};
 use crate::ssl::callbacks;
-use crate::ssl::PrivateKeyMethod;
+use crate::ssl::{PrivateKeyMethod, SslRef};
 use crate::{cvt_0i, cvt_n};
 use crate::{ffi, free_data_box};
 use foreign_types::{ForeignType, ForeignTypeRef};
@@ -163,15 +163,32 @@ impl SslCredentialBuilder {
     where
         M: PrivateKeyMethod,
     {
+        struct CredentialPrivateKeyMethodSource;
+
+        impl callbacks::PrivateKeyMethodSource for CredentialPrivateKeyMethodSource {
+            type Owner = SslCredential;
+
+            fn get_owner(ssl: &SslRef) -> Option<Self::Owner> {
+                Some(ssl.selected_credential()?.to_owned())
+            }
+
+            fn get_callback<M>(owner: &Self::Owner) -> Option<&M>
+            where
+                M: PrivateKeyMethod,
+            {
+                owner.ex_data(SslCredential::cached_ex_index::<M>())
+            }
+        }
+
         unsafe {
             self.replace_ex_data(SslCredential::cached_ex_index::<M>(), method);
 
             cvt_0i(ffi::SSL_CREDENTIAL_set_private_key_method(
                 self.0.as_ptr(),
                 &ffi::SSL_PRIVATE_KEY_METHOD {
-                    sign: Some(callbacks::raw_sign::<M>),
-                    decrypt: Some(callbacks::raw_decrypt::<M>),
-                    complete: Some(callbacks::raw_complete::<M>),
+                    sign: Some(callbacks::raw_sign::<M, CredentialPrivateKeyMethodSource>),
+                    decrypt: Some(callbacks::raw_decrypt::<M, CredentialPrivateKeyMethodSource>),
+                    complete: Some(callbacks::raw_complete::<M, CredentialPrivateKeyMethodSource>),
                 },
             ))
             .map(|_| ())

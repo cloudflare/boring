@@ -1829,15 +1829,32 @@ impl SslContextBuilder {
     where
         M: PrivateKeyMethod,
     {
+        struct ContextPrivateKeyMethodSource;
+
+        impl callbacks::PrivateKeyMethodSource for ContextPrivateKeyMethodSource {
+            type Owner = SslContext;
+
+            fn get_owner(ssl: &SslRef) -> Option<Self::Owner> {
+                Some(ssl.ssl_context().to_owned())
+            }
+
+            fn get_callback<M>(owner: &Self::Owner) -> Option<&M>
+            where
+                M: PrivateKeyMethod,
+            {
+                owner.ex_data(SslContext::cached_ex_index::<M>())
+            }
+        }
+
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<M>(), method);
 
             ffi::SSL_CTX_set_private_key_method(
                 self.as_ptr(),
                 &ffi::SSL_PRIVATE_KEY_METHOD {
-                    sign: Some(callbacks::raw_sign::<M>),
-                    decrypt: Some(callbacks::raw_decrypt::<M>),
-                    complete: Some(callbacks::raw_complete::<M>),
+                    sign: Some(callbacks::raw_sign::<M, ContextPrivateKeyMethodSource>),
+                    decrypt: Some(callbacks::raw_decrypt::<M, ContextPrivateKeyMethodSource>),
+                    complete: Some(callbacks::raw_complete::<M, ContextPrivateKeyMethodSource>),
                 },
             );
         }
