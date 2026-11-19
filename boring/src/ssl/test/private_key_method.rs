@@ -4,6 +4,8 @@ use crate::hash::MessageDigest;
 use crate::pkey::PKey;
 use crate::rsa::Padding;
 use crate::sign::{RsaPssSaltlen, Signer};
+#[cfg(feature = "rpk")]
+use crate::ssl::{CertificateType, SslCredential, SslCredentialBuilder, SslVerifyMode};
 use crate::ssl::{
     ErrorCode, HandshakeError, PrivateKeyMethod, PrivateKeyMethodError, SslRef,
     SslSignatureAlgorithm,
@@ -126,6 +128,51 @@ fn builder_with_private_key_method(method: Method) -> Builder {
     builder.ctx().set_private_key_method(method);
 
     builder
+}
+
+#[cfg(feature = "rpk")]
+fn builder_with_credential(configure: impl FnOnce(&mut SslCredentialBuilder)) -> Builder {
+    let mut builder = Server::builder();
+    let key = PKey::private_key_from_pem(KEY).unwrap();
+    let mut credential = SslCredential::new_raw_public_key().unwrap();
+
+    credential
+        .set_spki_bytes(Some(&key.public_key_to_der().unwrap()))
+        .unwrap();
+    configure(&mut credential);
+    builder.ctx().add_credential(&credential.build()).unwrap();
+
+    builder
+}
+
+#[cfg(feature = "rpk")]
+fn connect_with_rpk_credential(builder: Builder) {
+    let server = builder.build();
+    let mut client = server.client();
+    client
+        .ctx()
+        .set_server_certificate_types(&[CertificateType::RAW_PUBLIC_KEY])
+        .unwrap();
+    client
+        .ctx()
+        .set_custom_verify_callback(SslVerifyMode::PEER, |_| Ok(()));
+
+    client.connect();
+}
+
+#[cfg(feature = "rpk")]
+fn complete_credential_handshake(mut builder: Builder) {
+    builder.err_cb(|error| {
+        let HandshakeError::WouldBlock(mid_handshake) = error else {
+            panic!("should be WouldBlock");
+        };
+
+        let mut socket = mid_handshake.handshake().unwrap();
+
+        socket.write_all(&[0]).unwrap();
+    });
+
+    connect_with_rpk_credential(builder);
 }
 
 #[test]
@@ -262,6 +309,92 @@ fn test_sign_retry_complete_ok() {
     let client = server.client_with_root_ca();
 
     client.connect();
+}
+
+#[cfg(feature = "rpk")]
+#[test]
+fn test_credential_sign_retry_complete_ok() {
+    let input_cell = Arc::new(OnceLock::new());
+    let input_cell_clone = input_cell.clone();
+
+    let builder = builder_with_credential(|credential| {
+        credential
+            .set_private_key_method(
+                Method::new()
+                    .sign(move |_, input, _, _| {
+                        input_cell.set(input.to_owned()).unwrap();
+
+                        Err(PrivateKeyMethodError::RETRY)
+                    })
+                    .complete(move |_, output| {
+                        let input = input_cell_clone.get().unwrap();
+
+                        Ok(sign_with_default_config(input, output))
+                    }),
+            )
+            .unwrap();
+    });
+
+    complete_credential_handshake(builder);
+}
+
+#[cfg(feature = "rpk")]
+#[test]
+fn test_credential_method_selected_over_context_method() {
+    let credential_called = Arc::new(AtomicBool::new(false));
+    let credential_called_clone = credential_called.clone();
+    let context_called = Arc::new(AtomicBool::new(false));
+    let context_called_clone = context_called.clone();
+
+    let mut builder = builder_with_credential(|credential| {
+        credential
+            .set_private_key_method(Method::new().sign(move |_, input, _, output| {
+                credential_called_clone.store(true, Ordering::SeqCst);
+                Ok(sign_with_default_config(input, output))
+            }))
+            .unwrap();
+    });
+    builder
+        .ctx()
+        .set_private_key_method(Method::new().sign(move |_, _, _, _| {
+            context_called_clone.store(true, Ordering::SeqCst);
+            Err(PrivateKeyMethodError::FAILURE)
+        }));
+
+    connect_with_rpk_credential(builder);
+
+    assert!(credential_called.load(Ordering::SeqCst));
+    assert!(!context_called.load(Ordering::SeqCst));
+}
+
+#[cfg(feature = "rpk")]
+#[test]
+fn test_context_method_selected_over_credential_method() {
+    let credential_called = Arc::new(AtomicBool::new(false));
+    let credential_called_clone = credential_called.clone();
+    let context_called = Arc::new(AtomicBool::new(false));
+    let context_called_clone = context_called.clone();
+
+    let mut builder = builder_with_credential(|credential| {
+        credential
+            .set_private_key_method(Method::new().sign(move |_, _, _, _| {
+                credential_called_clone.store(true, Ordering::SeqCst);
+                Err(PrivateKeyMethodError::FAILURE)
+            }))
+            .unwrap();
+    });
+    builder
+        .ctx()
+        .set_private_key_method(Method::new().sign(move |_, input, _, output| {
+            context_called_clone.store(true, Ordering::SeqCst);
+            Ok(sign_with_default_config(input, output))
+        }));
+
+    let server = builder.build();
+    server.client_with_root_ca().connect();
+
+    assert!(context_called.load(Ordering::SeqCst));
+    assert!(!credential_called.load(Ordering::SeqCst));
 }
 
 fn sign_with_default_config(input: &[u8], output: &mut [u8]) -> usize {

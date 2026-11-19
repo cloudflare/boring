@@ -531,7 +531,7 @@ where
     callback(ssl, &line);
 }
 
-pub(super) unsafe extern "C" fn raw_sign<M>(
+pub(super) unsafe extern "C" fn raw_sign<M, S>(
     ssl: *mut ffi::SSL,
     out: *mut u8,
     out_len: *mut usize,
@@ -542,6 +542,7 @@ pub(super) unsafe extern "C" fn raw_sign<M>(
 ) -> ffi::ssl_private_key_result_t
 where
     M: PrivateKeyMethod,
+    S: PrivateKeyMethodSource,
 {
     // SAFETY: boring provides valid inputs.
     let input = unsafe { slice::from_raw_parts(in_, in_len) };
@@ -553,10 +554,10 @@ where
     };
 
     // SAFETY: boring provides valid inputs.
-    unsafe { raw_private_key_callback(ssl, out, out_len, max_out, callback) }
+    unsafe { raw_private_key_callback::<M, S>(ssl, out, out_len, max_out, callback) }
 }
 
-pub(super) unsafe extern "C" fn raw_decrypt<M>(
+pub(super) unsafe extern "C" fn raw_decrypt<M, S>(
     ssl: *mut ffi::SSL,
     out: *mut u8,
     out_len: *mut usize,
@@ -566,6 +567,7 @@ pub(super) unsafe extern "C" fn raw_decrypt<M>(
 ) -> ffi::ssl_private_key_result_t
 where
     M: PrivateKeyMethod,
+    S: PrivateKeyMethodSource,
 {
     // SAFETY: boring provides valid inputs.
     let input = unsafe { slice::from_raw_parts(in_, in_len) };
@@ -573,10 +575,10 @@ where
     let callback = |method: &M, ssl: &mut _, output: &mut _| method.decrypt(ssl, input, output);
 
     // SAFETY: boring provides valid inputs.
-    unsafe { raw_private_key_callback(ssl, out, out_len, max_out, callback) }
+    unsafe { raw_private_key_callback::<M, S>(ssl, out, out_len, max_out, callback) }
 }
 
-pub(super) unsafe extern "C" fn raw_complete<M>(
+pub(super) unsafe extern "C" fn raw_complete<M, S>(
     ssl: *mut ffi::SSL,
     out: *mut u8,
     out_len: *mut usize,
@@ -584,12 +586,13 @@ pub(super) unsafe extern "C" fn raw_complete<M>(
 ) -> ffi::ssl_private_key_result_t
 where
     M: PrivateKeyMethod,
+    S: PrivateKeyMethodSource,
 {
     // SAFETY: boring provides valid inputs.
-    unsafe { raw_private_key_callback::<M>(ssl, out, out_len, max_out, M::complete) }
+    unsafe { raw_private_key_callback::<M, S>(ssl, out, out_len, max_out, M::complete) }
 }
 
-unsafe fn raw_private_key_callback<M>(
+unsafe fn raw_private_key_callback<M, S>(
     ssl: *mut ffi::SSL,
     out: *mut u8,
     out_len: *mut usize,
@@ -598,16 +601,15 @@ unsafe fn raw_private_key_callback<M>(
 ) -> ffi::ssl_private_key_result_t
 where
     M: PrivateKeyMethod,
+    S: PrivateKeyMethodSource,
 {
     // SAFETY: boring provides valid inputs.
     let ssl = unsafe { SslRef::from_ptr_mut(ssl) };
     let output = unsafe { slice::from_raw_parts_mut(out, max_out) };
     let out_len = unsafe { &mut *out_len };
 
-    let ssl_context = ssl.ssl_context().to_owned();
-    let method = ssl_context
-        .ex_data(SslContext::cached_ex_index::<M>())
-        .expect("BUG: private key method missing");
+    let owner = S::get_owner(ssl).expect("BUG: private key method owner missing");
+    let method = S::get_callback::<M>(&owner).expect("BUG: private key method missing");
 
     match callback(method, ssl, output) {
         Ok(written) => {
@@ -619,6 +621,16 @@ where
         }
         Err(err) => err.0,
     }
+}
+
+pub(super) trait PrivateKeyMethodSource {
+    type Owner;
+
+    fn get_owner(ssl: &SslRef) -> Option<Self::Owner>;
+
+    fn get_callback<M>(owner: &Self::Owner) -> Option<&M>
+    where
+        M: PrivateKeyMethod;
 }
 
 pub(super) unsafe extern "C" fn raw_info_callback<F>(
