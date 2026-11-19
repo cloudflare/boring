@@ -93,6 +93,8 @@ use crate::ssl::error::InnerError;
 use crate::stack::{Stack, StackRef, Stackable};
 use crate::symm::CipherCtxRef;
 use crate::try_int;
+#[cfg(feature = "credential")]
+use crate::util::ForeignTypeRefExt;
 use crate::x509::store::{X509Store, X509StoreBuilder, X509StoreBuilderRef, X509StoreRef};
 use crate::x509::verify::X509VerifyParamRef;
 use crate::x509::{
@@ -4046,6 +4048,22 @@ impl SslRef {
     #[corresponds(SSL_set_compliance_policy)]
     pub fn set_compliance_policy(&mut self, policy: CompliancePolicy) -> Result<(), ErrorStack> {
         unsafe { cvt_0i(ffi::SSL_set_compliance_policy(self.as_ptr(), policy.0)).map(|_| ()) }
+    }
+
+    /// Returns the credential selected for the current handshake.
+    ///
+    /// Returns `None` if there is no current handshake, credential selection has not completed, or
+    /// the handshake has completed and BoringSSL has released the handshake state.
+    ///
+    /// When using legacy context certificate APIs, this may return an internal BoringSSL credential
+    /// which has no application ex-data installed.
+    #[corresponds(SSL_get0_selected_credential)]
+    #[cfg(feature = "credential")]
+    #[must_use]
+    pub fn selected_credential(&self) -> Option<&SslCredentialRef> {
+        unsafe {
+            SslCredentialRef::from_const_ptr_opt(ffi::SSL_get0_selected_credential(self.as_ptr()))
+        }
     }
 
     /// Adds a credential.

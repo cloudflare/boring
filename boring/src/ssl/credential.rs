@@ -22,9 +22,15 @@ static SSL_CREDENTIAL_INDEXES: LazyLock<Mutex<HashMap<TypeId, c_int>>> =
 foreign_type_and_impl_send_sync! {
     type CType = ffi::SSL_CREDENTIAL;
     fn drop = ffi::SSL_CREDENTIAL_free;
+    fn clone = clone_ssl_credential;
 
     /// A credential.
     pub struct SslCredential;
+}
+
+unsafe fn clone_ssl_credential(credential: *mut ffi::SSL_CREDENTIAL) -> *mut ffi::SSL_CREDENTIAL {
+    unsafe { ffi::SSL_CREDENTIAL_up_ref(credential) };
+    credential
 }
 
 impl SslCredential {
