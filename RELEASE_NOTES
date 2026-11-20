@@ -1,3 +1,7 @@
+5.6.0
+- 2026-11-19 Fix credential private key method callbacks
+- 2026-11-19 Add SSL credential access APIs
+
 5.5.1
 - 2026-11-17 Fix X509VerifyParamRef::set_time on 32-bit musl targets
 - 2026-11-10 docs: clarify BoringSSL cipher list configuration

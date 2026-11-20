@@ -10,7 +10,7 @@ First, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tokio-boring = "5.5.1"
+tokio-boring = "5.6.0"
 ```
 
 Then, use either `accept` or `connect` as appropriate.
