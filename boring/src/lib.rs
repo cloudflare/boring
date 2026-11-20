@@ -152,6 +152,8 @@ pub mod rand;
 pub mod rsa;
 pub mod sha;
 pub mod sign;
+#[cfg(feature = "slhdsa")]
+pub mod slhdsa;
 pub mod srtp;
 pub mod ssl;
 pub mod stack;
