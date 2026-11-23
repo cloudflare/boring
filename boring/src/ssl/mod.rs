@@ -2935,6 +2935,13 @@ impl Ssl {
         }
     }
 
+    /// For back-compat with v4 only
+    #[doc(hidden)]
+    #[deprecated(note = "use Ssl::new")]
+    pub fn new_from_ref(ctx: &SslContextRef) -> Result<Ssl, ErrorStack> {
+        Self::new(ctx)
+    }
+
     /// Creates a new [`Ssl`].
     #[corresponds(SSL_new)]
     pub fn new(ctx: &SslContextRef) -> Result<Ssl, ErrorStack> {
