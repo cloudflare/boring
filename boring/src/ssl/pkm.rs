@@ -114,7 +114,7 @@ macro_rules! pkm {
             {
                 let $this = self;
                 let $method = method;
-                let $table = &ffi::SSL_PRIVATE_KEY_METHOD {
+                let $table: &'static _ = &ffi::SSL_PRIVATE_KEY_METHOD {
                     sign: Some(callbacks::raw_sign::<$source>),
                     decrypt: Some(callbacks::raw_decrypt::<$source>),
                     complete: Some(callbacks::raw_complete::<$source>),
