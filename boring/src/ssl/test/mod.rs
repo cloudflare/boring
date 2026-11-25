@@ -1285,6 +1285,8 @@ fn drop_ex_data_in_context() {
     assert_eq!(ctx.replace_ex_data(index, "comté"), None);
     assert_eq!(ctx.replace_ex_data(index, "camembert"), Some("comté"));
     assert_eq!(ctx.replace_ex_data(index, "raclette"), Some("camembert"));
+    assert_eq!(ctx.remove_ex_data(index), Some("raclette"));
+    assert_eq!(ctx.remove_ex_data(index), None);
 }
 
 #[test]
@@ -1296,6 +1298,40 @@ fn drop_ex_data_in_ssl() {
     assert_eq!(ssl.replace_ex_data(index, "comté"), None);
     assert_eq!(ssl.replace_ex_data(index, "camembert"), Some("comté"));
     assert_eq!(ssl.replace_ex_data(index, "raclette"), Some("camembert"));
+    assert_eq!(ssl.remove_ex_data(index), Some("raclette"));
+    assert_eq!(ssl.remove_ex_data(index), None);
+}
+
+#[test]
+fn remove_ex_data_returns_ownership() {
+    struct TrackDrop(Arc<AtomicUsize>);
+
+    impl Drop for TrackDrop {
+        fn drop(&mut self) {
+            self.0.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    let context_index = SslContext::new_ex_index().unwrap();
+    let mut context = SslContext::builder(SslMethod::tls()).unwrap();
+    let context_drops = Arc::new(AtomicUsize::new(0));
+    context.set_ex_data(context_index, TrackDrop(context_drops.clone()));
+    let context_data = context.remove_ex_data(context_index).unwrap();
+    drop(context);
+    assert_eq!(context_drops.load(Ordering::SeqCst), 0);
+    drop(context_data);
+    assert_eq!(context_drops.load(Ordering::SeqCst), 1);
+
+    let ssl_index = Ssl::new_ex_index().unwrap();
+    let context = SslContext::builder(SslMethod::tls()).unwrap().build();
+    let mut ssl = Ssl::new(&context).unwrap();
+    let ssl_drops = Arc::new(AtomicUsize::new(0));
+    ssl.set_ex_data(ssl_index, TrackDrop(ssl_drops.clone()));
+    let ssl_data = ssl.remove_ex_data(ssl_index).unwrap();
+    drop(ssl);
+    assert_eq!(ssl_drops.load(Ordering::SeqCst), 0);
+    drop(ssl_data);
+    assert_eq!(ssl_drops.load(Ordering::SeqCst), 1);
 }
 
 #[test]

@@ -165,9 +165,6 @@ pub(crate) unsafe trait ExData {
 
 pub(crate) unsafe trait ExDataMut: ExData {
     const SET: SetExData<Self::Ref>;
-
-    #[allow(dead_code)]
-    fn validate_remove_index(_index: c_int) {}
 }
 
 pub(crate) fn new_raw_ex_index<E, T, F>() -> Result<Index<E::Owner, T>, ErrorStack>
@@ -288,18 +285,28 @@ where
     Ok(None)
 }
 
-#[allow(dead_code)]
 pub(crate) fn remove<E, T>(parent: &mut E::Ref, index: Index<E::Owner, T>) -> Option<T>
 where
     E: ExDataMut,
 {
-    E::validate_remove_index(index.as_raw());
+    let ownership_index =
+        ownership_ex_index::<E>().unwrap_or_else(|error| panic_ex_data("remove", error));
+    if index.as_raw() < ownership_index.as_raw() {
+        panic_borrowed_ex_data();
+    }
+
     let ptr = parent.as_ptr();
     let old = unsafe { get_slot::<E, T>(ptr, index) }?;
     unsafe {
         cvt(E::SET(ptr, index.as_raw(), ptr::null_mut())).expect("failed to remove extra data");
         Some(*Box::from_raw(old.as_ptr()))
     }
+}
+
+#[cold]
+#[inline(never)]
+fn panic_borrowed_ex_data() -> ! {
+    panic!("cannot take ownership of borrowed extra data");
 }
 
 #[cold]
@@ -324,6 +331,7 @@ macro_rules! api {
             where
                 $data: 'static + Sync + Send,
             {
+                ownership_ex_index::<Self>()?;
                 new_raw_ex_index::<Self, $data, BoxFree<$data>>()
             }
 
@@ -360,6 +368,14 @@ macro_rules! api {
                     Ok(previous) => previous,
                     Err(error) => panic_ex_data("replace", error),
                 }
+            }
+
+            /// Removes and returns the extra data at `index`.
+            pub fn remove_ex_data<T>(&mut self, index: Index<$owner, T>) -> Option<T> {
+                let parent = unsafe {
+                    <<Self as ExData>::Ref as ForeignTypeRef>::from_ptr_mut(self.as_ptr())
+                };
+                remove::<Self, T>(parent, index)
             }
 
             /// Tries to set or overwrite the extra data at `index`.
@@ -698,19 +714,6 @@ unsafe impl ExData for X509StoreContextRef {
 
 unsafe impl ExDataMut for X509StoreContextRef {
     const SET: SetExData<Self::Ref> = ffi::X509_STORE_CTX_set_ex_data;
-
-    fn validate_remove_index(index: c_int) {
-        if index == X509_STORE_CONTEXT_SSL_INDEX.as_raw() {
-            panic_borrowed_ssl_ex_data();
-        }
-    }
-}
-
-#[cold]
-#[inline(never)]
-#[allow(dead_code)]
-fn panic_borrowed_ssl_ex_data() -> ! {
-    panic!("cannot take ownership of borrowed SSL extra data");
 }
 
 impl X509StoreContext {

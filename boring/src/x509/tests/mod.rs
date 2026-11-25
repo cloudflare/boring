@@ -32,6 +32,15 @@ fn can_mutably_borrow_ssl_ex_data() {
 }
 
 #[test]
+#[should_panic(expected = "cannot take ownership of borrowed extra data")]
+fn cannot_remove_ssl_ex_data() {
+    let mut context = X509StoreContext::new().unwrap();
+    let index = X509StoreContext::ssl_idx().unwrap();
+
+    let _ = context.remove_ex_data(index);
+}
+
+#[test]
 fn replace_ex_data() {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
@@ -58,7 +67,12 @@ fn replace_ex_data() {
 
     drop(old);
     assert_eq!(drops.load(Ordering::SeqCst), 1);
+
+    let removed = context.remove_ex_data(index).unwrap();
+    assert!(context.ex_data(index).is_none());
     drop(context);
+    assert_eq!(drops.load(Ordering::SeqCst), 1);
+    drop(removed);
     assert_eq!(drops.load(Ordering::SeqCst), 2);
 }
 

@@ -12,7 +12,7 @@ use crate::ssl::SslCredentialBuilder;
 use std::convert::identity;
 use std::future::Future;
 use std::pin::Pin;
-use std::task::{ready, Context, Poll, Waker};
+use std::task::{Context, Poll, Waker};
 
 /// The type of futures to pass to [`SslContextBuilder::set_async_select_certificate_callback`].
 pub type BoxSelectCertFuture = ExDataFuture<Result<BoxSelectCertFinish, AsyncSelectCertError>>;
@@ -56,15 +56,15 @@ pub type ExDataFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 type BoxSelectCertFinishFor<T> =
     Box<dyn FnOnce(ClientHello<'_>) -> Result<T, AsyncSelectCertError>>;
 type SelectCertFuture<T> =
-    MutOnly<Option<ExDataFuture<Result<BoxSelectCertFinishFor<T>, AsyncSelectCertError>>>>;
+    MutOnly<ExDataFuture<Result<BoxSelectCertFinishFor<T>, AsyncSelectCertError>>>;
 
 ex_data_indexes! {
-    pub(crate) static TASK_WAKER_INDEX: Ssl => Option<Waker>,
+    pub(crate) static TASK_WAKER_INDEX: Ssl => Waker,
     pub(crate) static SELECT_CERT_FUTURE_INDEX: Ssl => SelectCertFuture<()>,
     pub(crate) static SELECT_CERT_ACTION_FUTURE_INDEX: Ssl => SelectCertFuture<SelectCertAction>,
-    pub(crate) static SELECT_PRIVATE_KEY_METHOD_FUTURE_INDEX: Ssl => MutOnly<Option<BoxPrivateKeyMethodFuture>>,
-    pub(crate) static SELECT_GET_SESSION_FUTURE_INDEX: Ssl => MutOnly<Option<BoxGetSessionFuture>>,
-    pub(crate) static SELECT_CUSTOM_VERIFY_FUTURE_INDEX: Ssl => MutOnly<Option<BoxCustomVerifyFuture>>,
+    pub(crate) static SELECT_PRIVATE_KEY_METHOD_FUTURE_INDEX: Ssl => MutOnly<BoxPrivateKeyMethodFuture>,
+    pub(crate) static SELECT_GET_SESSION_FUTURE_INDEX: Ssl => MutOnly<BoxGetSessionFuture>,
+    pub(crate) static SELECT_CUSTOM_VERIFY_FUTURE_INDEX: Ssl => MutOnly<BoxCustomVerifyFuture>,
 }
 
 impl SslContextBuilder {
@@ -233,7 +233,11 @@ impl SslRef {
 
     /// Sets the task waker to be used in async callbacks installed on this `Ssl`.
     pub fn set_task_waker(&mut self, waker: Option<Waker>) {
-        self.replace_ex_data(*TASK_WAKER_INDEX, waker);
+        if let Some(waker) = waker {
+            self.set_ex_data(*TASK_WAKER_INDEX, waker);
+        } else {
+            drop(self.remove_ex_data(*TASK_WAKER_INDEX));
+        }
     }
 }
 
@@ -427,7 +431,7 @@ fn with_private_key_method(
 /// created by `create_fut` returns `Poll::Ready(_)` on the first poll call.
 fn with_ex_data_future<H, R, T, E>(
     ssl_handle: &mut H,
-    index: Index<Ssl, MutOnly<Option<ExDataFuture<R>>>>,
+    index: Index<Ssl, MutOnly<ExDataFuture<R>>>,
     get_ssl_mut: impl Fn(&mut H) -> &mut SslRef,
     create_fut: impl FnOnce(&mut H) -> Result<ExDataFuture<R>, E>,
     into_result: impl Fn(R) -> Result<T, E>,
@@ -436,27 +440,88 @@ fn with_ex_data_future<H, R, T, E>(
     let waker = ssl
         .ex_data(*TASK_WAKER_INDEX)
         .cloned()
-        .flatten()
         .expect("task waker should be set");
 
     let mut ctx = Context::from_waker(&waker);
 
-    if let Some(data @ Some(_)) = ssl.ex_data_mut(index).map(MutOnly::get_mut) {
-        let fut_result = into_result(ready!(data.as_mut().unwrap().as_mut().poll(&mut ctx)));
+    let fut_result = match ssl.ex_data_mut(index).map(MutOnly::get_mut) {
+        Some(future) => match future.as_mut().poll(&mut ctx) {
+            Poll::Ready(result) => Some(result),
+            Poll::Pending => return Poll::Pending,
+        },
+        None => None,
+    };
 
-        *data = None;
-
-        Poll::Ready(fut_result)
+    if let Some(fut_result) = fut_result {
+        let _ = ssl.remove_ex_data(index);
+        Poll::Ready(into_result(fut_result))
     } else {
         let mut fut = create_fut(ssl_handle)?;
 
         match fut.as_mut().poll(&mut ctx) {
             Poll::Ready(fut_result) => Poll::Ready(into_result(fut_result)),
             Poll::Pending => {
-                get_ssl_mut(ssl_handle).replace_ex_data(index, MutOnly::new(Some(fut)));
+                get_ssl_mut(ssl_handle).set_ex_data(index, MutOnly::new(fut));
 
                 Poll::Pending
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ssl::{Ssl, SslContext, SslMethod};
+    use std::future::poll_fn;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    #[test]
+    fn completed_future_is_removed() {
+        let context = SslContext::builder(SslMethod::tls()).unwrap().build();
+        let mut ssl = Ssl::new(&context).unwrap();
+        ssl.set_task_waker(Some(Waker::noop().clone()));
+
+        let index = Ssl::new_ex_index().unwrap();
+        let polls = Arc::new(AtomicUsize::new(0));
+        let creates = Arc::new(AtomicUsize::new(0));
+
+        let poll = |ssl: &mut Ssl| {
+            with_ex_data_future(
+                ssl,
+                index,
+                |ssl| ssl,
+                |_| {
+                    creates.fetch_add(1, Ordering::SeqCst);
+                    let polls = polls.clone();
+                    Ok::<_, ()>(Box::pin(poll_fn(move |_| {
+                        if polls.fetch_add(1, Ordering::SeqCst) == 0 {
+                            Poll::Pending
+                        } else {
+                            Poll::Ready(())
+                        }
+                    })))
+                },
+                Ok,
+            )
+        };
+
+        assert_eq!(poll(&mut ssl), Poll::Pending);
+        assert!(ssl.ex_data(index).is_some());
+        assert_eq!(poll(&mut ssl), Poll::Ready(Ok(())));
+        assert!(ssl.ex_data(index).is_none());
+        assert_eq!(creates.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn clearing_task_waker_removes_extra_data() {
+        let context = SslContext::builder(SslMethod::tls()).unwrap().build();
+        let mut ssl = Ssl::new(&context).unwrap();
+
+        ssl.set_task_waker(Some(Waker::noop().clone()));
+        assert!(ssl.ex_data(*TASK_WAKER_INDEX).is_some());
+        ssl.set_task_waker(None);
+        assert!(ssl.ex_data(*TASK_WAKER_INDEX).is_none());
     }
 }
