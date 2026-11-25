@@ -302,6 +302,12 @@ where
     }
 }
 
+#[cold]
+#[inline(never)]
+fn panic_ex_data(operation: &str, error: ErrorStack) -> ! {
+    panic!("failed to {operation} extra data: {error}")
+}
+
 macro_rules! api {
     (
         receiver = $receiver:ident $(<$receiver_data:ident>)?,
@@ -343,22 +349,17 @@ macro_rules! api {
 
             /// Sets or overwrites the extra data at `index`.
             pub fn set_ex_data<T>(&mut self, index: Index<$owner, T>, data: T) {
-                let parent = unsafe {
-                    <<Self as ExData>::Ref as ForeignTypeRef>::from_ptr_mut(self.as_ptr())
-                };
-                drop(
-                    try_set::<Self, T>(parent, index, data)
-                    .expect("failed to set extra data"),
-                );
+                if let Err(error) = self.try_set_ex_data(index, data) {
+                    panic_ex_data("set", error);
+                }
             }
 
             /// Replaces the extra data at `index`, returning the previous value.
             pub fn replace_ex_data<T>(&mut self, index: Index<$owner, T>, data: T) -> Option<T> {
-                let parent = unsafe {
-                    <<Self as ExData>::Ref as ForeignTypeRef>::from_ptr_mut(self.as_ptr())
-                };
-                try_set::<Self, T>(parent, index, data)
-                    .expect("failed to replace extra data")
+                match self.try_replace_ex_data(index, data) {
+                    Ok(previous) => previous,
+                    Err(error) => panic_ex_data("replace", error),
+                }
             }
 
             /// Tries to set or overwrite the extra data at `index`.
@@ -367,8 +368,10 @@ macro_rules! api {
                 index: Index<$owner, T>,
                 data: T,
             ) -> Result<(), ErrorStack> {
-                let ptr = self.as_ptr();
-                try_set::<Self, T>(self, ptr, index, data).map(drop)
+                let parent = unsafe {
+                    <<Self as ExData>::Ref as ForeignTypeRef>::from_ptr_mut(self.as_ptr())
+                };
+                try_set::<Self, T>(parent, index, data).map(drop)
             }
 
             /// Tries to replace the extra data at `index`, returning the previous value.
@@ -377,8 +380,10 @@ macro_rules! api {
                 index: Index<$owner, T>,
                 data: T,
             ) -> Result<Option<T>, ErrorStack> {
-                let ptr = self.as_ptr();
-                try_set::<Self, T>(self, ptr, index, data)
+                let parent = unsafe {
+                    <<Self as ExData>::Ref as ForeignTypeRef>::from_ptr_mut(self.as_ptr())
+                };
+                try_set::<Self, T>(parent, index, data)
             }
         }
     };
