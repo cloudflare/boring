@@ -1798,7 +1798,7 @@ impl SslContextBuilder {
         if !success {
             return Err(ErrorStack::get());
         }
-        self.callbacks_mut()
+        self.try_callbacks_mut()?
             .insert_certificate_compressor(compressor);
         Ok(())
     }
@@ -1894,8 +1894,8 @@ impl SslContextBuilder {
     where
         F: Fn(&mut SslRef) -> Result<bool, ErrorStack> + 'static + Sync + Send,
     {
+        self.try_callbacks_mut()?.status = Some(Box::new(callback));
         unsafe {
-            self.callbacks_mut().status = Some(Box::new(callback));
             cvt(ffi::SSL_CTX_set_tlsext_status_cb(
                 self.as_ptr(),
                 Some(raw_tlsext_status),

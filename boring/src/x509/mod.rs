@@ -153,9 +153,9 @@ impl X509StoreContextRef {
             }
         }
 
-        self.set_ex_data(*STORE_INDEX, trust);
-        self.set_ex_data(*CERT_INDEX, cert);
-        self.set_ex_data(*CERT_CHAIN_INDEX, cert_chain);
+        self.try_set_ex_data(*STORE_INDEX, trust)?;
+        self.try_set_ex_data(*CERT_INDEX, cert)?;
+        self.try_set_ex_data(*CERT_CHAIN_INDEX, cert_chain)?;
 
         Ok(())
     }

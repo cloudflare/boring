@@ -360,6 +360,26 @@ macro_rules! api {
                 try_set::<Self, T>(parent, index, data)
                     .expect("failed to replace extra data")
             }
+
+            /// Tries to set or overwrite the extra data at `index`.
+            pub fn try_set_ex_data<T>(
+                &mut self,
+                index: Index<$owner, T>,
+                data: T,
+            ) -> Result<(), ErrorStack> {
+                let ptr = self.as_ptr();
+                try_set::<Self, T>(self, ptr, index, data).map(drop)
+            }
+
+            /// Tries to replace the extra data at `index`, returning the previous value.
+            pub fn try_replace_ex_data<T>(
+                &mut self,
+                index: Index<$owner, T>,
+                data: T,
+            ) -> Result<Option<T>, ErrorStack> {
+                let ptr = self.as_ptr();
+                try_set::<Self, T>(self, ptr, index, data)
+            }
         }
     };
 }
