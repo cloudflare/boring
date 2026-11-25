@@ -1,4 +1,5 @@
 use crate::error::ErrorStack;
+use crate::ssl::callbacks::{SslCallbacks, SslContextCallbacks};
 use crate::ssl::{Ssl, SslContext, SslContextBuilder, SslContextRef, SslRef};
 #[cfg(feature = "credential")]
 use crate::ssl::{SslCredential, SslCredentialBuilder, SslCredentialRef};
@@ -12,16 +13,10 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::mem;
 use std::ptr::{self, NonNull};
-use std::sync::{LazyLock, Mutex};
+use std::sync::{LazyLock, Mutex, OnceLock};
 
-static SSL_CONTEXT_INDEXES: LazyLock<Mutex<HashMap<TypeId, c_int>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
 static SSL_INDEXES: LazyLock<Mutex<HashMap<TypeId, c_int>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
-#[cfg(feature = "credential")]
-static SSL_CREDENTIAL_INDEXES: LazyLock<Mutex<HashMap<TypeId, c_int>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
-
 pub(crate) trait Free {
     unsafe fn free(ptr: *mut c_void);
 }
@@ -45,6 +40,24 @@ unsafe extern "C" fn free_ex_data<F: Free>(
     if !ptr.is_null() {
         unsafe { F::free(ptr) };
     }
+}
+
+#[derive(Default)]
+pub(crate) struct SslContextOwnership {
+    pub(crate) has_shared_cert_store: bool,
+    pub(crate) callbacks: Option<Box<SslContextCallbacks>>,
+}
+
+#[derive(Default)]
+pub(crate) struct SslOwnership {
+    pub(crate) session_ctx: Option<SslContext>,
+    pub(crate) callbacks: Option<Box<SslCallbacks>>,
+}
+
+#[cfg(feature = "credential")]
+#[derive(Default)]
+pub(crate) struct SslCredentialOwnership {
+    pub(crate) private_key_method: Option<Box<dyn crate::ssl::PrivateKeyMethod>>,
 }
 
 /// A slot in a type's "extra data" structure.
@@ -79,6 +92,47 @@ impl<T, U> Index<T, U> {
     }
 }
 
+pub(crate) struct OnceIndex<O, T> {
+    cell: OnceLock<Index<O, T>>,
+    init_lock: Mutex<()>,
+}
+
+impl<O, T> OnceIndex<O, T> {
+    const fn new() -> Self {
+        Self {
+            cell: OnceLock::new(),
+            init_lock: Mutex::new(()),
+        }
+    }
+
+    fn get(&self) -> Option<Index<O, T>> {
+        self.cell.get().copied()
+    }
+
+    // TODO: Use `OnceLock::get_or_try_init` once it is stable at the MSRV.
+    // https://github.com/rust-lang/rust/issues/109737
+    fn get_or_try_init<E>(
+        &self,
+        init: impl FnOnce() -> Result<Index<O, T>, E>,
+    ) -> Result<Index<O, T>, E> {
+        if let Some(index) = self.get() {
+            return Ok(index);
+        }
+
+        let _guard = self
+            .init_lock
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if let Some(index) = self.get() {
+            return Ok(index);
+        }
+
+        let index = init()?;
+        assert!(self.cell.set(index).is_ok());
+        Ok(index)
+    }
+}
+
 macro_rules! ex_data_indexes {
     ($($vis:vis static $name:ident: $owner:ty => $data:ty,)+) => {
         $($vis static $name: std::sync::LazyLock<$crate::ex_data::Index<$owner, $data>> =
@@ -100,11 +154,13 @@ type SetExData<T> =
     unsafe extern "C" fn(*mut <T as ForeignTypeRef>::CType, c_int, *mut c_void) -> c_int;
 
 pub(crate) unsafe trait ExData {
-    type Owner;
+    type Owner: 'static;
     type Ref: ForeignTypeRef;
+    type Ownership: Default + 'static;
 
     const NEW_INDEX: NewExDataIndex;
     const GET: GetExData<Self::Ref>;
+    const OWNERSHIP_INDEX: &'static OnceIndex<Self::Owner, Self::Ownership>;
 }
 
 pub(crate) unsafe trait ExDataMut: ExData {
@@ -130,6 +186,57 @@ where
         ))?;
         Ok(Index::from_raw(idx))
     }
+}
+
+fn ownership_ex_index<E>() -> Result<Index<E::Owner, E::Ownership>, ErrorStack>
+where
+    E: ExData,
+{
+    E::OWNERSHIP_INDEX.get_or_try_init(new_raw_ex_index::<E, E::Ownership, BoxFree<E::Ownership>>)
+}
+
+fn has_ownership_ex_data<E>(ptr: *mut <E::Ref as ForeignTypeRef>::CType) -> bool
+where
+    E: ExData,
+{
+    E::OWNERSHIP_INDEX
+        .get()
+        .is_some_and(|index| unsafe { !E::GET(ptr, index.as_raw()).is_null() })
+}
+
+fn ownership_ex_data<E>(ptr: *mut <E::Ref as ForeignTypeRef>::CType) -> *mut E::Ownership
+where
+    E: ExData,
+{
+    let index = E::OWNERSHIP_INDEX
+        .get()
+        .expect("BUG: extra data ownership index missing");
+    let ownership: *mut E::Ownership = unsafe { E::GET(ptr, index.as_raw()).cast() };
+    assert!(!ownership.is_null(), "BUG: extra data ownership missing");
+    ownership
+}
+
+fn try_ensure_ownership_ex_data<E>(
+    ptr: *mut <E::Ref as ForeignTypeRef>::CType,
+) -> Result<*mut E::Ownership, ErrorStack>
+where
+    E: ExDataMut,
+{
+    let index = ownership_ex_index::<E>()?;
+    let ownership: *mut E::Ownership = unsafe { E::GET(ptr, index.as_raw()).cast() };
+    if !ownership.is_null() {
+        return Ok(ownership);
+    }
+
+    let mut ownership = Box::new(E::Ownership::default());
+    unsafe {
+        cvt(E::SET(
+            ptr,
+            index.as_raw(),
+            ptr::from_mut(ownership.as_mut()).cast(),
+        ))?;
+    }
+    Ok(Box::into_raw(ownership))
 }
 
 unsafe fn get_slot<E, T>(
@@ -195,55 +302,12 @@ where
     }
 }
 
-macro_rules! cached_api {
-    (owner = Ssl, indexes = $indexes:ident,) => {
-        /// Returns the process-wide extra data index associated with `T`.
-        ///
-        /// The index is allocated lazily on first use and reused by subsequent calls for the same
-        /// type. Callers must coordinate all uses of a given `T`, since they share one slot on every
-        /// [`Ssl`].
-        // FIXME should return a result?
-        pub fn cached_ex_index<T>() -> Index<Ssl, T>
-        where
-            T: 'static + Sync + Send,
-        {
-            cached_ex_index::<Ssl, T>(&$indexes)
-        }
-    };
-    (owner = $owner:ident, indexes = $indexes:ident,) => {
-        // FIXME should return a result?
-        pub(crate) fn cached_ex_index<T>() -> Index<$owner, T>
-        where
-            T: 'static + Sync + Send,
-        {
-            cached_ex_index::<$owner, T>(&$indexes)
-        }
-    };
-    (owner = $owner:ident,) => {};
-}
-
-fn cached_ex_index<O, T>(indexes: &Mutex<HashMap<TypeId, c_int>>) -> Index<O, T>
-where
-    O: ExData<Owner = O>,
-    T: 'static + Sync + Send,
-{
-    unsafe {
-        let idx = *indexes
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .entry(TypeId::of::<T>())
-            .or_insert_with(|| new_raw_ex_index::<O, T, BoxFree<T>>().unwrap().as_raw());
-        Index::from_raw(idx)
-    }
-}
-
 macro_rules! api {
     (
         receiver = $receiver:ident $(<$receiver_data:ident>)?,
         mut_receiver = $mut_receiver:ident $(<$mut_receiver_data:ident>)?,
-        owner = $owner:ident,
+        owner = $owner:ty,
         data = $data:ident,
-        $(cached = $indexes:ident,) ?
     ) => {
         impl $owner {
             /// Returns a new extra data index.
@@ -257,10 +321,6 @@ macro_rules! api {
                 new_raw_ex_index::<Self, $data, BoxFree<$data>>()
             }
 
-            cached_api!(
-                owner = $owner,
-                $(indexes = $indexes,)?
-            );
         }
 
         impl$(<$receiver_data>)? $receiver$(<$receiver_data>)? {
@@ -269,6 +329,7 @@ macro_rules! api {
             pub fn ex_data<$data>(&self, index: Index<$owner, $data>) -> Option<&$data> {
                 get::<Self, $data>(self, index)
             }
+
         }
 
         impl$(<$mut_receiver_data>)? $mut_receiver$(<$mut_receiver_data>)? {
@@ -303,9 +364,47 @@ macro_rules! api {
     };
 }
 
+impl SslContextBuilder {
+    pub(crate) fn try_callbacks_mut(&mut self) -> Result<&mut SslContextCallbacks, ErrorStack> {
+        let ownership = try_ensure_ownership_ex_data::<Self>(self.as_ptr())?;
+        Ok(unsafe { &mut (*ownership).callbacks }
+            .get_or_insert_with(|| Box::new(SslContextCallbacks::default())))
+    }
+
+    pub(crate) fn callbacks_mut(&mut self) -> &mut SslContextCallbacks {
+        self.try_callbacks_mut()
+            .expect("failed to initialize SSL context callback state")
+    }
+
+    pub(crate) fn set_has_shared_cert_store(&mut self, value: bool) {
+        let ownership = try_ensure_ownership_ex_data::<Self>(self.as_ptr())
+            .expect("failed to set shared certificate store state");
+        unsafe { (*ownership).has_shared_cert_store = value };
+    }
+}
+
+impl SslContextRef {
+    pub(crate) fn callbacks(&self) -> Option<&SslContextCallbacks> {
+        if !has_ownership_ex_data::<Self>(self.as_ptr()) {
+            return None;
+        }
+        let ownership = ownership_ex_data::<Self>(self.as_ptr());
+        unsafe { (*ownership).callbacks.as_deref() }
+    }
+
+    pub(crate) fn has_shared_cert_store(&self) -> bool {
+        if !has_ownership_ex_data::<Self>(self.as_ptr()) {
+            return false;
+        }
+        let ownership = ownership_ex_data::<Self>(self.as_ptr());
+        unsafe { (*ownership).has_shared_cert_store }
+    }
+}
+
 unsafe impl ExData for SslContext {
     type Owner = SslContext;
     type Ref = SslContextRef;
+    type Ownership = SslContextOwnership;
 
     const NEW_INDEX: NewExDataIndex = ffi::SSL_CTX_get_ex_new_index;
     const GET: GetExData<Self::Ref> = unsafe {
@@ -314,14 +413,21 @@ unsafe impl ExData for SslContext {
             GetExData<Self::Ref>,
         >(ffi::SSL_CTX_get_ex_data)
     };
+    const OWNERSHIP_INDEX: &'static OnceIndex<Self::Owner, Self::Ownership> = {
+        static INDEX: OnceIndex<SslContext, SslContextOwnership> = OnceIndex::new();
+        &INDEX
+    };
 }
 
 unsafe impl ExData for SslContextRef {
     type Owner = SslContext;
     type Ref = SslContextRef;
+    type Ownership = SslContextOwnership;
 
     const NEW_INDEX: NewExDataIndex = <SslContext as ExData>::NEW_INDEX;
     const GET: GetExData<Self::Ref> = <SslContext as ExData>::GET;
+    const OWNERSHIP_INDEX: &'static OnceIndex<Self::Owner, Self::Ownership> =
+        <SslContext as ExData>::OWNERSHIP_INDEX;
 }
 
 unsafe impl ExDataMut for SslContextRef {
@@ -331,9 +437,12 @@ unsafe impl ExDataMut for SslContextRef {
 unsafe impl ExData for SslContextBuilder {
     type Owner = SslContext;
     type Ref = SslContextRef;
+    type Ownership = SslContextOwnership;
 
     const NEW_INDEX: NewExDataIndex = <SslContext as ExData>::NEW_INDEX;
     const GET: GetExData<Self::Ref> = <SslContext as ExData>::GET;
+    const OWNERSHIP_INDEX: &'static OnceIndex<Self::Owner, Self::Ownership> =
+        <SslContext as ExData>::OWNERSHIP_INDEX;
 }
 
 unsafe impl ExDataMut for SslContextBuilder {
@@ -345,12 +454,34 @@ api!(
     mut_receiver = SslContextBuilder,
     owner = SslContext,
     data = T,
-    cached = SSL_CONTEXT_INDEXES,
 );
+
+impl Ssl {
+    /// Returns the process-wide extra data index associated with `T`.
+    ///
+    /// The index is allocated lazily on first use and reused by subsequent calls for the same
+    /// type. Callers must coordinate all uses of a given `T`, since they share one slot on every
+    /// [`Ssl`].
+    // FIXME should return a result?
+    pub fn cached_ex_index<T>() -> Index<Ssl, T>
+    where
+        T: 'static + Sync + Send,
+    {
+        unsafe {
+            let idx = *SSL_INDEXES
+                .lock()
+                .unwrap_or_else(|error| error.into_inner())
+                .entry(TypeId::of::<T>())
+                .or_insert_with(|| Ssl::new_ex_index::<T>().unwrap().as_raw());
+            Index::from_raw(idx)
+        }
+    }
+}
 
 unsafe impl ExData for Ssl {
     type Owner = Ssl;
     type Ref = SslRef;
+    type Ownership = SslOwnership;
 
     const NEW_INDEX: NewExDataIndex = ffi::SSL_get_ex_new_index;
     const GET: GetExData<Self::Ref> = unsafe {
@@ -359,14 +490,21 @@ unsafe impl ExData for Ssl {
             GetExData<Self::Ref>,
         >(ffi::SSL_get_ex_data)
     };
+    const OWNERSHIP_INDEX: &'static OnceIndex<Self::Owner, Self::Ownership> = {
+        static INDEX: OnceIndex<Ssl, SslOwnership> = OnceIndex::new();
+        &INDEX
+    };
 }
 
 unsafe impl ExData for SslRef {
     type Owner = Ssl;
     type Ref = SslRef;
+    type Ownership = SslOwnership;
 
     const NEW_INDEX: NewExDataIndex = <Ssl as ExData>::NEW_INDEX;
     const GET: GetExData<Self::Ref> = <Ssl as ExData>::GET;
+    const OWNERSHIP_INDEX: &'static OnceIndex<Self::Owner, Self::Ownership> =
+        <Ssl as ExData>::OWNERSHIP_INDEX;
 }
 
 unsafe impl ExDataMut for SslRef {
@@ -378,13 +516,60 @@ api!(
     mut_receiver = SslRef,
     owner = Ssl,
     data = T,
-    cached = SSL_INDEXES,
 );
+
+impl SslRef {
+    pub(crate) fn initialize_ownership(
+        &mut self,
+        context: &SslContextRef,
+    ) -> Result<(), ErrorStack> {
+        let ownership = try_ensure_ownership_ex_data::<Self>(self.as_ptr())?;
+        unsafe { (*ownership).session_ctx = Some(context.to_owned()) };
+        Ok(())
+    }
+
+    pub(crate) fn ownership(&self) -> &SslOwnership {
+        let ownership = ownership_ex_data::<Self>(self.as_ptr());
+        unsafe { &*ownership }
+    }
+
+    pub(crate) fn ownership_mut(&mut self) -> &mut SslOwnership {
+        let ownership = ownership_ex_data::<Self>(self.as_ptr());
+        unsafe { &mut *ownership }
+    }
+
+    pub(crate) fn session_ctx(&self) -> &SslContextRef {
+        self.ownership()
+            .session_ctx
+            .as_deref()
+            .expect("BUG: SSL session context missing")
+    }
+
+    pub(crate) fn callbacks_mut(&mut self) -> &mut SslCallbacks {
+        self.ownership_mut()
+            .callbacks
+            .get_or_insert_with(|| Box::new(SslCallbacks::default()))
+    }
+
+    pub(crate) fn with_session_callbacks<R>(
+        &mut self,
+        invoke: impl FnOnce(&SslContextCallbacks, &mut Self) -> R,
+    ) -> R {
+        let context = self.session_ctx();
+        // SAFETY: the private session-context field cannot be mutated through `self`.
+        let context = unsafe { &*ptr::from_ref(context) };
+        let callbacks = context
+            .callbacks()
+            .expect("BUG: SSL context callback state missing");
+        invoke(callbacks, self)
+    }
+}
 
 #[cfg(feature = "credential")]
 unsafe impl ExData for SslCredential {
     type Owner = SslCredential;
     type Ref = SslCredentialRef;
+    type Ownership = SslCredentialOwnership;
 
     const NEW_INDEX: NewExDataIndex = ffi::SSL_CREDENTIAL_get_ex_new_index;
     const GET: GetExData<Self::Ref> = unsafe {
@@ -393,24 +578,34 @@ unsafe impl ExData for SslCredential {
             GetExData<Self::Ref>,
         >(ffi::SSL_CREDENTIAL_get_ex_data)
     };
+    const OWNERSHIP_INDEX: &'static OnceIndex<Self::Owner, Self::Ownership> = {
+        static INDEX: OnceIndex<SslCredential, SslCredentialOwnership> = OnceIndex::new();
+        &INDEX
+    };
 }
 
 #[cfg(feature = "credential")]
 unsafe impl ExData for SslCredentialRef {
     type Owner = SslCredential;
     type Ref = SslCredentialRef;
+    type Ownership = SslCredentialOwnership;
 
     const NEW_INDEX: NewExDataIndex = <SslCredential as ExData>::NEW_INDEX;
     const GET: GetExData<Self::Ref> = <SslCredential as ExData>::GET;
+    const OWNERSHIP_INDEX: &'static OnceIndex<Self::Owner, Self::Ownership> =
+        <SslCredential as ExData>::OWNERSHIP_INDEX;
 }
 
 #[cfg(feature = "credential")]
 unsafe impl ExData for SslCredentialBuilder {
     type Owner = SslCredential;
     type Ref = SslCredentialRef;
+    type Ownership = SslCredentialOwnership;
 
     const NEW_INDEX: NewExDataIndex = <SslCredential as ExData>::NEW_INDEX;
     const GET: GetExData<Self::Ref> = <SslCredential as ExData>::GET;
+    const OWNERSHIP_INDEX: &'static OnceIndex<Self::Owner, Self::Ownership> =
+        <SslCredential as ExData>::OWNERSHIP_INDEX;
 }
 
 #[cfg(feature = "credential")]
@@ -419,12 +614,30 @@ unsafe impl ExDataMut for SslCredentialBuilder {
 }
 
 #[cfg(feature = "credential")]
+impl SslCredentialBuilder {
+    pub(crate) fn try_ownership_mut(&mut self) -> Result<&mut SslCredentialOwnership, ErrorStack> {
+        let ownership = try_ensure_ownership_ex_data::<Self>(self.as_ptr())?;
+        Ok(unsafe { &mut *ownership })
+    }
+}
+
+#[cfg(feature = "credential")]
+impl SslCredentialRef {
+    pub(crate) fn ownership(&self) -> Option<&SslCredentialOwnership> {
+        if !has_ownership_ex_data::<Self>(self.as_ptr()) {
+            return None;
+        }
+        let ownership = ownership_ex_data::<Self>(self.as_ptr());
+        Some(unsafe { &*ownership })
+    }
+}
+
+#[cfg(feature = "credential")]
 api!(
     receiver = SslCredentialRef,
     mut_receiver = SslCredentialBuilder,
     owner = SslCredential,
     data = T,
-    cached = SSL_CREDENTIAL_INDEXES,
 );
 
 static X509_STORE_CONTEXT_SSL_INDEX: LazyLock<Index<X509StoreContext, SslRef>> =
@@ -437,17 +650,25 @@ static X509_STORE_CONTEXT_SSL_INDEX: LazyLock<Index<X509StoreContext, SslRef>> =
 unsafe impl ExData for X509StoreContext {
     type Owner = X509StoreContext;
     type Ref = X509StoreContextRef;
+    type Ownership = ();
 
     const NEW_INDEX: NewExDataIndex = ffi::X509_STORE_CTX_get_ex_new_index;
     const GET: GetExData<Self::Ref> = ffi::X509_STORE_CTX_get_ex_data;
+    const OWNERSHIP_INDEX: &'static OnceIndex<Self::Owner, Self::Ownership> = {
+        static INDEX: OnceIndex<X509StoreContext, ()> = OnceIndex::new();
+        &INDEX
+    };
 }
 
 unsafe impl ExData for X509StoreContextRef {
     type Owner = X509StoreContext;
     type Ref = X509StoreContextRef;
+    type Ownership = ();
 
     const NEW_INDEX: NewExDataIndex = <X509StoreContext as ExData>::NEW_INDEX;
     const GET: GetExData<Self::Ref> = <X509StoreContext as ExData>::GET;
+    const OWNERSHIP_INDEX: &'static OnceIndex<Self::Owner, Self::Ownership> =
+        <X509StoreContext as ExData>::OWNERSHIP_INDEX;
 }
 
 unsafe impl ExDataMut for X509StoreContextRef {
@@ -488,5 +709,21 @@ impl X509StoreContextRef {
     #[must_use]
     pub fn ssl(&self) -> Option<&SslRef> {
         self.ex_data(*X509_STORE_CONTEXT_SSL_INDEX)
+    }
+
+    pub(crate) fn with_session_callbacks<R>(
+        &mut self,
+        invoke: impl FnOnce(&SslContextCallbacks, &mut Self) -> R,
+    ) -> R {
+        let context = self
+            .ssl()
+            .expect("BUG: store context missing SSL")
+            .session_ctx();
+        // SAFETY: the private session-context field cannot be mutated through `self`.
+        let context = unsafe { &*ptr::from_ref(context) };
+        let callbacks = context
+            .callbacks()
+            .expect("BUG: SSL context callback state missing");
+        invoke(callbacks, self)
     }
 }

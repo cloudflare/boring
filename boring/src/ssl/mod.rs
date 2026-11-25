@@ -117,7 +117,7 @@ pub use self::error::{Error, ErrorCode, HandshakeError};
 
 mod async_callbacks;
 mod bio;
-mod callbacks;
+pub(crate) mod callbacks;
 mod connector;
 #[cfg(feature = "credential")]
 mod credential;
@@ -490,9 +490,7 @@ impl NameType {
 }
 
 ex_data_indexes! {
-    static SESSION_CTX_INDEX: Ssl => SslContext,
     static X509_FLAG_INDEX: SslContext => bool,
-    static SHARED_CERT_STORE_INDEX: SslContext => bool,
 }
 
 #[cold]
@@ -1094,11 +1092,11 @@ impl SslContextBuilder {
         // There's no way to get a mutable reference to the `Ssl` or `SslContext`, which
         // is what you need to register a new callback.
         // See the NOTE in `ssl_raw_verify` for confirmation.
-        self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+        self.callbacks_mut().cert_verify = Some(Box::new(callback));
         unsafe {
             ffi::SSL_CTX_set_cert_verify_callback(
                 self.as_ptr(),
-                Some(raw_cert_verify::<F>),
+                Some(raw_cert_verify),
                 ptr::null_mut(),
             );
         }
@@ -1138,12 +1136,8 @@ impl SslContextBuilder {
         self.ctx.check_x509();
 
         unsafe {
-            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
-            ffi::SSL_CTX_set_verify(
-                self.as_ptr(),
-                c_int::from(mode.bits()),
-                Some(raw_verify::<F>),
-            );
+            self.callbacks_mut().verify = Some(Box::new(callback));
+            ffi::SSL_CTX_set_verify(self.as_ptr(), c_int::from(mode.bits()), Some(raw_verify));
         }
     }
 
@@ -1167,11 +1161,11 @@ impl SslContextBuilder {
         F: Fn(&mut SslRef) -> Result<(), SslVerifyError> + 'static + Sync + Send,
     {
         unsafe {
-            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+            self.callbacks_mut().custom_verify = Some(Box::new(callback));
             ffi::SSL_CTX_set_custom_verify(
                 self.as_ptr(),
                 c_int::from(mode.bits()),
-                Some(raw_custom_verify::<F>),
+                Some(raw_custom_verify),
             );
         }
     }
@@ -1191,20 +1185,9 @@ impl SslContextBuilder {
         F: Fn(&mut SslRef, &mut SslAlert) -> Result<(), SniError> + 'static + Sync + Send,
     {
         unsafe {
-            // The SNI callback is somewhat unique in that the callback associated with the original
-            // context associated with an SSL can be used even if the SSL's context has been swapped
-            // out. When that happens, we wouldn't be able to look up the callback's state in the
-            // context's ex data. Instead, pass the pointer directly as the servername arg. It's
-            // still stored in ex data to manage the lifetime.
-
-            let callback_index = SslContext::cached_ex_index::<F>();
-
-            self.replace_ex_data(callback_index, callback);
-            let callback = self.ctx.ex_data(callback_index).unwrap();
-
-            let arg = ptr::from_ref(callback).cast_mut().cast();
-            ffi::SSL_CTX_set_tlsext_servername_arg(self.as_ptr(), arg);
-            ffi::SSL_CTX_set_tlsext_servername_callback(self.as_ptr(), Some(raw_sni::<F>));
+            self.callbacks_mut().servername = Some(Box::new(callback));
+            ffi::SSL_CTX_set_tlsext_servername_arg(self.as_ptr(), ptr::null_mut());
+            ffi::SSL_CTX_set_tlsext_servername_callback(self.as_ptr(), Some(raw_sni));
         }
     }
 
@@ -1248,8 +1231,8 @@ impl SslContextBuilder {
         self.ctx.check_x509();
 
         unsafe {
-            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
-            ffi::SSL_CTX_set_tlsext_ticket_key_cb(self.as_ptr(), Some(raw_ticket_key::<F>))
+            self.callbacks_mut().ticket_key = Some(Box::new(callback));
+            ffi::SSL_CTX_set_tlsext_ticket_key_cb(self.as_ptr(), Some(raw_ticket_key))
         };
     }
 
@@ -1288,7 +1271,7 @@ impl SslContextBuilder {
     pub fn set_cert_store(&mut self, cert_store: X509Store) {
         self.ctx.check_x509();
 
-        self.set_ex_data(*SHARED_CERT_STORE_INDEX, true);
+        self.set_has_shared_cert_store(true);
         unsafe {
             ffi::SSL_CTX_set_cert_store(self.as_ptr(), cert_store.into_ptr());
         }
@@ -1299,7 +1282,7 @@ impl SslContextBuilder {
     pub fn set_cert_store_builder(&mut self, cert_store: X509StoreBuilder) {
         self.ctx.check_x509();
 
-        self.set_ex_data(*SHARED_CERT_STORE_INDEX, false);
+        self.set_has_shared_cert_store(false);
         unsafe {
             ffi::SSL_CTX_set_cert_store(self.as_ptr(), cert_store.into_ptr());
         }
@@ -1726,10 +1709,10 @@ impl SslContextBuilder {
         F: for<'a> Fn(&mut SslRef, &'a [u8]) -> Result<&'a [u8], AlpnError> + 'static + Sync + Send,
     {
         unsafe {
-            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+            self.callbacks_mut().alpn_select = Some(Box::new(callback));
             ffi::SSL_CTX_set_alpn_select_cb(
                 self.as_ptr(),
-                Some(callbacks::raw_alpn_select::<F>),
+                Some(callbacks::raw_alpn_select),
                 ptr::null_mut(),
             );
         }
@@ -1773,11 +1756,8 @@ impl SslContextBuilder {
         F: Fn(ClientHello<'_>) -> Result<SelectCertAction, SelectCertError> + Sync + Send + 'static,
     {
         unsafe {
-            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
-            ffi::SSL_CTX_set_select_certificate_cb(
-                self.as_ptr(),
-                Some(callbacks::raw_select_cert::<F>),
-            );
+            self.callbacks_mut().select_certificate = Some(Box::new(callback));
+            ffi::SSL_CTX_set_select_certificate_cb(self.as_ptr(), Some(callbacks::raw_select_cert));
         }
     }
 
@@ -1818,7 +1798,8 @@ impl SslContextBuilder {
         if !success {
             return Err(ErrorStack::get());
         }
-        self.replace_ex_data(SslContext::cached_ex_index::<C>(), compressor);
+        self.callbacks_mut()
+            .insert_certificate_compressor(compressor);
         Ok(())
     }
 
@@ -1839,23 +1820,22 @@ impl SslContextBuilder {
                 Some(ssl.ssl_context().to_owned())
             }
 
-            fn get_callback<M>(owner: &Self::Owner) -> Option<&M>
-            where
-                M: PrivateKeyMethod,
-            {
-                owner.ex_data(SslContext::cached_ex_index::<M>())
+            fn get_callback(owner: &Self::Owner) -> Option<&dyn PrivateKeyMethod> {
+                owner
+                    .callbacks()
+                    .and_then(|callbacks| callbacks.private_key_method.as_deref())
             }
         }
 
         unsafe {
-            self.replace_ex_data(SslContext::cached_ex_index::<M>(), method);
+            self.callbacks_mut().private_key_method = Some(Box::new(method));
 
             ffi::SSL_CTX_set_private_key_method(
                 self.as_ptr(),
                 &ffi::SSL_PRIVATE_KEY_METHOD {
-                    sign: Some(callbacks::raw_sign::<M, ContextPrivateKeyMethodSource>),
-                    decrypt: Some(callbacks::raw_decrypt::<M, ContextPrivateKeyMethodSource>),
-                    complete: Some(callbacks::raw_complete::<M, ContextPrivateKeyMethodSource>),
+                    sign: Some(callbacks::raw_sign::<ContextPrivateKeyMethodSource>),
+                    decrypt: Some(callbacks::raw_decrypt::<ContextPrivateKeyMethodSource>),
+                    complete: Some(callbacks::raw_complete::<ContextPrivateKeyMethodSource>),
                 },
             );
         }
@@ -1889,12 +1869,7 @@ impl SslContextBuilder {
     pub fn cert_store_mut(&mut self) -> &mut X509StoreBuilderRef {
         self.ctx.check_x509();
 
-        if self
-            .ctx
-            .ex_data(*SHARED_CERT_STORE_INDEX)
-            .copied()
-            .unwrap_or(false)
-        {
+        if self.ctx.has_shared_cert_store() {
             panic_shared_cert_store_mutation();
         }
         // OTOH, it's not safe to return a shared &X509Store when the builder owns it exclusively
@@ -1920,10 +1895,10 @@ impl SslContextBuilder {
         F: Fn(&mut SslRef) -> Result<bool, ErrorStack> + 'static + Sync + Send,
     {
         unsafe {
-            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+            self.callbacks_mut().status = Some(Box::new(callback));
             cvt(ffi::SSL_CTX_set_tlsext_status_cb(
                 self.as_ptr(),
-                Some(raw_tlsext_status::<F>),
+                Some(raw_tlsext_status),
             ))
         }
     }
@@ -1942,8 +1917,8 @@ impl SslContextBuilder {
             + Send,
     {
         unsafe {
-            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
-            ffi::SSL_CTX_set_psk_client_callback(self.as_ptr(), Some(raw_client_psk::<F>));
+            self.callbacks_mut().psk_client = Some(Box::new(callback));
+            ffi::SSL_CTX_set_psk_client_callback(self.as_ptr(), Some(raw_client_psk));
         }
     }
 
@@ -1972,8 +1947,8 @@ impl SslContextBuilder {
             + Send,
     {
         unsafe {
-            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
-            ffi::SSL_CTX_set_psk_server_callback(self.as_ptr(), Some(raw_server_psk::<F>));
+            self.callbacks_mut().psk_server = Some(Box::new(callback));
+            ffi::SSL_CTX_set_psk_server_callback(self.as_ptr(), Some(raw_server_psk));
         }
     }
 
@@ -1996,8 +1971,8 @@ impl SslContextBuilder {
         F: Fn(&mut SslRef, SslSession) + 'static + Sync + Send,
     {
         unsafe {
-            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
-            ffi::SSL_CTX_sess_set_new_cb(self.as_ptr(), Some(callbacks::raw_new_session::<F>));
+            self.callbacks_mut().new_session = Some(Box::new(callback));
+            ffi::SSL_CTX_sess_set_new_cb(self.as_ptr(), Some(callbacks::raw_new_session));
         }
     }
 
@@ -2010,11 +1985,8 @@ impl SslContextBuilder {
         F: Fn(&SslContextRef, &SslSessionRef) + 'static + Sync + Send,
     {
         unsafe {
-            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
-            ffi::SSL_CTX_sess_set_remove_cb(
-                self.as_ptr(),
-                Some(callbacks::raw_remove_session::<F>),
-            );
+            self.callbacks_mut().remove_session = Some(Box::new(callback));
+            ffi::SSL_CTX_sess_set_remove_cb(self.as_ptr(), Some(callbacks::raw_remove_session));
         }
     }
 
@@ -2036,9 +2008,9 @@ impl SslContextBuilder {
             + Sync
             + Send,
     {
-        self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+        self.callbacks_mut().get_session = Some(Box::new(callback));
         unsafe {
-            ffi::SSL_CTX_sess_set_get_cb(self.as_ptr(), Some(callbacks::raw_get_session::<F>));
+            ffi::SSL_CTX_sess_set_get_cb(self.as_ptr(), Some(callbacks::raw_get_session));
         }
     }
 
@@ -2053,8 +2025,8 @@ impl SslContextBuilder {
         F: Fn(&SslRef, &str) + 'static + Sync + Send,
     {
         unsafe {
-            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
-            ffi::SSL_CTX_set_keylog_callback(self.as_ptr(), Some(callbacks::raw_keylog::<F>));
+            self.callbacks_mut().keylog = Some(Box::new(callback));
+            ffi::SSL_CTX_set_keylog_callback(self.as_ptr(), Some(callbacks::raw_keylog));
         }
     }
 
@@ -2164,8 +2136,8 @@ impl SslContextBuilder {
         F: Fn(&SslRef, SslInfoCallbackMode, SslInfoCallbackValue) + Send + Sync + 'static,
     {
         unsafe {
-            self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
-            ffi::SSL_CTX_set_info_callback(self.as_ptr(), Some(callbacks::raw_info_callback::<F>));
+            self.callbacks_mut().info = Some(Box::new(callback));
+            ffi::SSL_CTX_set_info_callback(self.as_ptr(), Some(callbacks::raw_info_callback));
         }
     }
 
@@ -2244,10 +2216,15 @@ impl ToOwned for SslContextRef {
     }
 }
 
-// TODO: add useful info here
 impl fmt::Debug for SslContext {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "SslContext")
+        let mut context = fmt.debug_struct("SslContext");
+        if let Some(callbacks) = self.callbacks() {
+            context.field("callbacks", callbacks);
+        }
+        context
+            .field("shared_cert_store", &self.has_shared_cert_store())
+            .finish()
     }
 }
 
@@ -2805,7 +2782,7 @@ impl Ssl {
         unsafe {
             let ptr = cvt_p(ffi::SSL_new(ctx.as_ptr()))?;
             let mut ssl = Ssl::from_ptr(ptr);
-            ssl.set_ex_data(*SESSION_CTX_INDEX, ctx.to_owned());
+            ssl.initialize_ownership(ctx)?;
 
             Ok(ssl)
         }
@@ -3056,11 +3033,11 @@ impl SslRef {
 
         unsafe {
             // this needs to be in an Arc since the callback can register a new callback!
-            self.replace_ex_data(Ssl::cached_ex_index(), Arc::new(callback));
+            self.callbacks_mut().verify = Some(Arc::new(callback));
             ffi::SSL_set_verify(
                 self.as_ptr(),
                 c_int::from(mode.bits()),
-                Some(ssl_raw_verify::<F>),
+                Some(ssl_raw_verify),
             );
         }
     }
@@ -3092,11 +3069,11 @@ impl SslRef {
 
         unsafe {
             // this needs to be in an Arc since the callback can register a new callback!
-            self.replace_ex_data(Ssl::cached_ex_index(), Arc::new(callback));
+            self.callbacks_mut().custom_verify = Some(Arc::new(callback));
             ffi::SSL_set_custom_verify(
                 self.as_ptr(),
                 c_int::from(mode.bits()),
-                Some(ssl_raw_custom_verify::<F>),
+                Some(ssl_raw_custom_verify),
             );
         }
     }

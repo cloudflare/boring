@@ -74,23 +74,22 @@ impl SslCredentialBuilder {
                 Some(ssl.selected_credential()?.to_owned())
             }
 
-            fn get_callback<M>(owner: &Self::Owner) -> Option<&M>
-            where
-                M: PrivateKeyMethod,
-            {
-                owner.ex_data(SslCredential::cached_ex_index::<M>())
+            fn get_callback(owner: &Self::Owner) -> Option<&dyn PrivateKeyMethod> {
+                owner
+                    .ownership()
+                    .and_then(|ownership| ownership.private_key_method.as_deref())
             }
         }
 
         unsafe {
-            self.replace_ex_data(SslCredential::cached_ex_index::<M>(), method);
+            self.try_ownership_mut()?.private_key_method = Some(Box::new(method));
 
             cvt_0i(ffi::SSL_CREDENTIAL_set_private_key_method(
                 self.0.as_ptr(),
                 &ffi::SSL_PRIVATE_KEY_METHOD {
-                    sign: Some(callbacks::raw_sign::<M, CredentialPrivateKeyMethodSource>),
-                    decrypt: Some(callbacks::raw_decrypt::<M, CredentialPrivateKeyMethodSource>),
-                    complete: Some(callbacks::raw_complete::<M, CredentialPrivateKeyMethodSource>),
+                    sign: Some(callbacks::raw_sign::<CredentialPrivateKeyMethodSource>),
+                    decrypt: Some(callbacks::raw_decrypt::<CredentialPrivateKeyMethodSource>),
+                    complete: Some(callbacks::raw_complete::<CredentialPrivateKeyMethodSource>),
                 },
             ))
             .map(|_| ())
