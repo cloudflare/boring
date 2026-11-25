@@ -31,6 +31,37 @@ fn can_mutably_borrow_ssl_ex_data() {
     assert!(context.ex_data_mut(index).is_none());
 }
 
+#[test]
+fn replace_ex_data() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    struct TrackDrop(Arc<AtomicUsize>);
+
+    impl Drop for TrackDrop {
+        fn drop(&mut self) {
+            self.0.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    let index = X509StoreContext::new_ex_index().unwrap();
+    let mut context = X509StoreContext::new().unwrap();
+    let drops = Arc::new(AtomicUsize::new(0));
+
+    assert!(context
+        .replace_ex_data(index, TrackDrop(drops.clone()))
+        .is_none());
+    let old = context
+        .replace_ex_data(index, TrackDrop(drops.clone()))
+        .unwrap();
+    assert_eq!(drops.load(Ordering::SeqCst), 0);
+
+    drop(old);
+    assert_eq!(drops.load(Ordering::SeqCst), 1);
+    drop(context);
+    assert_eq!(drops.load(Ordering::SeqCst), 2);
+}
+
 fn cert_with_dns_name(dns_name: &str) -> X509 {
     let mut builder = X509::builder().unwrap();
     let subject_alternative_name = SubjectAlternativeName::new()

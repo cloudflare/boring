@@ -6,13 +6,12 @@ use super::{
 };
 #[cfg(feature = "credential")]
 use crate::error::ErrorStack;
-use crate::ex_data::Index;
+use crate::ex_data::{ex_data_indexes, Index};
 #[cfg(feature = "credential")]
 use crate::ssl::SslCredentialBuilder;
 use std::convert::identity;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::LazyLock;
 use std::task::{ready, Context, Poll, Waker};
 
 /// The type of futures to pass to [`SslContextBuilder::set_async_select_certificate_callback`].
@@ -56,27 +55,17 @@ pub type ExDataFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 
 type BoxSelectCertFinishFor<T> =
     Box<dyn FnOnce(ClientHello<'_>) -> Result<T, AsyncSelectCertError>>;
-type SelectCertFutureIndex<T> = Index<
-    Ssl,
-    MutOnly<Option<ExDataFuture<Result<BoxSelectCertFinishFor<T>, AsyncSelectCertError>>>>,
->;
+type SelectCertFuture<T> =
+    MutOnly<Option<ExDataFuture<Result<BoxSelectCertFinishFor<T>, AsyncSelectCertError>>>>;
 
-pub(crate) static TASK_WAKER_INDEX: LazyLock<Index<Ssl, Option<Waker>>> =
-    LazyLock::new(|| Ssl::new_ex_index().unwrap());
-pub(crate) static SELECT_CERT_FUTURE_INDEX: LazyLock<SelectCertFutureIndex<()>> =
-    LazyLock::new(|| Ssl::new_ex_index().unwrap());
-pub(crate) static SELECT_CERT_ACTION_FUTURE_INDEX: LazyLock<
-    SelectCertFutureIndex<SelectCertAction>,
-> = LazyLock::new(|| Ssl::new_ex_index().unwrap());
-pub(crate) static SELECT_PRIVATE_KEY_METHOD_FUTURE_INDEX: LazyLock<
-    Index<Ssl, MutOnly<Option<BoxPrivateKeyMethodFuture>>>,
-> = LazyLock::new(|| Ssl::new_ex_index().unwrap());
-pub(crate) static SELECT_GET_SESSION_FUTURE_INDEX: LazyLock<
-    Index<Ssl, MutOnly<Option<BoxGetSessionFuture>>>,
-> = LazyLock::new(|| Ssl::new_ex_index().unwrap());
-pub(crate) static SELECT_CUSTOM_VERIFY_FUTURE_INDEX: LazyLock<
-    Index<Ssl, MutOnly<Option<BoxCustomVerifyFuture>>>,
-> = LazyLock::new(|| Ssl::new_ex_index().unwrap());
+ex_data_indexes! {
+    pub(crate) static TASK_WAKER_INDEX: Ssl => Option<Waker>,
+    pub(crate) static SELECT_CERT_FUTURE_INDEX: Ssl => SelectCertFuture<()>,
+    pub(crate) static SELECT_CERT_ACTION_FUTURE_INDEX: Ssl => SelectCertFuture<SelectCertAction>,
+    pub(crate) static SELECT_PRIVATE_KEY_METHOD_FUTURE_INDEX: Ssl => MutOnly<Option<BoxPrivateKeyMethodFuture>>,
+    pub(crate) static SELECT_GET_SESSION_FUTURE_INDEX: Ssl => MutOnly<Option<BoxGetSessionFuture>>,
+    pub(crate) static SELECT_CUSTOM_VERIFY_FUTURE_INDEX: Ssl => MutOnly<Option<BoxCustomVerifyFuture>>,
+}
 
 impl SslContextBuilder {
     /// Sets a callback that is called before most [`ClientHello`] processing
@@ -364,7 +353,7 @@ impl PrivateKeyMethod for AsyncPrivateKeyMethodBridge {
 
 fn async_select_certificate_callback<T, F>(
     callback: F,
-    index: SelectCertFutureIndex<T>,
+    index: Index<Ssl, SelectCertFuture<T>>,
     into_action: fn(T) -> SelectCertAction,
 ) -> impl Fn(ClientHello<'_>) -> Result<SelectCertAction, SelectCertError> + Send + Sync + 'static
 where

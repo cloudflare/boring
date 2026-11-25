@@ -105,7 +105,7 @@ extern crate libc;
 #[cfg(test)]
 extern crate hex;
 
-use std::ffi::{c_int, c_long, c_void};
+use std::ffi::c_int;
 use std::num::NonZeroUsize;
 
 #[doc(inline)]
@@ -214,19 +214,4 @@ where
 {
     from.try_into()
         .map_err(|_| ErrorStack::internal_error_str("int overflow"))
-}
-
-unsafe extern "C" fn free_data_box<T>(
-    _parent: *mut c_void,
-    ptr: *mut c_void,
-    _ad: *mut ffi::CRYPTO_EX_DATA,
-    _idx: c_int,
-    _argl: c_long,
-    _argp: *mut c_void,
-) {
-    if !ptr.is_null() {
-        unsafe {
-            drop(Box::<T>::from_raw(ptr.cast::<T>()));
-        }
-    }
 }

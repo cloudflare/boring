@@ -20,7 +20,6 @@ use std::net::IpAddr;
 use std::path::Path;
 use std::ptr;
 use std::str;
-use std::sync::LazyLock;
 
 use crate::asn1::{
     Asn1BitStringRef, Asn1IntegerRef, Asn1Object, Asn1ObjectRef, Asn1StringRef, Asn1TimeRef,
@@ -29,18 +28,17 @@ use crate::asn1::{
 use crate::bio::{MemBio, MemBioSlice};
 use crate::conf::ConfRef;
 use crate::error::ErrorStack;
-use crate::ex_data::Index;
+use crate::ex_data::ex_data_indexes;
+use crate::ffi;
 use crate::hash::{DigestBytes, MessageDigest};
 use crate::nid::Nid;
 use crate::pkey::{HasPrivate, HasPublic, PKey, PKeyRef, Public};
-use crate::ssl::SslRef;
 use crate::stack::{Stack, StackRef, Stackable};
 use crate::string::OpensslString;
 use crate::try_int;
 use crate::util::ForeignTypeRefExt;
 use crate::x509::verify::{X509CheckFlags, X509VerifyParam, X509VerifyParamRef};
 use crate::{cvt, cvt_n, cvt_p};
-use crate::{ffi, free_data_box};
 
 pub mod extension;
 pub mod store;
@@ -49,14 +47,11 @@ pub mod verify;
 #[cfg(test)]
 mod tests;
 
-static STORE_INDEX: LazyLock<Index<X509StoreContext, store::X509Store>> =
-    LazyLock::new(|| X509StoreContext::new_ex_index().unwrap());
-
-static CERT_INDEX: LazyLock<Index<X509StoreContext, X509>> =
-    LazyLock::new(|| X509StoreContext::new_ex_index().unwrap());
-
-static CERT_CHAIN_INDEX: LazyLock<Index<X509StoreContext, Stack<X509>>> =
-    LazyLock::new(|| X509StoreContext::new_ex_index().unwrap());
+ex_data_indexes! {
+    static STORE_INDEX: X509StoreContext => store::X509Store,
+    static CERT_INDEX: X509StoreContext => X509,
+    static CERT_CHAIN_INDEX: X509StoreContext => Stack<X509>,
+}
 
 foreign_type_and_impl_send_sync! {
     type CType = ffi::X509_STORE_CTX;
@@ -66,32 +61,7 @@ foreign_type_and_impl_send_sync! {
     pub struct X509StoreContext;
 }
 
-static SSL_INDEX: LazyLock<Index<X509StoreContext, SslRef>> = LazyLock::new(|| unsafe {
-    let index = cvt_n(ffi::SSL_get_ex_data_X509_STORE_CTX_idx())
-        .expect("BUG: store context SSL index missing");
-    Index::from_raw(index)
-});
-
-fn assert_owned_ex_data_index<T>(index: Index<X509StoreContext, T>) {
-    if index.as_raw() == SSL_INDEX.as_raw() {
-        panic_borrowed_ssl_ex_data();
-    }
-}
-
-#[cold]
-#[inline(never)]
-fn panic_borrowed_ssl_ex_data() -> ! {
-    panic!("cannot take ownership of borrowed SSL extra data");
-}
-
 impl X509StoreContext {
-    /// Returns the index which can be used to obtain a reference to the `Ssl` associated with a
-    /// context.
-    #[corresponds(SSL_get_ex_data_X509_STORE_CTX_idx)]
-    pub fn ssl_idx() -> Result<Index<X509StoreContext, SslRef>, ErrorStack> {
-        Ok(*SSL_INDEX)
-    }
-
     /// Creates a new `X509StoreContext` instance.
     #[corresponds(X509_STORE_CTX_new)]
     pub fn new() -> Result<X509StoreContext, ErrorStack> {
@@ -100,76 +70,9 @@ impl X509StoreContext {
             cvt_p(ffi::X509_STORE_CTX_new()).map(|p| X509StoreContext::from_ptr(p))
         }
     }
-
-    /// Returns a new extra data index.
-    ///
-    /// Each invocation of this function is guaranteed to return a distinct index. These can be used
-    /// to store data in the context that can be retrieved later by callbacks, for example.
-    #[corresponds(SSL_CTX_get_ex_new_index)]
-    pub fn new_ex_index<T>() -> Result<Index<X509StoreContext, T>, ErrorStack>
-    where
-        T: 'static + Sync + Send,
-    {
-        unsafe {
-            ffi::init();
-            let idx = cvt_n(get_new_x509_store_ctx_idx(Some(free_data_box::<T>)))?;
-            Ok(Index::from_raw(idx))
-        }
-    }
 }
 
 impl X509StoreContextRef {
-    /// Returns the SSL connection associated with this store context, if any.
-    #[must_use]
-    pub fn ssl(&self) -> Option<&SslRef> {
-        self.ex_data(*SSL_INDEX)
-    }
-
-    /// Returns application data pertaining to an `X509` store context.
-    #[corresponds(X509_STORE_CTX_get_ex_data)]
-    #[must_use]
-    pub fn ex_data<T>(&self, index: Index<X509StoreContext, T>) -> Option<&T> {
-        unsafe {
-            ffi::X509_STORE_CTX_get_ex_data(self.as_ptr(), index.as_raw())
-                .cast::<T>()
-                .as_ref()
-        }
-    }
-
-    /// Returns a mutable reference to the extra data at the specified index.
-    #[corresponds(X509_STORE_CTX_get_ex_data)]
-    pub fn ex_data_mut<T>(&mut self, index: Index<X509StoreContext, T>) -> Option<&mut T> {
-        unsafe {
-            ffi::X509_STORE_CTX_get_ex_data(self.as_ptr(), index.as_raw())
-                .cast::<T>()
-                .as_mut()
-        }
-    }
-
-    /// Sets or overwrites the extra data at the specified index.
-    ///
-    /// This can be used to provide data to callbacks registered with the context. Use the
-    /// `Ssl::new_ex_index` method to create an `Index`.
-    #[corresponds(X509_STORE_CTX_set_ex_data)]
-    pub fn set_ex_data<T>(&mut self, index: Index<X509StoreContext, T>, data: T) {
-        assert_owned_ex_data_index(index);
-        if let Some(old) = self.ex_data_mut(index) {
-            *old = data;
-
-            return;
-        }
-
-        unsafe {
-            let data = Box::new(data);
-
-            ffi::X509_STORE_CTX_set_ex_data(
-                self.as_ptr(),
-                index.as_raw(),
-                Box::into_raw(data).cast(),
-            );
-        }
-    }
-
     /// Returns the verify result of the context.
     #[corresponds(X509_STORE_CTX_get_error)]
     pub fn verify_result(&self) -> X509VerifyResult {
@@ -1841,8 +1744,4 @@ unsafe fn X509_OBJECT_free(x: *mut ffi::X509_OBJECT) {
         ffi::X509_OBJECT_free_contents(x);
         ffi::OPENSSL_free(x.cast());
     }
-}
-
-unsafe fn get_new_x509_store_ctx_idx(f: ffi::CRYPTO_EX_free) -> c_int {
-    unsafe { ffi::X509_STORE_CTX_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, f) }
 }

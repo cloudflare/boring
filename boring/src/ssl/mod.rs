@@ -59,8 +59,6 @@
 //! ```
 use foreign_types::{ForeignType, ForeignTypeRef, Opaque};
 use openssl_macros::corresponds;
-use std::any::TypeId;
-use std::collections::HashMap;
 use std::convert::TryInto;
 use std::ffi::{c_char, c_int, c_uchar, c_uint};
 use std::ffi::{CStr, CString};
@@ -75,12 +73,13 @@ use std::path::Path;
 use std::ptr::{self, NonNull};
 use std::slice;
 use std::str;
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::Arc;
 
 use crate::dh::DhRef;
 use crate::ec::EcKeyRef;
 use crate::error::ErrorStack;
-use crate::ex_data::Index;
+use crate::ex_data::ex_data_indexes;
+use crate::ffi;
 use crate::hmac::HmacCtxRef;
 use crate::nid::Nid;
 #[cfg(feature = "rpk")]
@@ -100,8 +99,7 @@ use crate::x509::verify::X509VerifyParamRef;
 use crate::x509::{
     X509Name, X509Ref, X509StoreContextRef, X509VerifyError, X509VerifyResult, X509,
 };
-use crate::{cvt, cvt_0i, cvt_n, cvt_p, init};
-use crate::{ffi, free_data_box};
+use crate::{cvt, cvt_0i, cvt_p, init};
 
 pub use self::async_callbacks::{
     AsyncPrivateKeyMethod, AsyncPrivateKeyMethodError, AsyncSelectCertError, BoxCustomVerifyFinish,
@@ -491,16 +489,11 @@ impl NameType {
     }
 }
 
-static INDEXES: LazyLock<Mutex<HashMap<TypeId, c_int>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
-static SSL_INDEXES: LazyLock<Mutex<HashMap<TypeId, c_int>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
-static SESSION_CTX_INDEX: LazyLock<Index<Ssl, SslContext>> =
-    LazyLock::new(|| Ssl::new_ex_index().unwrap());
-static X509_FLAG_INDEX: LazyLock<Index<SslContext, bool>> =
-    LazyLock::new(|| SslContext::new_ex_index().unwrap());
-static SHARED_CERT_STORE_INDEX: LazyLock<Index<SslContext, bool>> =
-    LazyLock::new(|| SslContext::new_ex_index().unwrap());
+ex_data_indexes! {
+    static SESSION_CTX_INDEX: Ssl => SslContext,
+    static X509_FLAG_INDEX: SslContext => bool,
+    static SHARED_CERT_STORE_INDEX: SslContext => bool,
+}
 
 #[cold]
 #[inline(never)]
@@ -1206,7 +1199,7 @@ impl SslContextBuilder {
 
             let callback_index = SslContext::cached_ex_index::<F>();
 
-            self.ctx.replace_ex_data(callback_index, callback);
+            self.replace_ex_data(callback_index, callback);
             let callback = self.ctx.ex_data(callback_index).unwrap();
 
             let arg = ptr::from_ref(callback).cast_mut().cast();
@@ -2076,28 +2069,6 @@ impl SslContextBuilder {
         }
     }
 
-    /// Sets the extra data at the specified index.
-    ///
-    /// This can be used to provide data to callbacks registered with the context. Use the
-    /// `SslContext::new_ex_index` method to create an `Index`.
-    #[corresponds(SSL_CTX_set_ex_data)]
-    pub fn set_ex_data<T>(&mut self, index: Index<SslContext, T>, data: T) {
-        unsafe {
-            self.ctx.replace_ex_data(index, data);
-        }
-    }
-
-    /// Sets or overwrites the extra data at the specified index.
-    ///
-    /// This can be used to provide data to callbacks registered with the context. Use the
-    /// `SslContext::new_ex_index` method to create an `Index`.
-    ///
-    /// Any previous value will be returned and replaced by the new one.
-    #[corresponds(SSL_CTX_set_ex_data)]
-    pub fn replace_ex_data<T>(&mut self, index: Index<SslContext, T>, data: T) -> Option<T> {
-        unsafe { self.ctx.replace_ex_data(index, data) }
-    }
-
     /// Sets the context's session cache size limit, returning the previous limit.
     ///
     /// A value of 0 means that the cache size is unbounded.
@@ -2286,37 +2257,6 @@ impl SslContext {
         SslContextBuilder::new(method)
     }
 
-    /// Returns a new extra data index.
-    ///
-    /// Each invocation of this function is guaranteed to return a distinct index. These can be used
-    /// to store data in the context that can be retrieved later by callbacks, for example.
-    #[corresponds(SSL_CTX_get_ex_new_index)]
-    pub fn new_ex_index<T>() -> Result<Index<SslContext, T>, ErrorStack>
-    where
-        T: 'static + Sync + Send,
-    {
-        unsafe {
-            ffi::init();
-            let idx = cvt_n(get_new_idx(Some(free_data_box::<T>)))?;
-            Ok(Index::from_raw(idx))
-        }
-    }
-
-    // FIXME should return a result?
-    fn cached_ex_index<T>() -> Index<SslContext, T>
-    where
-        T: 'static + Sync + Send,
-    {
-        unsafe {
-            let idx = *INDEXES
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .entry(TypeId::of::<T>())
-                .or_insert_with(|| SslContext::new_ex_index::<T>().unwrap().as_raw());
-            Index::from_raw(idx)
-        }
-    }
-
     /// Gets the list of supported ciphers for protocols before TLSv1.3.
     ///
     /// See [`ciphers`] for details on the format
@@ -2388,56 +2328,6 @@ impl SslContextRef {
         }
     }
 
-    /// Returns a reference to the extra data at the specified index.
-    #[corresponds(SSL_CTX_get_ex_data)]
-    #[must_use]
-    pub fn ex_data<T>(&self, index: Index<SslContext, T>) -> Option<&T> {
-        unsafe {
-            let data = ffi::SSL_CTX_get_ex_data(self.as_ptr(), index.as_raw());
-            if data.is_null() {
-                None
-            } else {
-                Some(&*(data as *const T))
-            }
-        }
-    }
-
-    // Unsafe because SSL contexts are not guaranteed to be unique, we call
-    // this only from SslContextBuilder.
-    #[corresponds(SSL_CTX_get_ex_data)]
-    unsafe fn ex_data_mut<T>(&mut self, index: Index<SslContext, T>) -> Option<&mut T> {
-        unsafe {
-            ffi::SSL_CTX_get_ex_data(self.as_ptr(), index.as_raw())
-                .cast::<T>()
-                .as_mut()
-        }
-    }
-
-    // Unsafe because SSL contexts are not guaranteed to be unique, we call
-    // this only from SslContextBuilder.
-    #[corresponds(SSL_CTX_set_ex_data)]
-    unsafe fn set_ex_data<T>(&mut self, index: Index<SslContext, T>, data: T) {
-        unsafe {
-            let data = Box::into_raw(Box::new(data));
-            ffi::SSL_CTX_set_ex_data(self.as_ptr(), index.as_raw(), data.cast());
-        }
-    }
-
-    // Unsafe because SSL contexts are not guaranteed to be unique, we call
-    // this only from SslContextBuilder.
-    #[corresponds(SSL_CTX_set_ex_data)]
-    unsafe fn replace_ex_data<T>(&mut self, index: Index<SslContext, T>, data: T) -> Option<T> {
-        unsafe {
-            if let Some(old) = self.ex_data_mut(index) {
-                return Some(mem::replace(old, data));
-            }
-
-            self.set_ex_data(index, data);
-
-            None
-        }
-    }
-
     /// Adds a session to the context's cache.
     ///
     /// Returns `true` if the session was successfully added to the cache, and `false` if it was already present.
@@ -2496,9 +2386,8 @@ impl SslContextRef {
     /// X.509 certificates with an object configured with this method.
     /// You most probably don't need it.
     pub unsafe fn assume_x509(&mut self) {
-        unsafe {
-            self.replace_ex_data(*X509_FLAG_INDEX, true);
-        }
+        crate::ex_data::try_set::<Self, bool>(self, *X509_FLAG_INDEX, true)
+            .expect("failed to set X.509 support flag");
     }
 
     /// Returns `true` if context is configured for X.509 certificates.
@@ -2910,42 +2799,6 @@ impl fmt::Debug for Ssl {
 }
 
 impl Ssl {
-    /// Returns a new extra data index.
-    ///
-    /// Each invocation of this function is guaranteed to return a distinct index. These can be used
-    /// to store data in the context that can be retrieved later by callbacks, for example.
-    #[corresponds(SSL_get_ex_new_index)]
-    pub fn new_ex_index<T>() -> Result<Index<Ssl, T>, ErrorStack>
-    where
-        T: 'static + Sync + Send,
-    {
-        unsafe {
-            ffi::init();
-            let idx = cvt_n(get_new_ssl_idx(Some(free_data_box::<T>)))?;
-            Ok(Index::from_raw(idx))
-        }
-    }
-
-    /// Returns the process-wide extra data index associated with `T`.
-    ///
-    /// The index is allocated lazily on first use and reused by subsequent calls for the same
-    /// type. Callers must coordinate all uses of a given `T`, since they share one slot on every
-    /// [`Ssl`].
-    // FIXME should return a result?
-    pub fn cached_ex_index<T>() -> Index<Ssl, T>
-    where
-        T: 'static + Sync + Send,
-    {
-        unsafe {
-            let idx = *SSL_INDEXES
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .entry(TypeId::of::<T>())
-                .or_insert_with(|| Ssl::new_ex_index::<T>().unwrap().as_raw());
-            Index::from_raw(idx)
-        }
-    }
-
     /// Creates a new [`Ssl`].
     #[corresponds(SSL_new)]
     pub fn new(ctx: &SslContextRef) -> Result<Ssl, ErrorStack> {
@@ -3823,67 +3676,6 @@ impl SslRef {
     #[must_use]
     pub fn is_server(&self) -> bool {
         unsafe { SSL_is_server(self.as_ptr()) != 0 }
-    }
-
-    /// Sets the extra data at the specified index.
-    ///
-    /// This can be used to provide data to callbacks registered with the context. Use the
-    /// `Ssl::new_ex_index` method to create an `Index`.
-    ///
-    /// Note that if this method is called multiple times with the same index, any previous
-    /// value stored in the `SslContextBuilder` will be leaked.
-    #[corresponds(SSL_set_ex_data)]
-    pub fn set_ex_data<T>(&mut self, index: Index<Ssl, T>, data: T) {
-        if let Some(old) = self.ex_data_mut(index) {
-            *old = data;
-            return;
-        }
-
-        unsafe {
-            let data = Box::into_raw(Box::new(data));
-            ffi::SSL_set_ex_data(self.as_ptr(), index.as_raw(), data.cast());
-        }
-    }
-
-    /// Sets or overwrites the extra data at the specified index.
-    ///
-    /// This can be used to provide data to callbacks registered with the context. Use the
-    /// `Ssl::new_ex_index` method to create an `Index`.
-    ///
-    /// The previous value, if any, will be returned.
-    #[corresponds(SSL_set_ex_data)]
-    pub fn replace_ex_data<T>(&mut self, index: Index<Ssl, T>, data: T) -> Option<T> {
-        if let Some(old) = self.ex_data_mut(index) {
-            return Some(mem::replace(old, data));
-        }
-
-        self.set_ex_data(index, data);
-
-        None
-    }
-
-    /// Returns a reference to the extra data at the specified index.
-    #[corresponds(SSL_get_ex_data)]
-    #[must_use]
-    pub fn ex_data<T>(&self, index: Index<Ssl, T>) -> Option<&T> {
-        unsafe {
-            let data = ffi::SSL_get_ex_data(self.as_ptr(), index.as_raw());
-            if data.is_null() {
-                None
-            } else {
-                Some(&*(data as *const T))
-            }
-        }
-    }
-
-    /// Returns a mutable reference to the extra data at the specified index.
-    #[corresponds(SSL_get_ex_data)]
-    pub fn ex_data_mut<T>(&mut self, index: Index<Ssl, T>) -> Option<&mut T> {
-        unsafe {
-            ffi::SSL_get_ex_data(self.as_ptr(), index.as_raw())
-                .cast::<T>()
-                .as_mut()
-        }
     }
 
     /// Copies the contents of the last Finished message sent to the peer into the provided buffer.
@@ -4870,14 +4662,6 @@ pub trait CertificateCompressor: Send + Sync + 'static {
 }
 
 use crate::ffi::{SSL_CTX_up_ref, SSL_SESSION_get_master_key, SSL_SESSION_up_ref, SSL_is_server};
-
-unsafe fn get_new_idx(f: ffi::CRYPTO_EX_free) -> c_int {
-    unsafe { ffi::SSL_CTX_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, f) }
-}
-
-unsafe fn get_new_ssl_idx(f: ffi::CRYPTO_EX_free) -> c_int {
-    unsafe { ffi::SSL_get_ex_new_index(0, ptr::null_mut(), ptr::null_mut(), None, f) }
-}
 
 fn path_to_cstring(path: &Path) -> Result<CString, ErrorStack> {
     CString::new(path.as_os_str().as_encoded_bytes()).map_err(ErrorStack::internal_error)
