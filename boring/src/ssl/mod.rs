@@ -114,6 +114,7 @@ pub use self::connector::{
 pub use self::credential::{SslCredential, SslCredentialBuilder, SslCredentialRef};
 pub use self::ech::{SslEchKeys, SslEchKeysRef};
 pub use self::error::{Error, ErrorCode, HandshakeError};
+pub use self::pkm::{PrivateKeyMethod, PrivateKeyMethodError};
 
 mod async_callbacks;
 mod bio;
@@ -124,6 +125,7 @@ mod credential;
 mod ech;
 mod error;
 mod mut_only;
+mod pkm;
 #[cfg(test)]
 mod test;
 
@@ -1801,44 +1803,6 @@ impl SslContextBuilder {
         self.try_callbacks_mut()?
             .insert_certificate_compressor(compressor);
         Ok(())
-    }
-
-    /// Configures a custom private key method on the context.
-    ///
-    /// See [`PrivateKeyMethod`] for more details.
-    #[corresponds(SSL_CTX_set_private_key_method)]
-    pub fn set_private_key_method<M>(&mut self, method: M)
-    where
-        M: PrivateKeyMethod,
-    {
-        struct ContextPrivateKeyMethodSource;
-
-        impl callbacks::PrivateKeyMethodSource for ContextPrivateKeyMethodSource {
-            type Owner = SslContext;
-
-            fn get_owner(ssl: &SslRef) -> Option<Self::Owner> {
-                Some(ssl.ssl_context().to_owned())
-            }
-
-            fn get_callback(owner: &Self::Owner) -> Option<&dyn PrivateKeyMethod> {
-                owner
-                    .callbacks()
-                    .and_then(|callbacks| callbacks.private_key_method.as_deref())
-            }
-        }
-
-        unsafe {
-            self.callbacks_mut().private_key_method = Some(Box::new(method));
-
-            ffi::SSL_CTX_set_private_key_method(
-                self.as_ptr(),
-                &ffi::SSL_PRIVATE_KEY_METHOD {
-                    sign: Some(callbacks::raw_sign::<ContextPrivateKeyMethodSource>),
-                    decrypt: Some(callbacks::raw_decrypt::<ContextPrivateKeyMethodSource>),
-                    complete: Some(callbacks::raw_complete::<ContextPrivateKeyMethodSource>),
-                },
-            );
-        }
     }
 
     /// Checks for consistency between the private key and certificate.
@@ -4535,77 +4499,6 @@ bitflags! {
         /// A close notify message has been received from the peer.
         const RECEIVED = ffi::SSL_RECEIVED_SHUTDOWN;
     }
-}
-
-/// Describes private key hooks. This is used to off-load signing operations to
-/// a custom, potentially asynchronous, backend. Metadata about the key such as
-/// the type and size are parsed out of the certificate.
-///
-/// Corresponds to [`ssl_private_key_method_st`].
-///
-/// [`ssl_private_key_method_st`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#ssl_private_key_method_st
-pub trait PrivateKeyMethod: Send + Sync + 'static {
-    /// Signs the message `input` using the specified signature algorithm.
-    ///
-    /// On success, it returns `Ok(written)` where `written` is the number of
-    /// bytes written into `output`. On failure, it returns
-    /// `Err(PrivateKeyMethodError::FAILURE)`. If the operation has not completed,
-    /// it returns `Err(PrivateKeyMethodError::RETRY)`.
-    ///
-    /// The caller should arrange for the high-level operation on `ssl` to be
-    /// retried when the operation is completed. This will result in a call to
-    /// [`Self::complete`].
-    fn sign(
-        &self,
-        ssl: &mut SslRef,
-        input: &[u8],
-        signature_algorithm: SslSignatureAlgorithm,
-        output: &mut [u8],
-    ) -> Result<usize, PrivateKeyMethodError>;
-
-    /// Decrypts `input`.
-    ///
-    /// On success, it returns `Ok(written)` where `written` is the number of
-    /// bytes written into `output`. On failure, it returns
-    /// `Err(PrivateKeyMethodError::FAILURE)`. If the operation has not completed,
-    /// it returns `Err(PrivateKeyMethodError::RETRY)`.
-    ///
-    /// The caller should arrange for the high-level operation on `ssl` to be
-    /// retried when the operation is completed. This will result in a call to
-    /// [`Self::complete`].
-    ///
-    /// This method only works with RSA keys and should perform a raw RSA
-    /// decryption operation with no padding.
-    // NOTE(nox): What does it mean that it is an error?
-    fn decrypt(
-        &self,
-        ssl: &mut SslRef,
-        input: &[u8],
-        output: &mut [u8],
-    ) -> Result<usize, PrivateKeyMethodError>;
-
-    /// Completes a pending operation.
-    ///
-    /// On success, it returns `Ok(written)` where `written` is the number of
-    /// bytes written into `output`. On failure, it returns
-    /// `Err(PrivateKeyMethodError::FAILURE)`. If the operation has not completed,
-    /// it returns `Err(PrivateKeyMethodError::RETRY)`.
-    ///
-    /// This method may be called arbitrarily many times before completion.
-    fn complete(&self, ssl: &mut SslRef, output: &mut [u8])
-        -> Result<usize, PrivateKeyMethodError>;
-}
-
-/// An error returned from a private key method.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct PrivateKeyMethodError(ffi::ssl_private_key_result_t);
-
-impl PrivateKeyMethodError {
-    /// A fatal error occurred and the handshake should be terminated.
-    pub const FAILURE: Self = Self(ffi::ssl_private_key_result_t::ssl_private_key_failure);
-
-    /// The operation could not be completed and should be retried later.
-    pub const RETRY: Self = Self(ffi::ssl_private_key_result_t::ssl_private_key_retry);
 }
 
 /// Describes certificate compression algorithm. Implementation MUST implement transformation at least in one direction.

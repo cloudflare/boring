@@ -2,8 +2,6 @@
 use crate::cvt_p;
 use crate::error::ErrorStack;
 use crate::pkey::{PKeyRef, Private};
-use crate::ssl::callbacks;
-use crate::ssl::{PrivateKeyMethod, SslRef};
 use crate::{cvt_0i, ffi};
 use foreign_types::{ForeignType, ForeignTypeRef};
 use openssl_macros::corresponds;
@@ -52,45 +50,6 @@ impl SslCredentialBuilder {
             cvt_0i(ffi::SSL_CREDENTIAL_set1_private_key(
                 self.0.as_ptr(),
                 private_key.as_ptr(),
-            ))
-            .map(|_| ())
-        }
-    }
-
-    /// Configures a custom private key method on the credential.
-    ///
-    /// See [`PrivateKeyMethod`] for more details.
-    #[corresponds(SSL_CREDENTIAL_set_private_key_method)]
-    pub fn set_private_key_method<M>(&mut self, method: M) -> Result<(), ErrorStack>
-    where
-        M: PrivateKeyMethod,
-    {
-        struct CredentialPrivateKeyMethodSource;
-
-        impl callbacks::PrivateKeyMethodSource for CredentialPrivateKeyMethodSource {
-            type Owner = SslCredential;
-
-            fn get_owner(ssl: &SslRef) -> Option<Self::Owner> {
-                Some(ssl.selected_credential()?.to_owned())
-            }
-
-            fn get_callback(owner: &Self::Owner) -> Option<&dyn PrivateKeyMethod> {
-                owner
-                    .ownership()
-                    .and_then(|ownership| ownership.private_key_method.as_deref())
-            }
-        }
-
-        unsafe {
-            self.try_ownership_mut()?.private_key_method = Some(Box::new(method));
-
-            cvt_0i(ffi::SSL_CREDENTIAL_set_private_key_method(
-                self.0.as_ptr(),
-                &ffi::SSL_PRIVATE_KEY_METHOD {
-                    sign: Some(callbacks::raw_sign::<CredentialPrivateKeyMethodSource>),
-                    decrypt: Some(callbacks::raw_decrypt::<CredentialPrivateKeyMethodSource>),
-                    complete: Some(callbacks::raw_complete::<CredentialPrivateKeyMethodSource>),
-                },
             ))
             .map(|_| ())
         }
