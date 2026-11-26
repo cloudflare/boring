@@ -11,7 +11,7 @@ use crate::ffi;
 use crate::hmac::HmacCtxRef;
 use crate::ssl::TicketKeyCallbackResult;
 use crate::symm::CipherCtxRef;
-use crate::x509::{X509StoreContext, X509StoreContextRef};
+use crate::x509::X509StoreContextRef;
 use foreign_types::ForeignType;
 use foreign_types::ForeignTypeRef;
 use libc::{c_char, c_int, c_uchar, c_uint, c_void};
@@ -29,11 +29,10 @@ where
     // SAFETY: boring provides valid inputs.
     let ctx = unsafe { X509StoreContextRef::from_ptr_mut(x509_ctx) };
 
-    let ssl_idx = X509StoreContext::ssl_idx().expect("BUG: store context ssl index missing");
     let verify_idx = SslContext::cached_ex_index::<F>();
 
     let verify = ctx
-        .ex_data(ssl_idx)
+        .ssl()
         .expect("BUG: store context missing ssl")
         .ssl_context()
         .ex_data(verify_idx)
@@ -77,11 +76,10 @@ where
     // SAFETY: boring provides valid inputs.
     let ctx = unsafe { X509StoreContextRef::from_ptr_mut(x509_ctx) };
 
-    let ssl_idx = X509StoreContext::ssl_idx().expect("BUG: store context ssl index missing");
     let verify_idx = SslContext::cached_ex_index::<F>();
 
     let verify = ctx
-        .ex_data(ssl_idx)
+        .ssl()
         .expect("BUG: store context missing ssl")
         .ssl_context()
         .ex_data(verify_idx)
@@ -226,13 +224,11 @@ where
     // SAFETY: boring provides valid inputs.
     let ctx = unsafe { X509StoreContextRef::from_ptr_mut(x509_ctx) };
 
-    let ssl_idx = X509StoreContext::ssl_idx().expect("BUG: store context ssl index missing");
-
     // NOTE(nox): I'm pretty sure this Arc<F> is unnecessary here as there is
     // no way to get a `&mut SslRef` from a `&mut X509StoreContextRef`, and I
     // don't understand how this callback is different from `raw_verify` above.
     let callback = ctx
-        .ex_data(ssl_idx)
+        .ssl()
         .expect("BUG: store context missing ssl")
         .ex_data(Ssl::cached_ex_index::<Arc<F>>())
         .expect("BUG: ssl verify callback missing")

@@ -66,12 +66,30 @@ foreign_type_and_impl_send_sync! {
     pub struct X509StoreContext;
 }
 
+static SSL_INDEX: LazyLock<Index<X509StoreContext, SslRef>> = LazyLock::new(|| unsafe {
+    let index = cvt_n(ffi::SSL_get_ex_data_X509_STORE_CTX_idx())
+        .expect("BUG: store context SSL index missing");
+    Index::from_raw(index)
+});
+
+fn assert_owned_ex_data_index<T>(index: Index<X509StoreContext, T>) {
+    if index.as_raw() == SSL_INDEX.as_raw() {
+        panic_borrowed_ssl_ex_data();
+    }
+}
+
+#[cold]
+#[inline(never)]
+fn panic_borrowed_ssl_ex_data() -> ! {
+    panic!("cannot take ownership of borrowed SSL extra data");
+}
+
 impl X509StoreContext {
     /// Returns the index which can be used to obtain a reference to the `Ssl` associated with a
     /// context.
     #[corresponds(SSL_get_ex_data_X509_STORE_CTX_idx)]
     pub fn ssl_idx() -> Result<Index<X509StoreContext, SslRef>, ErrorStack> {
-        unsafe { cvt_n(ffi::SSL_get_ex_data_X509_STORE_CTX_idx()).map(|idx| Index::from_raw(idx)) }
+        Ok(*SSL_INDEX)
     }
 
     /// Creates a new `X509StoreContext` instance.
@@ -101,6 +119,12 @@ impl X509StoreContext {
 }
 
 impl X509StoreContextRef {
+    /// Returns the SSL connection associated with this store context, if any.
+    #[must_use]
+    pub fn ssl(&self) -> Option<&SslRef> {
+        self.ex_data(*SSL_INDEX)
+    }
+
     /// Returns application data pertaining to an `X509` store context.
     #[corresponds(X509_STORE_CTX_get_ex_data)]
     #[must_use]
@@ -128,6 +152,7 @@ impl X509StoreContextRef {
     /// `Ssl::new_ex_index` method to create an `Index`.
     #[corresponds(X509_STORE_CTX_set_ex_data)]
     pub fn set_ex_data<T>(&mut self, index: Index<X509StoreContext, T>, data: T) {
+        assert_owned_ex_data_index(index);
         if let Some(old) = self.ex_data_mut(index) {
             *old = data;
 

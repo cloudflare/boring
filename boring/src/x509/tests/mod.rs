@@ -23,6 +23,14 @@ fn pkey() -> PKey<Private> {
     PKey::from_rsa(rsa).unwrap()
 }
 
+#[test]
+fn can_mutably_borrow_ssl_ex_data() {
+    let mut context = X509StoreContext::new().unwrap();
+    let index = X509StoreContext::ssl_idx().unwrap();
+
+    assert!(context.ex_data_mut(index).is_none());
+}
+
 fn cert_with_dns_name(dns_name: &str) -> X509 {
     let mut builder = X509::builder().unwrap();
     let subject_alternative_name = SubjectAlternativeName::new()
