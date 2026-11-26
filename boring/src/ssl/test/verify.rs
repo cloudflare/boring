@@ -1,8 +1,10 @@
 use super::server::Server;
 use crate::hash::MessageDigest;
-use crate::ssl::{SslFiletype, SslOptions, SslVerifyMode, SslVersion};
+use crate::ssl::{
+    SslContextBuilder, SslFiletype, SslMethod, SslOptions, SslVerifyMode, SslVersion,
+};
 use crate::x509::store::X509StoreBuilder;
-use crate::x509::X509;
+use crate::x509::{X509StoreContextRef, X509};
 use hex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -125,6 +127,41 @@ fn callback() {
 
     client.connect();
     assert!(CALLED_BACK.load(Ordering::SeqCst));
+}
+
+#[test]
+fn callback_uses_initial_context_after_context_swap() {
+    static INITIAL_CALLED: AtomicBool = AtomicBool::new(false);
+    static REPLACEMENT_CALLED: AtomicBool = AtomicBool::new(false);
+
+    type Callback = fn(bool, &mut X509StoreContextRef) -> bool;
+
+    fn initial(_: bool, _: &mut X509StoreContextRef) -> bool {
+        INITIAL_CALLED.store(true, Ordering::SeqCst);
+        true
+    }
+
+    fn replacement(_: bool, _: &mut X509StoreContextRef) -> bool {
+        REPLACEMENT_CALLED.store(true, Ordering::SeqCst);
+        true
+    }
+
+    let server = Server::builder().build();
+    let mut client = server.client();
+    client
+        .ctx()
+        .set_verify_callback(SslVerifyMode::PEER, initial as Callback);
+    let mut client = client.build().builder();
+
+    let mut replacement_context = SslContextBuilder::new(SslMethod::tls()).unwrap();
+    replacement_context.set_verify_callback(SslVerifyMode::PEER, replacement as Callback);
+    let replacement_context = replacement_context.build();
+    client.ssl().set_ssl_context(&replacement_context).unwrap();
+
+    client.connect();
+
+    assert!(INITIAL_CALLED.load(Ordering::SeqCst));
+    assert!(!REPLACEMENT_CALLED.load(Ordering::SeqCst));
 }
 
 #[test]

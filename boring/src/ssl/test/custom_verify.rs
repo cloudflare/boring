@@ -1,5 +1,7 @@
 use super::server::Server;
-use crate::ssl::{ErrorCode, HandshakeError, SslAlert, SslVerifyMode};
+use crate::ssl::{
+    ErrorCode, HandshakeError, SslAlert, SslContextBuilder, SslMethod, SslRef, SslVerifyMode,
+};
 use crate::x509::X509StoreContext;
 use crate::{hash::MessageDigest, ssl::SslVerifyError};
 use hex;
@@ -174,6 +176,41 @@ fn callback() {
 
     client.connect();
     assert!(CALLED_BACK.load(Ordering::SeqCst));
+}
+
+#[test]
+fn callback_uses_initial_context_after_context_swap() {
+    static INITIAL_CALLED: AtomicBool = AtomicBool::new(false);
+    static REPLACEMENT_CALLED: AtomicBool = AtomicBool::new(false);
+
+    type Callback = fn(&mut SslRef) -> Result<(), SslVerifyError>;
+
+    fn initial(_: &mut SslRef) -> Result<(), SslVerifyError> {
+        INITIAL_CALLED.store(true, Ordering::SeqCst);
+        Ok(())
+    }
+
+    fn replacement(_: &mut SslRef) -> Result<(), SslVerifyError> {
+        REPLACEMENT_CALLED.store(true, Ordering::SeqCst);
+        Ok(())
+    }
+
+    let server = Server::builder().build();
+    let mut client = server.client();
+    client
+        .ctx()
+        .set_custom_verify_callback(SslVerifyMode::PEER, initial as Callback);
+    let mut client = client.build().builder();
+
+    let mut replacement_context = SslContextBuilder::new(SslMethod::tls()).unwrap();
+    replacement_context.set_custom_verify_callback(SslVerifyMode::PEER, replacement as Callback);
+    let replacement_context = replacement_context.build();
+    client.ssl().set_ssl_context(&replacement_context).unwrap();
+
+    client.connect();
+
+    assert!(INITIAL_CALLED.load(Ordering::SeqCst));
+    assert!(!REPLACEMENT_CALLED.load(Ordering::SeqCst));
 }
 
 #[test]

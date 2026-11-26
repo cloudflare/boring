@@ -1,6 +1,8 @@
 use crate::hash::MessageDigest;
 use crate::ssl::test::Server;
-use crate::ssl::SslVerifyMode;
+use crate::ssl::{SslContextBuilder, SslMethod, SslVerifyMode};
+use crate::x509::X509StoreContextRef;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[test]
 fn error_when_trusted_but_callback_returns_false() {
@@ -36,6 +38,41 @@ fn no_error_when_untrusted_but_callback_returns_true() {
     });
 
     client.connect();
+}
+
+#[test]
+fn callback_uses_current_context_after_context_swap() {
+    static INITIAL_CALLED: AtomicBool = AtomicBool::new(false);
+    static REPLACEMENT_CALLED: AtomicBool = AtomicBool::new(false);
+
+    type Callback = fn(&mut X509StoreContextRef) -> bool;
+
+    fn initial(_: &mut X509StoreContextRef) -> bool {
+        INITIAL_CALLED.store(true, Ordering::SeqCst);
+        true
+    }
+
+    fn replacement(_: &mut X509StoreContextRef) -> bool {
+        REPLACEMENT_CALLED.store(true, Ordering::SeqCst);
+        true
+    }
+
+    let server = Server::builder().build();
+    let mut client = server.client();
+    client.ctx().set_verify(SslVerifyMode::PEER);
+    client.ctx().set_cert_verify_callback(initial as Callback);
+    let mut client = client.build().builder();
+
+    let mut replacement_context = SslContextBuilder::new(SslMethod::tls()).unwrap();
+    replacement_context.set_verify(SslVerifyMode::PEER);
+    replacement_context.set_cert_verify_callback(replacement as Callback);
+    let replacement_context = replacement_context.build();
+    client.ssl().set_ssl_context(&replacement_context).unwrap();
+
+    client.connect();
+
+    assert!(!INITIAL_CALLED.load(Ordering::SeqCst));
+    assert!(REPLACEMENT_CALLED.load(Ordering::SeqCst));
 }
 
 #[test]
