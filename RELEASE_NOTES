@@ -1,3 +1,7 @@
+5.6.1
+- 2026-11-27 Fix async TLS write shutdown across polls
+- 2026-11-26 Renew tokio-boring test certificate
+
 5.6.0
 - 2026-11-19 Fix credential private key method callbacks
 - 2026-11-19 Add SSL credential access APIs
