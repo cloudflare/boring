@@ -10,6 +10,7 @@ pub(crate) struct AsyncStreamBridge<S> {
     pub(crate) stream: S,
     waker: Option<Waker>,
     pub(crate) first_read: Option<Instant>,
+    pub(crate) tls_shutdown_complete: bool,
 }
 
 impl<S> AsyncStreamBridge<S> {
@@ -21,6 +22,7 @@ impl<S> AsyncStreamBridge<S> {
             stream,
             waker: None,
             first_read: None,
+            tls_shutdown_complete: false,
         }
     }
 
