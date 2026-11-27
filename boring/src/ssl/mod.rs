@@ -818,6 +818,10 @@ impl From<u16> for SslSignatureAlgorithm {
 }
 
 /// A compliance policy.
+///
+/// See [`ssl_compliance_policy_t`].
+///
+/// [`ssl_compliance_policy_t`]: https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#ssl_compliance_policy_t
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct CompliancePolicy(ffi::ssl_compliance_policy_t);
 
@@ -830,6 +834,12 @@ impl CompliancePolicy {
     /// This policy can be called even if Boring is not built with FIPS.
     pub const FIPS_202205: Self =
         Self(ffi::ssl_compliance_policy_t::ssl_compliance_policy_fips_202205);
+
+    /// Configures a TLS connection to try and be compliant with NIST requirements, but does not guarantee success.
+    /// This policy can be called even if Boring is not built with FIPS.
+    #[cfg(not(feature = "legacy-compat-deprecated"))]
+    pub const FIPS_202609: Self =
+        Self(ffi::ssl_compliance_policy_t::ssl_compliance_policy_fips_202609);
 
     /// Partially configures a TLS connection to be compliant with WPA3. Callers must enforce certificate chain requirements themselves.
     /// Use of this policy is less secure than the default and not recommended.
