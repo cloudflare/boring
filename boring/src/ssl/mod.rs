@@ -499,6 +499,17 @@ static SESSION_CTX_INDEX: LazyLock<Index<Ssl, SslContext>> =
     LazyLock::new(|| Ssl::new_ex_index().unwrap());
 static X509_FLAG_INDEX: LazyLock<Index<SslContext, bool>> =
     LazyLock::new(|| SslContext::new_ex_index().unwrap());
+static SHARED_CERT_STORE_INDEX: LazyLock<Index<SslContext, bool>> =
+    LazyLock::new(|| SslContext::new_ex_index().unwrap());
+
+#[cold]
+#[inline(never)]
+fn panic_shared_cert_store_mutation() -> ! {
+    panic!(
+        "Shared X509Store can't be mutated. Use set_cert_store_builder() instead of set_cert_store()
+            or completely finish building the cert store setting it."
+    );
+}
 
 /// An error returned from the SNI callback.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -1003,8 +1014,6 @@ impl Ssl3AlertLevel {
 /// A builder for `SslContext`s.
 pub struct SslContextBuilder {
     ctx: SslContext,
-    /// If it's not shared, it can be exposed as mutable
-    has_shared_cert_store: bool,
 }
 
 impl SslContextBuilder {
@@ -1038,7 +1047,6 @@ impl SslContextBuilder {
     pub unsafe fn from_ptr(ctx: *mut ffi::SSL_CTX) -> Self {
         Self {
             ctx: unsafe { SslContext::from_ptr(ctx) },
-            has_shared_cert_store: false,
         }
     }
 
@@ -1287,7 +1295,7 @@ impl SslContextBuilder {
     pub fn set_cert_store(&mut self, cert_store: X509Store) {
         self.ctx.check_x509();
 
-        self.has_shared_cert_store = true;
+        self.set_ex_data(*SHARED_CERT_STORE_INDEX, true);
         unsafe {
             ffi::SSL_CTX_set_cert_store(self.as_ptr(), cert_store.into_ptr());
         }
@@ -1298,7 +1306,7 @@ impl SslContextBuilder {
     pub fn set_cert_store_builder(&mut self, cert_store: X509StoreBuilder) {
         self.ctx.check_x509();
 
-        self.has_shared_cert_store = false;
+        self.set_ex_data(*SHARED_CERT_STORE_INDEX, false);
         unsafe {
             ffi::SSL_CTX_set_cert_store(self.as_ptr(), cert_store.into_ptr());
         }
@@ -1888,11 +1896,14 @@ impl SslContextBuilder {
     pub fn cert_store_mut(&mut self) -> &mut X509StoreBuilderRef {
         self.ctx.check_x509();
 
-        assert!(
-            !self.has_shared_cert_store,
-            "Shared X509Store can't be mutated. Use set_cert_store_builder() instead of set_cert_store()
-                or completely finish building the cert store setting it."
-        );
+        if self
+            .ctx
+            .ex_data(*SHARED_CERT_STORE_INDEX)
+            .copied()
+            .unwrap_or(false)
+        {
+            panic_shared_cert_store_mutation();
+        }
         // OTOH, it's not safe to return a shared &X509Store when the builder owns it exclusively
 
         unsafe { X509StoreBuilderRef::from_ptr_mut(ffi::SSL_CTX_get_cert_store(self.as_ptr())) }
