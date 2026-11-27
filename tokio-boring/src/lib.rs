@@ -133,6 +133,10 @@ impl<S> SslStreamBuilder<S> {
 /// and both the server and the client are ready for receiving and sending
 /// data. Bytes read from a `SslStream` are decrypted from `S` and bytes written
 /// to a `SslStream` are encrypted when passing through to `S`.
+///
+/// Shutting down the writer sends the local TLS close notification and shuts
+/// down the underlying writer. Continue reading to receive any remaining
+/// application data and the peer's close notification.
 #[derive(Debug)]
 pub struct SslStream<S>(ssl::SslStream<AsyncStreamBridge<S>>);
 
@@ -253,15 +257,20 @@ where
     }
 
     fn poll_shutdown(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        match self.run_in_context(ctx, |s| s.shutdown()) {
-            Ok(ShutdownResult::Sent | ShutdownResult::Received) => {}
-            Err(ref e) if e.code() == ErrorCode::ZERO_RETURN => {}
-            Err(ref e) if e.code() == ErrorCode::WANT_READ || e.code() == ErrorCode::WANT_WRITE => {
-                return Poll::Pending;
+        if !self.0.get_ref().tls_shutdown_complete {
+            match self.run_in_context(ctx, |s| s.shutdown()) {
+                Ok(ShutdownResult::Sent | ShutdownResult::Received) => {}
+                Err(ref e) if e.code() == ErrorCode::ZERO_RETURN => {}
+                Err(ref e)
+                    if e.code() == ErrorCode::WANT_READ || e.code() == ErrorCode::WANT_WRITE =>
+                {
+                    return Poll::Pending;
+                }
+                Err(e) => {
+                    return Poll::Ready(Err(e.into_io_error().unwrap_or_else(io::Error::other)));
+                }
             }
-            Err(e) => {
-                return Poll::Ready(Err(e.into_io_error().unwrap_or_else(io::Error::other)));
-            }
+            self.0.get_mut().tls_shutdown_complete = true;
         }
 
         Pin::new(&mut self.0.get_mut().stream).poll_shutdown(ctx)
